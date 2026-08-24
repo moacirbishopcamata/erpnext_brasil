@@ -46,10 +46,40 @@ class TestAliquotaTeste(unittest.TestCase):
 
 	def test_ano_posterior_com_aliquotas_informadas_nao_e_informativo(self):
 		resultado = calcular_ibs_cbs(
-			d("1000.00"), ano=2027, aliquota_ibs=d("0.001"), aliquota_cbs=d("0.088")
+			d("1000.00"),
+			ano=2027,
+			aliquota_ibs_uf=d("0.001"),
+			aliquota_ibs_mun=d("0"),
+			aliquota_cbs=d("0.088"),
 		)
 
 		self.assertFalse(resultado.informativo)
+
+
+class TestDivisaoEstadualMunicipal(unittest.TestCase):
+	"""O IBS é dual: tratá-lo como alíquota única é o erro que a rejeição 1026 acusa."""
+
+	def test_em_2026_toda_a_aliquota_esta_na_parcela_estadual(self):
+		resultado = calcular_ibs_cbs(d("1000.00"), ano=2026)
+
+		self.assertEqual(resultado.aliquota_ibs_uf, d("0.001"))
+		self.assertEqual(resultado.aliquota_ibs_mun, d("0"))
+		self.assertEqual(resultado.ibs_uf, d("1.00"))
+		self.assertEqual(resultado.ibs_mun, d("0.00"))
+
+	def test_consolidado_e_a_soma_das_parcelas(self):
+		resultado = calcular_ibs_cbs(
+			d("1000.00"),
+			ano=2030,
+			aliquota_ibs_uf=d("0.10"),
+			aliquota_ibs_mun=d("0.05"),
+			aliquota_cbs=d("0.088"),
+		)
+
+		self.assertEqual(resultado.ibs_uf, d("100.00"))
+		self.assertEqual(resultado.ibs_mun, d("50.00"))
+		self.assertEqual(resultado.ibs, d("150.00"))
+		self.assertEqual(resultado.aliquota_ibs, d("0.15"))
 
 
 class TestAliquotasNaoInventadas(unittest.TestCase):
@@ -63,7 +93,11 @@ class TestAliquotasNaoInventadas(unittest.TestCase):
 
 	def test_ano_posterior_funciona_com_aliquotas_explicitas(self):
 		resultado = calcular_ibs_cbs(
-			d("1000.00"), ano=2030, aliquota_ibs=d("0.15"), aliquota_cbs=d("0.088")
+			d("1000.00"),
+			ano=2030,
+			aliquota_ibs_uf=d("0.10"),
+			aliquota_ibs_mun=d("0.05"),
+			aliquota_cbs=d("0.088"),
 		)
 
 		self.assertEqual(resultado.ibs, d("150.00"))
@@ -83,7 +117,13 @@ class TestCalculoPorFora(unittest.TestCase):
 		"""Mesma alíquota, resultados diferentes — é a diferença estrutural da reforma."""
 		aliquota = d("0.009")
 
-		por_fora = calcular_ibs_cbs(d("1000.00"), ano=2026, aliquota_ibs=d("0"), aliquota_cbs=aliquota)
+		por_fora = calcular_ibs_cbs(
+			d("1000.00"),
+			ano=2026,
+			aliquota_ibs_uf=d("0"),
+			aliquota_ibs_mun=d("0"),
+			aliquota_cbs=aliquota,
+		)
 		base_embutida = base_por_dentro(d("1000.00"), aliquota)
 
 		self.assertEqual(por_fora.base, d("1000.00"))
@@ -122,7 +162,13 @@ class TestObrigatoriedadeNoDocumento(unittest.TestCase):
 class TestValidacaoDeAliquota(unittest.TestCase):
 	def test_percentual_em_vez_de_fracao_e_erro(self):
 		with self.assertRaises(ValueError):
-			calcular_ibs_cbs(d("1000.00"), ano=2030, aliquota_ibs=d("15"), aliquota_cbs=d("8.8"))
+			calcular_ibs_cbs(
+				d("1000.00"),
+				ano=2030,
+				aliquota_ibs_uf=d("15"),
+				aliquota_ibs_mun=d("0"),
+				aliquota_cbs=d("8.8"),
+			)
 
 
 if __name__ == "__main__":

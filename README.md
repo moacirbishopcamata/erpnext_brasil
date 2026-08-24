@@ -30,7 +30,7 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | IPI, e a regra do IPI na base do ICMS | pronto |
 | PIS/COFINS, com exclusão do ICMS da base | pronto |
 | **IBS e CBS** (reforma tributária) | pronto — ver abaixo |
-| Campos de IBS/CBS no XML da NF-e (NT 2025.002) | **não iniciado — bloqueia emissão** |
+| Grupos de IBS/CBS do layout da NF-e (grupo UB e W03) | pronto — validar contra o XSD |
 | Ligação do cálculo às linhas de imposto do ERPNext | não iniciado |
 | Retenções (IRRF, CSLL, INSS, ISS) | não iniciado |
 | Documento fiscal / NF-e | não iniciado |
@@ -130,6 +130,31 @@ Franca de Manaus, e entra o Imposto Seletivo); de 2029 a 2032 o IBS sobe enquant
 ISS descem; em 2033 ICMS e ISS se extinguem. Por isso a aritmética de ICMS, IPI e
 PIS/COFINS **continua necessária** — ela cobre o regime que ainda vigora e vai conviver
 com o novo por seis anos.
+
+### Os grupos do layout: dicionário, não string de XML
+
+`fiscal/documento/ibs_cbs_xml.py` devolve **dicionários com os nomes oficiais das tags**,
+não XML pronto. O motivo é a porta de transmissão: o ACBrLib consome INI, a ACBr API
+consome JSON, e um provedor comercial pode querer outra coisa. Emitir XML aqui obrigaria
+todo adaptador a desmontá-lo de volta — e a árvore de dicionários ainda se testa por
+igualdade, o que uma string não permite sem parser.
+
+Dois detalhes que derrubam nota inteira se errados:
+
+- **O IBS é dual.** O XML exige `vIBSUF` e `vIBSMun` separados; tratá-lo como alíquota
+  única é o erro que a rejeição 1026 acusa. Em 2026 a regra **UB18-10** exige `pIBSUF`
+  igual a `0.1000` — toda a alíquota-teste está na parcela estadual.
+- **No XML a alíquota é percentual, não fração.** Dentro do app ela é sempre fração
+  (`0.001`); no documento vai `0.1000`, com quatro casas. A conversão acontece num lugar
+  só, que é a única fronteira onde a regra "alíquota é fração" pode ser desfeita.
+
+Os totais somam os **valores já arredondados de cada item**, nunca recalculam sobre a
+base total: o validador confere o total contra a soma dos itens, e recalcular é como se
+produz a rejeição de "total diverge da soma".
+
+Ressalva: os nomes de tag foram conferidos em duas fontes independentes que descrevem a
+NT 2025.002, **não no XSD oficial**. Nome errado não gera imposto errado — gera documento
+rejeitado. Validar contra o XSD antes de emitir em produção.
 
 ### Duas regras jurídicas que o código torna explícitas
 
