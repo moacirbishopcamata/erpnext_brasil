@@ -27,8 +27,10 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Tabelas de código normativas (CST, CSOSN, origem) | pronto, embarcadas |
 | Tabelas voláteis (NCM, CFOP, LC 116) | importador versionado |
 | Aritmética de ICMS (por dentro, redução, ST/MVA, DIFAL) | pronto |
+| IPI, e a regra do IPI na base do ICMS | pronto |
+| PIS/COFINS, com exclusão do ICMS da base | pronto |
 | Ligação do cálculo às linhas de imposto do ERPNext | não iniciado |
-| IPI, PIS/COFINS e retenções | não iniciado |
+| Retenções (IRRF, CSLL, INSS, ISS) | não iniciado |
 | Documento fiscal / NF-e | não iniciado |
 | Obrigações acessórias (SPED, EFD-Reinf) | não iniciado |
 
@@ -97,6 +99,24 @@ O que o ERPNext já resolve não foi reimplementado: `included_in_print_rate` pa
 por dentro, `On Previous Row Amount` para encadear base, `category: Valuation` para
 decidir se o tributo compõe custo de estoque. O que falta ao núcleo, e está aqui, é a
 **aritmética**: gross-up do ICMS, MVA ajustada e base dupla do DIFAL.
+
+### Duas regras jurídicas que o código torna explícitas
+
+Não são detalhes de cálculo; mudam o imposto devido e, quando erradas, produzem nota
+aceita pela SEFAZ e autuação depois. Por isso cada uma é uma função com nome próprio,
+não um `if` perdido no meio da conta.
+
+**IPI na base do ICMS** (CF art. 155, §2º, XI). O IPI só fica **fora** da base do ICMS
+na conjunção de duas condições: destinatário contribuinte **e** produto destinado a
+industrialização ou comércio. Basta uma falhar — consumidor final, ou não contribuinte —
+e ele entra. Numa nota de R$ 1.000 com IPI de 10% e ICMS de 18%, tratar os dois casos
+igual erra o ICMS em R$ 18,00.
+
+**Exclusão do ICMS da base de PIS/COFINS** (RE 574.706, a "tese do século"). O ICMS
+destacado não compõe a base das contribuições. Sobre R$ 1.000 com ICMS de 18%, a base cai
+de 1.000 para 820, e manter o ICMS ali recolhe R$ 6,57 a maior no regime cumulativo —
+dinheiro que a empresa não deve. A exclusão é o padrão, mas continua sendo parâmetro,
+porque a decisão tem modulação.
 
 ## Decisões de projeto
 
