@@ -24,8 +24,11 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Campos fiscais em Company, Customer, Supplier, Address, Item | pronto |
 | Validação de NCM e código IBGE de município | pronto |
 | Inscrição Estadual — as 27 UFs | pronto, com a ressalva abaixo |
-| Motor de impostos (ICMS/IPI/PIS/COFINS, ST, DIFAL) | não iniciado |
-| Tabelas de código (NCM, CFOP, CST/CSOSN, LC 116) | não iniciado |
+| Tabelas de código normativas (CST, CSOSN, origem) | pronto, embarcadas |
+| Tabelas voláteis (NCM, CFOP, LC 116) | importador versionado |
+| Aritmética de ICMS (por dentro, redução, ST/MVA, DIFAL) | pronto |
+| Ligação do cálculo às linhas de imposto do ERPNext | não iniciado |
+| IPI, PIS/COFINS e retenções | não iniciado |
 | Documento fiscal / NF-e | não iniciado |
 | Obrigações acessórias (SPED, EFD-Reinf) | não iniciado |
 
@@ -76,6 +79,24 @@ para não contribuinte.
 A UF vem do endereço padrão da parte, e `state` no ERPNext é texto livre — a resolução
 aceita sigla e nome por extenso, com ou sem acento, e devolve "sem regra" quando não dá
 para afirmar.
+
+### Cálculo fiscal usa Decimal, não float
+
+Todo valor monetário na aritmética de impostos é `Decimal`, e o arredondamento é
+explícito e `ROUND_HALF_UP`. Dois motivos concretos:
+
+- ponto flutuante acumula erro que não aparece no teste unitário e aparece na
+  conferência do contador — uma nota tem dezenas de itens somados e rateados;
+- o padrão do Python é `ROUND_HALF_EVEN` (arredondamento do banqueiro), que leva `0.125`
+  para `0.12`. Documento fiscal espera `0.13`.
+
+Alíquotas entram como **fração** (`0.18`, nunca `18`), e passar percentual levanta erro.
+É uma classe inteira de bug — imposto dezoito vezes maior — eliminada na entrada.
+
+O que o ERPNext já resolve não foi reimplementado: `included_in_print_rate` para imposto
+por dentro, `On Previous Row Amount` para encadear base, `category: Valuation` para
+decidir se o tributo compõe custo de estoque. O que falta ao núcleo, e está aqui, é a
+**aritmética**: gross-up do ICMS, MVA ajustada e base dupla do DIFAL.
 
 ## Decisões de projeto
 
