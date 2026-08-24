@@ -11,15 +11,18 @@ ou ficar desatualizados quando o ERPNext altera o DocType base, e `create_custom
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
+from erpnext_brasil.fiscal.codigos.seed import criar_listas_de_codigos
 from erpnext_brasil.setup.custom_fields import get_custom_fields
 
 
 def after_install():
 	criar_campos_fiscais()
+	criar_listas_de_codigos()
 
 
 def after_migrate():
 	criar_campos_fiscais()
+	criar_listas_de_codigos()
 
 
 def criar_campos_fiscais(update: bool = True):

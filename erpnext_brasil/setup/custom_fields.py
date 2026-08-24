@@ -12,6 +12,8 @@ A instalação é idempotente: `create_custom_fields` com `update=True` reaplica
 definições sem duplicar, o que torna seguro rodar a cada `bench migrate`.
 """
 
+from erpnext_brasil.fiscal.codigos.tabelas import ORIGEM_MERCADORIA, opcoes_select
+
 REGIMES_TRIBUTARIOS = "\n".join(
 	[
 		"",
@@ -32,21 +34,10 @@ INDICADORES_IE = "\n".join(
 	]
 )
 
-# Origem da mercadoria (tabela A da NF-e) — compõe o CST junto com a tributação.
-ORIGENS_MERCADORIA = "\n".join(
-	[
-		"",
-		"0 - Nacional",
-		"1 - Estrangeira - Importação direta",
-		"2 - Estrangeira - Adquirida no mercado interno",
-		"3 - Nacional - Conteúdo de importação superior a 40%",
-		"4 - Nacional - Processos produtivos básicos",
-		"5 - Nacional - Conteúdo de importação inferior ou igual a 40%",
-		"6 - Estrangeira - Importação direta sem similar nacional",
-		"7 - Estrangeira - Adquirida no mercado interno sem similar nacional",
-		"8 - Nacional - Conteúdo de importação superior a 70%",
-	]
-)
+# Origem da mercadoria: as opções do Select saem da mesma tabela normativa que alimenta
+# o Code List. Escrever a lista aqui de novo criaria duas fontes para o mesmo dado, que
+# divergiriam na primeira alteração — o mesmo motivo pelo qual não se duplica `tax_id`.
+ORIGENS_MERCADORIA = opcoes_select(ORIGEM_MERCADORIA)
 
 
 def _campos_de_parte(insert_after: str) -> list[dict]:
