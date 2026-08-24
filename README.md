@@ -29,6 +29,8 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Aritmética de ICMS (por dentro, redução, ST/MVA, DIFAL) | pronto |
 | IPI, e a regra do IPI na base do ICMS | pronto |
 | PIS/COFINS, com exclusão do ICMS da base | pronto |
+| **IBS e CBS** (reforma tributária) | pronto — ver abaixo |
+| Campos de IBS/CBS no XML da NF-e (NT 2025.002) | **não iniciado — bloqueia emissão** |
 | Ligação do cálculo às linhas de imposto do ERPNext | não iniciado |
 | Retenções (IRRF, CSLL, INSS, ISS) | não iniciado |
 | Documento fiscal / NF-e | não iniciado |
@@ -99,6 +101,35 @@ O que o ERPNext já resolve não foi reimplementado: `included_in_print_rate` pa
 por dentro, `On Previous Row Amount` para encadear base, `category: Valuation` para
 decidir se o tributo compõe custo de estoque. O que falta ao núcleo, e está aqui, é a
 **aritmética**: gross-up do ICMS, MVA ajustada e base dupla do DIFAL.
+
+### Reforma tributária: já é obrigação vigente, não frente futura
+
+**Desde 3 de agosto de 2026**, encerrado o período de tolerância do Ato Conjunto
+RFB/CGIBS nº 1/2025, documento fiscal eletrônico **sem os campos de IBS e CBS é
+rejeitado pelo autorizador** para empresas do regime regular. A Nota Técnica 2025.002
+rege NF-e e NFC-e.
+
+Para quem integra, isso não é um imposto a mais para calcular: é a diferença entre
+emitir e não emitir. Uma localização escrita hoje que ignore IBS/CBS produz notas que
+não existem.
+
+Em 2026 a alíquota é de **teste**, 1% no total (0,9% CBS + 0,1% IBS), e a apuração é
+*meramente informativa* — não há recolhimento, desde que cumpridas as obrigações
+acessórias. Os campos, porém, são obrigatórios.
+
+**Diferença estrutural que o código guarda:** o ICMS é calculado *por dentro* (integra a
+própria base, daí o gross-up por `1 - alíquota`); IBS e CBS são *por fora* — não integram
+a própria base nem a base um do outro. Há teste travando isso, porque "unificar" os dois
+cálculos numa refatoração futura erraria os dois.
+
+As alíquotas de 2027 em diante **não estão embutidas**, e pedi-las é erro explícito em
+vez de chute: elas dependem de lei ainda por fixar. Só 2026 tem valor em norma.
+
+Cronograma: 2027 a CBS fica plena e PIS/COFINS são extintos (IPI vai a zero, salvo Zona
+Franca de Manaus, e entra o Imposto Seletivo); de 2029 a 2032 o IBS sobe enquanto ICMS e
+ISS descem; em 2033 ICMS e ISS se extinguem. Por isso a aritmética de ICMS, IPI e
+PIS/COFINS **continua necessária** — ela cobre o regime que ainda vigora e vai conviver
+com o novo por seis anos.
 
 ### Duas regras jurídicas que o código torna explícitas
 
