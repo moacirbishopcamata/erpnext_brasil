@@ -47,6 +47,15 @@ class ValidacaoFiscalError(ValueError):
 _CNPJ_BASE_PERMITIDA = re.compile(r"^[0-9A-Z]{12}$")
 _SOMENTE_DIGITOS = re.compile(r"^[0-9]+$")
 
+# A especificação descreve os pesos como "2 a 9, da direita para a esquerda, reiniciando
+# em 2 ao passar de 9". As tuplas abaixo são esse mesmo ciclo já escrito da esquerda para
+# a direita, que é a ordem em que os caracteres são percorridos:
+#
+#   posição (da direita):  12 11 10  9  8  7  6  5  4  3  2  1
+#   peso:                   5  4  3  2  9  8  7  6  5  4  3  2
+#
+# Não "corrija" para uma sequência crescente: a leitura é da direita, a iteração é da
+# esquerda, e as duas só coincidem depois dessa inversão.
 _PESOS_CNPJ_DV1 = (5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2)
 _PESOS_CNPJ_DV2 = (6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2)
 
@@ -97,10 +106,16 @@ def validar_cnpj(valor: str | None) -> str:
 	if not _SOMENTE_DIGITOS.match(dv_informado):
 		raise ValidacaoFiscalError("Os dois dígitos verificadores do CNPJ devem ser numéricos", valor)
 
-	# Sequência repetida (00000000000000 e similares) satisfaz o módulo 11 por acidente
-	# aritmético; é rejeitada explicitamente, como faz a Receita.
-	if len(set(base)) == 1:
-		raise ValidacaoFiscalError("CNPJ com todos os caracteres iguais é inválido", valor)
+	# Divergência deliberada da implementação de referência da Receita (dv.py), que é um
+	# calculador de DV puro e aceita "00000000000000" — a soma zera, o resto é 0 e os dois
+	# dígitos saem 0, satisfazendo o módulo 11 por acidente aritmético.
+	#
+	# Aqui a base toda-igual é rejeitada **apenas quando numérica**: 00000000000000 e
+	# 11111111111111 são valores-lixo consagrados, e deixá-los entrar suja o cadastro
+	# fiscal. Já uma base alfanumérica toda igual não tem essa convenção contra si, e
+	# rejeitá-la arriscaria travar uma inscrição legítima — por isso passa.
+	if len(set(base)) == 1 and base.isdigit():
+		raise ValidacaoFiscalError("CNPJ com todos os dígitos iguais é inválido", valor)
 
 	valores = [_valor_do_caractere(c) for c in base]
 

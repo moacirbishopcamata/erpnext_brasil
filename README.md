@@ -37,7 +37,22 @@ sendo o módulo 11; muda apenas a conversão do caractere em valor (`ord(c) - 48
 CNPJs numéricos antigos permanecem válidos e passam pelo mesmo caminho de código.
 
 Validadores que só aceitam dígitos já nascem quebrados — por isso este é o ponto de
-partida do app, e não um detalhe deixado para depois.
+partida do app, e não um detalhe deixado para depois. Atenção especial ao idioma
+`re.sub(r'\D', '', valor)`: aplicado a `12ABC34501DE35` ele não falha, devolve
+`123450135` e **corrompe o dado em silêncio**.
+
+**Verificado contra a fonte oficial.** A Receita publica implementações de referência
+do cálculo do DV (Java, Python e TypeScript) em *documentos-técnicos/CNPJ*. A suíte
+inclui um teste diferencial que transcreve a versão Python e compara as duas
+implementações sobre 3.000 bases alfanuméricas geradas — mais os CNPJs numéricos
+legados e o exemplo documentado `12.ABC.345/01DE` → DV `35`. Aqui não se trata de
+consistência interna: é concordância com a Receita.
+
+Há **uma divergência intencional**, testada e documentada: a referência é um calculador
+de DV puro e aceita `00000000000000` (a soma zera e os dois dígitos saem 0). Este app
+recusa base numérica com todos os dígitos iguais, porque é valor-lixo consagrado e
+sujaria o cadastro fiscal — mas **não** estende a recusa a base alfanumérica, que não
+tem essa convenção contra si e cuja rejeição poderia travar uma inscrição legítima.
 
 ### Inscrição Estadual: o que está provado e o que não está
 
