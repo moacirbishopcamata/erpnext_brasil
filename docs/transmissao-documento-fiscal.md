@@ -62,12 +62,41 @@ então não serve como dependência.
 
 ## Opção B — ACBr API (HTTP)
 
-Serviço em nuvem com OAuth2, SDK Python oficial (`acbrapi-sdk-python`). Cobre NFe, NFCe,
-NFSe, CTe, MDFe, DCe e NFCom. Dissolve de uma vez a questão de licença, o certificado no
-servidor e a compilação nativa.
+Serviço em nuvem. Dissolve de uma vez a questão de licença, o certificado no servidor e
+a compilação nativa.
 
-Ressalva apurada: o SDK foi criado em julho de 2026 e **não declara LICENSE**. Ausência
-de licença é risco real de adoção — vale abrir issue pedindo antes de depender dele.
+Apurado da especificação (`acbrapi-sdk-net/api/openapi.yaml`, 4 MB, OpenAPI 3.0.1):
+
+- **ACBr API v3.1.8**;
+- autenticação **OAuth 2.0 `client_credentials`** via Keycloak, em
+  `https://auth.acbr.api.br/realms/ACBrAPI/protocol/openid-connect/token`, com escopos
+  por módulo (`empresa`, `nfe`, `nfse`, …);
+- dois ambientes: `https://prod.acbr.api.br` e **`https://hom.acbr.api.br`** — a
+  homologação existe, o que é condição para testar sem emitir documento real;
+- **179 endpoints, 221 operações**, em 8 módulos: Cep, Cnpj, Conta, Email, Geral,
+  Documentos Fiscais, Distribuição DF-e e Auxiliares;
+- cobre **emissão e entrada no mesmo provedor**: além de `/nfe`, há `/distribuicao/nfe`
+  com documentos, XML, PDF, manifestações e notas sem manifestação. É exatamente o que
+  o app da Intelligence8 teve de construir sob medida.
+
+### Não portar SDK gerado
+
+Os SDKs publicados (`-net`, `-python`, `-node`, `-php`, `-delphi`) **são gerados** da
+mesma especificação pelo OpenAPI Generator 6.5.0 — o repositório Python tem o diretório
+`.openapi-generator` que comprova. Traduzir o C# para Python à mão seria manter
+manualmente uma tradução de código de máquina, que é regerado a cada versão da API.
+Se precisar de cliente gerado, gera-se da `openapi.yaml`; não se traduz de outro SDK.
+
+**Para este app, porém, provavelmente nenhum dos dois.** 179 endpoints são superfície
+demais: o ERPNext precisa de algo entre oito e doze operações (emitir, consultar,
+cancelar, carta de correção, inutilizar, baixar XML e PDF, e do lado de entrada a
+distribuição DF-e e a manifestação). Um adaptador fino sobre `requests` — que o Frappe
+já traz — resolve, sem dependência nova, sem acoplar a uma versão de gerador, e
+testável com respostas gravadas.
+
+Ressalva que permanece: o SDK Python oficial foi criado em julho de 2026 e **não declara
+LICENSE**. Como a recomendação é não depender dele, a ressalva deixa de ser bloqueante —
+mas vale abrir issue pedindo a licença de qualquer forma.
 
 ## Como escolher
 
@@ -79,7 +108,10 @@ Não é "melhor" e "pior", é onde se quer o custo:
 | Certificado A1 | no seu servidor | delegado |
 | Binário nativo por plataforma | sim (e Alpine é problemático) | não |
 | Contingência e indisponibilidade da SEFAZ | sua | do provedor |
-| Licença | LGPL, com a fronteira acima | indefinida no SDK |
+| Ambiente de homologação | configurável na lib | `hom.acbr.api.br` |
+| Entrada (DF-e, manifestação) | módulo à parte | mesmo provedor |
+| Licença | LGPL, com a fronteira acima | SDK sem LICENSE (evitável) |
+| Como integrar | binding `ctypes` próprio | adaptador sobre `requests` |
 
 A porta existe justamente para que essa escolha seja adiável e reversível — e para que
 uma empresa possa usar uma e outra empresa a outra, na mesma instalação.
