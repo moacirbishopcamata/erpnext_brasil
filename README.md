@@ -20,10 +20,10 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 
 | Área | Situação |
 |---|---|
-| Validação de CPF/CNPJ (inclusive **CNPJ alfanumérico**) | pronto, 17 testes |
+| Validação de CPF/CNPJ (inclusive **CNPJ alfanumérico**) | pronto |
 | Campos fiscais em Company, Customer, Supplier, Address, Item | pronto |
 | Validação de NCM e código IBGE de município | pronto |
-| Inscrição Estadual (dígito verificador por UF) | **pendente** — 27 algoritmos distintos |
+| Inscrição Estadual — as 27 UFs | pronto, com a ressalva abaixo |
 | Motor de impostos (ICMS/IPI/PIS/COFINS, ST, DIFAL) | não iniciado |
 | Tabelas de código (NCM, CFOP, CST/CSOSN, LC 116) | não iniciado |
 | Documento fiscal / NF-e | não iniciado |
@@ -38,6 +38,29 @@ CNPJs numéricos antigos permanecem válidos e passam pelo mesmo caminho de cód
 
 Validadores que só aceitam dígitos já nascem quebrados — por isso este é o ponto de
 partida do app, e não um detalhe deixado para depois.
+
+### Inscrição Estadual: o que está provado e o que não está
+
+As 27 UFs têm regra implementada, incluindo as irregulares — SP (dígito fora da
+posição final e formato próprio de produtor rural), MG (módulo 10 com zero interposto,
+somando algarismos do produto), BA (alterna entre módulo 10 e 11 conforme o primeiro
+dígito), PE, AP, GO, RO, RR (único caso de módulo 9) e TO.
+
+Os testes constroem uma IE por força bruta sobre as posições de dígito verificador e
+exigem que a regra a aceite e que mutações a rejeitem. **Isso prova consistência
+aritmética, não aderência à especificação**: um peso trocado em relação ao SINTEGRA
+continuaria passando, porque o teste valida a implementação contra ela mesma. Fechar
+essa lacuna exige um lote de IEs reais por UF — é o próximo passo dessa frente.
+
+Por isso o viés é deliberadamente a favor do falso positivo: UF que não se consegue
+determinar, ou fora das 27, **deixa passar**. Uma IE inválida aceita é pega depois pela
+SEFAZ; uma IE válida rejeitada trava o cadastro de um cliente real e não tem contorno
+dentro do sistema. O valor `ISENTO` é aceito em qualquer UF, como manda a legislação
+para não contribuinte.
+
+A UF vem do endereço padrão da parte, e `state` no ERPNext é texto livre — a resolução
+aceita sigla e nome por extenso, com ou sem acento, e devolve "sem regra" quando não dá
+para afirmar.
 
 ## Decisões de projeto
 
@@ -72,6 +95,8 @@ As funções puras rodam sem infraestrutura nenhuma:
 ```sh
 python -m unittest discover -s erpnext_brasil/tests -t .
 ```
+
+São 36 testes cobrindo CPF/CNPJ, as 27 regras de Inscrição Estadual e a resolução de UF.
 
 ## Licença
 

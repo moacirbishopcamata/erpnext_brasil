@@ -15,6 +15,8 @@ fornecedor estrangeiro.
 import frappe
 from frappe import _
 
+from erpnext_brasil.fiscal.inscricao_estadual import validar_inscricao_estadual
+from erpnext_brasil.fiscal.ufs import resolver_uf
 from erpnext_brasil.fiscal.validators import (
 	ValidacaoFiscalError,
 	formatar_cnpj,
@@ -58,6 +60,46 @@ def validar_tax_id(doc, method=None):
 	# Normaliza na gravação para que buscas e comparações não dependam da máscara
 	# que o usuário digitou. O valor canônico é sempre o formatado.
 	doc.tax_id = formatar_cpf(limpo) if len(limpo) == 11 else formatar_cnpj(limpo)
+
+
+def _uf_da_parte(doc) -> str | None:
+	"""Descobre a UF da parte a partir do endereço padrão dela.
+
+	A Inscrição Estadual mora na parte, mas a UF que define o algoritmo mora no
+	Address — e `state` no ERPNext é texto livre. Quando a UF não puder ser afirmada,
+	devolve None e a validação da IE é dispensada, em vez de arriscar rejeitar um
+	cadastro legítimo.
+	"""
+	from frappe.contacts.doctype.address.address import get_default_address
+
+	if doc.doctype == "Company":
+		estado = frappe.db.get_value("Address", {"is_your_company_address": 1, "link_name": doc.name}, "state")
+	else:
+		endereco = get_default_address(doc.doctype, doc.name) if doc.name else None
+		estado = frappe.db.get_value("Address", endereco, "state") if endereco else None
+
+	return resolver_uf(estado)
+
+
+def validar_ie(doc, method=None):
+	"""Valida a Inscrição Estadual quando a UF da parte puder ser determinada."""
+	ie = doc.get("inscricao_estadual")
+
+	if not ie or not _pais_e_brasil():
+		return
+
+	uf = _uf_da_parte(doc)
+
+	if not uf:
+		return
+
+	try:
+		doc.inscricao_estadual = validar_inscricao_estadual(ie, uf)
+	except ValidacaoFiscalError as e:
+		frappe.throw(
+			_("Inscrição Estadual inválida: {0}").format(str(e)),
+			title=_("Documento fiscal inválido"),
+		)
 
 
 def validar_codigo_municipio(doc, method=None):
