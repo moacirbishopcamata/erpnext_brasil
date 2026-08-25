@@ -33,7 +33,7 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Grupos de IBS/CBS do layout da NF-e (grupo UB e W03) | pronto — validado no XSD |
 | CST do IBS/CBS e cClassTrib (leitor XLSX + importador) | pronto |
 | Ligação do cálculo às linhas de imposto do ERPNext | não iniciado |
-| Retenções (IRRF, CSLL, INSS, ISS) | não iniciado |
+| Retenções (IRRF, CSRF, INSS, ISS) | pronto |
 | Documento fiscal / NF-e | não iniciado |
 | Obrigações acessórias (SPED, EFD-Reinf) | não iniciado |
 
@@ -172,6 +172,31 @@ Para que isso não volte, `elementos_nfe.json` guarda os 598 nomes de elemento e
 dos dois XSD, e um teste confere que **toda tag emitida existe no layout**. Ele não
 substitui validar o XML final contra o XSD antes de produção — mas pega barato a falha
 que de fato acontece: nome digitado errado, que nenhum teste de aritmética encontraria.
+
+### Retenção é outra categoria, e o que dá trabalho é a dispensa
+
+ICMS, IPI e PIS/COFINS incidem *sobre a operação*. Retenção é o tomador descontando do
+que vai pagar e recolhendo no lugar do prestador — o valor da nota não muda, muda quem
+entrega o dinheiro. Reter a menos gera responsabilidade solidária do tomador.
+
+O que efetivamente erra não é a multiplicação, é o **limite de dispensa**, porque os dois
+principais funcionam de formas diferentes:
+
+- **IRRF** dispensa pelo **imposto calculado** (não se retém se o apurado não supera
+  R$ 10,00). Uma base grande com alíquota baixa pode ficar dispensada.
+- **CSRF** (CSLL + PIS + COFINS, 4,65% somados) dispensa pela **base** do pagamento
+  (R$ 215,05). Os dois pisos se correspondem: 215,05 × 4,65% = 10,00.
+
+**INSS** não tem dispensa por valor, e a alíquota do **ISS** é obrigatória e sem padrão —
+varia de 2% a 5% por município e item da lista de serviços, e assumir um valor seria
+inventar tributo.
+
+A CSRF é retida junta mas recolhida em códigos distintos; a decomposição faz o componente
+maior absorver o centavo de arredondamento, com invariante testado de que a soma das
+partes sempre bate com o total.
+
+Os limites são **parâmetro com padrão explícito**, não constante: mudam por lei ordinária
+e o ISS é municipal. Confirme os vigentes com a contabilidade antes de produção.
 
 ### Duas regras jurídicas que o código torna explícitas
 
