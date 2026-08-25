@@ -41,6 +41,10 @@ não interpreta.
 
 from decimal import Decimal
 
+from erpnext_brasil.fiscal.codigos.classificacao import (
+	formato_valido_cclasstrib,
+	formato_valido_cst,
+)
 from erpnext_brasil.fiscal.impostos.ibs_cbs import ResultadoIBSCBS
 
 __all__ = ["grupo_ibscbs_item", "grupo_totais_ibscbs", "percentual", "valor"]
@@ -75,6 +79,17 @@ def grupo_ibscbs_item(
 		raise ValueError(
 			"CST e cClassTrib são obrigatórios no grupo IBSCBS: sem eles o documento é "
 			"rejeitado, e não há valor padrão seguro a assumir"
+		)
+
+	# Formatos fixados pelo XSD: TCST = \d{3}, TcClassTrib = \d{6}. Barrar aqui evita
+	# montar um documento inteiro para descobrir na SEFAZ que o código tinha um dígito
+	# a menos — erro comum quando o valor vem de planilha e perde o zero à esquerda.
+	if not formato_valido_cst(cst):
+		raise ValueError(f"CST do IBS/CBS deve ter exatamente 3 dígitos, recebido {cst!r}")
+
+	if not formato_valido_cclasstrib(classificacao_tributaria):
+		raise ValueError(
+			f"cClassTrib deve ter exatamente 6 dígitos, recebido {classificacao_tributaria!r}"
 		)
 
 	return {

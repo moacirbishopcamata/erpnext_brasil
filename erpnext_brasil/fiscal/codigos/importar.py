@@ -23,6 +23,7 @@ A importação é idempotente: reexecutar com o mesmo arquivo não duplica códi
 
 import csv
 import io
+import json
 
 import frappe
 from frappe import _
@@ -149,6 +150,102 @@ def _gravar(
 		"atualizados": atualizados,
 		"inalterados": inalterados,
 	}
+
+
+@frappe.whitelist()
+def importar_classificacao_ibs_cbs(file_url: str, versao: str | None = None) -> dict[str, int]:
+	"""Importa a Tabela de Classificação Tributária do IBS e CBS (XLSX oficial).
+
+	O arquivo vem do Portal Nacional da NF-e, em *Documentos > Diversos*, e traz duas
+	planilhas: os CST do IBS/CBS e os cClassTrib. As duas viram Code List distintos.
+
+	Os indicadores de cada linha — quais grupos do XML o código exige, e em que
+	documentos ele vale — são guardados em `additional_data`, porque é essa informação
+	que depois decide se um item pode ou não usar aquele código.
+	"""
+	from erpnext_brasil.fiscal.codigos.classificacao import (
+		CLASSIFICACAO_TRIBUTARIA,
+		CST_IBS_CBS,
+		ler_cclasstrib,
+		ler_cst,
+	)
+	from erpnext_brasil.fiscal.codigos.xlsx import ler_planilha
+
+	frappe.only_for(("System Manager", "Accounts Manager"))
+
+	arquivo = frappe.get_doc("File", {"file_url": file_url})
+	arquivo.check_permission("read")
+
+	conteudo = io.BytesIO(arquivo.get_content(encodings=()))
+
+	registros_cst = ler_cst(ler_planilha(conteudo, "xl/worksheets/sheet1.xml"))
+	registros_cclass = ler_cclasstrib(ler_planilha(conteudo, "xl/worksheets/sheet2.xml"))
+
+	_garantir_code_list(CST_IBS_CBS, versao)
+	_garantir_code_list(CLASSIFICACAO_TRIBUTARIA, versao)
+
+	gravados_cst = _gravar_registros(
+		CST_IBS_CBS,
+		[
+			(r.codigo, r.descricao or r.codigo, {"indicadores": r.indicadores})
+			for r in registros_cst
+		],
+	)
+	gravados_cclass = _gravar_registros(
+		CLASSIFICACAO_TRIBUTARIA,
+		[
+			(
+				r.codigo,
+				r.nome or r.codigo,
+				{
+					"cst": r.cst,
+					"tipo_aliquota": r.tipo_aliquota,
+					"pRedIBS": r.reducao_ibs,
+					"pRedCBS": r.reducao_cbs,
+					"documentos": r.documentos,
+				},
+			)
+			for r in registros_cclass
+		],
+	)
+
+	return {"cst": gravados_cst, "cclasstrib": gravados_cclass}
+
+
+def _gravar_registros(code_list: str, registros: list[tuple[str, str, dict]]) -> int:
+	"""Insere ou atualiza códigos, guardando os metadados em `additional_data`."""
+	existentes = {
+		linha.common_code: linha.name
+		for linha in frappe.get_all(
+			"Common Code", filters={"code_list": code_list}, fields=["name", "common_code"]
+		)
+	}
+
+	gravados = 0
+
+	for codigo, titulo, dados in registros:
+		extra = json.dumps(dados, ensure_ascii=False, sort_keys=True)
+
+		if codigo in existentes:
+			doc = frappe.get_doc("Common Code", existentes[codigo])
+
+			if doc.title == titulo and doc.additional_data == extra:
+				continue
+
+			doc.title = titulo
+			doc.additional_data = extra
+			doc.save(ignore_permissions=True)
+		else:
+			doc = frappe.new_doc("Common Code")
+			doc.code_list = code_list
+			doc.common_code = codigo
+			doc.title = titulo
+			doc.additional_data = extra
+			doc.insert(ignore_permissions=True)
+
+		gravados += 1
+
+	return gravados
 
 
 @frappe.whitelist()

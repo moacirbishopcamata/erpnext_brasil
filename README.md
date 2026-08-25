@@ -30,7 +30,8 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | IPI, e a regra do IPI na base do ICMS | pronto |
 | PIS/COFINS, com exclusão do ICMS da base | pronto |
 | **IBS e CBS** (reforma tributária) | pronto — ver abaixo |
-| Grupos de IBS/CBS do layout da NF-e (grupo UB e W03) | pronto — validar contra o XSD |
+| Grupos de IBS/CBS do layout da NF-e (grupo UB e W03) | pronto — validado no XSD |
+| CST do IBS/CBS e cClassTrib (leitor XLSX + importador) | pronto |
 | Ligação do cálculo às linhas de imposto do ERPNext | não iniciado |
 | Retenções (IRRF, CSLL, INSS, ISS) | não iniciado |
 | Documento fiscal / NF-e | não iniciado |
