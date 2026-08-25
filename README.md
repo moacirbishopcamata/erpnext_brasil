@@ -152,9 +152,25 @@ Os totais somam os **valores já arredondados de cada item**, nunca recalculam s
 base total: o validador confere o total contra a soma dos itens, e recalcular é como se
 produz a rejeição de "total diverge da soma".
 
-Ressalva: os nomes de tag foram conferidos em duas fontes independentes que descrevem a
-NT 2025.002, **não no XSD oficial**. Nome errado não gera imposto errado — gera documento
-rejeitado. Validar contra o XSD antes de emitir em produção.
+**Validado contra o XSD oficial.** Os nomes de tag foram conferidos no *Pacote de
+Liberação 010e_v1.02 (NT 2025.002)*, baixado do Portal Nacional da NF-e —
+`leiauteNFe_v4.00.xsd` e `DFeTiposBasicos_v1.00.xsd`. A estrutura do item bateu
+exatamente. **Os totais não**, e a validação achou dois defeitos reais:
+
+1. Fontes secundárias descreviam os subgrupos dos totais como `gIBSUFTot`/`gIBSMunTot`.
+   Esses nomes **não existem** no layout: dentro de `gIBS` os subgrupos repetem `gIBSUF`
+   e `gIBSMun`.
+2. Em `gIBS` e `gCBS` todos os filhos são obrigatórios quando o grupo é informado, e
+   faltavam `vDif`, `vDevTrib`, `vCredPres` e `vCredPresCondSus`. Eles saem zerados —
+   diferimento, devolução de tributo e crédito presumido ainda não são calculados aqui,
+   mas o layout exige o campo presente.
+
+Documento emitido com a versão anterior seria rejeitado.
+
+Para que isso não volte, `elementos_nfe.json` guarda os 598 nomes de elemento extraídos
+dos dois XSD, e um teste confere que **toda tag emitida existe no layout**. Ele não
+substitui validar o XML final contra o XSD antes de produção — mas pega barato a falha
+que de fato acontece: nome digitado errado, que nenhum teste de aritmética encontraria.
 
 ### Duas regras jurídicas que o código torna explícitas
 

@@ -102,12 +102,18 @@ def grupo_ibscbs_item(
 
 
 def grupo_totais_ibscbs(resultados: list[ResultadoIBSCBS]) -> dict:
-	"""Monta o grupo W03 somando os itens.
+	"""Monta o grupo de totais (`IBSCBSTot`, tipo `TIBSCBSMonoTot`) somando os itens.
 
 	Os totais são somados a partir dos **valores já arredondados de cada item**, e não
 	recalculados sobre a base total. As duas contas divergem em centavos, e o validador
 	confere o total contra a soma dos itens — recalcular é como se produz a rejeição de
 	"total diverge da soma dos itens".
+
+	Atenção à assimetria com o nível de item: dentro de `gIBS`, os subgrupos repetem os
+	nomes `gIBSUF` e `gIBSMun` (não existe sufixo `Tot`), e **todos os seus filhos são
+	obrigatórios** quando o grupo é informado. Por isso `vDif`, `vDevTrib`, `vCredPres` e
+	`vCredPresCondSus` saem zerados em vez de omitidos: diferimento, devolução de tributo
+	e crédito presumido ainda não são calculados por este app, mas o layout exige o campo.
 	"""
 	if not resultados:
 		raise ValueError("Não há itens para totalizar")
@@ -117,14 +123,24 @@ def grupo_totais_ibscbs(resultados: list[ResultadoIBSCBS]) -> dict:
 	ibs_mun = sum((r.ibs_mun for r in resultados), Decimal("0.00"))
 	cbs = sum((r.cbs for r in resultados), Decimal("0.00"))
 
+	zero = valor(Decimal("0.00"))
+
 	return {
 		"IBSCBSTot": {
 			"vBCIBSCBS": valor(base),
 			"gIBS": {
-				"gIBSUFTot": {"vIBSUF": valor(ibs_uf)},
-				"gIBSMunTot": {"vIBSMun": valor(ibs_mun)},
+				"gIBSUF": {"vDif": zero, "vDevTrib": zero, "vIBSUF": valor(ibs_uf)},
+				"gIBSMun": {"vDif": zero, "vDevTrib": zero, "vIBSMun": valor(ibs_mun)},
 				"vIBS": valor(ibs_uf + ibs_mun),
+				"vCredPres": zero,
+				"vCredPresCondSus": zero,
 			},
-			"gCBS": {"vCBS": valor(cbs)},
+			"gCBS": {
+				"vDif": zero,
+				"vDevTrib": zero,
+				"vCBS": valor(cbs),
+				"vCredPres": zero,
+				"vCredPresCondSus": zero,
+			},
 		}
 	}

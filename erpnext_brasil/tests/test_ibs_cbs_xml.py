@@ -98,7 +98,9 @@ class TestTotais(unittest.TestCase):
 		totais = grupo_totais_ibscbs(itens)["IBSCBSTot"]
 
 		self.assertEqual(totais["vBCIBSCBS"], "1500.00")
-		self.assertEqual(totais["gIBS"]["gIBSUFTot"]["vIBSUF"], "1.50")
+		# Dentro de gIBS os subgrupos repetem os nomes do item; não existe sufixo "Tot".
+		self.assertEqual(totais["gIBS"]["gIBSUF"]["vIBSUF"], "1.50")
+		self.assertEqual(totais["gIBS"]["gIBSMun"]["vIBSMun"], "0.00")
 		self.assertEqual(totais["gIBS"]["vIBS"], "1.50")
 		self.assertEqual(totais["gCBS"]["vCBS"], "13.50")
 
