@@ -36,6 +36,7 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Apuração do item (ordem de composição das bases) | pronto |
 | Ligação da apuração às linhas de imposto do ERPNext | pronto |
 | Retenções (IRRF, CSRF, INSS, ISS) | pronto |
+| Chave de acesso (44 posições, DV, CNPJ alfanumérico) | pronto |
 | Ciclo de vida do documento fiscal e porta de transmissão | pronto |
 | Adaptadores concretos (ACBrLib / ACBr API) | não iniciado |
 | Obrigações acessórias (SPED, EFD-Reinf) | não iniciado |
@@ -288,6 +289,17 @@ destacado não compõe a base das contribuições. Sobre R$ 1.000 com ICMS de 18
 de 1.000 para 820, e manter o ICMS ali recolhe R$ 6,57 a maior no regime cumulativo —
 dinheiro que a empresa não deve. A exclusão é o padrão, mas continua sendo parâmetro,
 porque a decisão tem modulação.
+
+## Documentação
+
+Referências detalhadas por assunto estão em [`docs/`](docs/README.md):
+
+| Documento | Assunto |
+|---|---|
+| [arquitetura.md](docs/arquitetura.md) | Camadas, resiliência, DbC, como testar sem bench |
+| [chave-de-acesso.md](docs/chave-de-acesso.md) | Layout das 44 posições e o impacto do CNPJ alfanumérico |
+| [reforma-tributaria.md](docs/reforma-tributaria.md) | IBS, CBS e IS: cronograma e obrigatoriedade vigente |
+| [transmissao-documento-fiscal.md](docs/transmissao-documento-fiscal.md) | ACBrLib × ACBr API e a fronteira de licença |
 
 ## Decisões de projeto
 
