@@ -34,3 +34,13 @@ doc_events = {
 	"Address": {"validate": "erpnext_brasil.fiscal.party.validar_codigo_municipio"},
 	"Item": {"validate": "erpnext_brasil.fiscal.party.validar_ncm"},
 }
+
+# A apuração roda em `validate` para que o usuário veja os impostos enquanto ainda pode
+# corrigir o documento — em `on_submit` seria tarde.
+for _doctype in (
+	"Sales Invoice",
+	"Delivery Note",
+	"Purchase Invoice",
+	"Purchase Receipt",
+):
+	doc_events[_doctype] = {"validate": "erpnext_brasil.integracao.documento.apurar_impostos"}

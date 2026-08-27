@@ -33,7 +33,7 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Grupos de IBS/CBS do layout da NF-e (grupo UB e W03) | pronto — validado no XSD |
 | CST do IBS/CBS e cClassTrib (leitor XLSX + importador) | pronto |
 | Apuração do item (ordem de composição das bases) | pronto |
-| Ligação da apuração às linhas de imposto do ERPNext | não iniciado |
+| Ligação da apuração às linhas de imposto do ERPNext | pronto |
 | Retenções (IRRF, CSRF, INSS, ISS) | pronto |
 | Documento fiscal / NF-e | não iniciado |
 | Obrigações acessórias (SPED, EFD-Reinf) | não iniciado |
