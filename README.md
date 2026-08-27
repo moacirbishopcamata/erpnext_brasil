@@ -35,7 +35,8 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Apuração do item (ordem de composição das bases) | pronto |
 | Ligação da apuração às linhas de imposto do ERPNext | pronto |
 | Retenções (IRRF, CSRF, INSS, ISS) | pronto |
-| Documento fiscal / NF-e | não iniciado |
+| Ciclo de vida do documento fiscal e porta de transmissão | pronto |
+| Adaptadores concretos (ACBrLib / ACBr API) | não iniciado |
 | Obrigações acessórias (SPED, EFD-Reinf) | não iniciado |
 
 ### CNPJ alfanumérico
@@ -173,6 +174,35 @@ Para que isso não volte, `elementos_nfe.json` guarda os 598 nomes de elemento e
 dos dois XSD, e um teste confere que **toda tag emitida existe no layout**. Ele não
 substitui validar o XML final contra o XSD antes de produção — mas pega barato a falha
 que de fato acontece: nome digitado errado, que nenhum teste de aritmética encontraria.
+
+### O documento fiscal: estado privado, transições guardadas
+
+Um documento fiscal tem ciclo de vida real — rascunho → aguardando → autorizado →
+cancelado, com desvios para rejeitado e denegado. Tratar isso como um campo `status` que
+qualquer parte do código atribui produz nota "cancelada" que nunca foi autorizada, ou
+"autorizada" sem protocolo. Aqui o estado é privado e só muda por método com guarda: de
+fora se pede a ação, não se atribui o resultado.
+
+**A costura crítica é o protocolo.** Se a SEFAZ autoriza e o protocolo não persiste,
+existe nota válida no fisco e rascunho no sistema — divergência que só aparece na
+fiscalização. Por isso `autorizar` **exige** protocolo, e `reconstituir` recusa carregar
+um documento autorizado sem ele: falhar alto na leitura é melhor que propagar a mentira.
+
+Regras confirmadas na fonte, não de memória:
+
+- prazo de cancelamento de **24 horas** (evento 110111); fora dele a orientação é NF-e
+  de estorno, e a mensagem de erro diz isso;
+- recepção extemporânea até **480 horas** é faculdade de cada UF, em geral com
+  penalidade — por isso exige pedido explícito em vez de acontecer sozinho;
+- justificativa de **15 a 256 caracteres**, limites lidos do tipo `xJust` no XSD oficial;
+- **denegado é final** — a SEFAZ registrou e negou por irregularidade do destinatário,
+  a numeração fica queimada. Confundi-lo com rejeição permitiria reenvio indevido, então
+  a denegação tem precedência na leitura da resposta.
+
+O transporte fica atrás de uma **porta** (`TransporteFiscal`), com adaptadores trocáveis.
+O agregado não sabe transmitir, e o adaptador não decide estado: devolve o que a SEFAZ
+respondeu e quem transiciona é o agregado. Foi o acoplamento inverso que matou a
+localização brasileira anterior, que congelou depurando a assinatura local.
 
 ### A apuração: a ordem é a regra
 
