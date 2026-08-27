@@ -98,6 +98,97 @@ Ressalva que permanece: o SDK Python oficial foi criado em julho de 2026 e **nã
 LICENSE**. Como a recomendação é não depender dele, a ressalva deixa de ser bloqueante —
 mas vale abrir issue pedindo a licença de qualquer forma.
 
+## Opção C — Python nativo
+
+Terceiro caminho, e o que dispensa binário nativo e serviço externo: implementar em
+Python puro, usando bibliotecas maduras que já existem.
+
+### Portar o ACBr não é o caminho
+
+A pergunta "não dá para portar o ACBr para Python?" tem três respostas, porque são três
+códigos diferentes:
+
+**Os wrappers (C#, Node, Delphi) — portar é inútil.** São cascas finas de FFI sobre a ABI
+C: o `acbrlib-base-node` inteiro depende de `koffi` e não contém lógica fiscal nenhuma.
+O contrato é a ABI, não o wrapper. Um binding Python se escreve com `ctypes` a partir da
+mesma ABI, sem olhar para o código C#.
+
+**O núcleo (Object Pascal) — portar é grande, derivado e redundante.** É onde mora a
+lógica de verdade: escrita e leitura de XML de todas as versões de layout, clientes SOAP
+dos webservices de cada UF, contingência, DANFE, tratamento de certificado. Traduzir isso
+cria obra derivada (o ACBr é LGPL) e levaria o resultado a herdar LGPL.
+
+**O conhecimento fiscal — esse sim se aproveita, e não é código.** Qual endpoint de qual
+UF, qual validação a SEFAZ aplica, qual peculiaridade de layout: são fatos, não expressão,
+e consultar o ACBr como referência para isso é legítimo e recomendável.
+
+### O que matou o projeto anterior é fácil em Python
+
+A localização brasileira do ERPNext que morreu congelou depurando a **canonicalização C14N
+da assinatura**. Em Pascal, em 2005, isso era trabalho pesado. Em Python é biblioteca:
+
+| Necessidade | Biblioteca |
+|---|---|
+| Canonicalização C14N | `lxml` (nativo) |
+| Assinatura XMLDSig | `signxml` |
+| Certificado A1 (.pfx / PKCS#12) | `cryptography` |
+| SOAP / HTTP | `zeep` ou `requests` |
+
+A parte que inviabilizou a tentativa anterior é, hoje, a parte resolvida.
+
+### E já existe implementação nativa
+
+| Projeto | Estrelas | Última atualização | Licença |
+|---|---|---|---|
+| [PyNFe](https://github.com/TadaSoftware/PyNFe) | 589 | fevereiro de 2026 | LGPL |
+| [PyTrustNFe](https://github.com/danimaribeiro/PyTrustNFe) | 181 | junho de 2024 | **AGPL-3.0** |
+
+**PyNFe** é a opção séria: mantida, com adoção real (227 forks) e LGPL — importá-la de um
+app MIT é o uso que a licença permite, do mesmo modo que carregar a `.so` do ACBrLib.
+
+**PyTrustNFe é AGPL-3.0**, licença fortemente viral que alcança até uso em rede. Para um
+app que se quer reutilizável, é problema de adoção sério — vale conhecer o código, não
+depender dele.
+
+## Decisão: Python nativo
+
+**Escolhida a opção C.** A emissão é implementada em Python nativo, com `lxml` e
+`cryptography` — as duas já são dependências do frappe, então não há nada novo a instalar
+num bench.
+
+`signxml` foi dispensado pelo mesmo critério que dispensou `openpyxl` na leitura das
+tabelas oficiais: o perfil da NF-e é estreito o bastante para não justificar mais uma
+dependência num bench compartilhado por vários apps.
+
+Isso **não fecha** as outras portas. `TransporteFiscal` continua sendo a interface, e um
+adaptador de ACBrLib ou de ACBr API pode conviver com o nativo — a escolha segue
+reversível, que é a razão de a porta existir.
+
+### Como ficou dividido
+
+| Camada | Onde | Depende de |
+|---|---|---|
+| Estrutura do envelope XMLDSig | `fiscal/documento/assinatura.py` | nada |
+| Serialização dict → XML | `fiscal/documento/serializacao.py` | nada |
+| Criptografia (C14N, digest, RSA) | `integracao/assinador_local.py` | `lxml`, `cryptography` |
+
+A porta `Assinador` tem **uma operação**. Quem assina não precisa saber montar XML, e
+quem monta XML não precisa saber de chave privada. Os imports das bibliotecas ficam
+**dentro das funções**, para que a suíte verifique a estrutura da assinatura sem exigir
+`lxml` instalado.
+
+### Detalhes que decidem aceitação
+
+- **SHA-1, não SHA-256.** Obsoleto em geral, mas é o que o layout manda; trocar gera
+  rejeição.
+- **C14N 1.0 sem comentários**, não exclusive.
+- O que se assina é o **`SignedInfo` canonicalizado**, não o documento.
+- O serializador emite atributos já na **forma canônica** — aspas duplas com `&quot;`, e
+  não a troca de delimitador que `quoteattr` faria. É XML válido nos dois casos, mas sair
+  canônico evita depender de a normalização acontecer depois.
+- Certificado é validado na **abertura**: vencido produz assinatura tecnicamente correta e
+  documento rejeitado, e descobrir na SEFAZ é pior que descobrir no upload.
+
 ## Como escolher
 
 Não é "melhor" e "pior", é onde se quer o custo:

@@ -38,7 +38,10 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Retenções (IRRF, CSRF, INSS, ISS) | pronto |
 | Chave de acesso (44 posições, DV, CNPJ alfanumérico) | pronto |
 | Montagem da NF-e (`ide`, `emit`, `dest`, `infNFe`) | pronto |
-| Grupos `prod`, `total`, `transp`, `pag` e assinatura | não iniciado |
+| Serialização dict → XML (forma canônica) | pronto |
+| Assinatura XMLDSig — estrutura e assinador local | pronto |
+| Grupos `prod`, `total`, `transp` e `pag` | não iniciado |
+| Adaptador de transporte (webservices da SEFAZ) | não iniciado |
 | Ciclo de vida do documento fiscal e porta de transmissão | pronto |
 | Adaptadores concretos (ACBrLib / ACBr API) | não iniciado |
 | Obrigações acessórias (SPED, EFD-Reinf) | não iniciado |
