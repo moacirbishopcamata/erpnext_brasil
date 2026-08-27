@@ -32,6 +32,7 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | **IBS e CBS** (reforma tributária) | pronto — ver abaixo |
 | Grupos de IBS/CBS do layout da NF-e (grupo UB e W03) | pronto — validado no XSD |
 | CST do IBS/CBS e cClassTrib (leitor XLSX + importador) | pronto |
+| Validação de compatibilidade CST × cClassTrib | pronto |
 | Apuração do item (ordem de composição das bases) | pronto |
 | Ligação da apuração às linhas de imposto do ERPNext | pronto |
 | Retenções (IRRF, CSRF, INSS, ISS) | pronto |
@@ -175,6 +176,26 @@ dos dois XSD, e um teste confere que **toda tag emitida existe no layout**. Ele 
 substitui validar o XML final contra o XSD antes de produção — mas pega barato a falha
 que de fato acontece: nome digitado errado, que nenhum teste de aritmética encontraria.
 
+### Rejeição barrada no salvamento, não na SEFAZ
+
+CST e cClassTrib não são campos independentes: cada cClassTrib **pertence** a um CST, e
+cada CST determina estritamente quais grupos do XML podem aparecer. A legenda da tabela
+oficial é binária — 0 é **vedado**, 1 é **exigido** —, então informar um grupo a mais é
+tão inválido quanto omitir um obrigatório. E dos 164 cClassTrib publicados, só **96**
+valem para NF-e: usar um de NFS-e é rejeição garantida.
+
+Nada disso é derivável do cálculo, e o custo de errar não é imposto errado — é documento
+que não existe. A validação roda em `validate`, antes da apuração, e reporta **todos** os
+problemas de uma vez, com mensagem que diz o que fazer.
+
+Duas decisões que evitam falso positivo: tabela ainda não importada **não** acusa erro
+(sem ela não há como afirmar invalidez, e travar impediria salvar em instalação nova), e
+item sem classificação também não — a obrigatoriedade pertence à montagem do documento
+fiscal, quando já se sabe que ele será transmitido.
+
+Há teste rodando contra a **tabela oficial real**: todos os 96 pares válidos para NF-e
+passam sem falso positivo.
+
 ### O documento fiscal: estado privado, transições guardadas
 
 Um documento fiscal tem ciclo de vida real — rascunho → aguardando → autorizado →
@@ -276,9 +297,20 @@ lugares para o mesmo dado, divergindo em silêncio. Só se acrescenta o que o n�
 modela (Inscrição Estadual, indicador de IE, SUFRAMA, NCM, CEST, origem da mercadoria,
 código IBGE do município).
 
-**Regra fiscal separada do framework.** `fiscal/validators.py` não importa `frappe`:
-são funções puras, testáveis sem bench, sem site e sem banco. `fiscal/party.py` é a
-camada fina que traduz o resultado em `frappe.throw`.
+**Regra fiscal separada do framework, e a separação é testada.** Nenhum módulo em
+`fiscal/` importa `frappe` — são funções puras, testáveis sem bench, sem site e sem
+banco. `integracao/` é a camada fina que persiste e traduz em `frappe.throw`.
+
+A regra não fica só no README: `tests/test_arquitetura.py` percorre a árvore de imports
+e falha se um módulo de `fiscal/` importar `frappe`, se a dependência entre as camadas
+inverter, ou se um teste passar a exigir bench. Foi escrito depois de a auditoria
+encontrar três módulos com `import frappe` dentro de `fiscal/` — regra de arquitetura
+só escrita em prosa é aspiracional.
+
+**Dependência invertida onde importa.** A validação de classificação precisa das tabelas
+oficiais, mas não precisa saber que vieram de um Code List: depende de
+`RepositorioClassificacao`, um `Protocol` de duas operações. É o que permite testar a
+orquestração de um documento inteiro com um duplo de poucas linhas.
 
 **Validação só em contexto brasileiro.** As validações consultam o país da Company; uma
 instalação multiempresa com filial no exterior não passa a exigir CNPJ de fornecedor

@@ -285,7 +285,7 @@ def importar_arquivo(
 
 	if linhas_estimadas > LIMITE_SINCRONO:
 		frappe.enqueue(
-			"erpnext_brasil.fiscal.codigos.importar.importar_csv",
+			"erpnext_brasil.integracao.importar_codigos.importar_csv",
 			queue="long",
 			timeout=1800,
 			**argumentos,

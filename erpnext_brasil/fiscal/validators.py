@@ -5,7 +5,7 @@
 
 Este módulo é deliberadamente livre de dependências do Frappe: são funções puras,
 testáveis sem bench, sem site e sem banco. O acoplamento com o ERPNext acontece em
-`erpnext_brasil.fiscal.party`, que traduz o resultado destas funções em `frappe.throw`.
+`erpnext_brasil.integracao.party`, que traduz o resultado destas funções em `frappe.throw`.
 
 CNPJ alfanumérico
 -----------------

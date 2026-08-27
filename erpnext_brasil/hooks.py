@@ -15,24 +15,24 @@ after_migrate = "erpnext_brasil.setup.install.after_migrate"
 doc_events = {
 	"Company": {
 		"validate": [
-			"erpnext_brasil.fiscal.party.validar_tax_id",
-			"erpnext_brasil.fiscal.party.validar_ie",
+			"erpnext_brasil.integracao.party.validar_tax_id",
+			"erpnext_brasil.integracao.party.validar_ie",
 		]
 	},
 	"Customer": {
 		"validate": [
-			"erpnext_brasil.fiscal.party.validar_tax_id",
-			"erpnext_brasil.fiscal.party.validar_ie",
+			"erpnext_brasil.integracao.party.validar_tax_id",
+			"erpnext_brasil.integracao.party.validar_ie",
 		]
 	},
 	"Supplier": {
 		"validate": [
-			"erpnext_brasil.fiscal.party.validar_tax_id",
-			"erpnext_brasil.fiscal.party.validar_ie",
+			"erpnext_brasil.integracao.party.validar_tax_id",
+			"erpnext_brasil.integracao.party.validar_ie",
 		]
 	},
-	"Address": {"validate": "erpnext_brasil.fiscal.party.validar_codigo_municipio"},
-	"Item": {"validate": "erpnext_brasil.fiscal.party.validar_ncm"},
+	"Address": {"validate": "erpnext_brasil.integracao.party.validar_codigo_municipio"},
+	"Item": {"validate": "erpnext_brasil.integracao.party.validar_ncm"},
 }
 
 # A apuração roda em `validate` para que o usuário veja os impostos enquanto ainda pode
@@ -43,4 +43,11 @@ for _doctype in (
 	"Purchase Invoice",
 	"Purchase Receipt",
 ):
-	doc_events[_doctype] = {"validate": "erpnext_brasil.integracao.documento.apurar_impostos"}
+	doc_events[_doctype] = {
+		"validate": [
+			# A classificação é conferida antes: não faz sentido apurar impostos de um
+			# item cuja combinação de CST e cClassTrib a SEFAZ recusaria.
+			"erpnext_brasil.integracao.validacao_fiscal.validar_classificacao_dos_itens",
+			"erpnext_brasil.integracao.documento.apurar_impostos",
+		]
+	}
