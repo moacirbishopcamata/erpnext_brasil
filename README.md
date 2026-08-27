@@ -37,6 +37,8 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Ligação da apuração às linhas de imposto do ERPNext | pronto |
 | Retenções (IRRF, CSRF, INSS, ISS) | pronto |
 | Chave de acesso (44 posições, DV, CNPJ alfanumérico) | pronto |
+| Montagem da NF-e (`ide`, `emit`, `dest`, `infNFe`) | pronto |
+| Grupos `prod`, `total`, `transp`, `pag` e assinatura | não iniciado |
 | Ciclo de vida do documento fiscal e porta de transmissão | pronto |
 | Adaptadores concretos (ACBrLib / ACBr API) | não iniciado |
 | Obrigações acessórias (SPED, EFD-Reinf) | não iniciado |
@@ -298,6 +300,7 @@ Referências detalhadas por assunto estão em [`docs/`](docs/README.md):
 |---|---|
 | [arquitetura.md](docs/arquitetura.md) | Camadas, resiliência, DbC, como testar sem bench |
 | [chave-de-acesso.md](docs/chave-de-acesso.md) | Layout das 44 posições e o impacto do CNPJ alfanumérico |
+| [montagem-da-nfe.md](docs/montagem-da-nfe.md) | Grupos `ide`, `emit`, `dest` e por que a chave é derivada |
 | [reforma-tributaria.md](docs/reforma-tributaria.md) | IBS, CBS e IS: cronograma e obrigatoriedade vigente |
 | [transmissao-documento-fiscal.md](docs/transmissao-documento-fiscal.md) | ACBrLib × ACBr API e a fronteira de licença |
 
