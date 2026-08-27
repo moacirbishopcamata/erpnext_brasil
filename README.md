@@ -32,7 +32,8 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | **IBS e CBS** (reforma tributária) | pronto — ver abaixo |
 | Grupos de IBS/CBS do layout da NF-e (grupo UB e W03) | pronto — validado no XSD |
 | CST do IBS/CBS e cClassTrib (leitor XLSX + importador) | pronto |
-| Ligação do cálculo às linhas de imposto do ERPNext | não iniciado |
+| Apuração do item (ordem de composição das bases) | pronto |
+| Ligação da apuração às linhas de imposto do ERPNext | não iniciado |
 | Retenções (IRRF, CSRF, INSS, ISS) | pronto |
 | Documento fiscal / NF-e | não iniciado |
 | Obrigações acessórias (SPED, EFD-Reinf) | não iniciado |
@@ -172,6 +173,27 @@ Para que isso não volte, `elementos_nfe.json` guarda os 598 nomes de elemento e
 dos dois XSD, e um teste confere que **toda tag emitida existe no layout**. Ele não
 substitui validar o XML final contra o XSD antes de produção — mas pega barato a falha
 que de fato acontece: nome digitado errado, que nenhum teste de aritmética encontraria.
+
+### A apuração: a ordem é a regra
+
+Cada módulo sabe calcular *o seu* imposto a partir de uma base. Nenhum sabe **qual**
+base — e é aí que mora o erro, porque as bases dependem umas das outras. `apuracao.py`
+escreve essa ordem num lugar só:
+
+1. **IPI** sobre o valor da operação, e a decisão constitucional de entrar ou não na
+   base do ICMS;
+2. **ICMS** sobre essa base composta;
+3. **PIS/COFINS** sobre a receita, com o ICMS destacado **fora** da base;
+4. **IBS e CBS** por fora, com o Imposto Seletivo integrando a base deles.
+
+Calcular os quatro isoladamente e somar produz números plausíveis e errados. O teste que
+prova isso é o par revenda/consumidor final: mesma mercadoria, mesmos valores, e o
+**total pago é idêntico** — porque o ICMS é por dentro — mas o ICMS sobe R$ 18,00 e o
+PIS/COFINS cai em cascata, porque o ICMS maior reduz a base das contribuições.
+
+O total do item soma apenas o que é **por fora**: IPI, IBS, CBS e Imposto Seletivo. Somar
+o ICMS ali dobraria o imposto — é exatamente o que a distinção por dentro/por fora existe
+para evitar.
 
 ### Retenção é outra categoria, e o que dá trabalho é a dispensa
 
