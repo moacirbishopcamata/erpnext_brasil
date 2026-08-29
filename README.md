@@ -41,6 +41,7 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Serialização dict → XML (forma canônica) | pronto |
 | Assinatura XMLDSig — estrutura e assinador local | pronto |
 | Grupos `prod` e `ICMSTot` (totais do documento) | pronto |
+| Grupo `imposto` do item (ICMS00/20/40/41/60, SN, IPI, PIS, COFINS, ISSQN + IBS/CBS) | pronto — escopo declarado |
 | Grupos `transp`, `pag` e `infAdic` | não iniciado |
 | Adaptador de transporte (webservices da SEFAZ) | não iniciado |
 | Ciclo de vida do documento fiscal e porta de transmissão | pronto |

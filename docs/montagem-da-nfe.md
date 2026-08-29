@@ -115,10 +115,37 @@ rejeição, não economia. O `vNF` soma apenas o que é por fora do preço (prod
 seguro, outras despesas, menos desconto, mais IPI); ICMS, PIS e COFINS já estão no preço
 e não se somam de novo.
 
+## Grupo `imposto`
+
+Implementado em `fiscal/documento/imposto_item.py`. O XSD define **cerca de 20
+variantes de ICMS** por CST/CSOSN, e modelar as 20 não cabia num único incremento —
+fazê-lo pela metade seria pior que ser explícito sobre o recorte.
+
+**Cobertas** (as que `fiscal/impostos/icms.py` já calcula): ICMS00 (integral), ICMS20
+(redução de base), ICMS40/41/60 (isenta/não tributada/ST anterior), ICMSSN101/102
+(Simples Nacional, com e sem crédito). IPI, PIS e COFINS no padrão "Aliq" (alíquota por
+percentual). ISSQN para item de serviço.
+
+**Fora do escopo, declarado no código**: ICMS-ST em suas variantes próprias (`ICMSPart`,
+`ICMSST`), DIFAL (`ICMSUFDest`), `PISST`/`COFINSST`, imposto de importação (`II`).
+Adicionar uma dessas exige primeiro o cálculo correspondente — o módulo só monta o que a
+apuração sabe calcular.
+
+**Exclusividade mútua**, com erro explícito quando violada:
+
+- `CST` e `CSOSN` nunca coexistem — regime normal informa um, Simples Nacional o outro;
+- `ISSQN` é incompatível com `ICMS`/`IPI` no mesmo item — mercadoria e serviço não se
+  misturam no mesmo detalhe;
+- o grupo **IBS/CBS entra sempre**, mercadoria ou serviço: a reforma tributária alcança
+  os dois, e por isso não está condicionado à branch de ICMS.
+
+Um erro real que o teste de conformidade contra o XSD pegou: o campo do município no
+ISSQN é **`cMunFG`**, não `cMunFGISS` — nome que pareceria natural por analogia com
+`cMunFGIBS`, mas não existe no leiaute.
+
 ## Ainda não montados
 
 - `enderEmit` e `enderDest` são repassados como vieram, sem validação de conteúdo;
-- o grupo `imposto` do item (onde os grupos de IBS/CBS já prontos se encaixam);
 - `transp`, `pag`, `infAdic` não são construídos aqui;
 - `NFref` (documento referenciado), necessário em nota de devolução e complementar.
 
