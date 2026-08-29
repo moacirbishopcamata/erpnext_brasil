@@ -46,7 +46,7 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Grupo `infAdic` | pronto |
 | `montar_nfe`/`assinar_nfe` — raiz, namespace e assinatura ligadas | pronto |
 | **Montagem da NF-e — completa do lado da estrutura do documento** | |
-| Tabela de autorizadores por UF (webservices da SEFAZ) | pronto — RO com homologação, demais só produção |
+| Tabela de autorizadores por UF (webservices da SEFAZ) | pronto — produção e homologação nos 12 grupos |
 | Envelope SOAP 1.2 (sem `nfeCabecMsg`, obsoleto desde 2017) | pronto |
 | Interpretação da resposta — os dois `cStat` (lote × nota) | pronto |
 | Adaptador de transporte — `transmitir` (com *polling*) e `consultar` | pronto |

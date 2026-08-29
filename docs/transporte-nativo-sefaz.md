@@ -43,13 +43,18 @@ de verificação deste projeto (o negócio do usuário fica no Norte, em RO), ma
 cobre as 27 UFs: o app continua genérico, RO só decide o que se testa primeiro contra a
 fonte oficial.
 
-### O que não está confirmado, e por isso o código recusa
+### Homologação — confirmada nos 12 grupos
 
-**Homologação.** A página lista só produção. Não há padrão confiável de host para
-derivar homologação — alguns ambientes trocam `nfe.` por `homologacao.nfe.`, outros não
-seguem esse padrão. `endpoint(..., ambiente="homologacao")` levanta
-`NotImplementedError` em vez de arriscar uma URL errada; endpoints de homologação
-precisam ser levantados UF a UF antes de uso.
+A página oficial lista só produção; a homologação foi levantada à parte, grupo a grupo
+(nunca por inferência de padrão de host — cada grupo troca o nome de um jeito diferente:
+SVRS insere um hífen, GO troca a palavra inteira, AM abrevia sem hífen), via a mesma
+segunda fonte independente já usada para o resto da tabela (`nfephp-org/sped-nfe`), com
+PR e SP checados numa terceira, direto na página oficial de cada estado. Os 12 grupos que
+existem (10 próprios + SVAN + SVRS) têm homologação confirmada — não sobrou nenhum grupo
+real para `endpoint(..., ambiente="homologacao")` recusar; a exceção
+`NotImplementedError` continua existindo como guarda de código, não como lacuna atual.
+
+### O que ainda não está confirmado, e por isso o código recusa
 
 **`NfeConsultaCadastro` para 11 das 16 UFs do SVRS.** A fonte diz explicitamente que só
 **AC, ES, RN, PB e SC** usam o CadConsultaCadastro do SVRS. Para as outras 11 —
@@ -195,12 +200,14 @@ rejeitar um cancelamento genuinamente homologado com `101`/`155` por só reconhe
 
 ## Ainda por implementar
 
-- Endpoints de homologação para os 11 grupos que não são SVRS.
-- Inutilização de faixa de numeração (esquema de evento próprio, ainda não baixado/lido).
+- `NfeConsultaCadastro` para AM e SVAN em homologação (ausente na fonte, não confirmado
+  em nenhuma outra) — inutilização já implementada, ver `docs/inutilizacao-nfe.md`.
 
 ## Fonte
 
 Portal Nacional da NF-e, `webServices.aspx`, consultado em 2026-08-24. Esquema da carta
 de correção (`leiauteCCe_v1.00.xsd`) confirmado via o pacote oficial em 2026-08-28,
 corroborado por exemplo real de CC-e homologada e pelo código-fonte de referência do
-`nfephp-org/sped-nfe`.
+`nfephp-org/sped-nfe`. Homologação dos 12 grupos (própria UF × 10 + SVAN + SVRS)
+confirmada em 2026-08-29 pela mesma fonte, com PR e SP checados de novo contra a página
+oficial de cada estado.
