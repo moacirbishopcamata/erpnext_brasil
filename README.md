@@ -49,7 +49,8 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Tabela de autorizadores por UF (webservices da SEFAZ) | pronto — RO com homologação, demais só produção |
 | Envelope SOAP 1.2 (sem `nfeCabecMsg`, obsoleto desde 2017) | pronto |
 | Interpretação da resposta — os dois `cStat` (lote × nota) | pronto |
-| Adaptador de transporte (TLS mútuo com certificado A1) | não iniciado |
+| Adaptador de transporte — `transmitir` (com *polling*) e `consultar` | pronto |
+| Cancelamento (`cancelar`) | bloqueado — XSD do evento não confirmado |
 | Ciclo de vida do documento fiscal e porta de transmissão | pronto |
 | Obrigações acessórias (SPED, EFD-Reinf) | não iniciado |
 

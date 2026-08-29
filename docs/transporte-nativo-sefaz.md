@@ -106,12 +106,34 @@ recebido com sucesso"), `protNFe` não vem na resposta — modelado como `protoc
 nunca como erro: é estado válido do fluxo (exige nova consulta via
 `NFeConsultaProtocolo4`/`NFeRetAutorizacao4`), não falha de parsing.
 
+## O adaptador `TransporteSefaz` — `transmitir` e `consultar` prontos, `cancelar` não
+
+Implementado em `integracao/transporte_sefaz.py`. É *context manager*: o certificado A1
+é carregado uma vez em memória (`cryptography`), mas o `requests` só aceita certificado
+de cliente como **arquivo** — não há suporte a certificado em memória na biblioteca
+padrão de SSL do Python. Os PEM são escritos num diretório temporário na entrada do
+`with` e apagados na saída, nunca reescritos a cada requisição.
+
+`transmitir` resolve o *polling* do lote assíncrono de verdade: quando a primeira
+resposta vem `pendente` (`cStat` diferente de `104`), consulta de novo via
+`NFeRetAutorizacao4`/`consReciNFe` com o `numero_recibo`, um número limitado de vezes
+(`tentativas_consulta_recibo`, padrão 5) com intervalo entre tentativas — e **desiste
+com erro explícito** (`TransporteIndisponivel`) em vez de entrar em loop infinito ou
+declarar sucesso/rejeição sem a SEFAZ ter decidido.
+
+**`cancelar` levanta `NotImplementedError` de propósito.** A estrutura completa de
+`infEvento` (cancelamento) tem campos — `tpAmb`, `CNPJ`, `chNFe`, `dhEvento`,
+`nSeqEvento`, `verEvento` — cuja ordem exata só o XSD do evento resolve com certeza, e
+esse XSD não veio no pacote de leiaute principal já baixado. Só a composição do `Id` e
+o miolo de `detEvento` (`descEvento`, `nProt`, `xJust`, confirmados em exemplo real)
+estão certos. Implementar adivinhando a ordem dos demais campos arriscaria rejeição
+silenciosa — o motivo deste app existir é não arriscar isso.
+
 ## Ainda por implementar
 
-- Adaptador `TransporteFiscal` com TLS mútuo via certificado A1, usando `requests`.
-- Polling de fato do lote assíncrono, usando `RetornoAutorizacao.pendente` e
-  `numero_recibo` para orquestrar a nova consulta.
+- Cancelamento (`cancelar`), quando o XSD do evento for confirmado.
 - Endpoints de homologação para os 11 grupos que não são SVRS.
+- Carta de correção e inutilização de faixa (mesma família de bloqueio do cancelamento).
 
 ## Fonte
 
