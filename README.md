@@ -46,9 +46,9 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Grupo `infAdic` | pronto |
 | `montar_nfe`/`assinar_nfe` — raiz, namespace e assinatura ligadas | pronto |
 | **Montagem da NF-e — completa do lado da estrutura do documento** | |
-| Adaptador de transporte (webservices da SEFAZ) | não iniciado |
+| Tabela de autorizadores por UF (webservices da SEFAZ) | pronto — RO confirmado, homologação pendente |
+| Adaptador de transporte (SOAP + TLS mútuo, direto à SEFAZ) | não iniciado |
 | Ciclo de vida do documento fiscal e porta de transmissão | pronto |
-| Adaptadores concretos (ACBrLib / ACBr API) | não iniciado |
 | Obrigações acessórias (SPED, EFD-Reinf) | não iniciado |
 
 ### CNPJ alfanumérico

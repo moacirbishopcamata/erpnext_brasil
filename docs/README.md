@@ -10,6 +10,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [montagem-da-nfe.md](montagem-da-nfe.md) | Grupos `ide`, `emit`, `dest`; por que a chave é derivada; rejeição 897 |
 | [reforma-tributaria.md](reforma-tributaria.md) | IBS, CBS e IS: cronograma, alíquota-teste, obrigatoriedade vigente |
 | [transmissao-documento-fiscal.md](transmissao-documento-fiscal.md) | Opções de transporte (ACBrLib × ACBr API) e a fronteira de licença |
+| [transporte-nativo-sefaz.md](transporte-nativo-sefaz.md) | Decisão de falar direto com a SEFAZ; tabela de autorizadores por UF (RO confirmado) |
 
 ## Convenções que valem em todo o código
 
