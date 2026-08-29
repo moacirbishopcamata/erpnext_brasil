@@ -290,7 +290,7 @@ class TransporteFalso:
 	def consultar(self, chave_acesso: str):
 		raise NotImplementedError
 
-	def cancelar(self, chave_acesso: str, justificativa: str) -> RespostaTransmissao:
+	def cancelar(self, chave_acesso: str, protocolo: str, justificativa: str) -> RespostaTransmissao:
 		return self.resposta
 
 

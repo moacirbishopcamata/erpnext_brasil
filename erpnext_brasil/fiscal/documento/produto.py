@@ -20,6 +20,24 @@ Duas armadilhas que o layout guarda:
 `indTot` diz se o valor do item **compõe** o total da nota. Vale `0` em item acessório
 que já está embutido em outro; o padrão é `1`.
 
+`rastro` — rastreabilidade de lote
+------------------------------------
+Grupo confirmado no XSD (`nLote`, `qLote`, `dFab`, `dVal`, `cAgreg` opcional),
+**opcional no layout mas obrigatório de fato** para produtos sob controle de lote —
+medicamento, cosmético, saneante, alimento, agrotóxico, por regra da ANVISA/MAPA, não
+do leiaute da NF-e em si. Repetível até 500 vezes por item (um mesmo item pode
+combinar estoque de lotes diferentes na mesma nota).
+
+Não confundir com o **SNCM** (Sistema Nacional de Controle de Medicamentos, RDC
+319/2019 da ANVISA) — sistema à parte, baseado em código GS1 DataMatrix na embalagem
+física, que **não se integra** com os campos da NF-e (os dados de rastreamento por
+DataMatrix não alimentam `rastro`, e vice-versa). `rastro` é obrigação fiscal; SNCM é
+obrigação sanitária. As duas correm em paralelo, cada uma com seu próprio registro.
+
+`qLote` aceita de 1 a 3 casas decimais — não é fixo em 3 como a maioria dos valores
+monetários deste app; por isso tem formatação própria (`_quantidade_lote`), separada de
+`_valor`/`_quantidade`.
+
 `ICMSTot` — os totais
 ---------------------
 Somam-se os **valores já arredondados de cada item**, nunca se recalcula sobre a base
@@ -36,7 +54,9 @@ from decimal import Decimal
 
 from erpnext_brasil.fiscal.impostos.icms import arredondar
 
-__all__ = ["SEM_GTIN", "ProdutoInvalido", "montar_icmstot", "montar_prod"]
+__all__ = ["SEM_GTIN", "ProdutoInvalido", "montar_icmstot", "montar_prod", "montar_rastro"]
+
+MAXIMO_LOTES_POR_ITEM = 500
 
 SEM_GTIN = "SEM GTIN"
 ZERO = Decimal("0.00")
@@ -55,6 +75,19 @@ def _valor(quantia) -> str:
 	return str(arredondar(Decimal(str(quantia or 0))))
 
 
+def _quantidade_lote(quantia) -> str:
+	"""`qLote` (TDec_0803v): o padrão aceita de 1 a 3 casas decimais — não fixo em 3
+	como a maioria dos valores deste app. Formatar sempre com 3 é seguro em qualquer
+	caso não-zero (3 está dentro do intervalo aceito); zero exato usa o literal `"0"`,
+	que é a outra alternativa do padrão."""
+	valor = Decimal(str(quantia))
+
+	if valor == 0:
+		return "0"
+
+	return str(valor.quantize(Decimal("0.001")))
+
+
 def _quantidade(quantia) -> str:
 	"""Quantidade admite quatro casas — o layout é mais preciso aqui que em valor."""
 	return str(Decimal(str(quantia or 0)).quantize(Decimal("0.0001")))
@@ -67,6 +100,43 @@ def _exigir(valor, campo: str) -> str:
 		raise ProdutoInvalido(f"O campo {campo} é obrigatório no grupo prod", campo)
 
 	return texto
+
+
+def montar_rastro(numero_lote: str, quantidade_lote, data_fabricacao: str, data_validade: str, codigo_agregacao: str = "") -> dict:
+	"""Um item do grupo `rastro` — um lote entre os até 500 que um item pode ter.
+
+	`data_fabricacao`/`data_validade` já vêm formatadas (`AAAA-MM-DD`, `TData`) — este
+	módulo não infere fuso nem formato de data, mesma disciplina de `montar_ide`.
+	"""
+	numero = (numero_lote or "").strip()
+
+	if not (1 <= len(numero) <= 20):
+		raise ProdutoInvalido(
+			f"Número do lote deve ter de 1 a 20 caracteres, recebido {numero_lote!r}", "numero_lote"
+		)
+
+	if not data_fabricacao or not data_validade:
+		raise ProdutoInvalido("Data de fabricação e de validade são obrigatórias no lote", "datas")
+
+	grupo = {
+		"nLote": numero,
+		"qLote": _quantidade_lote(quantidade_lote),
+		"dFab": data_fabricacao,
+		"dVal": data_validade,
+	}
+
+	if codigo_agregacao:
+		agregacao = codigo_agregacao.strip()
+
+		if not (1 <= len(agregacao) <= 20):
+			raise ProdutoInvalido(
+				f"Código de agregação deve ter de 1 a 20 caracteres, recebido {codigo_agregacao!r}",
+				"codigo_agregacao",
+			)
+
+		grupo["cAgreg"] = agregacao
+
+	return grupo
 
 
 def montar_prod(
@@ -83,6 +153,7 @@ def montar_prod(
 	quantidade_tributavel=None,
 	valor_unitario_tributavel=None,
 	cest: str = "",
+	lotes: list[dict] | None = None,
 	frete=None,
 	seguro=None,
 	desconto=None,
@@ -115,6 +186,18 @@ def montar_prod(
 
 	if cest:
 		grupo["CEST"] = cest.strip()
+
+	if lotes:
+		if len(lotes) > MAXIMO_LOTES_POR_ITEM:
+			raise ProdutoInvalido(
+				f"Um item admite no máximo {MAXIMO_LOTES_POR_ITEM} lotes, "
+				f"recebidos {len(lotes)}",
+				"lotes",
+			)
+
+		# Cada dicionário já vem pronto de `montar_rastro`; monta_prod não decide o
+		# conteúdo de cada lote, só a posição do grupo dentro de `prod`.
+		grupo["rastro"] = list(lotes)
 
 	grupo["CFOP"] = cfop_limpo
 	grupo["uCom"] = _exigir(unidade, "unidade comercial")

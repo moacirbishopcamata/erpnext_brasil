@@ -106,7 +106,7 @@ recebido com sucesso"), `protNFe` não vem na resposta — modelado como `protoc
 nunca como erro: é estado válido do fluxo (exige nova consulta via
 `NFeConsultaProtocolo4`/`NFeRetAutorizacao4`), não falha de parsing.
 
-## O adaptador `TransporteSefaz` — `transmitir` e `consultar` prontos, `cancelar` não
+## O adaptador `TransporteSefaz` — `transmitir`, `consultar` e `cancelar` prontos
 
 Implementado em `integracao/transporte_sefaz.py`. É *context manager*: o certificado A1
 é carregado uma vez em memória (`cryptography`), mas o `requests` só aceita certificado
@@ -121,19 +121,43 @@ resposta vem `pendente` (`cStat` diferente de `104`), consulta de novo via
 com erro explícito** (`TransporteIndisponivel`) em vez de entrar em loop infinito ou
 declarar sucesso/rejeição sem a SEFAZ ter decidido.
 
-**`cancelar` levanta `NotImplementedError` de propósito.** A estrutura completa de
-`infEvento` (cancelamento) tem campos — `tpAmb`, `CNPJ`, `chNFe`, `dhEvento`,
-`nSeqEvento`, `verEvento` — cuja ordem exata só o XSD do evento resolve com certeza, e
-esse XSD não veio no pacote de leiaute principal já baixado. Só a composição do `Id` e
-o miolo de `detEvento` (`descEvento`, `nProt`, `xJust`, confirmados em exemplo real)
-estão certos. Implementar adivinhando a ordem dos demais campos arriscaria rejeição
-silenciosa — o motivo deste app existir é não arriscar isso.
+### `cancelar` — o evento de cancelamento (110111)
+
+A estrutura completa de `infEvento` não veio no pacote de leiaute principal — o esquema
+de eventos é distribuído à parte. O bloqueio anterior (`NotImplementedError`) durou até
+o pacote correto ser baixado do Portal Nacional da NF-e ("Esquemas XML NF-e/NFC-e -
+Evento Cancelamento", 21/12/2018) e a ordem de `infEvento` ser lida direto de
+`leiauteEventoCancNFe_v1.00.xsd`: `cOrgao, tpAmb, (CNPJ|CPF), chNFe, dhEvento, tpEvento,
+nSeqEvento, verEvento, detEvento`. A montagem em si vive em `fiscal/documento/evento.py`
+(camada pura, sem Frappe) — este adaptador só serializa, envelopa e envia.
+
+Duas decisões de projeto valem registrar:
+
+- **A porta `TransporteFiscal.cancelar` ganhou um parâmetro `protocolo`** que a primeira
+  versão não previa. Só apareceu ao implementar o adaptador de verdade: o schema do
+  evento de cancelamento exige `nProt` — a SEFAZ precisa saber *qual* autorização está
+  sendo cancelada, não só qual chave. É uma mudança que quebra compatibilidade
+  (propagada a todo implementador e duplo de teste), mas widenar a porta é melhor do que
+  inventar um protocolo vazio ou reconsultar a SEFAZ dentro do adaptador para descobri-lo.
+- **`cnpj_emitente` entrou no construtor de `TransporteSefaz`, não na porta.** O schema
+  exige o CNPJ do "autor do evento" (`CNPJ` dentro de `infEvento`), mas esse dado é
+  configuração estável do adaptador — quem está autenticado por aquele certificado A1 —
+  e não muda a cada chamada como `protocolo`/`justificativa` mudam. Colocar na porta
+  obrigaria todo `transmitir`/`consultar` a carregar um parâmetro que não usam.
+
+A pegadinha do `@Id` (`"ID" + tpEvento + chave + nSeqEvento`, em que o `nSeqEvento`
+*dentro do `Id`* leva zero à esquerda até 2 dígitos e o *elemento* `nSeqEvento` não leva)
+está documentada com mais detalhe em `fiscal/documento/evento.py`, junto da leitura do
+retorno (`interpretar_retorno_evento`): o `cStat` do lote (recepção do pedido) e o
+`cStat` de `retEvento/infEvento` (se a SEFAZ de fato homologou) são dois números
+distintos — mesma armadilha dos dois `cStat` da autorização, um nível abaixo. Homologação
+aceita três códigos (`101`, `135` — fora de prazo, `155` — data divergente), não só um.
 
 ## Ainda por implementar
 
-- Cancelamento (`cancelar`), quando o XSD do evento for confirmado.
 - Endpoints de homologação para os 11 grupos que não são SVRS.
-- Carta de correção e inutilização de faixa (mesma família de bloqueio do cancelamento).
+- Carta de correção e inutilização de faixa (mesma família do cancelamento — cada uma
+  com seu próprio pacote de esquema de evento, ainda não baixado/lido).
 
 ## Fonte
 

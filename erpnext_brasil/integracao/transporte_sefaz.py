@@ -3,16 +3,11 @@
 
 """Implementação de `TransporteFiscal` que fala direto com a SEFAZ.
 
-Escopo desta versão — leia antes de estender
-----------------------------------------------
-Implementa `transmitir` (com o *polling* do lote assíncrono) e `consultar`.
-**`cancelar` levanta `NotImplementedError`** de propósito: a estrutura completa de
-`infEvento` (cancelamento) tem campos — `tpAmb`, `CNPJ`, `chNFe`, `dhEvento`,
-`nSeqEvento`, `verEvento` — cuja ordem exata só o XSD do evento resolve com certeza, e
-esse XSD não foi conferido ainda (não veio no pacote de leiaute principal). Só a
-composição do `Id` e o miolo de `detEvento` (`descEvento`, `nProt`, `xJust`) estão
-confirmados. Implementar cancelamento adivinhando a ordem dos demais campos arriscaria
-rejeição silenciosa — o próprio motivo deste app existir é não arriscar isso.
+`cancelar` já está implementado — a estrutura de `infEvento` foi confirmada no pacote
+de esquemas do evento (Portal Nacional da NF-e, "Evento Cancelamento"), separado do
+pacote de leiaute principal. Ver `fiscal/documento/evento.py` para a ordem dos campos e
+a pegadinha do `@Id` (zero à esquerda em `nSeqEvento` dentro do `Id`, ausente no
+elemento).
 
 TLS mútuo com certificado em memória
 --------------------------------------
@@ -92,14 +87,20 @@ class TransporteSefaz:
 		pfx: bytes,
 		senha: str,
 		uf: str,
+		cnpj_emitente: str,
 		ambiente: str = "producao",
 		sessao=None,
 		dormir=None,
 		tentativas_consulta_recibo: int = 5,
 		intervalo_consulta_recibo: float = 5.0,
 	):
+		"""`cnpj_emitente` é configuração do adaptador, não dado por chamada: é "quem
+		está autenticado por este certificado", estável entre `transmitir`/`cancelar` —
+		diferente de `protocolo`/`justificativa`, que mudam a cada cancelamento. Por
+		isso entra aqui e não na porta `TransporteFiscal.cancelar`."""
 		self._chave, self._certificado = carregar_certificado(pfx, senha)
 		self._uf = uf
+		self._cnpj_emitente = cnpj_emitente
 		self._ambiente = ambiente
 		self._tp_amb = "1" if ambiente == "producao" else "2"
 		self._sessao = sessao
@@ -227,9 +228,73 @@ class TransporteSefaz:
 			estado_sefaz=resultado.cstat_nfe or resultado.cstat_lote,
 		)
 
-	def cancelar(self, chave_acesso: str, justificativa: str) -> RespostaTransmissao:
-		raise NotImplementedError(
-			"Cancelamento ainda não implementado: a ordem completa dos campos de "
-			"infEvento não está confirmada contra o XSD do evento — ver docstring do "
-			"módulo. Implementar aqui exigiria adivinhar, o que este app não faz."
+	def cancelar(self, chave_acesso: str, protocolo: str, justificativa: str) -> RespostaTransmissao:
+		"""Envia o evento de cancelamento (110111) via `NFeRecepcaoEvento4`.
+
+		`idLote` do envelope é gerado aqui (carimbo de tempo), não pedido a quem chama
+		— é identificador técnico do envio, sem significado de negócio que justifique
+		expô-lo na porta.
+		"""
+		from datetime import datetime
+
+		from erpnext_brasil.fiscal.documento.evento import (
+			interpretar_retorno_evento,
+			montar_env_evento,
+			montar_evento_cancelamento,
+		)
+
+		evento = montar_evento_cancelamento(
+			chave_acesso=chave_acesso,
+			protocolo=protocolo,
+			justificativa=justificativa,
+			cnpj_autor=self._cnpj_emitente,
+			data_evento=datetime.now().astimezone().isoformat(timespec="seconds"),
+		)
+		envelope = montar_env_evento([evento], id_lote=datetime.now().strftime("%Y%m%d%H%M%S"))
+
+		self._preparar_arquivos_tls()
+
+		url = endpoint(self._uf, "RecepcaoEvento", ambiente=self._ambiente)
+
+		if not url:
+			raise TransporteIndisponivel(
+				f"Não há endpoint de RecepcaoEvento confirmado para a UF {self._uf!r}"
+			)
+
+		xml_interno = para_xml(envelope)
+		soap = montar_envelope("RecepcaoEvento", xml_interno)
+
+		resposta = self._sessao_http().post(
+			url,
+			data=soap.encode("utf-8"),
+			headers={"Content-Type": "application/soap+xml; charset=utf-8"},
+			cert=(str(self._arquivo_cert), str(self._arquivo_chave)),
+			timeout=30,
+		)
+		resposta.raise_for_status()
+
+		resultado = interpretar_retorno_evento(extrair_resultado(resposta.content))
+
+		if resultado.homologado:
+			from datetime import datetime as _datetime
+
+			recebido_em = (
+				_datetime.fromisoformat(resultado.data_registro)
+				if resultado.data_registro
+				else _datetime.now().astimezone()
+			)
+
+			return RespostaTransmissao(
+				codigo=resultado.cstat_evento,
+				mensagem=resultado.motivo_evento or "",
+				autorizacao=Autorizacao(
+					protocolo=resultado.protocolo or protocolo,
+					recebido_em=recebido_em,
+					chave_acesso=resultado.chave_conferida or chave_acesso,
+				),
+			)
+
+		return RespostaTransmissao(
+			codigo=resultado.cstat_evento or resultado.cstat_lote,
+			mensagem=resultado.motivo_evento or resultado.motivo_lote,
 		)

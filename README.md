@@ -50,8 +50,10 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Envelope SOAP 1.2 (sem `nfeCabecMsg`, obsoleto desde 2017) | pronto |
 | Interpretação da resposta — os dois `cStat` (lote × nota) | pronto |
 | Adaptador de transporte — `transmitir` (com *polling*) e `consultar` | pronto |
-| Cancelamento (`cancelar`) | bloqueado — XSD do evento não confirmado |
+| Cancelamento (`cancelar`, evento 110111) | pronto — XSD do evento confirmado à parte do leiaute principal |
+| Rastreabilidade de lote (grupo `rastro`) | pronto |
 | Ciclo de vida do documento fiscal e porta de transmissão | pronto |
+| Carta de correção, inutilização de faixa | não iniciado |
 | Obrigações acessórias (SPED, EFD-Reinf) | não iniciado |
 
 ### CNPJ alfanumérico

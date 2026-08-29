@@ -93,8 +93,13 @@ class TransporteFiscal(Protocol):
 		"""Consulta a situação de um documento já transmitido."""
 		...
 
-	def cancelar(self, chave_acesso: str, justificativa: str) -> RespostaTransmissao:
-		"""Solicita o cancelamento (evento 110111)."""
+	def cancelar(self, chave_acesso: str, protocolo: str, justificativa: str) -> RespostaTransmissao:
+		"""Solicita o cancelamento (evento 110111).
+
+		`protocolo` é o número da autorização original — o schema do evento de
+		cancelamento exige `nProt` (a SEFAZ precisa saber qual autorização está sendo
+		cancelada, não só qual chave). Descoberto ao implementar o adaptador real: a
+		primeira versão desta porta não previa esse parâmetro."""
 		...
 
 

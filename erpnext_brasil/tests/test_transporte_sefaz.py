@@ -107,7 +107,7 @@ class TestContratoDaPorta(unittest.TestCase):
 	def test_satisfaz_transportefiscal(self):
 		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
 
-		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", sessao=SessaoFalsa([])) as transporte:
+		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=SessaoFalsa([])) as transporte:
 			self.assertIsInstance(transporte, TransporteFiscal)
 
 
@@ -116,7 +116,7 @@ class TestArquivosTLS(unittest.TestCase):
 	def test_escreve_e_remove_os_arquivos_temporarios(self):
 		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
 
-		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", sessao=SessaoFalsa([])) as transporte:
+		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=SessaoFalsa([])) as transporte:
 			self.assertTrue(transporte._arquivo_cert.exists())
 			self.assertTrue(transporte._arquivo_chave.exists())
 			caminho_cert = transporte._arquivo_cert
@@ -130,7 +130,7 @@ class TestArquivosTLS(unittest.TestCase):
 			[_resposta_soap("nfeAutorizacaoLoteResult", _ret_envi_nfe(inf_prot=_prot_nfe()))]
 		)
 
-		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", sessao=sessao) as transporte:
+		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao) as transporte:
 			transporte.transmitir(DOCUMENTO_MINIMO)
 
 		cert_usado = sessao.chamadas[0]["cert"]
@@ -147,7 +147,7 @@ class TestTransmitirAutorizado(unittest.TestCase):
 			[_resposta_soap("nfeAutorizacaoLoteResult", _ret_envi_nfe(inf_prot=_prot_nfe()))]
 		)
 
-		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", sessao=sessao) as transporte:
+		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao) as transporte:
 			resultado = transporte.transmitir(DOCUMENTO_MINIMO)
 
 		self.assertIsInstance(resultado, RespostaTransmissao)
@@ -161,7 +161,7 @@ class TestTransmitirAutorizado(unittest.TestCase):
 			[_resposta_soap("nfeAutorizacaoLoteResult", _ret_envi_nfe(inf_prot=_prot_nfe()))]
 		)
 
-		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", sessao=sessao) as transporte:
+		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao) as transporte:
 			transporte.transmitir(DOCUMENTO_MINIMO)
 
 		self.assertIn("svrs.rs.gov.br", sessao.chamadas[0]["url"])
@@ -174,7 +174,7 @@ class TestTransmitirAutorizado(unittest.TestCase):
 			[_resposta_soap("nfeAutorizacaoLoteResult", _ret_envi_nfe(inf_prot=_prot_nfe()))]
 		)
 
-		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", sessao=sessao) as transporte:
+		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao) as transporte:
 			transporte.transmitir(DOCUMENTO_MINIMO)
 
 		self.assertEqual(len(sessao.chamadas), 1)
@@ -194,7 +194,7 @@ class TestTransmitirRejeitadoEDenegado(unittest.TestCase):
 			]
 		)
 
-		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", sessao=sessao) as transporte:
+		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao) as transporte:
 			resultado = transporte.transmitir(DOCUMENTO_MINIMO)
 
 		self.assertFalse(resultado.autorizada)
@@ -214,7 +214,7 @@ class TestTransmitirRejeitadoEDenegado(unittest.TestCase):
 			]
 		)
 
-		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", sessao=sessao) as transporte:
+		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao) as transporte:
 			resultado = transporte.transmitir(DOCUMENTO_MINIMO)
 
 		self.assertTrue(resultado.denegado)
@@ -238,7 +238,7 @@ class TestPolling(unittest.TestCase):
 		dormidas = []
 
 		with TransporteSefaz(
-			_gerar_pfx(), "teste123", "RO", sessao=sessao, dormir=dormidas.append
+			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao, dormir=dormidas.append
 		) as transporte:
 			resultado = transporte.transmitir(DOCUMENTO_MINIMO)
 
@@ -257,7 +257,7 @@ class TestPolling(unittest.TestCase):
 		)
 
 		with TransporteSefaz(
-			_gerar_pfx(), "teste123", "RO", sessao=sessao, dormir=lambda s: None
+			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao, dormir=lambda s: None
 		) as transporte:
 			transporte.transmitir(DOCUMENTO_MINIMO)
 
@@ -278,6 +278,7 @@ class TestPolling(unittest.TestCase):
 			_gerar_pfx(),
 			"teste123",
 			"RO",
+			"11222333000181",
 			sessao=SessaoFalsa(sempre_pendente),
 			dormir=lambda s: None,
 			tentativas_consulta_recibo=3,
@@ -295,21 +296,83 @@ class TestConsultar(unittest.TestCase):
 			[_resposta_soap("nfeConsultaNFResult", _ret_envi_nfe(inf_prot=_prot_nfe()))]
 		)
 
-		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", sessao=sessao) as transporte:
+		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao) as transporte:
 			resultado = transporte.consultar(CHAVE_VALIDA)
 
 		self.assertIsInstance(resultado, ResultadoConsulta)
 		self.assertEqual(resultado.codigo, "100")
 
 
-class TestCancelarNaoImplementado(unittest.TestCase):
-	@unittest.skipUnless(TEM_DEPENDENCIAS, "requer cryptography")
-	def test_levanta_not_implemented(self):
+def _ret_env_evento(cstat_lote="128", motivo_lote="Lote de evento processado", inf_evento=""):
+	return (
+		'<retEnvEvento xmlns="http://www.portalfiscal.inf.br/nfe">'
+		f"<cStat>{cstat_lote}</cStat><xMotivo>{motivo_lote}</xMotivo>{inf_evento}"
+		"</retEnvEvento>"
+	)
+
+
+def _inf_evento(cstat="135", motivo="Evento homologado fora de prazo", chave=CHAVE_VALIDA, nprot="135260000123456"):
+	return (
+		"<retEvento><infEvento>"
+		f"<cStat>{cstat}</cStat><xMotivo>{motivo}</xMotivo>"
+		f"<chNFe>{chave}</chNFe><nProt>{nprot}</nProt>"
+		"<dhRegEvento>2026-08-24T10:05:00-04:00</dhRegEvento>"
+		"</infEvento></retEvento>"
+	)
+
+
+JUSTIFICATIVA_TESTE = "justificativa de teste com mais de 15 caracteres"
+
+
+@unittest.skipUnless(TEM_DEPENDENCIAS, "requer cryptography")
+class TestCancelar(unittest.TestCase):
+	def test_homologado_devolve_autorizacao_com_protocolo_do_cancelamento(self):
 		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
 
-		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", sessao=SessaoFalsa([])) as transporte:
-			with self.assertRaises(NotImplementedError):
-				transporte.cancelar("3" * 44, "justificativa de teste com mais de 15 caracteres")
+		resposta = _resposta_soap(
+			"retEnvEventoResult", _ret_env_evento(inf_evento=_inf_evento())
+		)
+
+		with TransporteSefaz(
+			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=SessaoFalsa([resposta])
+		) as transporte:
+			resultado = transporte.cancelar(CHAVE_VALIDA, "135260000000001", JUSTIFICATIVA_TESTE)
+
+		self.assertTrue(resultado.autorizada)
+		self.assertEqual(resultado.autorizacao.protocolo, "135260000123456")
+		self.assertEqual(resultado.autorizacao.chave_acesso, CHAVE_VALIDA)
+
+	def test_nao_homologado_devolve_resposta_sem_autorizacao(self):
+		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
+
+		resposta = _resposta_soap(
+			"retEnvEventoResult",
+			_ret_env_evento(inf_evento=_inf_evento(cstat="573", motivo="Duplicidade de evento")),
+		)
+
+		with TransporteSefaz(
+			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=SessaoFalsa([resposta])
+		) as transporte:
+			resultado = transporte.cancelar(CHAVE_VALIDA, "135260000000001", JUSTIFICATIVA_TESTE)
+
+		self.assertFalse(resultado.autorizada)
+		self.assertEqual(resultado.codigo, "573")
+		self.assertEqual(resultado.mensagem, "Duplicidade de evento")
+
+	def test_sem_endpoint_de_recepcaoevento_levanta_transporteindisponivel(self):
+		"""Nenhuma UF conhecida hoje deixa `RecepcaoEvento` sem endpoint — a guarda em
+		`cancelar` é defensiva para se a tabela de autorizadores um dia tiver uma lacuna
+		aqui, como já acontece com `NfeConsultaCadastro`. Testado forçando `endpoint` a
+		devolver `None`, não por UF real."""
+		from erpnext_brasil.integracao import transporte_sefaz as modulo
+		from erpnext_brasil.integracao.transporte_sefaz import TransporteIndisponivel, TransporteSefaz
+
+		with unittest.mock.patch.object(modulo, "endpoint", return_value=None):
+			with TransporteSefaz(
+				_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=SessaoFalsa([])
+			) as transporte:
+				with self.assertRaises(TransporteIndisponivel):
+					transporte.cancelar(CHAVE_VALIDA, "135260000000001", JUSTIFICATIVA_TESTE)
 
 
 if __name__ == "__main__":
