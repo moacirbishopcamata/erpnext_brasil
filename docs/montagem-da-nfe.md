@@ -94,12 +94,32 @@ montagem cuida das duas.
 | `procEmi` | sim | Processo de emissão |
 | `verProc` | sim | Versão do processo de emissão |
 
+## Grupo `prod` e `ICMSTot`
+
+Implementados em `fiscal/documento/produto.py`.
+
+**`prod`** descreve a mercadoria — não contém imposto, que é o grupo `imposto`, irmão
+dele dentro de `det`. Duas exigências do layout que parecem redundância e não são:
+
+- **`cEAN` nunca fica vazio.** Produto sem código de barras informa o literal
+  `SEM GTIN`; deixar vazio é rejeição, e inventar um EAN seria pior — falsificaria um
+  identificador que existe para rastrear o produto de verdade.
+- **Unidade e quantidade tributáveis são campos distintos** dos comerciais
+  (`uTrib`/`qTrib` vs. `uCom`/`qCom`). Quase sempre coincidem — por isso, quando não
+  informados, os tributáveis **repetem** os comerciais — mas quem vende em caixa e
+  tributa em unidade precisa preencher os dois, e o layout não admite omitir.
+
+**`ICMSTot`** soma os valores já arredondados de cada item apurado, nunca recalcula sobre
+a base agregada. Todo campo é informado, **zerado quando não houver valor** — omitir é
+rejeição, não economia. O `vNF` soma apenas o que é por fora do preço (produtos, frete,
+seguro, outras despesas, menos desconto, mais IPI); ICMS, PIS e COFINS já estão no preço
+e não se somam de novo.
+
 ## Ainda não montados
 
 - `enderEmit` e `enderDest` são repassados como vieram, sem validação de conteúdo;
-- grupo `det` recebe os itens prontos — o produto (`prod`) e os impostos (`imposto`) são
-  montados fora;
-- `total`, `transp`, `pag`, `infAdic` e a assinatura não são construídos aqui;
+- o grupo `imposto` do item (onde os grupos de IBS/CBS já prontos se encaixam);
+- `transp`, `pag`, `infAdic` não são construídos aqui;
 - `NFref` (documento referenciado), necessário em nota de devolução e complementar.
 
 ## Fontes

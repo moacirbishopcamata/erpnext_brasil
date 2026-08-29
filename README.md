@@ -40,7 +40,8 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Montagem da NF-e (`ide`, `emit`, `dest`, `infNFe`) | pronto |
 | Serialização dict → XML (forma canônica) | pronto |
 | Assinatura XMLDSig — estrutura e assinador local | pronto |
-| Grupos `prod`, `total`, `transp` e `pag` | não iniciado |
+| Grupos `prod` e `ICMSTot` (totais do documento) | pronto |
+| Grupos `transp`, `pag` e `infAdic` | não iniciado |
 | Adaptador de transporte (webservices da SEFAZ) | não iniciado |
 | Ciclo de vida do documento fiscal e porta de transmissão | pronto |
 | Adaptadores concretos (ACBrLib / ACBr API) | não iniciado |
