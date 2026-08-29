@@ -13,16 +13,20 @@ import unittest
 from datetime import datetime
 
 from erpnext_brasil.fiscal.documento.chave_acesso import ler_chave, validar_chave
+from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.documento.nfe import (
 	MODELO_NFCE,
+	NAMESPACE_NFE,
 	Destinatario,
 	Emitente,
 	Identificacao,
 	NFeInvalida,
+	assinar_nfe,
 	montar_dest,
 	montar_emit,
 	montar_ide,
 	montar_infnfe,
+	montar_nfe,
 )
 
 EMISSAO = datetime(2026, 8, 24, 14, 30, 0)
@@ -69,12 +73,18 @@ def destinatario(**ajustes) -> Destinatario:
 
 
 def documento(**ajustes):
+	from erpnext_brasil.fiscal.documento.pagamento import montar_pag
+	from erpnext_brasil.fiscal.documento.transporte import montar_transp
+
 	return montar_infnfe(
 		identificacao=ajustes.get("ide", identificacao()),
 		emitente=ajustes.get("emit", emitente()),
 		destinatario=ajustes.get("dest", destinatario()),
 		itens=ajustes.get("itens", [{"prod": {"cProd": "1"}}]),
 		totais=ajustes.get("totais", {"ICMSTot": {}}),
+		transp=ajustes.get("transp", montar_transp("9")["transp"]),
+		pag=ajustes.get("pag", montar_pag([{"forma": "90", "valor": None}])["pag"]),
+		infadic=ajustes.get("infadic"),
 	)
 
 
@@ -143,6 +153,49 @@ class TestChaveDerivadaDoIde(unittest.TestCase):
 
 		self.assertEqual(lida.cnpj, "12ABC34501DE35")
 		self.assertTrue(lida.cnpj_alfanumerico)
+
+
+class TestGruposObrigatoriosTranspEPag(unittest.TestCase):
+	"""transp e pag não têm minOccurs="0" no XSD — são obrigatórios mesmo vazios."""
+
+	def test_sem_transp_e_erro(self):
+		from erpnext_brasil.fiscal.documento.pagamento import montar_pag
+
+		with self.assertRaises(NFeInvalida) as ctx:
+			montar_infnfe(
+				identificacao=identificacao(),
+				emitente=emitente(),
+				destinatario=destinatario(),
+				itens=[{"prod": {}}],
+				totais={"ICMSTot": {}},
+				transp=None,
+				pag=montar_pag([{"forma": "90", "valor": None}])["pag"],
+			)
+
+		self.assertEqual(ctx.exception.campo, "transp")
+
+	def test_sem_pag_e_erro(self):
+		from erpnext_brasil.fiscal.documento.transporte import montar_transp
+
+		with self.assertRaises(NFeInvalida) as ctx:
+			montar_infnfe(
+				identificacao=identificacao(),
+				emitente=emitente(),
+				destinatario=destinatario(),
+				itens=[{"prod": {}}],
+				totais={"ICMSTot": {}},
+				transp=montar_transp("9")["transp"],
+				pag=None,
+			)
+
+		self.assertEqual(ctx.exception.campo, "pag")
+
+	def test_mensagem_orienta_o_valor_minimo(self):
+		"""A mensagem não só recusa: diz como preencher quando não há o que informar."""
+		with self.assertRaises(NFeInvalida) as ctx:
+			documento(transp=None)
+
+		self.assertIn("9", str(ctx.exception))
 
 
 class TestRegra897(unittest.TestCase):
@@ -276,6 +329,92 @@ class TestDestinatario(unittest.TestCase):
 			montar_dest(destinatario(cnpj_cpf="111.444.777-36", indicador_ie="9"))
 
 
+class TestInfAdic(unittest.TestCase):
+	"""`montar_infadic` devolve `None` quando vazio; `montar_infnfe` recebe o miolo,
+	não o dicionário envolto — mesma convenção de `transp` e `pag`."""
+
+	def test_sem_infadic_o_grupo_nao_aparece(self):
+		doc = documento()["infNFe"]
+
+		self.assertNotIn("infAdic", doc)
+
+	def test_com_infadic_encaixa_no_documento(self):
+		from erpnext_brasil.fiscal.documento.informacoes_adicionais import montar_infadic
+
+		resultado = montar_infadic(informacoes_complementares="Venda à vista")
+		doc = documento(infadic=resultado["infAdic"])["infNFe"]
+
+		self.assertEqual(doc["infAdic"]["infCpl"], "Venda à vista")
+
+	def test_infadic_vazio_nao_e_repassado(self):
+		from erpnext_brasil.fiscal.documento.informacoes_adicionais import montar_infadic
+
+		self.assertIsNone(montar_infadic())
+
+
+class TestMontarNFe(unittest.TestCase):
+	"""A raiz NFe, onde a Signature entra como irmã de infNFe (enveloped)."""
+
+	def test_namespace_na_raiz(self):
+		nfe = montar_nfe(documento())
+
+		self.assertEqual(nfe["NFe"]["@xmlns"], NAMESPACE_NFE)
+
+	def test_infnfe_preservado(self):
+		infnfe = documento()
+		nfe = montar_nfe(infnfe)
+
+		self.assertEqual(nfe["NFe"]["infNFe"], infnfe["infNFe"])
+
+
+class AssinadorFalso:
+	"""Duplo que satisfaz a porta `Assinador` sem certificado — registra o que recebeu."""
+
+	def __init__(self):
+		self.recebido: tuple[bytes, str] | None = None
+
+	def assinar(self, xml: bytes, id_elemento: str):
+		from erpnext_brasil.fiscal.documento.assinatura import MaterialAssinatura
+
+		self.recebido = (xml, id_elemento)
+
+		return MaterialAssinatura(
+			digest="ZGlnZXN0", assinatura="YXNzaW5hdHVyYQ==", certificado="Y2VydA=="
+		)
+
+
+class TestAssinarNFe(unittest.TestCase):
+	def setUp(self):
+		self.nfe = montar_nfe(documento())
+		self.assinador = AssinadorFalso()
+		self.assinado = assinar_nfe(self.nfe, self.assinador)
+
+	def test_assina_o_id_do_infnfe(self):
+		"""O que se assina é o Id de infNFe, nunca outro elemento."""
+		self.assertEqual(self.assinador.recebido[1], self.nfe["NFe"]["infNFe"]["@Id"])
+
+	def test_signature_e_irma_de_infnfe(self):
+		"""Enveloped: Signature dentro de NFe, ao lado de infNFe — não dentro dele."""
+		self.assertIn("infNFe", self.assinado["NFe"])
+		self.assertIn("Signature", self.assinado["NFe"])
+		self.assertNotIn("Signature", self.assinado["NFe"]["infNFe"])
+
+	def test_infnfe_nao_muda_ao_assinar(self):
+		self.assertEqual(self.assinado["NFe"]["infNFe"], self.nfe["NFe"]["infNFe"])
+
+	def test_documento_assinado_serializa(self):
+		xml = para_xml(self.assinado)
+
+		self.assertIn("<Signature ", xml)
+		self.assertIn(f'Id="{self.nfe["NFe"]["infNFe"]["@Id"]}"', xml)
+
+	def test_referencia_aponta_para_a_chave(self):
+		signature = self.assinado["NFe"]["Signature"]
+		uri = signature["SignedInfo"]["Reference"]["@URI"]
+
+		self.assertEqual(uri, f"#{self.nfe['NFe']['infNFe']['@Id']}")
+
+
 class TestConformidadeDeTags(unittest.TestCase):
 	"""Toda tag emitida precisa existir no layout oficial."""
 
@@ -308,10 +447,13 @@ class TestConformidadeDeTags(unittest.TestCase):
 		return encontradas
 
 	def test_todas_as_tags_existem_no_xsd(self):
+		from erpnext_brasil.fiscal.documento.informacoes_adicionais import montar_infadic
+
 		doc = documento(
 			dest=destinatario(),
 			itens=[{"prod": {"cProd": "1"}}],
 			totais={"ICMSTot": {}},
+			infadic=montar_infadic(informacoes_complementares="Teste")["infAdic"],
 		)
 
 		desconhecidas = self._tags(doc) - self.elementos

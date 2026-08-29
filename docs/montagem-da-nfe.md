@@ -165,13 +165,35 @@ valor. Um erro real que a implementação corrigiu antes do commit: `if cartao:`
 `{}` (cartão com valores padrão) como ausente, porque dicionário vazio é falso em
 Python — trocado por `is not None`.
 
+## `transp` e `pag` são obrigatórios — sem valor padrão inventado
+
+O XSD não marca `transp` nem `pag` com `minOccurs="0"`: os dois grupos são obrigatórios
+mesmo quando não há nada de fato a relatar. `montar_infnfe` recusa (`NFeInvalida`)
+quando faltam, em vez de preencher por conta própria — inventar `modFrete="9"` ou
+`tPag="90"` silenciosamente seria decidir dado de negócio que não é do módulo. A
+mensagem de erro orienta o valor mínimo (`montar_transp("9", ...)` /
+`montar_pag([{"forma": "90", "valor": None}])`) para quem realmente não tem nada a
+declarar.
+
+## `montar_nfe` e `assinar_nfe` — a raiz e a assinatura
+
+`montar_nfe` envolve `infNFe` na raiz `NFe`, aplicando o namespace do leiaute
+(`http://www.portalfiscal.inf.br/nfe`). É neste nível, não dentro de `infNFe`, que a
+assinatura entra como elemento **irmão** — a NF-e usa assinatura *enveloped*.
+
+`assinar_nfe` é a costura entre três módulos que, isoladamente, não se conheciam:
+`serializacao.py` (dict → XML, para o assinador calcular o digest), `assinatura.py`
+(estrutura do envelope XMLDSig) e a porta `Assinador` (a criptografia, local ou
+remota). Recebe a árvore `NFe` já com namespace — assinar antes disso produziria um
+digest que não bate com o XML final, porque o `xmlns` faz parte do que é canonicalizado.
+
+Com isso a montagem da NF-e está completa do lado da estrutura do documento. O que
+falta para emitir de fato é o adaptador de transporte.
+
 ## Ainda não montados
 
 - `enderEmit` e `enderDest` são repassados como vieram, sem validação de conteúdo;
-- `infAdic` não é construído aqui;
-- `NFref` (documento referenciado), necessário em nota de devolução e complementar;
-- assinatura do documento completo (a estrutura já existe em `assinatura.py` — falta
-  ligá-la ao `infNFe` montado por este módulo).
+- `NFref` (documento referenciado), necessário em nota de devolução e complementar.
 
 ## Fontes
 

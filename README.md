@@ -43,7 +43,9 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Grupos `prod` e `ICMSTot` (totais do documento) | pronto |
 | Grupo `imposto` do item (ICMS00/20/40/41/60, SN, IPI, PIS, COFINS, ISSQN + IBS/CBS) | pronto — escopo declarado |
 | Grupos `transp` e `pag` | pronto — escopo declarado |
-| Grupo `infAdic` e assinatura ligada ao documento completo | não iniciado |
+| Grupo `infAdic` | pronto |
+| `montar_nfe`/`assinar_nfe` — raiz, namespace e assinatura ligadas | pronto |
+| **Montagem da NF-e — completa do lado da estrutura do documento** | |
 | Adaptador de transporte (webservices da SEFAZ) | não iniciado |
 | Ciclo de vida do documento fiscal e porta de transmissão | pronto |
 | Adaptadores concretos (ACBrLib / ACBr API) | não iniciado |

@@ -35,21 +35,28 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from erpnext_brasil.fiscal.documento.assinatura import Assinador, montar_signature
 from erpnext_brasil.fiscal.documento.chave_acesso import calcular_dv, montar_chave
+from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.validators import limpar, validar_cnpj, validar_cpf_cnpj
 
 __all__ = [
 	"MODELO_NFCE",
 	"MODELO_NFE",
+	"NAMESPACE_NFE",
 	"Destinatario",
 	"Emitente",
 	"Identificacao",
 	"NFeInvalida",
+	"assinar_nfe",
 	"montar_dest",
 	"montar_emit",
 	"montar_ide",
 	"montar_infnfe",
+	"montar_nfe",
 ]
+
+NAMESPACE_NFE = "http://www.portalfiscal.inf.br/nfe"
 
 MODELO_NFE = "55"
 MODELO_NFCE = "65"
@@ -278,6 +285,9 @@ def montar_infnfe(
 	destinatario: Destinatario,
 	itens: list[dict],
 	totais: dict,
+	transp: dict | None = None,
+	pag: dict | None = None,
+	infadic: dict | None = None,
 	versao: str = "4.00",
 ) -> dict:
 	"""Monta `infNFe` completo, com a chave derivada da identificação.
@@ -290,6 +300,24 @@ def montar_infnfe(
 	"""
 	if not itens:
 		raise NFeInvalida("A NF-e precisa de ao menos um item", "itens")
+
+	# transp e pag são obrigatórios no XSD (sem minOccurs="0") — mesmo quando não há
+	# transporte real (modFrete="9") ou pagamento a destacar (tPag="90"), o grupo precisa
+	# existir. Inventar um valor aqui seria decidir por conta própria dado de negócio que
+	# não é nosso; falhar alto e pedir ao chamador é a alternativa correta.
+	if not transp:
+		raise NFeInvalida(
+			"O grupo transp é obrigatório — use montar_transp('9', ...) quando não há "
+			"transporte a relatar",
+			"transp",
+		)
+
+	if not pag:
+		raise NFeInvalida(
+			"O grupo pag é obrigatório — use montar_pag([{'forma': '90', 'valor': None}]) "
+			"quando não há pagamento a destacar",
+			"pag",
+		)
 
 	identificacao.validar()
 
@@ -312,14 +340,54 @@ def montar_infnfe(
 		{"@nItem": str(indice), **item} for indice, item in enumerate(itens, start=1)
 	]
 
-	return {
-		"infNFe": {
-			"@versao": versao,
-			"@Id": f"NFe{chave}",
-			"ide": montar_ide(identificacao, chave),
-			"emit": montar_emit(emitente),
-			"dest": montar_dest(destinatario),
-			"det": detalhes,
-			"total": dict(totais),
-		}
+	corpo = {
+		"@versao": versao,
+		"@Id": f"NFe{chave}",
+		"ide": montar_ide(identificacao, chave),
+		"emit": montar_emit(emitente),
+		"dest": montar_dest(destinatario),
+		"det": detalhes,
+		"total": dict(totais),
+		# A ordem destas três linhas é a ordem do XSD (`xs:sequence`), não escolha
+		# estética: `infNFe` é serializado depois, e trocar a ordem produziria XML válido
+		# para outras ferramentas mas rejeitado pelo validador da SEFAZ.
+		"transp": dict(transp),
+		"pag": dict(pag),
 	}
+
+	if infadic:
+		corpo["infAdic"] = dict(infadic)
+
+	return {"infNFe": corpo}
+
+
+def montar_nfe(infnfe: dict) -> dict:
+	"""Envolve `infNFe` na raiz `NFe`, com o namespace do leiaute.
+
+	É neste nível — não dentro de `infNFe` — que a assinatura entra como elemento
+	**irmão**: a NF-e usa assinatura *enveloped* (o `Signature` fica dentro do
+	elemento que contém o que foi assinado, mas fora do próprio conteúdo assinado).
+	`assinar_nfe` é quem acrescenta esse irmão depois.
+	"""
+	return {"NFe": {"@xmlns": NAMESPACE_NFE, **infnfe}}
+
+
+def assinar_nfe(nfe: dict, assinador: Assinador) -> dict:
+	"""Assina o documento e devolve a árvore completa, com `Signature` anexado.
+
+	A costura entre três módulos que, até aqui, não se conheciam: `serializacao.py`
+	(dict → XML, para o assinador poder canonicalizar), `assinatura.py` (estrutura do
+	envelope) e a porta `Assinador` (a criptografia em si, local ou remota). O documento
+	final tem exatamente a forma que a SEFAZ espera: `NFe > (infNFe, Signature)`.
+
+	Recebe `nfe`, não `infnfe`: o `Id` a assinar é o de `infNFe`, mas o que se
+	serializa para calcular o digest é a árvore com o namespace já aplicado — assinar
+	antes de aplicar o namespace produziria um digest que não bate com o XML final.
+	"""
+	id_elemento = nfe["NFe"]["infNFe"]["@Id"]
+	xml = para_xml(nfe).encode("utf-8")
+
+	material = assinador.assinar(xml, id_elemento)
+	signature = montar_signature(id_elemento, material)
+
+	return {"NFe": {**nfe["NFe"], **signature}}
