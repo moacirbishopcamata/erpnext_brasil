@@ -33,6 +33,7 @@ __all__ = [
 	"Autorizacao",
 	"RespostaTransmissao",
 	"ResultadoConsulta",
+	"ResultadoInutilizacao",
 	"TransporteFiscal",
 	"aplicar_resposta",
 ]
@@ -76,6 +77,20 @@ class ResultadoConsulta:
 	estado_sefaz: str = ""
 
 
+@dataclass(frozen=True)
+class ResultadoInutilizacao:
+	"""Resultado de `inutilizar` — tipo próprio, não `RespostaTransmissao`: uma faixa
+	inutilizada nunca teve chave de acesso nem é "autorizada" no sentido de `Autorizacao`
+	(não existe NF-e nenhuma por trás), então reusar aquele tipo insinuaria uma semântica
+	que não existe aqui."""
+
+	codigo: str
+	mensagem: str
+	homologada: bool = False
+	protocolo: str = ""
+	recebido_em: datetime | None = None
+
+
 @runtime_checkable
 class TransporteFiscal(Protocol):
 	"""Contrato mínimo de um transporte de documento fiscal.
@@ -110,6 +125,24 @@ class TransporteFiscal(Protocol):
 		deve trazer o histórico de correções anteriores, se houver — a porta não sabe
 		nem guarda esse histórico, é responsabilidade de quem chama (mesma fronteira que
 		o resto deste app usa entre "monta o documento" e "decide o conteúdo dele")."""
+		...
+
+	def inutilizar(
+		self,
+		ano: str,
+		cnpj: str,
+		modelo: str,
+		serie: str,
+		numero_inicial: str,
+		numero_final: str,
+		justificativa: str,
+	) -> ResultadoInutilizacao:
+		"""Inutiliza uma faixa de numeração nunca usada.
+
+		Sem `chave_acesso`: a faixa nunca virou documento, não existe chave. Por isso a
+		assinatura é toda diferente de `cancelar`/`corrigir` — não é o mesmo formato de
+		operação com um parâmetro a mais ou a menos, é uma operação sobre numeração, não
+		sobre um documento específico."""
 		...
 
 

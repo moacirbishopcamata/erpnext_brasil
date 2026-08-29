@@ -296,6 +296,9 @@ class TransporteFalso:
 	def corrigir(self, chave_acesso: str, texto_correcao: str) -> RespostaTransmissao:
 		return self.resposta
 
+	def inutilizar(self, ano, cnpj, modelo, serie, numero_inicial, numero_final, justificativa):
+		raise NotImplementedError
+
 
 class TestPorta(unittest.TestCase):
 	def test_transporte_falso_satisfaz_o_contrato(self):

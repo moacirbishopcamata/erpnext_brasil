@@ -27,7 +27,12 @@ from pathlib import Path
 
 from erpnext_brasil.fiscal.documento.autorizadores_sefaz import endpoint
 from erpnext_brasil.fiscal.documento.consulta import montar_cons_reci_nfe, montar_cons_sit_nfe
-from erpnext_brasil.fiscal.documento.porta import Autorizacao, RespostaTransmissao, ResultadoConsulta
+from erpnext_brasil.fiscal.documento.porta import (
+	Autorizacao,
+	RespostaTransmissao,
+	ResultadoConsulta,
+	ResultadoInutilizacao,
+)
 from erpnext_brasil.fiscal.documento.resposta_sefaz import RetornoAutorizacao, interpretar_autorizacao
 from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.documento.soap import extrair_resultado, montar_envelope
@@ -268,3 +273,42 @@ class TransporteSefaz:
 		)
 
 		return self._enviar_evento(evento, chave_acesso)
+
+	def inutilizar(
+		self,
+		ano: str,
+		cnpj: str,
+		modelo: str,
+		serie: str,
+		numero_inicial: str,
+		numero_final: str,
+		justificativa: str,
+	) -> ResultadoInutilizacao:
+		"""Inutiliza uma faixa de numeração via `NFeInutilizacao4`. Não é evento, não vai
+		em lote — requisição única, resposta única (ver `inutilizacao_sefaz.py`)."""
+		from erpnext_brasil.fiscal.documento.inutilizacao import CODIGO_UF_POR_SIGLA
+		from erpnext_brasil.integracao.inutilizacao_sefaz import enviar_inutilizacao
+
+		cuf = CODIGO_UF_POR_SIGLA.get(self._uf)
+
+		if cuf is None:
+			raise TransporteIndisponivel(f"UF {self._uf!r} sem código IBGE conhecido para inutilização")
+
+		self._preparar_arquivos_tls()
+
+		return enviar_inutilizacao(
+			uf=self._uf,
+			cuf=cuf,
+			ano=ano,
+			cnpj=cnpj,
+			modelo=modelo,
+			serie=serie,
+			numero_inicial=numero_inicial,
+			numero_final=numero_final,
+			justificativa=justificativa,
+			ambiente=self._ambiente,
+			assinador=self._assinador,
+			sessao_http=self._sessao_http(),
+			arquivo_cert=self._arquivo_cert,
+			arquivo_chave=self._arquivo_chave,
+		)

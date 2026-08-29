@@ -461,5 +461,97 @@ class TestCorrigir(unittest.TestCase):
 		self.assertIn("recepcaoevento", sessao.chamadas[0]["url"].lower())
 
 
+def _ret_inut(cstat="102", motivo="Inutilizacao de numero homologado", protocolo="111260000012345"):
+	return (
+		'<retInutNFe xmlns="http://www.portalfiscal.inf.br/nfe">'
+		f"<infInut><cStat>{cstat}</cStat><xMotivo>{motivo}</xMotivo>"
+		f"<nProt>{protocolo}</nProt><dhRecbto>2026-08-28T10:00:00-04:00</dhRecbto>"
+		"</infInut></retInutNFe>"
+	)
+
+
+JUSTIFICATIVA_INUTILIZACAO = "Faixa pulada por erro de configuracao do emissor fiscal"
+
+
+@unittest.skipUnless(TEM_DEPENDENCIAS, "requer cryptography")
+class TestInutilizar(unittest.TestCase):
+	def test_homologada_devolve_protocolo(self):
+		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
+
+		resposta = _resposta_soap("retInutNFeResult", _ret_inut())
+
+		with TransporteSefaz(
+			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=SessaoFalsa([resposta])
+		) as transporte:
+			resultado = transporte.inutilizar(
+				"26", "11222333000181", "55", "1", "100", "105", JUSTIFICATIVA_INUTILIZACAO
+			)
+
+		self.assertTrue(resultado.homologada)
+		self.assertEqual(resultado.protocolo, "111260000012345")
+
+	def test_rejeitada_nao_e_homologada(self):
+		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
+
+		resposta = _resposta_soap(
+			"retInutNFeResult", _ret_inut(cstat="563", motivo="Rejeicao: outro motivo")
+		)
+
+		with TransporteSefaz(
+			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=SessaoFalsa([resposta])
+		) as transporte:
+			resultado = transporte.inutilizar(
+				"26", "11222333000181", "55", "1", "100", "105", JUSTIFICATIVA_INUTILIZACAO
+			)
+
+		self.assertFalse(resultado.homologada)
+		self.assertEqual(resultado.codigo, "563")
+
+	def test_usa_o_endpoint_de_nfeinutilizacao(self):
+		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
+
+		sessao = SessaoFalsa([_resposta_soap("retInutNFeResult", _ret_inut())])
+
+		with TransporteSefaz(
+			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao
+		) as transporte:
+			transporte.inutilizar("26", "11222333000181", "55", "1", "100", "105", JUSTIFICATIVA_INUTILIZACAO)
+
+		self.assertIn("nfeinutilizacao", sessao.chamadas[0]["url"].lower())
+
+	def test_xml_enviado_esta_assinado(self):
+		"""Mesma checagem de regressão de `TestCancelar` — `TInutNFe` também exige
+		`Signature` com cardinalidade 1-1."""
+		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
+
+		sessao = SessaoFalsa([_resposta_soap("retInutNFeResult", _ret_inut())])
+
+		with TransporteSefaz(
+			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao
+		) as transporte:
+			transporte.inutilizar("26", "11222333000181", "55", "1", "100", "105", JUSTIFICATIVA_INUTILIZACAO)
+
+		corpo = sessao.chamadas[0]["data"].decode("utf-8")
+
+		self.assertIn("<Signature", corpo)
+		self.assertIn("<SignatureValue>", corpo)
+
+	def test_converte_sigla_da_uf_para_codigo_ibge_no_corpo(self):
+		"""`self._uf` é "RO" (sigla); `cUF` no XML precisa ser "11" (código IBGE) — a
+		conversão que `CODIGO_UF_POR_SIGLA` existe para fazer."""
+		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
+
+		sessao = SessaoFalsa([_resposta_soap("retInutNFeResult", _ret_inut())])
+
+		with TransporteSefaz(
+			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao
+		) as transporte:
+			transporte.inutilizar("26", "11222333000181", "55", "1", "100", "105", JUSTIFICATIVA_INUTILIZACAO)
+
+		corpo = sessao.chamadas[0]["data"].decode("utf-8")
+
+		self.assertIn("<cUF>11</cUF>", corpo)
+
+
 if __name__ == "__main__":
 	unittest.main()

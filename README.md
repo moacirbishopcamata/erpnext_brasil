@@ -54,7 +54,8 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Carta de correção (`corrigir`, evento 110110) | pronto — mesma via, `infEvento` idêntico, `detEvento` próprio |
 | Rastreabilidade de lote (grupo `rastro`) | pronto |
 | Ciclo de vida do documento fiscal e porta de transmissão | pronto |
-| Inutilização de faixa de numeração | não iniciado |
+| Inutilização de faixa de numeração (`inutilizar`) | pronto — CNPJ alfanumérico recusado deliberadamente, ver `docs/inutilizacao-nfe.md` |
+| Carta de correção (CC-e), inutilização e cancelamento assinados digitalmente | pronto — bug de assinatura ausente corrigido |
 | Obrigações acessórias (SPED, EFD-Reinf) | não iniciado |
 
 ### CNPJ alfanumérico
@@ -317,6 +318,8 @@ Referências detalhadas por assunto estão em [`docs/`](docs/README.md):
 | [montagem-da-nfe.md](docs/montagem-da-nfe.md) | Grupos `ide`, `emit`, `dest` e por que a chave é derivada |
 | [reforma-tributaria.md](docs/reforma-tributaria.md) | IBS, CBS e IS: cronograma e obrigatoriedade vigente |
 | [transmissao-documento-fiscal.md](docs/transmissao-documento-fiscal.md) | ACBrLib × ACBr API e a fronteira de licença |
+| [transporte-nativo-sefaz.md](docs/transporte-nativo-sefaz.md) | SOAP nativo, autorizadores por UF, cancelamento e CC-e |
+| [inutilizacao-nfe.md](docs/inutilizacao-nfe.md) | Inutilização de faixa de numeração — por que é operação à parte |
 
 ## Decisões de projeto
 
