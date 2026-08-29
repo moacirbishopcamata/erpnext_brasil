@@ -143,11 +143,35 @@ Um erro real que o teste de conformidade contra o XSD pegou: o campo do municíp
 ISSQN é **`cMunFG`**, não `cMunFGISS` — nome que pareceria natural por analogia com
 `cMunFGIBS`, mas não existe no leiaute.
 
+## Grupos `transp` e `pag`
+
+Implementados em `fiscal/documento/transporte.py` e `fiscal/documento/pagamento.py`.
+
+**`transp`** — `modFrete` é obrigatório em **toda** NF-e, mesmo sem transporte a
+relatar: `9` é "Sem Ocorrência de Transporte", e é o valor que emissão de serviço ou
+nota sem frete deve usar. Cobertos: modalidade, transportador (CNPJ ou CPF, exclusivos
+como em `dest`) e volumes. Fora do escopo: `retTransp` (retenção de ICMS sobre o frete)
+e identificação de veículo (`veicTransp`/`reboque`/`vagao`/`balsa`).
+
+**`pag`** — achado do XSD que vale registrar: `tPag` **não tem enumeração fixa** no
+schema, é só `[0-9]{2}`. Os códigos válidos vêm de uma tabela externa publicada à parte
+no Portal da NF-e, atualizada independente da versão do leiaute — `FORMAS_PAGAMENTO`
+espelha essa tabela, mas por ser externa a uma emissão em produção cabe confirmá-la
+antes de assumir completude.
+
+A regra condicional que decide aceitação: o XSD documenta que **`vPag` só é dispensado
+quando `tPag=90`** (sem pagamento) — inclusive pagamento "a prazo" ou parcial exige o
+valor. Um erro real que a implementação corrigiu antes do commit: `if cartao:` tratava
+`{}` (cartão com valores padrão) como ausente, porque dicionário vazio é falso em
+Python — trocado por `is not None`.
+
 ## Ainda não montados
 
 - `enderEmit` e `enderDest` são repassados como vieram, sem validação de conteúdo;
-- `transp`, `pag`, `infAdic` não são construídos aqui;
-- `NFref` (documento referenciado), necessário em nota de devolução e complementar.
+- `infAdic` não é construído aqui;
+- `NFref` (documento referenciado), necessário em nota de devolução e complementar;
+- assinatura do documento completo (a estrutura já existe em `assinatura.py` — falta
+  ligá-la ao `infNFe` montado por este módulo).
 
 ## Fontes
 

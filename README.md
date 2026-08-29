@@ -42,7 +42,8 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Assinatura XMLDSig — estrutura e assinador local | pronto |
 | Grupos `prod` e `ICMSTot` (totais do documento) | pronto |
 | Grupo `imposto` do item (ICMS00/20/40/41/60, SN, IPI, PIS, COFINS, ISSQN + IBS/CBS) | pronto — escopo declarado |
-| Grupos `transp`, `pag` e `infAdic` | não iniciado |
+| Grupos `transp` e `pag` | pronto — escopo declarado |
+| Grupo `infAdic` e assinatura ligada ao documento completo | não iniciado |
 | Adaptador de transporte (webservices da SEFAZ) | não iniciado |
 | Ciclo de vida do documento fiscal e porta de transmissão | pronto |
 | Adaptadores concretos (ACBrLib / ACBr API) | não iniciado |
