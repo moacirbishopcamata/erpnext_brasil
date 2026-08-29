@@ -48,6 +48,7 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | **Montagem da NF-e — completa do lado da estrutura do documento** | |
 | Tabela de autorizadores por UF (webservices da SEFAZ) | pronto — RO com homologação, demais só produção |
 | Envelope SOAP 1.2 (sem `nfeCabecMsg`, obsoleto desde 2017) | pronto |
+| Interpretação da resposta — os dois `cStat` (lote × nota) | pronto |
 | Adaptador de transporte (TLS mútuo com certificado A1) | não iniciado |
 | Ciclo de vida do documento fiscal e porta de transmissão | pronto |
 | Obrigações acessórias (SPED, EFD-Reinf) | não iniciado |

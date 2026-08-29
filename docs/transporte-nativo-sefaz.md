@@ -87,11 +87,30 @@ propagando `xmlns:soap` de ancestral para o elemento extraído (corrigido com
 (`test_assinador_local.py`, certificado autoassinado gerado em memória) que verifica a
 assinatura com a **chave pública** — não só que a função devolveu algo.
 
+## A armadilha dos dois `cStat`
+
+Implementada em `fiscal/documento/resposta_sefaz.py`. A resposta de autorização carrega
+**dois `cStat` em níveis diferentes**, e confundi-los é o erro mais fácil de cometer:
+
+- `retEnviNFe/cStat` — status do **lote**. `104` é "Lote processado", e isso **não
+  significa que a nota foi autorizada** — só que o lote terminou de ser processado.
+- `retEnviNFe/protNFe/infProt/cStat` — status **da NF-e em si**. `100` é "Autorizado o
+  uso da NF-e"; qualquer outro valor é rejeição.
+
+Um código que só olhasse o `cStat` do lote relataria rejeição como sucesso sempre que o
+lote tivesse sido processado — que é o caso comum. Há teste específico
+(`test_lote_processado_e_nota_rejeitada`) travando exatamente esse cenário.
+
+Quando o lote ainda não foi julgado (`cStat` diferente de `104`, ex. `103` "Lote
+recebido com sucesso"), `protNFe` não vem na resposta — modelado como `protocolo=None`,
+nunca como erro: é estado válido do fluxo (exige nova consulta via
+`NFeConsultaProtocolo4`/`NFeRetAutorizacao4`), não falha de parsing.
+
 ## Ainda por implementar
 
 - Adaptador `TransporteFiscal` com TLS mútuo via certificado A1, usando `requests`.
-- Tratamento de lote assíncrono (`NFeAutorizacao4` síncrono vs. `NFeRetAutorizacao4`
-  para consulta de recibo, quando o lote excede o processamento síncrono).
+- Polling de fato do lote assíncrono, usando `RetornoAutorizacao.pendente` e
+  `numero_recibo` para orquestrar a nova consulta.
 - Endpoints de homologação para os 11 grupos que não são SVRS.
 
 ## Fonte
