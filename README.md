@@ -51,9 +51,10 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Interpretação da resposta — os dois `cStat` (lote × nota) | pronto |
 | Adaptador de transporte — `transmitir` (com *polling*) e `consultar` | pronto |
 | Cancelamento (`cancelar`, evento 110111) | pronto — XSD do evento confirmado à parte do leiaute principal |
+| Carta de correção (`corrigir`, evento 110110) | pronto — mesma via, `infEvento` idêntico, `detEvento` próprio |
 | Rastreabilidade de lote (grupo `rastro`) | pronto |
 | Ciclo de vida do documento fiscal e porta de transmissão | pronto |
-| Carta de correção, inutilização de faixa | não iniciado |
+| Inutilização de faixa de numeração | não iniciado |
 | Obrigações acessórias (SPED, EFD-Reinf) | não iniciado |
 
 ### CNPJ alfanumérico

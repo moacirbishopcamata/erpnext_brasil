@@ -3,32 +3,26 @@
 
 """Implementação de `TransporteFiscal` que fala direto com a SEFAZ.
 
-`cancelar` já está implementado — a estrutura de `infEvento` foi confirmada no pacote
-de esquemas do evento (Portal Nacional da NF-e, "Evento Cancelamento"), separado do
-pacote de leiaute principal. Ver `fiscal/documento/evento.py` para a ordem dos campos e
-a pegadinha do `@Id` (zero à esquerda em `nSeqEvento` dentro do `Id`, ausente no
-elemento).
+`cancelar` e `corrigir` (carta de correção) usam `NFeRecepcaoEvento4` — estrutura de
+`infEvento` de cada um confirmada no pacote de esquemas do evento correspondente (Portal
+Nacional da NF-e), separado do pacote de leiaute principal. Ver `fiscal/documento/
+evento.py` para a ordem dos campos, a pegadinha do `@Id` e por que o sucesso de cada
+evento é decidido por `tpEvento`, não por um único conjunto de `cStat`.
 
-TLS mútuo com certificado em memória
---------------------------------------
-O certificado A1 é carregado em memória por `assinador_local.carregar_certificado`
-(`cryptography`), mas o `requests` só aceita certificado de cliente como **arquivo**
-(`cert=(certfile, keyfile)`) — não há suporte a certificado em memória na biblioteca
-padrão de SSL do Python. A solução, e o motivo de a classe ser um *context manager*: os
-arquivos PEM são escritos uma vez, em arquivo temporário, na construção, e apagados ao
-fechar — nunca ficam em disco além do necessário, e não se reescreve a cada requisição.
+TLS mútuo com certificado em memória: `assinador_local.carregar_certificado`
+(`cryptography`) carrega o A1 em memória, mas o `requests` só aceita certificado de
+cliente como **arquivo** — sem suporte a certificado em memória na biblioteca padrão de
+SSL do Python. Por isso a classe é *context manager*: os PEM são escritos uma vez em
+diretório temporário na construção, e apagados ao fechar.
 
-Injeção de dependência
-------------------------
-`sessao` (cliente HTTP) e `dormir` (para o intervalo entre tentativas de consulta) são
-parâmetros injetáveis, com padrão `requests.Session()` e `time.sleep` respectivamente —
-mesma disciplina de `RepositorioClassificacao`/`Assinador`: permite testar a
-orquestração inteira (resolução de endpoint, envelope, mapeamento de resposta) sem rede
-e sem esperar de verdade entre tentativas.
+Injeção de dependência: `sessao` (cliente HTTP) e `dormir` (intervalo entre consultas)
+são injetáveis, com padrão `requests.Session()`/`time.sleep` — mesma disciplina de
+`RepositorioClassificacao`/`Assinador`, testa a orquestração inteira sem rede.
 """
 
 import tempfile
 import time
+from datetime import datetime
 from pathlib import Path
 
 from erpnext_brasil.fiscal.documento.autorizadores_sefaz import endpoint
@@ -56,8 +50,6 @@ def _mapear_resultado(resultado: RetornoAutorizacao) -> RespostaTransmissao:
 		)
 
 	if resultado.autorizado:
-		from datetime import datetime
-
 		recebido_em = (
 			datetime.fromisoformat(resultado.data_recebimento)
 			if resultado.data_recebimento
@@ -228,28 +220,16 @@ class TransporteSefaz:
 			estado_sefaz=resultado.cstat_nfe or resultado.cstat_lote,
 		)
 
-	def cancelar(self, chave_acesso: str, protocolo: str, justificativa: str) -> RespostaTransmissao:
-		"""Envia o evento de cancelamento (110111) via `NFeRecepcaoEvento4`.
+	def _enviar_evento(self, evento: dict, chave_acesso: str, protocolo_padrao: str = "") -> RespostaTransmissao:
+		"""Envia um lote de um único evento via `NFeRecepcaoEvento4` e traduz o retorno.
 
-		`idLote` do envelope é gerado aqui (carimbo de tempo), não pedido a quem chama
-		— é identificador técnico do envio, sem significado de negócio que justifique
-		expô-lo na porta.
+		Compartilhado por `cancelar` e `corrigir` — diferem só na montagem
+		(`fiscal/documento/evento.py`), não no transporte. `protocolo_padrao` só importa
+		para `cancelar`: uma CC-e homologada sempre ecoa o `nProt` da autorização
+		original, não precisa de fallback.
 		"""
-		from datetime import datetime
+		from erpnext_brasil.fiscal.documento.evento import interpretar_retorno_evento, montar_env_evento
 
-		from erpnext_brasil.fiscal.documento.evento import (
-			interpretar_retorno_evento,
-			montar_env_evento,
-			montar_evento_cancelamento,
-		)
-
-		evento = montar_evento_cancelamento(
-			chave_acesso=chave_acesso,
-			protocolo=protocolo,
-			justificativa=justificativa,
-			cnpj_autor=self._cnpj_emitente,
-			data_evento=datetime.now().astimezone().isoformat(timespec="seconds"),
-		)
 		envelope = montar_env_evento([evento], id_lote=datetime.now().strftime("%Y%m%d%H%M%S"))
 
 		self._preparar_arquivos_tls()
@@ -276,19 +256,17 @@ class TransporteSefaz:
 		resultado = interpretar_retorno_evento(extrair_resultado(resposta.content))
 
 		if resultado.homologado:
-			from datetime import datetime as _datetime
-
 			recebido_em = (
-				_datetime.fromisoformat(resultado.data_registro)
+				datetime.fromisoformat(resultado.data_registro)
 				if resultado.data_registro
-				else _datetime.now().astimezone()
+				else datetime.now().astimezone()
 			)
 
 			return RespostaTransmissao(
 				codigo=resultado.cstat_evento,
 				mensagem=resultado.motivo_evento or "",
 				autorizacao=Autorizacao(
-					protocolo=resultado.protocolo or protocolo,
+					protocolo=resultado.protocolo or protocolo_padrao,
 					recebido_em=recebido_em,
 					chave_acesso=resultado.chave_conferida or chave_acesso,
 				),
@@ -298,3 +276,35 @@ class TransporteSefaz:
 			codigo=resultado.cstat_evento or resultado.cstat_lote,
 			mensagem=resultado.motivo_evento or resultado.motivo_lote,
 		)
+
+	def cancelar(self, chave_acesso: str, protocolo: str, justificativa: str) -> RespostaTransmissao:
+		"""Envia o evento de cancelamento (110111) via `NFeRecepcaoEvento4`."""
+		from erpnext_brasil.fiscal.documento.evento import montar_evento_cancelamento
+
+		evento = montar_evento_cancelamento(
+			chave_acesso=chave_acesso,
+			protocolo=protocolo,
+			justificativa=justificativa,
+			cnpj_autor=self._cnpj_emitente,
+			data_evento=datetime.now().astimezone().isoformat(timespec="seconds"),
+		)
+
+		return self._enviar_evento(evento, chave_acesso, protocolo_padrao=protocolo)
+
+	def corrigir(self, chave_acesso: str, texto_correcao: str) -> RespostaTransmissao:
+		"""Envia a carta de correção (110110) via `NFeRecepcaoEvento4`.
+
+		Não muda o estado do `DocumentoFiscal` — uma CC-e não autoriza nem cancela nada,
+		só emenda o texto de um documento já autorizado; `aplicar_resposta` não se aplica
+		ao retorno deste método.
+		"""
+		from erpnext_brasil.fiscal.documento.evento import montar_evento_correcao
+
+		evento = montar_evento_correcao(
+			chave_acesso=chave_acesso,
+			texto_correcao=texto_correcao,
+			cnpj_autor=self._cnpj_emitente,
+			data_evento=datetime.now().astimezone().isoformat(timespec="seconds"),
+		)
+
+		return self._enviar_evento(evento, chave_acesso)

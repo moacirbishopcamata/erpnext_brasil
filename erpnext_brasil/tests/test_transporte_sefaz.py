@@ -311,11 +311,17 @@ def _ret_env_evento(cstat_lote="128", motivo_lote="Lote de evento processado", i
 	)
 
 
-def _inf_evento(cstat="135", motivo="Evento homologado fora de prazo", chave=CHAVE_VALIDA, nprot="135260000123456"):
+def _inf_evento(
+	cstat="135",
+	motivo="Evento homologado fora de prazo",
+	chave=CHAVE_VALIDA,
+	nprot="135260000123456",
+	tipo_evento="110111",
+):
 	return (
 		"<retEvento><infEvento>"
 		f"<cStat>{cstat}</cStat><xMotivo>{motivo}</xMotivo>"
-		f"<chNFe>{chave}</chNFe><nProt>{nprot}</nProt>"
+		f"<chNFe>{chave}</chNFe><tpEvento>{tipo_evento}</tpEvento><nProt>{nprot}</nProt>"
 		"<dhRegEvento>2026-08-24T10:05:00-04:00</dhRegEvento>"
 		"</infEvento></retEvento>"
 	)
@@ -373,6 +379,61 @@ class TestCancelar(unittest.TestCase):
 			) as transporte:
 				with self.assertRaises(TransporteIndisponivel):
 					transporte.cancelar(CHAVE_VALIDA, "135260000000001", JUSTIFICATIVA_TESTE)
+
+
+TEXTO_CORRECAO_TESTE = "Corrigir o descritivo do item onde se le X leia-se Y, conforme combinado"
+
+
+@unittest.skipUnless(TEM_DEPENDENCIAS, "requer cryptography")
+class TestCorrigir(unittest.TestCase):
+	def test_homologado_devolve_autorizacao_com_protocolo_ecoado(self):
+		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
+
+		resposta = _resposta_soap(
+			"retEnvEventoResult",
+			_ret_env_evento(inf_evento=_inf_evento(cstat="135", tipo_evento="110110")),
+		)
+
+		with TransporteSefaz(
+			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=SessaoFalsa([resposta])
+		) as transporte:
+			resultado = transporte.corrigir(CHAVE_VALIDA, TEXTO_CORRECAO_TESTE)
+
+		self.assertTrue(resultado.autorizada)
+		self.assertEqual(resultado.autorizacao.protocolo, "135260000123456")
+		self.assertEqual(resultado.autorizacao.chave_acesso, CHAVE_VALIDA)
+
+	def test_101_nao_homologa_correcao_mesmo_sendo_sucesso_de_cancelamento(self):
+		"""101 é específico de cancelamento (ver `evento.py`) — uma CC-e com esse `cStat`
+		não é sucesso, é um retorno inesperado que a resposta deve refletir como tal."""
+		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
+
+		resposta = _resposta_soap(
+			"retEnvEventoResult",
+			_ret_env_evento(inf_evento=_inf_evento(cstat="101", motivo="x", tipo_evento="110110")),
+		)
+
+		with TransporteSefaz(
+			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=SessaoFalsa([resposta])
+		) as transporte:
+			resultado = transporte.corrigir(CHAVE_VALIDA, TEXTO_CORRECAO_TESTE)
+
+		self.assertFalse(resultado.autorizada)
+		self.assertEqual(resultado.codigo, "101")
+
+	def test_usa_o_mesmo_endpoint_de_recepcaoevento_do_cancelamento(self):
+		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
+
+		sessao = SessaoFalsa(
+			[_resposta_soap("retEnvEventoResult", _ret_env_evento(inf_evento=_inf_evento(tipo_evento="110110")))]
+		)
+
+		with TransporteSefaz(
+			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao
+		) as transporte:
+			transporte.corrigir(CHAVE_VALIDA, TEXTO_CORRECAO_TESTE)
+
+		self.assertIn("recepcaoevento", sessao.chamadas[0]["url"].lower())
 
 
 if __name__ == "__main__":

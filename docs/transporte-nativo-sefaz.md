@@ -106,7 +106,7 @@ recebido com sucesso"), `protNFe` não vem na resposta — modelado como `protoc
 nunca como erro: é estado válido do fluxo (exige nova consulta via
 `NFeConsultaProtocolo4`/`NFeRetAutorizacao4`), não falha de parsing.
 
-## O adaptador `TransporteSefaz` — `transmitir`, `consultar` e `cancelar` prontos
+## O adaptador `TransporteSefaz` — `transmitir`, `consultar`, `cancelar` e `corrigir` prontos
 
 Implementado em `integracao/transporte_sefaz.py`. É *context manager*: o certificado A1
 é carregado uma vez em memória (`cryptography`), mas o `requests` só aceita certificado
@@ -150,15 +150,40 @@ A pegadinha do `@Id` (`"ID" + tpEvento + chave + nSeqEvento`, em que o `nSeqEven
 está documentada com mais detalhe em `fiscal/documento/evento.py`, junto da leitura do
 retorno (`interpretar_retorno_evento`): o `cStat` do lote (recepção do pedido) e o
 `cStat` de `retEvento/infEvento` (se a SEFAZ de fato homologou) são dois números
-distintos — mesma armadilha dos dois `cStat` da autorização, um nível abaixo. Homologação
-aceita três códigos (`101`, `135` — fora de prazo, `155` — data divergente), não só um.
+distintos — mesma armadilha dos dois `cStat` da autorização, um nível abaixo.
+
+### `corrigir` — a carta de correção (110110)
+
+Mesma via de transporte do cancelamento (`NFeRecepcaoEvento4`) e o mesmo `infEvento` —
+só `detEvento` muda: `xCorrecao` (texto livre, 15 a 1000 caracteres — teto diferente da
+justificativa de cancelamento, que vai até 256) e `xCondUso`, um aviso legal fixo que o
+XSD (`leiauteCCe_v1.00.xsd`) restringe a uma enumeração de duas variantes — não é campo
+livre. O texto exato (`evento.XCONDUSO_CCE`) foi conferido caractere a caractere direto
+no XSD, não copiado de blog ou biblioteca de terceiros.
+
+`corrigir` não tem parâmetro `protocolo` — o schema da CC-e não pede o `nProt` da
+autorização original, só a chave e o texto. E o retorno não deve alimentar
+`aplicar_resposta`: uma CC-e homologada não muda o estado do `DocumentoFiscal` (ele
+continua autorizado), só emenda o texto de um documento que já está autorizado.
+
+**Por que não existe um único conjunto de `cStat` de sucesso para todo evento.** `135`
+("Evento registrado e vinculado a NF-e") é o código genérico de qualquer evento
+homologado via `NFeRecepcaoEvento4` — confirmado num exemplo real de CC-e homologada.
+Cancelamento tem dois códigos adicionais só dele (`101`, `155`) que não existem para
+carta de correção. `interpretar_retorno_evento` agora lê o `tpEvento` que a própria
+resposta ecoa (confirmado no schema de resposta, `retEnvEvento`/`retEvento/infEvento`) e
+escolhe o conjunto certo — usar um conjunto fixo teria dois jeitos de errar: aceitar
+`101` como sucesso de uma CC-e (nunca vai aparecer, mas seria logicamente incorreto) ou
+rejeitar um cancelamento genuinamente homologado com `101`/`155` por só reconhecer `135`.
 
 ## Ainda por implementar
 
 - Endpoints de homologação para os 11 grupos que não são SVRS.
-- Carta de correção e inutilização de faixa (mesma família do cancelamento — cada uma
-  com seu próprio pacote de esquema de evento, ainda não baixado/lido).
+- Inutilização de faixa de numeração (esquema de evento próprio, ainda não baixado/lido).
 
 ## Fonte
 
-Portal Nacional da NF-e, `webServices.aspx`, consultado em 2026-08-24.
+Portal Nacional da NF-e, `webServices.aspx`, consultado em 2026-08-24. Esquema da carta
+de correção (`leiauteCCe_v1.00.xsd`) confirmado via o pacote oficial em 2026-08-28,
+corroborado por exemplo real de CC-e homologada e pelo código-fonte de referência do
+`nfephp-org/sped-nfe`.

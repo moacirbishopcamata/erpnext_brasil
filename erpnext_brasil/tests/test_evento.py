@@ -19,14 +19,24 @@ import unittest
 from erpnext_brasil.fiscal.documento.chave_acesso import montar_chave
 from erpnext_brasil.fiscal.documento.estado import JUSTIFICATIVA_MAXIMA, JUSTIFICATIVA_MINIMA
 from erpnext_brasil.fiscal.documento.evento import (
+	CODIGOS_SUCESSO_CANCELAMENTO,
+	CODIGOS_SUCESSO_CORRECAO,
+	CORRECAO_MAXIMA,
+	CORRECAO_MINIMA,
 	TIPO_EVENTO_CANCELAMENTO,
+	TIPO_EVENTO_CORRECAO,
+	XCONDUSO_CCE,
 	EventoInvalido,
+	RetornoEvento,
+	interpretar_retorno_evento,
 	montar_env_evento,
 	montar_evento_cancelamento,
+	montar_evento_correcao,
 )
 
 CHAVE = montar_chave("11", "2608", "11222333000181", "55", "1", "1", "1", "12345678")
 JUSTIFICATIVA = "Erro de digitacao no valor do item"
+TEXTO_CORRECAO = "Corrigir o descritivo do item 1 onde se le X leia-se Y, conforme combinado"
 
 
 def evento(**ajustes):
@@ -40,6 +50,18 @@ def evento(**ajustes):
 	valores.update(ajustes)
 
 	return montar_evento_cancelamento(**valores)
+
+
+def correcao(**ajustes):
+	valores = {
+		"chave_acesso": CHAVE,
+		"texto_correcao": TEXTO_CORRECAO,
+		"cnpj_autor": "11.222.333/0001-81",
+		"data_evento": "2026-08-24T10:00:00-04:00",
+	}
+	valores.update(ajustes)
+
+	return montar_evento_correcao(**valores)
 
 
 class TestOrdemDeInfEvento(unittest.TestCase):
@@ -189,6 +211,153 @@ class TestEnvEvento(unittest.TestCase):
 		grupo = montar_env_evento([evento()], id_lote="1")["envEvento"]
 
 		self.assertEqual(grupo["@xmlns"], "http://www.portalfiscal.inf.br/nfe")
+
+
+class TestCartaDeCorrecao(unittest.TestCase):
+	"""`infEvento` da carta de correção compartilha a mesma ordem do cancelamento — só
+	`detEvento` muda (xCorrecao/xCondUso em vez de nProt/xJust) e os limites de tamanho
+	do texto livre são diferentes (15 a 1000, não 15 a 256)."""
+
+	def test_tipo_evento_e_fixo(self):
+		self.assertEqual(TIPO_EVENTO_CORRECAO, "110110")
+		self.assertEqual(correcao()["evento"]["infEvento"]["tpEvento"], "110110")
+
+	def test_ordem_de_detevento(self):
+		det = correcao()["evento"]["infEvento"]["detEvento"]
+
+		self.assertEqual(list(det), ["@versao", "descEvento", "xCorrecao", "xCondUso"])
+
+	def test_desc_evento_fixo(self):
+		self.assertEqual(
+			correcao()["evento"]["infEvento"]["detEvento"]["descEvento"], "Carta de Correção"
+		)
+
+	def test_xconduso_e_sempre_o_texto_fixo(self):
+		det = correcao()["evento"]["infEvento"]["detEvento"]
+
+		self.assertEqual(det["xCondUso"], XCONDUSO_CCE)
+
+	def test_id_usa_o_tipo_de_evento_correto(self):
+		id_evento = correcao(numero_sequencia=1)["evento"]["infEvento"]["@Id"]
+
+		self.assertEqual(id_evento, f"ID110110{CHAVE}01")
+
+	def test_texto_curto_e_erro(self):
+		with self.assertRaises(EventoInvalido) as ctx:
+			correcao(texto_correcao="curto demais")
+
+		self.assertEqual(ctx.exception.campo, "texto_correcao")
+
+	def test_texto_longo_e_erro(self):
+		with self.assertRaises(EventoInvalido):
+			correcao(texto_correcao="x" * (CORRECAO_MAXIMA + 1))
+
+	def test_limites_exatos_passam(self):
+		curto = correcao(texto_correcao="x" * CORRECAO_MINIMA)
+		longo = correcao(texto_correcao="x" * CORRECAO_MAXIMA)
+
+		self.assertEqual(len(curto["evento"]["infEvento"]["detEvento"]["xCorrecao"]), CORRECAO_MINIMA)
+		self.assertEqual(len(longo["evento"]["infEvento"]["detEvento"]["xCorrecao"]), CORRECAO_MAXIMA)
+
+	def test_cnpj_invalido_e_erro(self):
+		with self.assertRaises(EventoInvalido) as ctx:
+			correcao(cnpj_autor="11222333000182")
+
+		self.assertEqual(ctx.exception.campo, "cnpj_autor")
+
+	def test_sequencia_fora_da_faixa(self):
+		with self.assertRaises(EventoInvalido):
+			correcao(numero_sequencia=21)
+
+	def test_limite_de_15_e_o_minimo_diferente_da_justificativa_de_cancelamento(self):
+		"""Documenta explicitamente que os dois eventos têm o mesmo piso (15) mas tetos
+		diferentes (256 para xJust, 1000 para xCorrecao) — não é o mesmo número por
+		coincidência de reuso de constante."""
+		self.assertEqual(CORRECAO_MINIMA, JUSTIFICATIVA_MINIMA)
+		self.assertNotEqual(CORRECAO_MAXIMA, JUSTIFICATIVA_MAXIMA)
+
+
+def _xml_ret_env_evento(cstat_lote="128", inf_evento=""):
+	return (
+		'<retEnvEvento xmlns="http://www.portalfiscal.inf.br/nfe">'
+		f"<cStat>{cstat_lote}</cStat><xMotivo>Lote processado</xMotivo>{inf_evento}"
+		"</retEnvEvento>"
+	)
+
+
+def _xml_inf_evento(cstat, tipo_evento=None, nprot="135260000123456"):
+	tp = f"<tpEvento>{tipo_evento}</tpEvento>" if tipo_evento else ""
+
+	return (
+		f"<retEvento><infEvento><cStat>{cstat}</cStat><xMotivo>x</xMotivo>"
+		f"<chNFe>{CHAVE}</chNFe>{tp}<nProt>{nprot}</nProt>"
+		"<dhRegEvento>2026-08-24T10:05:00-04:00</dhRegEvento>"
+		"</infEvento></retEvento>"
+	)
+
+
+class TestInterpretarRetornoEvento(unittest.TestCase):
+	"""`interpretar_retorno_evento` lê `retEnvEvento`; `RetornoEvento.homologado` decide
+	sucesso a partir do `tpEvento` que a própria resposta traz — não de um único conjunto
+	de códigos para todo evento (ver a nota no topo de `evento.py`)."""
+
+	def test_le_cstat_e_motivo_do_lote(self):
+		retorno = interpretar_retorno_evento(_xml_ret_env_evento())
+
+		self.assertEqual(retorno.cstat_lote, "128")
+		self.assertEqual(retorno.motivo_lote, "Lote processado")
+
+	def test_sem_infevento_nao_e_homologado(self):
+		retorno = interpretar_retorno_evento(_xml_ret_env_evento())
+
+		self.assertIsNone(retorno.cstat_evento)
+		self.assertFalse(retorno.homologado)
+
+	def test_cancelamento_homologa_com_seus_tres_codigos(self):
+		for codigo in CODIGOS_SUCESSO_CANCELAMENTO:
+			with self.subTest(codigo=codigo):
+				xml = _xml_ret_env_evento(
+					inf_evento=_xml_inf_evento(codigo, tipo_evento=TIPO_EVENTO_CANCELAMENTO)
+				)
+				retorno = interpretar_retorno_evento(xml)
+
+				self.assertTrue(retorno.homologado)
+
+	def test_correcao_so_homologa_com_135(self):
+		xml_ok = _xml_ret_env_evento(inf_evento=_xml_inf_evento("135", tipo_evento=TIPO_EVENTO_CORRECAO))
+		self.assertTrue(interpretar_retorno_evento(xml_ok).homologado)
+
+		# 101 e 155 são específicos de cancelamento — não valem para homologar uma CC-e,
+		# mesmo sendo "códigos de sucesso" em outro contexto.
+		for codigo in CODIGOS_SUCESSO_CANCELAMENTO - CODIGOS_SUCESSO_CORRECAO:
+			with self.subTest(codigo=codigo):
+				xml = _xml_ret_env_evento(
+					inf_evento=_xml_inf_evento(codigo, tipo_evento=TIPO_EVENTO_CORRECAO)
+				)
+				self.assertFalse(interpretar_retorno_evento(xml).homologado)
+
+	def test_tipo_evento_ausente_usa_fallback_generico(self):
+		"""Resposta sem `tpEvento` (fixture incompleta, não uma resposta real da SEFAZ —
+		o schema real sempre o inclui) cai no conjunto genérico: só 135 homologa."""
+		xml_generico = _xml_ret_env_evento(inf_evento=_xml_inf_evento("135"))
+		xml_especifico = _xml_ret_env_evento(inf_evento=_xml_inf_evento("101"))
+
+		self.assertTrue(interpretar_retorno_evento(xml_generico).homologado)
+		self.assertFalse(interpretar_retorno_evento(xml_especifico).homologado)
+
+	def test_extrai_protocolo_e_chave_e_tipo_evento(self):
+		xml = _xml_ret_env_evento(inf_evento=_xml_inf_evento("135", tipo_evento=TIPO_EVENTO_CORRECAO))
+		retorno = interpretar_retorno_evento(xml)
+
+		self.assertEqual(retorno.tipo_evento, TIPO_EVENTO_CORRECAO)
+		self.assertEqual(retorno.chave_conferida, CHAVE)
+		self.assertEqual(retorno.protocolo, "135260000123456")
+
+	def test_retornoevento_e_congelado(self):
+		retorno = RetornoEvento(cstat_lote="128", motivo_lote="x")
+
+		with self.assertRaises(Exception):
+			retorno.cstat_lote = "999"
 
 
 if __name__ == "__main__":

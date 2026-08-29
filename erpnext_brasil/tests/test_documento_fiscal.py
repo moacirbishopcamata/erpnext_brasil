@@ -293,6 +293,9 @@ class TransporteFalso:
 	def cancelar(self, chave_acesso: str, protocolo: str, justificativa: str) -> RespostaTransmissao:
 		return self.resposta
 
+	def corrigir(self, chave_acesso: str, texto_correcao: str) -> RespostaTransmissao:
+		return self.resposta
+
 
 class TestPorta(unittest.TestCase):
 	def test_transporte_falso_satisfaz_o_contrato(self):

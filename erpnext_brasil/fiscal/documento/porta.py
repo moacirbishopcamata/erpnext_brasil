@@ -102,6 +102,16 @@ class TransporteFiscal(Protocol):
 		primeira versão desta porta não previa esse parâmetro."""
 		...
 
+	def corrigir(self, chave_acesso: str, texto_correcao: str) -> RespostaTransmissao:
+		"""Solicita a carta de correção (evento 110110).
+
+		Diferente de `cancelar`, não recebe `protocolo` — o schema da CC-e não exige o
+		protocolo da autorização, só a chave e o texto da correção. `texto_correcao` já
+		deve trazer o histórico de correções anteriores, se houver — a porta não sabe
+		nem guarda esse histórico, é responsabilidade de quem chama (mesma fronteira que
+		o resto deste app usa entre "monta o documento" e "decide o conteúdo dele")."""
+		...
+
 
 def aplicar_resposta(documento: DocumentoFiscal, resposta: RespostaTransmissao) -> None:
 	"""Traduz a resposta do transporte na transição correspondente do agregado.
