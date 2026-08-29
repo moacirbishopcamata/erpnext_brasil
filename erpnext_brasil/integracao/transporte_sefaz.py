@@ -31,13 +31,10 @@ from erpnext_brasil.fiscal.documento.porta import Autorizacao, RespostaTransmiss
 from erpnext_brasil.fiscal.documento.resposta_sefaz import RetornoAutorizacao, interpretar_autorizacao
 from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.documento.soap import extrair_resultado, montar_envelope
-from erpnext_brasil.integracao.assinador_local import carregar_certificado
+from erpnext_brasil.integracao.assinador_local import AssinadorLocal, carregar_certificado
+from erpnext_brasil.integracao.eventos_sefaz import TransporteIndisponivel, enviar_evento
 
 __all__ = ["TransporteIndisponivel", "TransporteSefaz"]
-
-
-class TransporteIndisponivel(RuntimeError):
-	"""A SEFAZ não respondeu de forma decidida dentro do que este adaptador tenta."""
 
 
 def _mapear_resultado(resultado: RetornoAutorizacao) -> RespostaTransmissao:
@@ -91,6 +88,9 @@ class TransporteSefaz:
 		diferente de `protocolo`/`justificativa`, que mudam a cada cancelamento. Por
 		isso entra aqui e não na porta `TransporteFiscal.cancelar`."""
 		self._chave, self._certificado = carregar_certificado(pfx, senha)
+		# Segunda leitura do mesmo pfx: `_assinador` assina eventos; `_chave`/
+		# `_certificado` acima viram os arquivos PEM do TLS mútuo — usos distintos.
+		self._assinador = AssinadorLocal(pfx, senha)
 		self._uf = uf
 		self._cnpj_emitente = cnpj_emitente
 		self._ambiente = ambiente
@@ -221,60 +221,20 @@ class TransporteSefaz:
 		)
 
 	def _enviar_evento(self, evento: dict, chave_acesso: str, protocolo_padrao: str = "") -> RespostaTransmissao:
-		"""Envia um lote de um único evento via `NFeRecepcaoEvento4` e traduz o retorno.
-
-		Compartilhado por `cancelar` e `corrigir` — diferem só na montagem
-		(`fiscal/documento/evento.py`), não no transporte. `protocolo_padrao` só importa
-		para `cancelar`: uma CC-e homologada sempre ecoa o `nProt` da autorização
-		original, não precisa de fallback.
-		"""
-		from erpnext_brasil.fiscal.documento.evento import interpretar_retorno_evento, montar_env_evento
-
-		envelope = montar_env_evento([evento], id_lote=datetime.now().strftime("%Y%m%d%H%M%S"))
-
+		"""Prepara TLS/sessão e delega a `eventos_sefaz.enviar_evento` (extraído por
+		tamanho de arquivo, não por responsabilidade — ver o módulo)."""
 		self._preparar_arquivos_tls()
 
-		url = endpoint(self._uf, "RecepcaoEvento", ambiente=self._ambiente)
-
-		if not url:
-			raise TransporteIndisponivel(
-				f"Não há endpoint de RecepcaoEvento confirmado para a UF {self._uf!r}"
-			)
-
-		xml_interno = para_xml(envelope)
-		soap = montar_envelope("RecepcaoEvento", xml_interno)
-
-		resposta = self._sessao_http().post(
-			url,
-			data=soap.encode("utf-8"),
-			headers={"Content-Type": "application/soap+xml; charset=utf-8"},
-			cert=(str(self._arquivo_cert), str(self._arquivo_chave)),
-			timeout=30,
-		)
-		resposta.raise_for_status()
-
-		resultado = interpretar_retorno_evento(extrair_resultado(resposta.content))
-
-		if resultado.homologado:
-			recebido_em = (
-				datetime.fromisoformat(resultado.data_registro)
-				if resultado.data_registro
-				else datetime.now().astimezone()
-			)
-
-			return RespostaTransmissao(
-				codigo=resultado.cstat_evento,
-				mensagem=resultado.motivo_evento or "",
-				autorizacao=Autorizacao(
-					protocolo=resultado.protocolo or protocolo_padrao,
-					recebido_em=recebido_em,
-					chave_acesso=resultado.chave_conferida or chave_acesso,
-				),
-			)
-
-		return RespostaTransmissao(
-			codigo=resultado.cstat_evento or resultado.cstat_lote,
-			mensagem=resultado.motivo_evento or resultado.motivo_lote,
+		return enviar_evento(
+			evento,
+			uf=self._uf,
+			ambiente=self._ambiente,
+			chave_acesso=chave_acesso,
+			assinador=self._assinador,
+			sessao_http=self._sessao_http(),
+			arquivo_cert=self._arquivo_cert,
+			arquivo_chave=self._arquivo_chave,
+			protocolo_padrao=protocolo_padrao,
 		)
 
 	def cancelar(self, chave_acesso: str, protocolo: str, justificativa: str) -> RespostaTransmissao:

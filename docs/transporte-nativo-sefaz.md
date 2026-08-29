@@ -152,6 +152,23 @@ retorno (`interpretar_retorno_evento`): o `cStat` do lote (recepção do pedido)
 `cStat` de `retEvento/infEvento` (se a SEFAZ de fato homologou) são dois números
 distintos — mesma armadilha dos dois `cStat` da autorização, um nível abaixo.
 
+**Correção: o evento precisa vir assinado.** A primeira versão de `cancelar` montava e
+enviava o `evento` sem `Signature` — todo cancelamento real teria sido rejeitado pela
+SEFAZ (`TEvento` exige `Signature` com cardinalidade 1-1, confirmado no XSD), e nenhum
+teste pegava isso porque todos simulam a resposta SOAP, nenhum inspecionava o XML de
+saída. Corrigido com `evento.assinar_evento` (mesmo padrão de `nfe.assinar_nfe`: assina
+a árvore já com `@xmlns` aplicado, `Signature` como irmão de `infEvento`) e uma checagem
+nova (`test_transporte_sefaz.TestCancelar.test_xml_enviado_esta_assinado`) que inspeciona
+o corpo da requisição de verdade, não só a resposta simulada — a categoria de teste que
+faltava.
+
+**`eventos_sefaz.py`**: `cancelar`/`corrigir`/o envio de evento em si foram extraídos de
+`transporte_sefaz.py` para este módulo novo só por tamanho de arquivo —
+`test_arquitetura.py` limita módulo de integração a 320 linhas, e o adaptador já estava
+no limite antes mesmo da assinatura entrar. Não é separação de responsabilidade nova, é
+o mesmo transporte em dois arquivos; `TransporteSefaz` continua sendo o único ponto que
+implementa `TransporteFiscal`.
+
 ### `corrigir` — a carta de correção (110110)
 
 Mesma via de transporte do cancelamento (`NFeRecepcaoEvento4`) e o mesmo `infEvento` —

@@ -348,6 +348,27 @@ class TestCancelar(unittest.TestCase):
 		self.assertEqual(resultado.autorizacao.protocolo, "135260000123456")
 		self.assertEqual(resultado.autorizacao.chave_acesso, CHAVE_VALIDA)
 
+	def test_xml_enviado_esta_assinado(self):
+		"""Regressão: a primeira versão de `cancelar` mandava o evento sem `Signature` —
+		nenhum teste anterior pegava isso porque todos simulam a resposta, nenhum
+		inspecionava o corpo da requisição. Este inspeciona."""
+		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
+
+		sessao = SessaoFalsa(
+			[_resposta_soap("retEnvEventoResult", _ret_env_evento(inf_evento=_inf_evento()))]
+		)
+
+		with TransporteSefaz(
+			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao
+		) as transporte:
+			transporte.cancelar(CHAVE_VALIDA, "135260000000001", JUSTIFICATIVA_TESTE)
+
+		corpo = sessao.chamadas[0]["data"].decode("utf-8")
+
+		self.assertIn("<Signature", corpo)
+		self.assertIn("<SignatureValue>", corpo)
+		self.assertIn("<X509Certificate>", corpo)
+
 	def test_nao_homologado_devolve_resposta_sem_autorizacao(self):
 		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
 
@@ -369,8 +390,12 @@ class TestCancelar(unittest.TestCase):
 		"""Nenhuma UF conhecida hoje deixa `RecepcaoEvento` sem endpoint — a guarda em
 		`cancelar` é defensiva para se a tabela de autorizadores um dia tiver uma lacuna
 		aqui, como já acontece com `NfeConsultaCadastro`. Testado forçando `endpoint` a
-		devolver `None`, não por UF real."""
-		from erpnext_brasil.integracao import transporte_sefaz as modulo
+		devolver `None`, não por UF real.
+
+		O `endpoint` que importa é o de `eventos_sefaz` (onde `enviar_evento` de fato
+		roda), não o de `transporte_sefaz` — são módulos diferentes desde a extração por
+		tamanho de arquivo."""
+		from erpnext_brasil.integracao import eventos_sefaz as modulo
 		from erpnext_brasil.integracao.transporte_sefaz import TransporteIndisponivel, TransporteSefaz
 
 		with unittest.mock.patch.object(modulo, "endpoint", return_value=None):

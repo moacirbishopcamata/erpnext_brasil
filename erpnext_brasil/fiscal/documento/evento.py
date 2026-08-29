@@ -51,6 +51,19 @@ duas representações do mesmo número, e usar uma no lugar da outra produz `Id`
 bate com o padrão — exatamente o tipo de detalhe que só aparece decompondo um exemplo
 real, não lendo a documentação em prosa.
 
+Assinatura — obrigatória e antes descoberta faltando
+--------------------------------------------------------
+Todo `evento` precisa de `Signature` (mesmo perfil XMLDSig da NF-e, ver
+`assinatura.py`), como irmão de `infEvento` — cardinalidade 1-1, confirmada em
+`TEvento` do próprio XSD. **A primeira versão de `cancelar`/`corrigir` no adaptador
+mandava o evento sem assinar**: os testes existentes não pegaram isso porque simulam
+a resposta SOAP, nunca verificam o XML de saída. `assinar_evento` fecha essa lacuna,
+no mesmo padrão de `nfe.assinar_nfe` — inclusive a mesma pegadinha: assina-se a árvore
+já com `@xmlns` aplicado (o `evento` isolado carrega seu próprio `xmlns`, redundante
+com o de `envEvento` mas é assim que o layout real usa — confirmado num exemplo real
+de evento assinado), nunca antes de aplicar o namespace, porque o digest calculado
+sobre uma árvore sem `xmlns` não bate com o XML final que a SEFAZ recebe.
+
 Por que `cStat` de sucesso não é um único conjunto para todo evento
 ----------------------------------------------------------------------
 `135` ("Evento registrado e vinculado a NF-e") é o código genérico de homologação de
@@ -68,10 +81,12 @@ Funções puras: nenhuma dependência do Frappe.
 
 from dataclasses import dataclass
 
+from erpnext_brasil.fiscal.documento.assinatura import Assinador, montar_signature
 from erpnext_brasil.fiscal.documento.chave_acesso import ler_chave, validar_chave
 from erpnext_brasil.fiscal.documento.estado import JUSTIFICATIVA_MAXIMA, JUSTIFICATIVA_MINIMA
 from erpnext_brasil.fiscal.documento.nfe import NAMESPACE_NFE
 from erpnext_brasil.fiscal.documento.resposta_sefaz import RespostaSefazInvalida
+from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.validators import validar_cnpj
 
 __all__ = [
@@ -84,6 +99,7 @@ __all__ = [
 	"XCONDUSO_CCE",
 	"EventoInvalido",
 	"RetornoEvento",
+	"assinar_evento",
 	"interpretar_retorno_evento",
 	"montar_env_evento",
 	"montar_evento_cancelamento",
@@ -200,7 +216,7 @@ def montar_evento_cancelamento(
 		},
 	}
 
-	return {"evento": {"@versao": _VERSAO_EVENTO, "infEvento": inf_evento}}
+	return {"evento": {"@xmlns": NAMESPACE_NFE, "@versao": _VERSAO_EVENTO, "infEvento": inf_evento}}
 
 
 def montar_evento_correcao(
@@ -259,7 +275,28 @@ def montar_evento_correcao(
 		},
 	}
 
-	return {"evento": {"@versao": _VERSAO_EVENTO, "infEvento": inf_evento}}
+	return {"evento": {"@xmlns": NAMESPACE_NFE, "@versao": _VERSAO_EVENTO, "infEvento": inf_evento}}
+
+
+def assinar_evento(grupo_evento: dict, assinador: Assinador) -> dict:
+	"""Assina o `evento` e devolve a árvore com `Signature` anexado como irmão de
+	`infEvento` — mesmo padrão de `nfe.assinar_nfe`, cardinalidade 1-1 confirmada em
+	`TEvento` do XSD. Sem isso, a SEFAZ rejeita o evento por falta de assinatura; ver a
+	nota no topo do módulo sobre por que essa etapa faltava até agora.
+
+	Recebe o dicionário completo (`{"evento": {...}}`), com `@xmlns` já aplicado por
+	`montar_evento_cancelamento`/`montar_evento_correcao` — assinar antes de o namespace
+	estar presente produziria um digest que não bate com o XML final, mesmo erro que
+	`assinar_nfe` evita para a NF-e.
+	"""
+	evento = grupo_evento["evento"]
+	id_elemento = evento["infEvento"]["@Id"]
+	xml = para_xml(grupo_evento).encode("utf-8")
+
+	material = assinador.assinar(xml, id_elemento)
+	signature = montar_signature(id_elemento, material)
+
+	return {"evento": {**evento, **signature}}
 
 
 def montar_env_evento(eventos: list[dict], id_lote: str) -> dict:

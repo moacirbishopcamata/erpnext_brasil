@@ -28,11 +28,13 @@ from erpnext_brasil.fiscal.documento.evento import (
 	XCONDUSO_CCE,
 	EventoInvalido,
 	RetornoEvento,
+	assinar_evento,
 	interpretar_retorno_evento,
 	montar_env_evento,
 	montar_evento_cancelamento,
 	montar_evento_correcao,
 )
+from erpnext_brasil.fiscal.documento.serializacao import para_xml
 
 CHAVE = montar_chave("11", "2608", "11222333000181", "55", "1", "1", "1", "12345678")
 JUSTIFICATIVA = "Erro de digitacao no valor do item"
@@ -358,6 +360,69 @@ class TestInterpretarRetornoEvento(unittest.TestCase):
 
 		with self.assertRaises(Exception):
 			retorno.cstat_lote = "999"
+
+
+class AssinadorFalso:
+	"""Duplo que satisfaz a porta `Assinador` sem certificado — registra o que recebeu.
+	Mesmo duplo usado em `test_nfe.TestAssinarNFe`."""
+
+	def __init__(self):
+		self.recebido: tuple[bytes, str] | None = None
+
+	def assinar(self, xml: bytes, id_elemento: str):
+		from erpnext_brasil.fiscal.documento.assinatura import MaterialAssinatura
+
+		self.recebido = (xml, id_elemento)
+
+		return MaterialAssinatura(
+			digest="ZGlnZXN0", assinatura="YXNzaW5hdHVyYQ==", certificado="Y2VydA=="
+		)
+
+
+class TestAssinarEvento(unittest.TestCase):
+	"""Cobre a lacuna encontrada ao ligar `corrigir`/`cancelar` no adaptador real: um
+	`evento` sem `Signature` é rejeitado pela SEFAZ (cardinalidade 1-1 em `TEvento`), e
+	os testes de `transporte_sefaz.py` nunca pegariam isso — eles simulam a resposta,
+	nunca inspecionam o XML de saída."""
+
+	def setUp(self):
+		self.grupo = evento()
+		self.assinador = AssinadorFalso()
+		self.assinado = assinar_evento(self.grupo, self.assinador)
+
+	def test_assina_o_id_do_infevento(self):
+		self.assertEqual(self.assinador.recebido[1], self.grupo["evento"]["infEvento"]["@Id"])
+
+	def test_signature_e_irma_de_infevento(self):
+		self.assertIn("infEvento", self.assinado["evento"])
+		self.assertIn("Signature", self.assinado["evento"])
+		self.assertNotIn("Signature", self.assinado["evento"]["infEvento"])
+
+	def test_infevento_nao_muda_ao_assinar(self):
+		self.assertEqual(self.assinado["evento"]["infEvento"], self.grupo["evento"]["infEvento"])
+
+	def test_assina_com_o_xmlns_ja_aplicado(self):
+		"""O XML passado ao assinador precisa já ter `xmlns` — assinar antes produziria
+		um digest que não bate com o XML final enviado à SEFAZ."""
+		xml_assinado = self.assinador.recebido[0].decode("utf-8")
+
+		self.assertIn('xmlns="http://www.portalfiscal.inf.br/nfe"', xml_assinado)
+
+	def test_documento_assinado_serializa(self):
+		xml = para_xml(self.assinado)
+
+		self.assertIn("<Signature ", xml)
+		self.assertIn(f'Id="{self.grupo["evento"]["infEvento"]["@Id"]}"', xml)
+
+	def test_funciona_para_correcao_tambem(self):
+		"""A mesma função assina qualquer evento — cancelamento e CC-e têm o mesmo
+		formato de `evento`, só `detEvento` muda, e `assinar_evento` não olha para
+		dentro de `detEvento`."""
+		grupo_cce = correcao()
+		assinado = assinar_evento(grupo_cce, AssinadorFalso())
+
+		self.assertIn("Signature", assinado["evento"])
+		self.assertEqual(assinado["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_CORRECAO)
 
 
 if __name__ == "__main__":
