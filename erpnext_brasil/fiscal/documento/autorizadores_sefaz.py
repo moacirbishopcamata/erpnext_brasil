@@ -22,12 +22,20 @@ Os três grupos
 RO está no grupo SVRS confirmado na fonte — é o autorizador usado neste app para
 Rondônia, prioridade de verificação declarada pelo usuário.
 
-O que **não** está confirmado, e por isso não é adivinhado
-------------------------------------------------------------
-- **Homologação.** A página lista só produção. Não existe padrão confiável de nome de
-  host para derivar homologação (alguns trocam `nfe.` por `homologacao.nfe.`, outros
-  não seguem esse padrão) — `endpoint(..., ambiente="homologacao")` levanta
-  `NotImplementedError` em vez de arriscar uma URL errada.
+Homologação — confirmada só para SVRS
+--------------------------------------
+O Portal Nacional lista apenas produção. Para **SVRS** (o grupo de RO, prioridade de
+verificação deste projeto), a homologação foi confirmada numa segunda fonte
+independente: a tabela de configuração da `nfephp-org/sped-nfe`
+(`storage/wsnfe_4.00_mod55.xml`), a biblioteca PHP mais usada no Brasil para isso. Essa
+tabela também **reproduz exatamente** os endpoints de produção do SVRS já extraídos do
+Portal — o que dá confiança na correção do arquivo, não só na sua popularidade.
+
+Não existe padrão confiável de nome de host entre grupos: SVRS troca `nfe.` por
+`nfe-homologacao.`, mas GO usa host completamente diferente
+(`homolog.sefaz.go.gov.br` vs. `nfe.sefaz.go.gov.br`) — inferir por padrão para os
+outros 11 grupos seria adivinhar. Por isso só SVRS tem homologação nesta tabela; os
+demais continuam levantando `NotImplementedError`.
 - **`NfeConsultaCadastro` para 11 das 16 UFs do grupo SVRS.** A fonte diz explicitamente
   que só AC, ES, RN, PB e SC usam o CadConsultaCadastro do SVRS; as outras 11 — RO
   entre elas — não têm esse serviço confirmado por esta página. `endpoint()` devolve
@@ -36,12 +44,16 @@ O que **não** está confirmado, e por isso não é adivinhado
 
 Funções puras: nenhuma dependência do Frappe.
 
-Fonte: Portal Nacional da NF-e, `webServices.aspx`, consultado em 2026-08-24.
+Fontes: Portal Nacional da NF-e, `webServices.aspx` (produção, todas as UFs), e
+`nfephp-org/sped-nfe`, `storage/wsnfe_4.00_mod55.xml` (homologação do SVRS, e
+confirmação cruzada da produção do SVRS) — ambas consultadas em 2026-08-24.
 """
 
 __all__ = [
 	"AUTORIZADOR_POR_UF",
 	"ENDPOINTS",
+	"ENDPOINTS_HOMOLOGACAO",
+	"OPERACAO_SOAP",
 	"UFS_COM_CONSULTA_CADASTRO_NO_SVRS",
 	"AutorizadorDesconhecido",
 	"endpoint",
@@ -178,6 +190,34 @@ ENDPOINTS = {
 	},
 }
 
+# Homologação: só SVRS está confirmado (ver docstring do módulo). Estrutura pronta para
+# receber outros grupos no dia em que forem confirmados — nunca por inferência de padrão.
+ENDPOINTS_HOMOLOGACAO = {
+	_SVRS: {
+		"NFeAutorizacao": "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
+		"NFeRetAutorizacao": "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx",
+		"NfeConsultaProtocolo": "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeConsulta/NfeConsulta4.asmx",
+		"NfeStatusServico": "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx",
+		"NfeInutilizacao": "https://nfe-homologacao.svrs.rs.gov.br/ws/nfeinutilizacao/nfeinutilizacao4.asmx",
+		"RecepcaoEvento": "https://nfe-homologacao.svrs.rs.gov.br/ws/recepcaoevento/recepcaoevento4.asmx",
+		"NfeConsultaCadastro": "https://cad-homologacao.svrs.rs.gov.br/ws/cadconsultacadastro/cadconsultacadastro4.asmx",
+	}
+}
+
+# Operação SOAP de cada serviço — usada para montar o namespace de `nfeDadosMsg`
+# (`http://www.portalfiscal.inf.br/nfe/wsdl/<operacao>`). Confirmado em
+# `nfephp-org/sped-nfe`, `storage/wsnfe_4.00_mod55.xml` (atributo `operation`).
+OPERACAO_SOAP = {
+	"NFeAutorizacao": "NFeAutorizacao4",
+	"NFeRetAutorizacao": "NFeRetAutorizacao4",
+	"NfeConsultaProtocolo": "NFeConsultaProtocolo4",
+	"NfeStatusServico": "NFeStatusServico4",
+	"NfeInutilizacao": "NFeInutilizacao4",
+	# Versão 1.00, não 4.00: é a versão do schema do evento, não do layout da NF-e.
+	"RecepcaoEvento": "NFeRecepcaoEvento4",
+	"NfeConsultaCadastro": "CadConsultaCadastro4",
+}
+
 
 class AutorizadorDesconhecido(ValueError):
 	def __init__(self, mensagem: str):
@@ -193,13 +233,7 @@ def endpoint(uf: str, servico: str, ambiente: str = "producao") -> str | None:
 	"""
 	sigla = (uf or "").strip().upper()
 
-	if ambiente == "homologacao":
-		raise NotImplementedError(
-			"Endpoints de homologação não estão confirmados nesta tabela — "
-			"precisam ser levantados UF a UF antes de uso, não derivados por padrão de nome"
-		)
-
-	if ambiente != "producao":
+	if ambiente not in ("producao", "homologacao"):
 		raise ValueError(f"Ambiente deve ser 'producao' ou 'homologacao', recebido {ambiente!r}")
 
 	grupo = AUTORIZADOR_POR_UF.get(sigla)
@@ -207,9 +241,22 @@ def endpoint(uf: str, servico: str, ambiente: str = "producao") -> str | None:
 	if grupo is None:
 		raise AutorizadorDesconhecido(f"UF {uf!r} não consta na tabela de autorizadores")
 
+	if (
+		grupo == _SVRS
+		and servico == "NfeConsultaCadastro"
+		and sigla not in UFS_COM_CONSULTA_CADASTRO_NO_SVRS
+	):
+		return None
+
 	chave = grupo if grupo in (_SVAN, _SVRS) else sigla
 
-	if grupo == _SVRS and servico == "NfeConsultaCadastro" and sigla not in UFS_COM_CONSULTA_CADASTRO_NO_SVRS:
-		return None
+	if ambiente == "homologacao":
+		if chave not in ENDPOINTS_HOMOLOGACAO:
+			raise NotImplementedError(
+				f"Homologação não está confirmada para o grupo {chave!r} nesta tabela — "
+				"precisa ser levantada antes de uso, não derivada por padrão de nome"
+			)
+
+		return ENDPOINTS_HOMOLOGACAO[chave].get(servico)
 
 	return ENDPOINTS[chave].get(servico)

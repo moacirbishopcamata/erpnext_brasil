@@ -46,8 +46,9 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Grupo `infAdic` | pronto |
 | `montar_nfe`/`assinar_nfe` — raiz, namespace e assinatura ligadas | pronto |
 | **Montagem da NF-e — completa do lado da estrutura do documento** | |
-| Tabela de autorizadores por UF (webservices da SEFAZ) | pronto — RO confirmado, homologação pendente |
-| Adaptador de transporte (SOAP + TLS mútuo, direto à SEFAZ) | não iniciado |
+| Tabela de autorizadores por UF (webservices da SEFAZ) | pronto — RO com homologação, demais só produção |
+| Envelope SOAP 1.2 (sem `nfeCabecMsg`, obsoleto desde 2017) | pronto |
+| Adaptador de transporte (TLS mútuo com certificado A1) | não iniciado |
 | Ciclo de vida do documento fiscal e porta de transmissão | pronto |
 | Obrigações acessórias (SPED, EFD-Reinf) | não iniciado |
 
@@ -348,6 +349,20 @@ bench --site <site> install-app erpnext_brasil
 
 Os campos fiscais são recriados a cada `bench migrate` (`after_migrate`), de forma
 idempotente — campos customizados podem se perder quando o ERPNext altera o DocType base.
+
+## Dependências
+
+Nenhuma nova para o bench: `lxml`, `cryptography` e `requests` já acompanham o frappe.
+Para rodar a suíte completa **fora** de um bench (como neste repositório), instale-as
+no ambiente de desenvolvimento:
+
+```sh
+pip install lxml cryptography requests
+```
+
+Sem elas, os testes que exercitam assinatura e extração de resposta SOAP são pulados
+(`unittest.skipUnless`) em vez de falhar — a suíte continua passando, só com menos
+cobertura.
 
 ## Testes
 

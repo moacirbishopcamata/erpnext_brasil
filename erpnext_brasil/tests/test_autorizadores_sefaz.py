@@ -121,16 +121,33 @@ class TestExcecaoDeConsultaCadastro(unittest.TestCase):
 				self.assertIsNone(endpoint(uf, "NfeConsultaCadastro"))
 
 
-class TestHomologacaoNaoInventada(unittest.TestCase):
-	def test_levanta_not_implemented(self):
-		with self.assertRaises(NotImplementedError):
+class TestHomologacao(unittest.TestCase):
+	"""Confirmada só para SVRS (que cobre RO), via segunda fonte independente."""
+
+	def test_ro_resolve_homologacao(self):
+		url = endpoint("RO", "NFeAutorizacao", ambiente="homologacao")
+
+		self.assertEqual(
+			url, "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx"
+		)
+
+	def test_homologacao_do_svrs_troca_o_host_mas_preserva_o_caminho(self):
+		producao = endpoint("RO", "NfeStatusServico")
+		homologacao = endpoint("RO", "NfeStatusServico", ambiente="homologacao")
+
+		self.assertEqual(producao.split("/", 3)[-1], homologacao.split("/", 3)[-1])
+		self.assertNotEqual(producao, homologacao)
+
+	def test_grupo_sem_homologacao_confirmada_levanta_not_implemented(self):
+		"""Não existe padrão de host confiável entre grupos — SP não pode herdar do SVRS."""
+		with self.assertRaises(NotImplementedError) as ctx:
 			endpoint("SP", "NFeAutorizacao", ambiente="homologacao")
 
-	def test_mensagem_explica_o_motivo(self):
-		with self.assertRaises(NotImplementedError) as ctx:
-			endpoint("RO", "NFeAutorizacao", ambiente="homologacao")
+		self.assertIn("não está confirmada", str(ctx.exception))
 
-		self.assertIn("não estão confirmados", str(ctx.exception))
+	def test_ma_svan_tambem_sem_homologacao_confirmada(self):
+		with self.assertRaises(NotImplementedError):
+			endpoint("MA", "NFeAutorizacao", ambiente="homologacao")
 
 
 class TestValidacao(unittest.TestCase):

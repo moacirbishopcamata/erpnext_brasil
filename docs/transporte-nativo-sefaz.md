@@ -58,14 +58,41 @@ precisam ser levantados UF a UF antes de uso.
 emissão em si: `NfeConsultaCadastro` é consulta cadastral, não faz parte do fluxo de
 autorização.
 
+## O envelope SOAP — sem `nfeCabecMsg`
+
+Implementado em `fiscal/documento/soap.py`. O achado que decidiu a forma final: duas
+fontes técnicas divergiam sobre a necessidade de um `soap12:Header` com `nfeCabecMsg`
+(`cUF` + `versaoDados`). A divergência só se resolveu no comentário datado do
+código-fonte da própria biblioteca que documentava o header:
+
+> *"will no longer exist in version 4.0 of the SEFAZ layout (...) valid only until
+> 11/2017 after that date becomes OBSOLETE and if it is used it will cause
+> communication failure."* — `nfephp-org/sped-nfe`, `Factories/Header.php`
+
+O layout 4.00 — o que este app usa — **não leva header**. Só `soap12:Body >
+nfeDadosMsg`, com o namespace `http://www.portalfiscal.inf.br/nfe/wsdl/<operação>`. A
+operação de cada serviço (`OPERACAO_SOAP`) foi confirmada na mesma biblioteca, e não é
+sempre igual ao nome do serviço na tabela de endpoints: `NfeConsultaProtocolo` (f
+minúsculo, nome da tabela) usa a operação `NFeConsultaProtocolo4` (maiúscula, com
+sufixo).
+
+A extração da resposta (`extrair_resultado`) usa `lxml` de verdade, não regex sobre
+XML — regex quebra silenciosamente diante de elemento aninhado com o mesmo nome do
+wrapper, e a mensagem de erro nunca aponta a causa real.
+
+Instalar `lxml`/`cryptography` de verdade neste ambiente (em vez de só testar com
+duplo) já rendeu dois achados que um teste com duplo não pegaria: o bug do `lxml`
+propagando `xmlns:soap` de ancestral para o elemento extraído (corrigido com
+`etree.cleanup_namespaces`), e uma suíte nova para `AssinadorLocal`
+(`test_assinador_local.py`, certificado autoassinado gerado em memória) que verifica a
+assinatura com a **chave pública** — não só que a função devolveu algo.
+
 ## Ainda por implementar
 
-- Envelope SOAP 1.2 (`nfeDadosMsg`) em torno do XML assinado — estrutura conhecida,
-  ainda não escrita.
 - Adaptador `TransporteFiscal` com TLS mútuo via certificado A1, usando `requests`.
-- Tratamento de lote assíncrono (`NFeAutorizacao4` sincrono vs. `NFeRetAutorizacao4`
+- Tratamento de lote assíncrono (`NFeAutorizacao4` síncrono vs. `NFeRetAutorizacao4`
   para consulta de recibo, quando o lote excede o processamento síncrono).
-- Endpoints de homologação, UF a UF, quando a fonte estiver confirmada.
+- Endpoints de homologação para os 11 grupos que não são SVRS.
 
 ## Fonte
 
