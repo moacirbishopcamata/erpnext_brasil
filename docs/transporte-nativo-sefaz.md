@@ -198,10 +198,56 @@ escolhe o conjunto certo — usar um conjunto fixo teria dois jeitos de errar: a
 `101` como sucesso de uma CC-e (nunca vai aparecer, mas seria logicamente incorreto) ou
 rejeitar um cancelamento genuinamente homologado com `101`/`155` por só reconhecer `135`.
 
+### NFC-e (modelo 65) usa outra infraestrutura de webservice, na maioria dos grupos
+
+Descoberta ao implementar o QR Code (`docs/nfce-qrcode.md`): NFC-e não reusa por padrão
+os mesmos endpoints SOAP de NF-e. Confirmado em `nfephp-org/sped-nfe`'s
+`storage/wsnfe_4.00_mod65.xml` — 9 grupos (AM, GO, MG, MS, MT, PR, RS, SP, SVRS) têm
+bloco próprio de NFC-e, com host distinto na maioria (ex.: SVRS, do qual RO depende:
+`nfce.svrs.rs.gov.br` × `nfe.svrs.rs.gov.br` para NF-e). GO é o único caso de bloco
+próprio com valor quase idêntico ao de NF-e — mesmo host e caminho, só sem o sufixo
+`?wsdl` que a URL de NF-e tem, confirmado byte a byte na fonte (não presumido). BA, PE e
+SVAN (MA) **não têm** bloco próprio — confirmado ausente na fonte, não esquecido — e
+reusam o endpoint de NF-e para os dois modelos.
+
+`autorizadores_sefaz.endpoint()` ganhou o parâmetro `modelo: str = "55"`: quando
+`modelo="65"` e o serviço não é `NfeConsultaCadastro` (único serviço agnóstico de
+modelo) e o grupo tem tabela própria de NFC-e (`ENDPOINTS_NFCE`/
+`ENDPOINTS_NFCE_HOMOLOGACAO`), usa essa tabela; senão cai automaticamente para a de NF-e
+— cobre BA/PE/SVAN sem caso especial.
+
+O modelo nunca é um parâmetro independente arriscando divergir do documento real — é
+lido de uma única fonte em cada ponto de entrada: `transmitir` lê
+`documento["NFe"]["infNFe"]["ide"]["mod"]`; `consultar`, `cancelar`/`corrigir` (via
+`ler_chave(chave_acesso).modelo`, posições 21-22 da chave de acesso — não existe `ide`
+para consultar/cancelar, só a chave); `inutilizar` já recebia `modelo` explícito por
+parâmetro (não existe chave de acesso para uma faixa nunca emitida) e agora repassa esse
+mesmo valor ao endpoint.
+
+**`autorizacao_sefaz.py`**: `transmitir`/`consultar`/o polling de `NFeRetAutorizacao`
+foram extraídos de `transporte_sefaz.py` para este módulo novo, no mesmo espírito de
+`eventos_sefaz.py`/`inutilizacao_sefaz.py` — por tamanho de arquivo
+(`test_arquitetura.py` limita módulo de integração a 320 linhas), fatorado por
+responsabilidade real (autorização de NF-e é uma operação SEFAZ distinta de evento e de
+inutilização), nunca por prosa enxugada para caber no limite — a correção explícita de
+uma tentativa anterior que só cortou docstring para voltar a caber.
+
+**`contexto_sefaz.ContextoSefaz`**: os três módulos extraídos (`autorizacao_sefaz.py`,
+`eventos_sefaz.py`, `inutilizacao_sefaz.py`) repetiam os mesmos cinco parâmetros soltos
+(`uf`, `ambiente`, `sessao_http`, `arquivo_cert`, `arquivo_chave`) em toda função — sinal
+de que faltava um objeto (Fowler, *Replace Parameter List with Object*). `ContextoSefaz`
+é um `dataclass(frozen=True)` que agrupa essas cinco informações — "com qual SEFAZ, em
+qual ambiente, com qual TLS já preparado" — e é a única coisa que os módulos extraídos
+recebem além do dado da chamada em si (`documento`/`chave_acesso`/`evento`).
+`TransporteSefaz._contexto()` é o único ponto que constrói um `ContextoSefaz`.
+
 ## Ainda por implementar
 
 - `NfeConsultaCadastro` para AM e SVAN em homologação (ausente na fonte, não confirmado
   em nenhuma outra) — inutilização já implementada, ver `docs/inutilizacao-nfe.md`.
+- `urlChave` (consulta manual de NFC-e sem QR Code) por UF: a única fonte disponível
+  (`nfephp-org/sped-nfe`) só tem a URL de QR Code (`NfeConsultaQR`), não uma URL de
+  consulta manual separada — pendente de fonte melhor ou orientação do usuário.
 
 ## Fonte
 
@@ -210,4 +256,6 @@ de correção (`leiauteCCe_v1.00.xsd`) confirmado via o pacote oficial em 2026-0
 corroborado por exemplo real de CC-e homologada e pelo código-fonte de referência do
 `nfephp-org/sped-nfe`. Homologação dos 12 grupos (própria UF × 10 + SVAN + SVRS)
 confirmada em 2026-08-29 pela mesma fonte, com PR e SP checados de novo contra a página
-oficial de cada estado.
+oficial de cada estado. Infraestrutura própria de NFC-e (9 grupos) confirmada em
+2026-08-29 em `nfephp-org/sped-nfe`'s `storage/wsnfe_4.00_mod65.xml`, com GO reconferido
+byte a byte contra o de NF-e.

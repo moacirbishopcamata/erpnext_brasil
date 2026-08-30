@@ -3,11 +3,20 @@
 
 """Implementação de `TransporteFiscal` que fala direto com a SEFAZ.
 
-`cancelar` e `corrigir` (carta de correção) usam `NFeRecepcaoEvento4` — estrutura de
-`infEvento` de cada um confirmada no pacote de esquemas do evento correspondente (Portal
-Nacional da NF-e), separado do pacote de leiaute principal. Ver `fiscal/documento/
-evento.py` para a ordem dos campos, a pegadinha do `@Id` e por que o sucesso de cada
-evento é decidido por `tpEvento`, não por um único conjunto de `cStat`.
+`transmitir`/`consultar` (incluindo o polling de `NFeRetAutorizacao`) vivem em
+`autorizacao_sefaz.py`; `cancelar`/`corrigir` em `eventos_sefaz.py`; `inutilizar` em
+`inutilizacao_sefaz.py` — todos extraídos daqui só por tamanho de arquivo
+(`test_arquitetura.py` limita módulo de integração a 320 linhas), fatorados por
+responsabilidade real (autorização, evento, inutilização são três operações SEFAZ
+distintas), nunca por prosa enxugada para caber no limite. Esta classe é o único ponto
+que implementa `TransporteFiscal`; os três módulos extraídos são funções livres que
+recebem um `ContextoSefaz` (ver `contexto_sefaz.py`) montado aqui.
+
+`cancelar` e `corrigir` usam `NFeRecepcaoEvento4` — estrutura de `infEvento` de cada um
+confirmada no pacote de esquemas do evento correspondente (Portal Nacional da NF-e),
+separado do pacote de leiaute principal. Ver `fiscal/documento/evento.py` para a ordem
+dos campos, a pegadinha do `@Id` e por que o sucesso de cada evento é decidido por
+`tpEvento`, não por um único conjunto de `cStat`.
 
 TLS mútuo com certificado em memória: `assinador_local.carregar_certificado`
 (`cryptography`) carrega o A1 em memória, mas o `requests` só aceita certificado de
@@ -25,52 +34,14 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from erpnext_brasil.fiscal.documento.autorizadores_sefaz import endpoint
-from erpnext_brasil.fiscal.documento.consulta import montar_cons_reci_nfe, montar_cons_sit_nfe
-from erpnext_brasil.fiscal.documento.porta import (
-	Autorizacao,
-	RespostaTransmissao,
-	ResultadoConsulta,
-	ResultadoInutilizacao,
-)
-from erpnext_brasil.fiscal.documento.resposta_sefaz import RetornoAutorizacao, interpretar_autorizacao
-from erpnext_brasil.fiscal.documento.serializacao import para_xml
-from erpnext_brasil.fiscal.documento.soap import extrair_resultado, montar_envelope
+from erpnext_brasil.fiscal.documento.chave_acesso import ler_chave
+from erpnext_brasil.fiscal.documento.porta import RespostaTransmissao, ResultadoConsulta, ResultadoInutilizacao
 from erpnext_brasil.integracao.assinador_local import AssinadorLocal, carregar_certificado
+from erpnext_brasil.integracao.autorizacao_sefaz import consultar_situacao, enviar_autorizacao
+from erpnext_brasil.integracao.contexto_sefaz import ContextoSefaz
 from erpnext_brasil.integracao.eventos_sefaz import TransporteIndisponivel, enviar_evento
 
 __all__ = ["TransporteIndisponivel", "TransporteSefaz"]
-
-
-def _mapear_resultado(resultado: RetornoAutorizacao) -> RespostaTransmissao:
-	"""Traduz a leitura pura da resposta (`RetornoAutorizacao`) para o formato que a
-	porta `TransporteFiscal` exige (`RespostaTransmissao`). Nunca é chamada com um
-	resultado ainda `pendente` — quem chama resolve o polling antes."""
-	if resultado.denegado:
-		return RespostaTransmissao(
-			codigo=resultado.cstat_nfe or "", mensagem=resultado.motivo_nfe or "", denegado=True
-		)
-
-	if resultado.autorizado:
-		recebido_em = (
-			datetime.fromisoformat(resultado.data_recebimento)
-			if resultado.data_recebimento
-			else datetime.now().astimezone()
-		)
-
-		return RespostaTransmissao(
-			codigo=resultado.cstat_nfe,
-			mensagem=resultado.motivo_nfe or "",
-			autorizacao=Autorizacao(
-				protocolo=resultado.protocolo,
-				recebido_em=recebido_em,
-				chave_acesso=resultado.chave_conferida or "",
-			),
-		)
-
-	return RespostaTransmissao(
-		codigo=resultado.cstat_nfe or resultado.cstat_lote, mensagem=resultado.motivo_nfe or resultado.motivo_lote
-	)
 
 
 class TransporteSefaz:
@@ -99,7 +70,6 @@ class TransporteSefaz:
 		self._uf = uf
 		self._cnpj_emitente = cnpj_emitente
 		self._ambiente = ambiente
-		self._tp_amb = "1" if ambiente == "producao" else "2"
 		self._sessao = sessao
 		self._dormir = dormir or time.sleep
 		self._tentativas_consulta_recibo = tentativas_consulta_recibo
@@ -152,93 +122,50 @@ class TransporteSefaz:
 
 		return self._sessao
 
-	def _enviar(self, servico: str, arvore: dict) -> RetornoAutorizacao:
+	def _contexto(self) -> ContextoSefaz:
+		"""Monta o `ContextoSefaz` desta chamada — TLS já preparado, sessão já aberta.
+		`TransporteSefaz` é o único ponto que constrói um `ContextoSefaz`; os módulos
+		extraídos (`autorizacao_sefaz`, `eventos_sefaz`, `inutilizacao_sefaz`) só o
+		recebem pronto."""
 		self._preparar_arquivos_tls()
 
-		url = endpoint(self._uf, servico, ambiente=self._ambiente)
-
-		if not url:
-			raise TransporteIndisponivel(
-				f"Não há endpoint confirmado para {servico!r} na UF {self._uf!r} "
-				f"(ambiente {self._ambiente!r})"
-			)
-
-		xml_interno = para_xml(arvore)
-		envelope = montar_envelope(servico, xml_interno)
-
-		resposta = self._sessao_http().post(
-			url,
-			data=envelope.encode("utf-8"),
-			headers={"Content-Type": "application/soap+xml; charset=utf-8"},
-			cert=(str(self._arquivo_cert), str(self._arquivo_chave)),
-			timeout=30,
-		)
-		resposta.raise_for_status()
-
-		return interpretar_autorizacao(extrair_resultado(resposta.content))
-
-	def _resolver_pendencia(self, resultado: RetornoAutorizacao) -> RetornoAutorizacao:
-		"""Consulta o recibo até o lote sair do estado `pendente`, ou desiste."""
-		if not resultado.pendente:
-			return resultado
-
-		if not resultado.numero_recibo:
-			raise TransporteIndisponivel(
-				"Lote pendente sem número de recibo — não há como consultar o resultado depois"
-			)
-
-		for _ in range(self._tentativas_consulta_recibo):
-			self._dormir(self._intervalo_consulta_recibo)
-
-			resultado = self._enviar(
-				"NFeRetAutorizacao", montar_cons_reci_nfe(resultado.numero_recibo, self._tp_amb)
-			)
-
-			if not resultado.pendente:
-				return resultado
-
-		raise TransporteIndisponivel(
-			f"Lote continuou pendente após {self._tentativas_consulta_recibo} consultas — "
-			"a SEFAZ não decidiu a tempo, não é rejeição nem autorização"
+		return ContextoSefaz(
+			uf=self._uf,
+			ambiente=self._ambiente,
+			sessao_http=self._sessao_http(),
+			arquivo_cert=self._arquivo_cert,
+			arquivo_chave=self._arquivo_chave,
 		)
 
 	def transmitir(self, documento: dict) -> RespostaTransmissao:
 		"""Envia `documento` (a árvore `NFe` já assinada) e resolve até um estado final.
 
-		`documento` é a árvore de `montar_nfe`/`assinar_nfe` — este método serializa e
-		envelopa, não recebe XML pronto: mantém a mesma fronteira que todo o resto do
-		app usa entre árvore de dicionário e string.
+		Delega a `autorizacao_sefaz.enviar_autorizacao` — modelo (`"55"`/`"65"`) é lido
+		lá dentro de `ide.mod`, não passado por parâmetro à parte: uma só fonte, sem
+		risco de documento e parâmetro divergirem.
 		"""
-		resultado = self._enviar("NFeAutorizacao", documento)
-		resultado = self._resolver_pendencia(resultado)
-
-		return _mapear_resultado(resultado)
+		return enviar_autorizacao(
+			documento,
+			self._contexto(),
+			dormir=self._dormir,
+			tentativas_consulta_recibo=self._tentativas_consulta_recibo,
+			intervalo_consulta_recibo=self._intervalo_consulta_recibo,
+		)
 
 	def consultar(self, chave_acesso: str) -> ResultadoConsulta:
-		resultado = self._enviar(
-			"NfeConsultaProtocolo", montar_cons_sit_nfe(chave_acesso, self._tp_amb)
-		)
-
-		return ResultadoConsulta(
-			codigo=resultado.cstat_nfe or resultado.cstat_lote,
-			mensagem=resultado.motivo_nfe or resultado.motivo_lote,
-			estado_sefaz=resultado.cstat_nfe or resultado.cstat_lote,
-		)
+		"""Delega a `autorizacao_sefaz.consultar_situacao` — modelo lido da própria
+		chave (posições 21-22), mesma razão de `transmitir`."""
+		return consultar_situacao(chave_acesso, self._contexto())
 
 	def _enviar_evento(self, evento: dict, chave_acesso: str, protocolo_padrao: str = "") -> RespostaTransmissao:
-		"""Prepara TLS/sessão e delega a `eventos_sefaz.enviar_evento` (extraído por
-		tamanho de arquivo, não por responsabilidade — ver o módulo)."""
-		self._preparar_arquivos_tls()
-
+		"""Delega a `eventos_sefaz.enviar_evento` (extraído por tamanho de arquivo).
+		Modelo lido da chave, mesma razão de `transmitir`."""
 		return enviar_evento(
 			evento,
-			uf=self._uf,
-			ambiente=self._ambiente,
+			self._contexto(),
 			chave_acesso=chave_acesso,
+			modelo=ler_chave(chave_acesso).modelo,
 			assinador=self._assinador,
-			sessao_http=self._sessao_http(),
-			arquivo_cert=self._arquivo_cert,
-			arquivo_chave=self._arquivo_chave,
 			protocolo_padrao=protocolo_padrao,
 		)
 
@@ -294,10 +221,8 @@ class TransporteSefaz:
 		if cuf is None:
 			raise TransporteIndisponivel(f"UF {self._uf!r} sem código IBGE conhecido para inutilização")
 
-		self._preparar_arquivos_tls()
-
 		return enviar_inutilizacao(
-			uf=self._uf,
+			self._contexto(),
 			cuf=cuf,
 			ano=ano,
 			cnpj=cnpj,
@@ -306,9 +231,5 @@ class TransporteSefaz:
 			numero_inicial=numero_inicial,
 			numero_final=numero_final,
 			justificativa=justificativa,
-			ambiente=self._ambiente,
 			assinador=self._assinador,
-			sessao_http=self._sessao_http(),
-			arquivo_cert=self._arquivo_cert,
-			arquivo_chave=self._arquivo_chave,
 		)

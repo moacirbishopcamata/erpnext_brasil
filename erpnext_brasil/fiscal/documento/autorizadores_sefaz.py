@@ -47,18 +47,40 @@ homologação quanto em produção — ausência real na fonte, não esqueciment
   `None` para essas combinações, e quem chama precisa decidir o que fazer (a consulta
   de cadastro não é usada na emissão em si).
 
+NFC-e (modelo 65) não é a mesma infraestrutura que NF-e, na maioria dos grupos
+------------------------------------------------------------------------------------
+Descoberto ao verificar o QR Code da NFC-e: a maioria dos grupos com webservice próprio
+(AM, GO, MG, MS, MT, PR, RS, SP) e o **próprio SVRS** — o grupo de RO — rodam a NFC-e em
+**host separado** da NF-e (tipicamente subdomínio `nfce.` em vez de `nfe.`; RO/SVRS:
+`nfce.svrs.rs.gov.br`, não `nfe.svrs.rs.gov.br`). Usar o endpoint de NF-e para transmitir
+uma NFC-e nesses grupos manda a requisição para o host errado.
+
+Confirmado na mesma fonte já usada para o resto da tabela
+(`storage/wsnfe_4.00_mod65.xml`, o arquivo de configuração específico de NFC-e da mesma
+biblioteca) — reproduzido em `ENDPOINTS_NFCE`/`ENDPOINTS_NFCE_HOMOLOGACAO`, com `modelo`
+como parâmetro novo de `endpoint()` (default `"55"`, compatível com todo código existente
+que não passa esse argumento).
+
+**BA, PE e o grupo SVAN (MA) não têm bloco próprio no arquivo de configuração de NFC-e** —
+ausência confirmada, não esquecimento: esses três reúsam o mesmo endpoint de NF-e para os
+dois modelos (não têm infraestrutura separada). `endpoint(..., modelo="65")` cai para a
+tabela de NF-e automaticamente nesses casos, sem precisar de entrada duplicada.
+
 Funções puras: nenhuma dependência do Frappe.
 
 Fontes: Portal Nacional da NF-e, `webServices.aspx` (produção, todas as UFs) — consultado
 em 2026-08-24; `nfephp-org/sped-nfe`, `storage/wsnfe_4.00_mod55.xml` (homologação dos 12
-grupos, e confirmação cruzada da produção) e as páginas oficiais de PR e SP (terceira
-checagem) — consultados em 2026-08-29.
+grupos, e confirmação cruzada da produção), `storage/wsnfe_4.00_mod65.xml` (endpoints
+próprios de NFC-e) e as páginas oficiais de PR e SP (terceira checagem) — consultados
+em 2026-08-29.
 """
 
 __all__ = [
 	"AUTORIZADOR_POR_UF",
 	"ENDPOINTS",
 	"ENDPOINTS_HOMOLOGACAO",
+	"ENDPOINTS_NFCE",
+	"ENDPOINTS_NFCE_HOMOLOGACAO",
 	"OPERACAO_SOAP",
 	"UFS_COM_CONSULTA_CADASTRO_NO_SVRS",
 	"AutorizadorDesconhecido",
@@ -315,6 +337,165 @@ ENDPOINTS_HOMOLOGACAO = {
 	},
 }
 
+# Endpoints próprios de NFC-e (modelo 65) — só os grupos que têm host separado de NF-e,
+# confirmados em `storage/wsnfe_4.00_mod65.xml`. BA, PE e SVAN não aparecem aqui de
+# propósito: não têm bloco próprio nessa fonte, reúsam o endpoint de NF-e (ver docstring
+# do módulo). `NfeConsultaCadastro` não consta — é serviço de consulta cadastral,
+# agnóstico a modelo de documento, resolvido sempre pela tabela de NF-e.
+ENDPOINTS_NFCE = {
+	"AM": {
+		"NFeAutorizacao": "https://nfce.sefaz.am.gov.br/nfce-services/services/NfeAutorizacao4",
+		"NFeRetAutorizacao": "https://nfce.sefaz.am.gov.br/nfce-services/services/NfeRetAutorizacao4",
+		"NfeConsultaProtocolo": "https://nfce.sefaz.am.gov.br/nfce-services/services/NfeConsulta4",
+		"NfeStatusServico": "https://nfce.sefaz.am.gov.br/nfce-services/services/NfeStatusServico4",
+		"NfeInutilizacao": "https://nfce.sefaz.am.gov.br/nfce-services/services/NfeInutilizacao4",
+		"RecepcaoEvento": "https://nfce.sefaz.am.gov.br/nfce-services/services/RecepcaoEvento4",
+	},
+	# GO usa o mesmo host/caminho da NF-e (não separou infraestrutura por modelo) — só
+	# sem o sufixo "?wsdl" que a tabela de NF-e tem, confirmado byte a byte na fonte.
+	"GO": {
+		"NFeAutorizacao": "https://nfe.sefaz.go.gov.br/nfe/services/NFeAutorizacao4",
+		"NFeRetAutorizacao": "https://nfe.sefaz.go.gov.br/nfe/services/NFeRetAutorizacao4",
+		"NfeConsultaProtocolo": "https://nfe.sefaz.go.gov.br/nfe/services/NFeConsultaProtocolo4",
+		"NfeStatusServico": "https://nfe.sefaz.go.gov.br/nfe/services/NFeStatusServico4",
+		"NfeInutilizacao": "https://nfe.sefaz.go.gov.br/nfe/services/NFeInutilizacao4",
+		"RecepcaoEvento": "https://nfe.sefaz.go.gov.br/nfe/services/NFeRecepcaoEvento4",
+	},
+	"MG": {
+		"NFeAutorizacao": "https://nfce.fazenda.mg.gov.br/nfce/services/NFeAutorizacao4",
+		"NFeRetAutorizacao": "https://nfce.fazenda.mg.gov.br/nfce/services/NFeRetAutorizacao4",
+		"NfeConsultaProtocolo": "https://nfce.fazenda.mg.gov.br/nfce/services/NFeConsultaProtocolo4",
+		"NfeStatusServico": "https://nfce.fazenda.mg.gov.br/nfce/services/NFeStatusServico4",
+		"NfeInutilizacao": "https://nfce.fazenda.mg.gov.br/nfce/services/NFeInutilizacao4",
+		"RecepcaoEvento": "https://nfce.fazenda.mg.gov.br/nfce/services/NFeRecepcaoEvento4",
+	},
+	"MS": {
+		"NFeAutorizacao": "https://nfce.sefaz.ms.gov.br/ws/NFeAutorizacao4",
+		"NFeRetAutorizacao": "https://nfce.sefaz.ms.gov.br/ws/NFeRetAutorizacao4",
+		"NfeConsultaProtocolo": "https://nfce.sefaz.ms.gov.br/ws/NFeConsultaProtocolo4",
+		"NfeStatusServico": "https://nfce.sefaz.ms.gov.br/ws/NFeStatusServico4",
+		"NfeInutilizacao": "https://nfce.sefaz.ms.gov.br/ws/NFeInutilizacao4",
+		"RecepcaoEvento": "https://nfce.sefaz.ms.gov.br/ws/NFeRecepcaoEvento4",
+	},
+	"MT": {
+		"NFeAutorizacao": "https://nfce.sefaz.mt.gov.br/nfcews/services/NfeAutorizacao4",
+		"NFeRetAutorizacao": "https://nfce.sefaz.mt.gov.br/nfcews/services/NfeRetAutorizacao4",
+		"NfeConsultaProtocolo": "https://nfce.sefaz.mt.gov.br/nfcews/services/NfeConsulta4",
+		"NfeStatusServico": "https://nfce.sefaz.mt.gov.br/nfcews/services/NfeStatusServico4",
+		"NfeInutilizacao": "https://nfce.sefaz.mt.gov.br/nfcews/services/NfeInutilizacao4",
+		"RecepcaoEvento": "https://nfce.sefaz.mt.gov.br/nfcews/services/RecepcaoEvento4",
+	},
+	"PR": {
+		"NFeAutorizacao": "https://nfce.sefa.pr.gov.br/nfce/NFeAutorizacao4",
+		"NFeRetAutorizacao": "https://nfce.sefa.pr.gov.br/nfce/NFeRetAutorizacao4",
+		"NfeConsultaProtocolo": "https://nfce.sefa.pr.gov.br/nfce/NFeConsultaProtocolo4",
+		"NfeStatusServico": "https://nfce.sefa.pr.gov.br/nfce/NFeStatusServico4",
+		"NfeInutilizacao": "https://nfce.sefa.pr.gov.br/nfce/NFeInutilizacao4",
+		"RecepcaoEvento": "https://nfce.sefa.pr.gov.br/nfce/NFeRecepcaoEvento4",
+	},
+	"RS": {
+		"NFeAutorizacao": "https://nfce.sefazrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
+		"NFeRetAutorizacao": "https://nfce.sefazrs.rs.gov.br/ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx",
+		"NfeConsultaProtocolo": "https://nfce.sefazrs.rs.gov.br/ws/NfeConsulta/NfeConsulta4.asmx",
+		"NfeStatusServico": "https://nfce.sefazrs.rs.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx",
+		"NfeInutilizacao": "https://nfce.sefazrs.rs.gov.br/ws/nfeinutilizacao/nfeinutilizacao4.asmx",
+		"RecepcaoEvento": "https://nfce.sefazrs.rs.gov.br/ws/recepcaoevento/recepcaoevento4.asmx",
+	},
+	"SP": {
+		"NFeAutorizacao": "https://nfce.fazenda.sp.gov.br/ws/NFeAutorizacao4.asmx",
+		"NFeRetAutorizacao": "https://nfce.fazenda.sp.gov.br/ws/NFeRetAutorizacao4.asmx",
+		"NfeConsultaProtocolo": "https://nfce.fazenda.sp.gov.br/ws/NFeConsultaProtocolo4.asmx",
+		"NfeStatusServico": "https://nfce.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx",
+		"NfeInutilizacao": "https://nfce.fazenda.sp.gov.br/ws/NFeInutilizacao4.asmx",
+		"RecepcaoEvento": "https://nfce.fazenda.sp.gov.br/ws/NFeRecepcaoEvento4.asmx",
+	},
+	# SVRS — o grupo de RO. Confirma a suspeita que motivou levantar esta tabela: host
+	# `nfce.svrs.rs.gov.br`, diferente de `nfe.svrs.rs.gov.br` usado para NF-e.
+	_SVRS: {
+		"NFeAutorizacao": "https://nfce.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
+		"NFeRetAutorizacao": "https://nfce.svrs.rs.gov.br/ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx",
+		"NfeConsultaProtocolo": "https://nfce.svrs.rs.gov.br/ws/NfeConsulta/NfeConsulta4.asmx",
+		"NfeStatusServico": "https://nfce.svrs.rs.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx",
+		"NfeInutilizacao": "https://nfce.svrs.rs.gov.br/ws/nfeinutilizacao/nfeinutilizacao4.asmx",
+		"RecepcaoEvento": "https://nfce.svrs.rs.gov.br/ws/recepcaoevento/recepcaoevento4.asmx",
+	},
+}
+
+ENDPOINTS_NFCE_HOMOLOGACAO = {
+	"AM": {
+		"NFeAutorizacao": "https://homnfce.sefaz.am.gov.br/nfce-services/services/NfeAutorizacao4",
+		"NFeRetAutorizacao": "https://homnfce.sefaz.am.gov.br/nfce-services/services/NfeRetAutorizacao4",
+		"NfeConsultaProtocolo": "https://homnfce.sefaz.am.gov.br/nfce-services/services/NfeConsulta4",
+		"NfeStatusServico": "https://homnfce.sefaz.am.gov.br/nfce-services/services/NfeStatusServico4",
+		"NfeInutilizacao": "https://homnfce.sefaz.am.gov.br/nfce-services/services/NfeInutilizacao4",
+		"RecepcaoEvento": "https://homnfce.sefaz.am.gov.br/nfce-services/services/RecepcaoEvento4",
+	},
+	"GO": {
+		"NFeAutorizacao": "https://homolog.sefaz.go.gov.br/nfe/services/NFeAutorizacao4",
+		"NFeRetAutorizacao": "https://homolog.sefaz.go.gov.br/nfe/services/NFeRetAutorizacao4",
+		"NfeConsultaProtocolo": "https://homolog.sefaz.go.gov.br/nfe/services/NFeConsultaProtocolo4",
+		"NfeStatusServico": "https://homolog.sefaz.go.gov.br/nfe/services/NFeStatusServico4",
+		"NfeInutilizacao": "https://homolog.sefaz.go.gov.br/nfe/services/NFeInutilizacao4",
+		"RecepcaoEvento": "https://homolog.sefaz.go.gov.br/nfe/services/NFeRecepcaoEvento4",
+	},
+	"MG": {
+		"NFeAutorizacao": "https://hnfce.fazenda.mg.gov.br/nfce/services/NFeAutorizacao4",
+		"NFeRetAutorizacao": "https://hnfce.fazenda.mg.gov.br/nfce/services/NFeRetAutorizacao4",
+		"NfeConsultaProtocolo": "https://hnfce.fazenda.mg.gov.br/nfce/services/NFeConsultaProtocolo4",
+		"NfeStatusServico": "https://hnfce.fazenda.mg.gov.br/nfce/services/NFeStatusServico4",
+		"NfeInutilizacao": "https://hnfce.fazenda.mg.gov.br/nfce/services/NFeInutilizacao4",
+		"RecepcaoEvento": "https://hnfce.fazenda.mg.gov.br/nfce/services/NFeRecepcaoEvento4",
+	},
+	"MS": {
+		"NFeAutorizacao": "https://hom.nfce.sefaz.ms.gov.br/ws/NFeAutorizacao4",
+		"NFeRetAutorizacao": "https://hom.nfce.sefaz.ms.gov.br/ws/NFeRetAutorizacao4",
+		"NfeConsultaProtocolo": "https://hom.nfce.sefaz.ms.gov.br/ws/NFeConsultaProtocolo4",
+		"NfeStatusServico": "https://hom.nfce.sefaz.ms.gov.br/ws/NFeStatusServico4",
+		"NfeInutilizacao": "https://hom.nfce.sefaz.ms.gov.br/ws/NFeInutilizacao4",
+		"RecepcaoEvento": "https://hom.nfce.sefaz.ms.gov.br/ws/NFeRecepcaoEvento4",
+	},
+	"MT": {
+		"NFeAutorizacao": "https://homologacao.sefaz.mt.gov.br/nfcews/services/NfeAutorizacao4",
+		"NFeRetAutorizacao": "https://homologacao.sefaz.mt.gov.br/nfcews/services/NfeRetAutorizacao4",
+		"NfeConsultaProtocolo": "https://homologacao.sefaz.mt.gov.br/nfcews/services/NfeConsulta4",
+		"NfeStatusServico": "https://homologacao.sefaz.mt.gov.br/nfcews/services/NfeStatusServico4",
+		"NfeInutilizacao": "https://homologacao.sefaz.mt.gov.br/nfcews/services/NfeInutilizacao4",
+		"RecepcaoEvento": "https://homologacao.sefaz.mt.gov.br/nfcews/services/RecepcaoEvento4",
+	},
+	"PR": {
+		"NFeAutorizacao": "https://homologacao.nfce.sefa.pr.gov.br/nfce/NFeAutorizacao4",
+		"NFeRetAutorizacao": "https://homologacao.nfce.sefa.pr.gov.br/nfce/NFeRetAutorizacao4",
+		"NfeConsultaProtocolo": "https://homologacao.nfce.sefa.pr.gov.br/nfce/NFeConsultaProtocolo4",
+		"NfeStatusServico": "https://homologacao.nfce.sefa.pr.gov.br/nfce/NFeStatusServico4",
+		"NfeInutilizacao": "https://homologacao.nfce.sefa.pr.gov.br/nfce/NFeInutilizacao4",
+		"RecepcaoEvento": "https://homologacao.nfce.sefa.pr.gov.br/nfce/NFeRecepcaoEvento4",
+	},
+	"RS": {
+		"NFeAutorizacao": "https://nfce-homologacao.sefazrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
+		"NFeRetAutorizacao": "https://nfce-homologacao.sefazrs.rs.gov.br/ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx",
+		"NfeConsultaProtocolo": "https://nfce-homologacao.sefazrs.rs.gov.br/ws/NfeConsulta/NfeConsulta4.asmx",
+		"NfeStatusServico": "https://nfce-homologacao.sefazrs.rs.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx",
+		"NfeInutilizacao": "https://nfce-homologacao.sefazrs.rs.gov.br/ws/nfeinutilizacao/nfeinutilizacao4.asmx",
+		"RecepcaoEvento": "https://nfce-homologacao.sefazrs.rs.gov.br/ws/recepcaoevento/recepcaoevento4.asmx",
+	},
+	"SP": {
+		"NFeAutorizacao": "https://homologacao.nfce.fazenda.sp.gov.br/ws/NFeAutorizacao4.asmx",
+		"NFeRetAutorizacao": "https://homologacao.nfce.fazenda.sp.gov.br/ws/NFeRetAutorizacao4.asmx",
+		"NfeConsultaProtocolo": "https://homologacao.nfce.fazenda.sp.gov.br/ws/NFeConsultaProtocolo4.asmx",
+		"NfeStatusServico": "https://homologacao.nfce.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx",
+		"NfeInutilizacao": "https://homologacao.nfce.fazenda.sp.gov.br/ws/NFeInutilizacao4.asmx",
+		"RecepcaoEvento": "https://homologacao.nfce.fazenda.sp.gov.br/ws/NFeRecepcaoEvento4.asmx",
+	},
+	_SVRS: {
+		"NFeAutorizacao": "https://nfce-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx",
+		"NFeRetAutorizacao": "https://nfce-homologacao.svrs.rs.gov.br/ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx",
+		"NfeConsultaProtocolo": "https://nfce-homologacao.svrs.rs.gov.br/ws/NfeConsulta/NfeConsulta4.asmx",
+		"NfeStatusServico": "https://nfce-homologacao.svrs.rs.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx",
+		"NfeInutilizacao": "https://nfce-homologacao.svrs.rs.gov.br/ws/nfeinutilizacao/nfeinutilizacao4.asmx",
+		"RecepcaoEvento": "https://nfce-homologacao.svrs.rs.gov.br/ws/recepcaoevento/recepcaoevento4.asmx",
+	},
+}
+
 # Operação SOAP de cada serviço — usada para montar o namespace de `nfeDadosMsg`
 # (`http://www.portalfiscal.inf.br/nfe/wsdl/<operacao>`). Confirmado em
 # `nfephp-org/sped-nfe`, `storage/wsnfe_4.00_mod55.xml` (atributo `operation`).
@@ -335,17 +516,28 @@ class AutorizadorDesconhecido(ValueError):
 		super().__init__(mensagem)
 
 
-def endpoint(uf: str, servico: str, ambiente: str = "producao") -> str | None:
+def endpoint(uf: str, servico: str, ambiente: str = "producao", modelo: str = "55") -> str | None:
 	"""Devolve a URL do webservice, ou `None` quando o serviço não está confirmado
 	para a combinação UF/grupo (nunca uma URL inventada).
 
-	`ambiente="homologacao"` levanta `NotImplementedError`: a fonte usada só lista
-	produção, e não existe padrão de host confiável para derivar homologação.
+	`modelo="65"` (NFC-e) usa a tabela própria (`ENDPOINTS_NFCE*`) quando o grupo tem
+	infraestrutura separada da NF-e; cai para a tabela de NF-e automaticamente nos
+	grupos sem bloco próprio (BA, PE, SVAN — ver docstring do módulo). `modelo="55"` é o
+	padrão, compatível com todo código que já chamava `endpoint()` sem esse argumento.
+
+	`NfeConsultaCadastro` nunca usa a tabela de NFC-e — é serviço de consulta cadastral,
+	agnóstico a modelo de documento.
+
+	Grupo sem homologação confirmada levanta `NotImplementedError`: não existe padrão de
+	host confiável para derivar homologação por inferência.
 	"""
 	sigla = (uf or "").strip().upper()
 
 	if ambiente not in ("producao", "homologacao"):
 		raise ValueError(f"Ambiente deve ser 'producao' ou 'homologacao', recebido {ambiente!r}")
+
+	if modelo not in ("55", "65"):
+		raise ValueError(f"Modelo deve ser '55' (NF-e) ou '65' (NFC-e), recebido {modelo!r}")
 
 	grupo = AUTORIZADOR_POR_UF.get(sigla)
 
@@ -361,13 +553,17 @@ def endpoint(uf: str, servico: str, ambiente: str = "producao") -> str | None:
 
 	chave = grupo if grupo in (_SVAN, _SVRS) else sigla
 
+	tabela_producao, tabela_homologacao = ENDPOINTS, ENDPOINTS_HOMOLOGACAO
+	if modelo == "65" and servico != "NfeConsultaCadastro" and chave in ENDPOINTS_NFCE:
+		tabela_producao, tabela_homologacao = ENDPOINTS_NFCE, ENDPOINTS_NFCE_HOMOLOGACAO
+
 	if ambiente == "homologacao":
-		if chave not in ENDPOINTS_HOMOLOGACAO:
+		if chave not in tabela_homologacao:
 			raise NotImplementedError(
 				f"Homologação não está confirmada para o grupo {chave!r} nesta tabela — "
 				"precisa ser levantada antes de uso, não derivada por padrão de nome"
 			)
 
-		return ENDPOINTS_HOMOLOGACAO[chave].get(servico)
+		return tabela_homologacao[chave].get(servico)
 
-	return ENDPOINTS[chave].get(servico)
+	return tabela_producao[chave].get(servico)

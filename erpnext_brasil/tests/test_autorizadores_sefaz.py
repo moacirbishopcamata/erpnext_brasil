@@ -16,6 +16,8 @@ from erpnext_brasil.fiscal.documento import autorizadores_sefaz
 from erpnext_brasil.fiscal.documento.autorizadores_sefaz import (
 	AUTORIZADOR_POR_UF,
 	ENDPOINTS_HOMOLOGACAO,
+	ENDPOINTS_NFCE,
+	ENDPOINTS_NFCE_HOMOLOGACAO,
 	UFS_COM_CONSULTA_CADASTRO_NO_SVRS,
 	AutorizadorDesconhecido,
 	endpoint,
@@ -199,6 +201,78 @@ class TestValidacao(unittest.TestCase):
 
 	def test_uf_minuscula_e_normalizada(self):
 		self.assertEqual(endpoint("sp", "NFeAutorizacao"), endpoint("SP", "NFeAutorizacao"))
+
+	def test_modelo_invalido(self):
+		with self.assertRaises(ValueError):
+			endpoint("SP", "NFeAutorizacao", modelo="99")
+
+
+class TestModeloNFCe(unittest.TestCase):
+	"""Descoberto ao verificar o QR Code da NFC-e: a maioria dos grupos com webservice
+	próprio, e o próprio SVRS (grupo de RO), rodam a NFC-e em host separado da NF-e."""
+
+	def test_modelo_padrao_e_55(self):
+		self.assertEqual(endpoint("SP", "NFeAutorizacao"), endpoint("SP", "NFeAutorizacao", modelo="55"))
+
+	def test_ro_svrs_usa_host_nfce_diferente_de_nfe(self):
+		nfe = endpoint("RO", "NFeAutorizacao", modelo="55")
+		nfce = endpoint("RO", "NFeAutorizacao", modelo="65")
+
+		self.assertIn("nfe.svrs.rs.gov.br", nfe)
+		self.assertIn("nfce.svrs.rs.gov.br", nfce)
+		self.assertNotEqual(nfe, nfce)
+
+	def test_sp_usa_host_nfce_diferente_de_nfe(self):
+		nfe = endpoint("SP", "NFeAutorizacao", modelo="55")
+		nfce = endpoint("SP", "NFeAutorizacao", modelo="65")
+
+		self.assertNotEqual(nfe, nfce)
+		self.assertIn("nfce.", nfce)
+
+	def test_go_bloco_proprio_com_mesmo_host_e_caminho_da_nfe(self):
+		"""GO tem bloco próprio na fonte de NFC-e (não é ausência de dado), mas não
+		separou infraestrutura por modelo — mesmo host/caminho da NF-e, só sem o sufixo
+		'?wsdl' que a tabela de NF-e tem (confirmado byte a byte na fonte)."""
+		self.assertIn("GO", ENDPOINTS_NFCE)
+		nfe = endpoint("GO", "NFeAutorizacao", modelo="55")
+		nfce = endpoint("GO", "NFeAutorizacao", modelo="65")
+
+		self.assertEqual(nfce, "https://nfe.sefaz.go.gov.br/nfe/services/NFeAutorizacao4")
+		self.assertEqual(nfe.split("?")[0], nfce)
+
+	def test_ba_pe_svan_sem_bloco_proprio_caem_para_nfe(self):
+		"""BA, PE e SVAN (MA) não têm bloco próprio na fonte de NFC-e — devolve o mesmo
+		endpoint de NF-e, não None nem erro."""
+		for uf in ("BA", "PE", "MA"):
+			with self.subTest(uf=uf):
+				nfe = endpoint(uf, "NFeAutorizacao", modelo="55")
+				nfce = endpoint(uf, "NFeAutorizacao", modelo="65")
+
+				self.assertEqual(nfe, nfce)
+				self.assertIsNotNone(nfce)
+
+	def test_nfeconsultacadastro_nunca_usa_tabela_de_nfce(self):
+		"""Serviço agnóstico a modelo — sempre resolvido pela tabela de NF-e, mesmo que
+		o grupo tenha tabela própria de NFC-e para os outros serviços."""
+		self.assertEqual(
+			endpoint("SP", "NfeConsultaCadastro", modelo="55"),
+			endpoint("SP", "NfeConsultaCadastro", modelo="65"),
+		)
+
+	def test_homologacao_de_nfce_tambem_troca_o_host(self):
+		producao = endpoint("RO", "NFeAutorizacao", ambiente="producao", modelo="65")
+		homologacao = endpoint("RO", "NFeAutorizacao", ambiente="homologacao", modelo="65")
+
+		self.assertIn("nfce.svrs.rs.gov.br", producao)
+		self.assertIn("nfce-homologacao.svrs.rs.gov.br", homologacao)
+
+	def test_todos_os_grupos_com_tabela_propria_tem_producao_e_homologacao(self):
+		self.assertEqual(set(ENDPOINTS_NFCE), set(ENDPOINTS_NFCE_HOMOLOGACAO))
+
+	def test_nove_grupos_tem_infraestrutura_propria_de_nfce(self):
+		"""8 próprios (AM, GO, MG, MS, MT, PR, RS, SP) + SVRS — BA, PE e SVAN ficam de
+		fora de propósito (sem bloco próprio na fonte)."""
+		self.assertEqual(len(ENDPOINTS_NFCE), 9)
 
 
 if __name__ == "__main__":

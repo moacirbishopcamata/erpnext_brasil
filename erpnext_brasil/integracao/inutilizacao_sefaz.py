@@ -18,14 +18,15 @@ from erpnext_brasil.fiscal.documento.inutilizacao import (
 from erpnext_brasil.fiscal.documento.porta import ResultadoInutilizacao
 from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.documento.soap import extrair_resultado, montar_envelope
+from erpnext_brasil.integracao.contexto_sefaz import ContextoSefaz
 from erpnext_brasil.integracao.eventos_sefaz import TransporteIndisponivel
 
 __all__ = ["enviar_inutilizacao"]
 
 
 def enviar_inutilizacao(
+	contexto: ContextoSefaz,
 	*,
-	uf: str,
 	cuf: str,
 	ano: str,
 	cnpj: str,
@@ -34,19 +35,15 @@ def enviar_inutilizacao(
 	numero_inicial: str,
 	numero_final: str,
 	justificativa: str,
-	ambiente: str,
 	assinador,
-	sessao_http,
-	arquivo_cert,
-	arquivo_chave,
 ) -> ResultadoInutilizacao:
 	"""Monta, assina e envia a inutilização; traduz o `retInutNFe` recebido.
 
-	`uf` (sigla, para resolver o endpoint) e `cuf` (código IBGE, para o corpo do
+	`contexto.uf` (sigla, para resolver o endpoint) e `cuf` (código IBGE, para o corpo do
 	documento) são coisas diferentes — ver `inutilizacao.CODIGO_UF_POR_SIGLA` sobre por
 	que essa conversão existe.
 	"""
-	tp_amb = "1" if ambiente == "producao" else "2"
+	tp_amb = "1" if contexto.ambiente == "producao" else "2"
 
 	arvore = montar_inutilizacao(
 		cuf=cuf,
@@ -61,19 +58,21 @@ def enviar_inutilizacao(
 	)
 	assinada = assinar_inutilizacao(arvore, assinador)
 
-	url = endpoint(uf, "NfeInutilizacao", ambiente=ambiente)
+	# modelo já resolve o endpoint específico de NFC-e quando o grupo o tem (ver
+	# autorizadores_sefaz.ENDPOINTS_NFCE) — mesma tabela usada por transmitir/consultar.
+	url = endpoint(contexto.uf, "NfeInutilizacao", ambiente=contexto.ambiente, modelo=modelo)
 
 	if not url:
-		raise TransporteIndisponivel(f"Não há endpoint de NfeInutilizacao confirmado para a UF {uf!r}")
+		raise TransporteIndisponivel(f"Não há endpoint de NfeInutilizacao confirmado para a UF {contexto.uf!r}")
 
 	xml_interno = para_xml(assinada)
 	soap = montar_envelope("NfeInutilizacao", xml_interno)
 
-	resposta = sessao_http.post(
+	resposta = contexto.sessao_http.post(
 		url,
 		data=soap.encode("utf-8"),
 		headers={"Content-Type": "application/soap+xml; charset=utf-8"},
-		cert=(str(arquivo_cert), str(arquivo_chave)),
+		cert=(str(contexto.arquivo_cert), str(contexto.arquivo_chave)),
 		timeout=30,
 	)
 	resposta.raise_for_status()

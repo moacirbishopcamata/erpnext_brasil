@@ -86,7 +86,9 @@ def _prot_nfe(cstat="100", motivo="Autorizado o uso da NF-e"):
 	)
 
 
-DOCUMENTO_MINIMO = {"NFe": {"@xmlns": "x", "infNFe": {"@Id": "NFe1", "a": "1"}}}
+DOCUMENTO_MINIMO = {
+	"NFe": {"@xmlns": "x", "infNFe": {"@Id": "NFe1", "ide": {"mod": "55"}, "a": "1"}}
+}
 
 
 class SessaoFalsa:

@@ -10,9 +10,9 @@ transporte, mesma UF/certificado, só outro arquivo. `TransporteSefaz` continua 
 único ponto que implementa `TransporteFiscal`; este módulo não é chamado por mais
 ninguém.
 
-`enviar_evento` é função livre, não método de classe: recebe os arquivos TLS e a sessão
-HTTP já prontos (preparados por `TransporteSefaz`), em vez de duplicar aqui o ciclo de
-vida do certificado — a mesma razão de `assinatura.py` não saber montar XML e
+`enviar_evento` é função livre, não método de classe: recebe um `ContextoSefaz` já
+pronto (montado por `TransporteSefaz`), em vez de duplicar aqui o ciclo de vida do
+certificado — a mesma razão de `assinatura.py` não saber montar XML e
 `assinador_local.py` não decidir quando assinar.
 """
 
@@ -27,6 +27,7 @@ from erpnext_brasil.fiscal.documento.evento import (
 from erpnext_brasil.fiscal.documento.porta import Autorizacao, RespostaTransmissao
 from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.documento.soap import extrair_resultado, montar_envelope
+from erpnext_brasil.integracao.contexto_sefaz import ContextoSefaz
 
 __all__ = ["TransporteIndisponivel", "enviar_evento"]
 
@@ -41,15 +42,12 @@ class TransporteIndisponivel(RuntimeError):
 
 def enviar_evento(
 	evento: dict,
+	contexto: ContextoSefaz,
 	*,
-	uf: str,
-	ambiente: str,
 	chave_acesso: str,
 	assinador,
-	sessao_http,
-	arquivo_cert,
-	arquivo_chave,
 	protocolo_padrao: str = "",
+	modelo: str = "55",
 ) -> RespostaTransmissao:
 	"""Assina, envia um lote de um único evento via `NFeRecepcaoEvento4` e traduz o
 	retorno.
@@ -57,24 +55,26 @@ def enviar_evento(
 	Compartilhado por `cancelar` e `corrigir` de `TransporteSefaz` — diferem só na
 	montagem (`fiscal/documento/evento.py`), não no transporte nem na assinatura.
 	`protocolo_padrao` só importa para `cancelar`: uma CC-e homologada sempre ecoa o
-	`nProt` da autorização original, não precisa de fallback.
+	`nProt` da autorização original, não precisa de fallback. `modelo` (`TransporteSefaz`
+	lê da própria `chave_acesso`) escolhe o `RecepcaoEvento` específico de NFC-e nos
+	grupos que o têm (ver `autorizadores_sefaz.ENDPOINTS_NFCE`).
 	"""
 	evento_assinado = assinar_evento(evento, assinador)
 	envelope = montar_env_evento([evento_assinado], id_lote=datetime.now().strftime("%Y%m%d%H%M%S"))
 
-	url = endpoint(uf, "RecepcaoEvento", ambiente=ambiente)
+	url = endpoint(contexto.uf, "RecepcaoEvento", ambiente=contexto.ambiente, modelo=modelo)
 
 	if not url:
-		raise TransporteIndisponivel(f"Não há endpoint de RecepcaoEvento confirmado para a UF {uf!r}")
+		raise TransporteIndisponivel(f"Não há endpoint de RecepcaoEvento confirmado para a UF {contexto.uf!r}")
 
 	xml_interno = para_xml(envelope)
 	soap = montar_envelope("RecepcaoEvento", xml_interno)
 
-	resposta = sessao_http.post(
+	resposta = contexto.sessao_http.post(
 		url,
 		data=soap.encode("utf-8"),
 		headers={"Content-Type": "application/soap+xml; charset=utf-8"},
-		cert=(str(arquivo_cert), str(arquivo_chave)),
+		cert=(str(contexto.arquivo_cert), str(contexto.arquivo_chave)),
 		timeout=30,
 	)
 	resposta.raise_for_status()
