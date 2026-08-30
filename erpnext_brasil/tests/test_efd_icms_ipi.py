@@ -1,7 +1,7 @@
 # Copyright (c) 2026, ERPNext Brasil contributors
 # License: MIT. See license.txt
 
-"""Testes de `contabil/efd_icms_ipi.py` — registro E110 do EFD-ICMS/IPI.
+"""Testes de `contabil/efd_icms_ipi.py` — registros E110 (ICMS) e E520 (IPI) do EFD.
 
 O teste que mais importa é `test_ordem_dos_campos`: um `dict` em Python preserva ordem
 de inserção, e a ordem aqui não é estética — é a ordem que o Guia Prático EFD exige na
@@ -12,7 +12,7 @@ import unittest
 from decimal import Decimal
 
 from erpnext_brasil.contabil.apuracao_periodo import ApuracaoPeriodo
-from erpnext_brasil.contabil.efd_icms_ipi import montar_e110
+from erpnext_brasil.contabil.efd_icms_ipi import montar_e110, montar_e520
 
 
 def d(v: str) -> Decimal:
@@ -100,6 +100,67 @@ class TestMontarE110(unittest.TestCase):
 
 		with self.assertRaises(ValueError):
 			montar_e110(apuracao)
+
+
+class TestMontarE520(unittest.TestCase):
+	def test_ordem_dos_campos(self):
+		apuracao = ApuracaoPeriodo(tributo="IPI", debitos=d("100.00"), creditos=d("40.00"))
+		campos = list(montar_e520(apuracao))
+
+		self.assertEqual(
+			campos,
+			["REG", "VL_SD_ANT_IPI", "VL_DEB_IPI", "VL_CRED_IPI", "VL_OD_IPI", "VL_OC_IPI", "VL_SC_IPI", "VL_SD_IPI"],
+		)
+
+	def test_reg_e_fixo(self):
+		apuracao = ApuracaoPeriodo(tributo="IPI", debitos=d("0"), creditos=d("0"))
+
+		self.assertEqual(montar_e520(apuracao)["REG"], "E520")
+
+	def test_debito_maior_que_credito_preenche_vl_sd_ipi(self):
+		apuracao = ApuracaoPeriodo(tributo="IPI", debitos=d("100.00"), creditos=d("40.00"))
+		campos = montar_e520(apuracao)
+
+		self.assertEqual(campos["VL_DEB_IPI"], d("100.00"))
+		self.assertEqual(campos["VL_CRED_IPI"], d("40.00"))
+		self.assertEqual(campos["VL_SD_IPI"], d("60.00"))
+		self.assertEqual(campos["VL_SC_IPI"], d("0.00"))
+
+	def test_credito_maior_que_debito_preenche_vl_sc_ipi(self):
+		apuracao = ApuracaoPeriodo(tributo="IPI", debitos=d("40.00"), creditos=d("100.00"))
+		campos = montar_e520(apuracao)
+
+		self.assertEqual(campos["VL_SD_IPI"], d("0.00"))
+		self.assertEqual(campos["VL_SC_IPI"], d("60.00"))
+
+	def test_vl_sc_ipi_e_vl_sd_ipi_sao_mutuamente_exclusivos(self):
+		for debitos, creditos in (("100.00", "40.00"), ("40.00", "100.00"), ("50.00", "50.00")):
+			with self.subTest(debitos=debitos, creditos=creditos):
+				campos = montar_e520(ApuracaoPeriodo(tributo="IPI", debitos=d(debitos), creditos=d(creditos)))
+
+				self.assertTrue(campos["VL_SC_IPI"] == d("0.00") or campos["VL_SD_IPI"] == d("0.00"))
+
+	def test_saldo_credor_anterior_vai_para_vl_sd_ant_ipi(self):
+		apuracao = ApuracaoPeriodo(
+			tributo="IPI", debitos=d("100.00"), creditos=d("40.00"), saldo_credor_anterior=d("10.00")
+		)
+
+		self.assertEqual(montar_e520(apuracao)["VL_SD_ANT_IPI"], d("10.00"))
+
+	def test_campos_de_ajuste_nao_modelados_ficam_zerados(self):
+		"""Escopo desta versão (ver docstring do módulo): sem registro E530, VL_OD_IPI
+		e VL_OC_IPI são sempre zero — correto só para apuração sem ajuste real."""
+		apuracao = ApuracaoPeriodo(tributo="IPI", debitos=d("100.00"), creditos=d("40.00"))
+		campos = montar_e520(apuracao)
+
+		self.assertEqual(campos["VL_OD_IPI"], d("0.00"))
+		self.assertEqual(campos["VL_OC_IPI"], d("0.00"))
+
+	def test_tributo_diferente_de_ipi_e_rejeitado(self):
+		apuracao = ApuracaoPeriodo(tributo="ICMS", debitos=d("100.00"), creditos=d("0.00"))
+
+		with self.assertRaises(ValueError):
+			montar_e520(apuracao)
 
 
 if __name__ == "__main__":
