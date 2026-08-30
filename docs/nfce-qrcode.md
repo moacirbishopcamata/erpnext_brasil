@@ -71,6 +71,29 @@ ali. `serializacao.py` ganhou uma classe `Cdata` só para isso
 o texto contiver `]]>` (encerraria a seção CDATA no meio) — falha aqui, não como rejeição
 misteriosa da SEFAZ.
 
+## `consulta_nfce.py` — URL de consulta por UF
+
+`montar_qrcode_online` recebe a URL base já pronta (`url_base`) — não a deriva sozinho.
+`fiscal/documento/consulta_nfce.py` (`url_qrcode(uf, ambiente)`) fecha essa lacuna para
+as **27 UFs**, em produção e homologação: a página pública de consulta do QR Code
+(`webConsultaNFCe`) é infraestrutura completamente diferente dos webservices SOAP de
+autorização já mapeados em `autorizadores_sefaz.py` — cada UF mantém a própria, mesmo as
+que delegam a autorização ao SVRS (RO autoriza via SVRS, mas consulta em
+`nfce.sefin.ro.gov.br`, domínio próprio; não há como derivar uma tabela pela outra).
+
+RO (prioridade de verificação) foi conferido em **duas fontes independentes**: a tabela
+de configuração de `nfephp-org/sped-nfe` (já usada para os autorizadores de NF-e) e a
+Cartilha de Orientações NFC-e da própria SEFIN-RO — bateram exatamente
+(`http://www.nfce.sefin.ro.gov.br/consultanfce/consulta.jsp`). As demais 26 UFs vêm só da
+primeira fonte, mesmo padrão de confiança já usado nos autorizadores (a tabela reproduziu
+exatamente o que já estava confirmado antes, o que sustenta a correção do arquivo como
+um todo).
+
+`urlChave` (a consulta por chave — para RO, domínio e caminho **diferentes** do QR Code:
+`www.sefin.ro.gov.br/nfce/consulta`) não tem tabela própria: só foi confirmada para RO.
+`montar_infnfesupl` continua recebendo esse valor como parâmetro — automatizar para as
+27 UFs é trabalho futuro declarado.
+
 ## Onde `infNFeSupl` entra na árvore assinada
 
 `anexar_infnfesupl` (não `montar_nfe`/`assinar_nfe`, que continuam agnósticos a
@@ -88,11 +111,8 @@ nfe_completa = anexar_infnfesupl(nfe_assinada, grupo)
 
 - **Emissão em contingência (`tpEmis = 9`)**: sequência diferente
   (`chave|versão|ambiente|dia|valor|digestHex|cscId`), não implementada.
-- **Tabela de URL de consulta por UF** (`webConsultaNFCe`): cada UF tem seu próprio
-  domínio de consulta pública da NFC-e, distinto dos webservices de autorização já
-  mapeados em `autorizadores_sefaz.py`. Este módulo recebe a URL base já pronta de quem
-  chama — levantar a tabela UF a UF é trabalho futuro, mesma disciplina de nunca inferir
-  por padrão de nome usada para os autorizadores.
+- **`urlChave`** (consulta por chave, distinta do QR Code) só tem valor confirmado para
+  RO — as outras 26 UFs continuam sem tabela própria, ver `consulta_nfce.py`.
 - **QR Code "versão 3" (NT 2025.001)**: atualização recente troca o esquema de
   contingência específico para assinatura criptográfica em vez de hash com CSC — fora do
   escopo desta primeira implementação, que cobre só a versão 2 vigente e majoritária.
@@ -102,6 +122,8 @@ nfe_completa = anexar_infnfesupl(nfe_assinada, grupo)
 
 ## Fonte
 
-`nfephp-org/sped-nfe`, `src/Factories/QRCode.php` (método `get200`), e um exemplo real de
-QR Code de produção publicado em fórum técnico — consultados em 2026-08-29. Portal
+`nfephp-org/sped-nfe`, `src/Factories/QRCode.php` (método `get200`) e
+`storage/wsnfe_4.00_mod65.xml` (tabela de URL de consulta por UF), um exemplo real de QR
+Code de produção publicado em fórum técnico, e a Cartilha de Orientações NFC-e da
+SEFIN-RO (segunda fonte, cross-verificação de RO) — consultados em 2026-08-29. Portal
 Nacional da NF-e inacessível às ferramentas de busca no momento da implementação.

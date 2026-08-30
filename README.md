@@ -56,7 +56,7 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Ciclo de vida do documento fiscal e porta de transmissão | pronto |
 | Inutilização de faixa de numeração (`inutilizar`) | pronto — CNPJ alfanumérico recusado deliberadamente, ver `docs/inutilizacao-nfe.md` |
 | Carta de correção (CC-e), inutilização e cancelamento assinados digitalmente | pronto — bug de assinatura ausente corrigido |
-| **NFC-e (modelo 65)** — QR Code (`infNFeSupl`, emissão on-line) | pronto — contingência offline e tabela de URL por UF ainda não, ver `docs/nfce-qrcode.md` |
+| **NFC-e (modelo 65)** — QR Code (`infNFeSupl`, emissão on-line) | pronto — tabela de URL de consulta nas 27 UFs, contingência offline ainda não |
 | Outros documentos fiscais (CT-e, MDF-e, NFS-e) | não iniciado |
 | Obrigações acessórias (SPED, EFD-Reinf) | não iniciado |
 
