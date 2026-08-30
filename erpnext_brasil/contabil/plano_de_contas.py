@@ -144,6 +144,7 @@ _ATIVO = _grupo(
 	_grupo(
 		"Ativo Circulante",
 		Conta("Disponibilidades"),
+		Conta("Clientes"),
 		_grupo(
 			"Impostos a Recuperar",
 			_tributo("ICMS a Recuperar", "ICMS"),
