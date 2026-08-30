@@ -33,8 +33,27 @@ tem outros campos para isso). A ECD, por outro lado, **exige** `COD_NAT` distint
 este módulo não deriva `COD_NAT` só do `root_type` — rastreia se o nó (ou algum
 ancestral) é `"Patrimônio Líquido"` e usa `"03"` nesse caso, `"02"` no resto do Passivo.
 
+I051: mapeamento De-Para, não a tabela referencial em si
+----------------------------------------------------------------
+`I051` é obrigatório só quando o campo `COD_PLAN_REF` do registro `0000` (não modelado
+neste app) está preenchido — quem opta por informar o plano de contas referencial da
+RFB precisa mapear cada conta própria para o código referencial correspondente. Esse
+mapeamento **não exige reproduzir a tabela da RFB inteira** (milhares de códigos) — só
+o De-Para que o contribuinte já escolheu, conta a conta. Por isso `MapeamentoReferencial`
+recebe `codigo_referencial` pronto de quem chama, igual a `Ajuste.codigo`/`AjusteIpi.
+codigo` em `efd_icms_ipi.py`.
+
+**`I051` não tem campo próprio para "qual conta"** — na estrutura hierárquica do
+arquivo SPED, cada linha I051 é aninhada logo depois do `I050` da conta a que se refere
+(a associação é por **posição no arquivo**, não por um campo `COD_CTA` dentro do
+próprio I051). Como este módulo devolve dados, não a linha de texto posicional,
+`montar_i051` devolve `(nome_da_conta, linha)` — quem monta o arquivo final decide onde
+inserir cada linha.
+
 Funções puras: nenhuma dependência do Frappe.
 """
+
+from dataclasses import dataclass
 
 from erpnext_brasil.contabil.plano_de_contas import (
 	ARVORE,
@@ -43,10 +62,20 @@ from erpnext_brasil.contabil.plano_de_contas import (
 	ROOT_TYPE_PASSIVO,
 	ROOT_TYPE_RECEITA,
 	Conta,
+	listar_nomes,
 	montar_codigos,
 )
 
-__all__ = ["COD_NAT_ATIVO", "COD_NAT_PASSIVO", "COD_NAT_PATRIMONIO_LIQUIDO", "COD_NAT_RESULTADO", "montar_i050"]
+__all__ = [
+	"COD_NAT_ATIVO",
+	"COD_NAT_PASSIVO",
+	"COD_NAT_PATRIMONIO_LIQUIDO",
+	"COD_NAT_RESULTADO",
+	"ContaDesconhecidaI051",
+	"MapeamentoReferencial",
+	"montar_i050",
+	"montar_i051",
+]
 
 # Tabela de natureza da conta (COD_NAT) do registro I050 — confirmada em fonte técnica
 # especializada, corroborada por busca cruzada (ver docs/ecd.md). Só os quatro códigos
@@ -65,6 +94,52 @@ _COD_NAT_POR_ROOT_TYPE = {
 }
 
 _NOME_PATRIMONIO_LIQUIDO = "Patrimônio Líquido"
+
+
+class ContaDesconhecidaI051(ValueError):
+	"""`MapeamentoReferencial` referencia uma conta que não existe em `plano_de_contas.ARVORE`."""
+
+
+@dataclass(frozen=True)
+class MapeamentoReferencial:
+	"""Um De-Para conta própria → código do plano de contas referencial da RFB.
+
+	`conta` é o nome, mesmo vocabulário de `plano_de_contas.ARVORE` — usado só para
+	`montar_i051` saber onde a linha resultante precisa ser aninhada (ver docstring do
+	módulo), não é um campo do próprio registro I051.
+	"""
+
+	conta: str
+	codigo_referencial: str
+	centro_custo: str = ""
+
+
+def montar_i051(
+	mapeamentos: list[MapeamentoReferencial], arvore: tuple[tuple[str, Conta], ...] = ARVORE
+) -> list[tuple[str, dict]]:
+	"""`(nome_da_conta, linha_I051)` por mapeamento — a linha precisa ser inserida logo
+	depois do `I050` daquela conta no arquivo final (aninhamento por posição, não por
+	campo, ver docstring do módulo)."""
+	nomes_validos = set(listar_nomes(arvore))
+
+	pares: list[tuple[str, dict]] = []
+
+	for mapeamento in mapeamentos:
+		if mapeamento.conta not in nomes_validos:
+			raise ContaDesconhecidaI051(f"Conta {mapeamento.conta!r} não existe em plano_de_contas.ARVORE")
+
+		pares.append(
+			(
+				mapeamento.conta,
+				{
+					"REG": "I051",
+					"COD_CCUS": mapeamento.centro_custo,
+					"COD_CTA_REF": mapeamento.codigo_referencial,
+				},
+			)
+		)
+
+	return pares
 
 
 def montar_i050(data_alteracao: str, arvore: tuple[tuple[str, Conta], ...] = ARVORE) -> list[dict]:

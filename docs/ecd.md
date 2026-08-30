@@ -1,4 +1,4 @@
-# ECD (Escrituração Contábil Digital): registros I050, I200, I250, I150 e I155
+# ECD (Escrituração Contábil Digital): registros I050, I051, I200, I250, I150 e I155
 
 Sexto incremento do bloco contábil, sobre
 [plano-de-contas.md](plano-de-contas.md) — a ECD é o SPED Contábil: os livros Diário e
@@ -184,10 +184,31 @@ realmente zera a cada período; só as patrimoniais carregam saldo de fato.
 | 8 | `VL_SLD_FIN` | Saldo final do período |
 | 9 | `IND_DC_FIN` | `"D"`/`"C"` do saldo final |
 
+## I051: mapeamento De-Para, não a tabela referencial em si
+
+`I051` é obrigatório só quando o campo `COD_PLAN_REF` do registro `0000` (não modelado
+neste app) está preenchido — quem opta por informar o plano de contas referencial da
+RFB precisa mapear cada conta própria para o código referencial correspondente. Esse
+mapeamento **não exige reproduzir a tabela da RFB inteira** (milhares de códigos) — só
+o De-Para que o contribuinte já escolheu, conta a conta. `MapeamentoReferencial` recebe
+`codigo_referencial` pronto de quem chama, igual a `Ajuste.codigo`/`AjusteIpi.codigo` em
+`efd_icms_ipi.py`.
+
+**`I051` não tem campo próprio para "qual conta"** — na estrutura hierárquica do
+arquivo SPED, cada linha I051 é aninhada logo depois do `I050` da conta a que se refere
+(associação por **posição no arquivo**, não por um campo `COD_CTA` dentro do próprio
+I051). Como este módulo devolve dados, não a linha de texto posicional, `montar_i051`
+devolve `(nome_da_conta, linha)` — quem monta o arquivo final decide onde inserir cada
+linha. Layout (3 campos):
+
+| # | Campo | Descrição |
+|---|---|---|
+| 1 | `REG` | Fixo, `"I051"` |
+| 2 | `COD_CCUS` | Centro de custo (opcional, quando necessário para identificar a conta referencial) |
+| 3 | `COD_CTA_REF` | Código do plano de contas referencial da RFB |
+
 ## Ainda por implementar
 
-- **Registro I051** (plano de contas referencial da RFB) — mapeamento entre o plano
-  próprio e o plano referencial que a ECD também aceita, para quem usa o de terceiros.
 - **Lançamento com mais de duas pontas** (rateio entre três ou mais contas) — pede um
   tipo mais rico que `Lancamento`, hoje limitado a um débito e um crédito.
 - **Serialização para o formato de texto do SPED** — mesma decisão já registrada em
@@ -199,14 +220,15 @@ realmente zera a cada período; só as patrimoniais carregam saldo de fato.
 
 ## Arquivos
 
-- `contabil/ecd_i050.py` — `montar_i050`; camada pura, sem Frappe, testável sem bench.
+- `contabil/ecd_i050.py` — `montar_i050`, `montar_i051`, `MapeamentoReferencial`;
+  camada pura, sem Frappe, testável sem bench.
 - `contabil/ecd_i200.py` — `montar_i200_i250`; idem.
 - `contabil/ecd_i150.py` — `montar_i150`, `montar_i155`, `SaldoInicial`; idem.
 - `contabil/plano_de_contas.montar_codigos` — a numeração-padrão que os três usam.
 
 ## Fontes
 
-- Layout dos registros I050, I200, I250, I150 e I155, e tabelas
+- Layout dos registros I050, I051, I200, I250, I150 e I155, e tabelas
   `COD_NAT`/`IND_LCTO`/`IND_DC` — fonte oficial (`sped.rfb.gov.br`, o Manual de
   Orientação da ECD) inacessível às ferramentas de busca no momento; confirmado em guia
   técnico especializado (`vriconsulting.com.br`), corroborado por busca cruzada que

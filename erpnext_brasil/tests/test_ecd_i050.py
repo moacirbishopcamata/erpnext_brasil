@@ -16,7 +16,10 @@ from erpnext_brasil.contabil.ecd_i050 import (
 	COD_NAT_PASSIVO,
 	COD_NAT_PATRIMONIO_LIQUIDO,
 	COD_NAT_RESULTADO,
+	ContaDesconhecidaI051,
+	MapeamentoReferencial,
 	montar_i050,
+	montar_i051,
 )
 from erpnext_brasil.contabil.plano_de_contas import listar_nomes, montar_codigos
 
@@ -75,6 +78,33 @@ class TestMontarI050(unittest.TestCase):
 		self.assertEqual(_por_nome(self.linhas, "Ativo")["COD_CTA_SUP"], "")
 		self.assertEqual(_por_nome(self.linhas, "Ativo Circulante")["COD_CTA_SUP"], codigos["Ativo"])
 		self.assertEqual(_por_nome(self.linhas, "Clientes")["COD_CTA_SUP"], codigos["Ativo Circulante"])
+
+
+class TestMontarI051(unittest.TestCase):
+	def test_um_par_por_mapeamento(self):
+		pares = montar_i051([MapeamentoReferencial(conta="Clientes", codigo_referencial="1.01.01.01")])
+
+		self.assertEqual(len(pares), 1)
+		self.assertEqual(pares[0][0], "Clientes")
+
+	def test_campos_da_linha(self):
+		_conta, linha = montar_i051(
+			[MapeamentoReferencial(conta="Clientes", codigo_referencial="1.01.01.01", centro_custo="001")]
+		)[0]
+
+		self.assertEqual(linha, {"REG": "I051", "COD_CCUS": "001", "COD_CTA_REF": "1.01.01.01"})
+
+	def test_centro_custo_padrao_e_vazio(self):
+		_conta, linha = montar_i051([MapeamentoReferencial(conta="Clientes", codigo_referencial="1.01.01.01")])[0]
+
+		self.assertEqual(linha["COD_CCUS"], "")
+
+	def test_conta_desconhecida_levanta_erro(self):
+		with self.assertRaises(ContaDesconhecidaI051):
+			montar_i051([MapeamentoReferencial(conta="Conta Inventada", codigo_referencial="1.01.01.01")])
+
+	def test_lista_vazia_devolve_lista_vazia(self):
+		self.assertEqual(montar_i051([]), [])
 
 
 if __name__ == "__main__":
