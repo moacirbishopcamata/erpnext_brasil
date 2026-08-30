@@ -106,10 +106,13 @@ primeira fonte, mesmo padrão de confiança já usado nos autorizadores (a tabel
 exatamente o que já estava confirmado antes, o que sustenta a correção do arquivo como
 um todo).
 
-`urlChave` (a consulta por chave — para RO, domínio e caminho **diferentes** do QR Code:
-`www.sefin.ro.gov.br/nfce/consulta`) não tem tabela própria: só foi confirmada para RO.
-`montar_infnfesupl` continua recebendo esse valor como parâmetro — automatizar para as
-27 UFs é trabalho futuro declarado.
+`urlChave` (a consulta por chave — para RO, `http://www.nfce.sefin.ro.gov.br`, domínio e
+caminho **diferentes** do QR Code) tem tabela própria em `consulta_nfce.URL_CHAVE_POR_UF`
+(fonte: ENCAT), confirmada para 22 das 27 UFs em produção (mais Ceará só em
+homologação); Goiás, Minas Gerais, Pernambuco e Santa Catarina não constam na fonte em
+nenhum ambiente. `montar_infnfesupl` continua recebendo `url_consulta_chave` como
+parâmetro — quem chama pode resolvê-lo via `consulta_nfce.url_chave(uf)` quando a UF
+estiver confirmada, ou fornecer por fora quando não estiver.
 
 ## Onde `infNFeSupl` entra na árvore assinada
 
@@ -126,8 +129,11 @@ nfe_completa = anexar_infnfesupl(nfe_assinada, grupo)
 
 ## Ainda por implementar
 
-- **`urlChave`** (consulta por chave, distinta do QR Code) só tem valor confirmado para
-  RO — as outras 26 UFs continuam sem tabela própria, ver `consulta_nfce.py`.
+- ~~**`urlChave`** (consulta por chave, distinta do QR Code) só tem valor confirmado
+  para RO~~ — **resolvido em 2026-08-30**: 22 das 27 UFs confirmadas em produção via
+  ENCAT (mais CE só em homologação), ver `consulta_nfce.URL_CHAVE_POR_UF`/`url_chave`.
+  Goiás, Minas Gerais, Pernambuco e Santa Catarina continuam sem confirmação — ausência
+  real na fonte primária, não falta de busca.
 - **QR Code "versão 3" (NT 2025.001)**: atualização recente troca o esquema de
   contingência específico para assinatura criptográfica em vez de hash com CSC — fora do
   escopo desta primeira implementação, que cobre só a versão 2 vigente e majoritária.
@@ -146,3 +152,6 @@ nfe_completa = anexar_infnfesupl(nfe_assinada, grupo)
 Code de produção publicado em fórum técnico, e a Cartilha de Orientações NFC-e da
 SEFIN-RO (segunda fonte, cross-verificação de RO) — consultados em 2026-08-29. Portal
 Nacional da NF-e inacessível às ferramentas de busca no momento da implementação.
+Tabela `urlChave` por UF: ENCAT, "URL por UF utilizada para consulta chave"
+(`nfce.encat.org/desenvolvedor/url-por-uf-utilizada-para-consulta-chave/`) — consultado
+em 2026-08-30.
