@@ -1,4 +1,4 @@
-# SPED Fiscal (EFD-ICMS/IPI): registros E110, E111 e E520
+# SPED Fiscal (EFD-ICMS/IPI): registros E110, E111, E520 e E530
 
 Quarto incremento do bloco contábil, sobre
 [apuracao-periodica.md](apuracao-periodica.md) — primeiro passo em "obrigações
@@ -119,11 +119,34 @@ que altera o saldo apurado. Dedução maior que o saldo devedor apurado levanta 
 explícito (`EfdInvalido`) — caso não coberto, sem fonte confirmada para o tratamento
 correto.
 
-## E520 (IPI) continua sem ajuste — E530 ainda não levantado
+## E530: ajuste de apuração do IPI — tabela nacional, não por UF
 
-Diferente do par E110/E111, o par E520/E530 do IPI não teve seu registro de ajuste
-(E530) pesquisado ainda — `montar_e520` continua zerando `VL_OD_IPI`/`VL_OC_IPI` como
-antes, com a mesma ressalva: correto sem ajuste real, não correto com ajuste.
+Diferente do ICMS, `COD_AJ` do E530 **tem tabela nacional única**, publicada pela RFB
+(IN RFB 932/2009, atualizada pela IN RFB 1009/2010) — não varia por estado. A tabela usa
+faixa numérica com a natureza embutida no próprio código: `001`-`099` são crédito,
+`101`-`199` são débito (`100` é reservado/inexistente). Por isso `AjusteIpi.ind_aj` é
+**derivado** do código, não pedido como parâmetro separado — evita o chamador informar
+os dois e arriscar divergência (mesmo motivo de `montar_infnfe` derivar a chave do
+`ide`, nunca aceitá-la em paralelo).
+
+Layout (7 campos, ordem diferente do E111 — aqui o indicador vem antes do valor, e o
+valor antes do código):
+
+| # | Campo | Descrição |
+|---|---|---|
+| 1 | `REG` | Fixo, `"E530"` |
+| 2 | `IND_AJ` | `"0"` débito / `"1"` crédito |
+| 3 | `VL_AJ` | Valor do ajuste |
+| 4 | `COD_AJ` | Código da tabela nacional da RFB |
+| 5 | `IND_DOC` | Origem do documento que respalda o ajuste (`0` judicial, `1` administrativo, `2` PER/DComp, `3` documento fiscal, `9` outros) |
+| 6 | `NUM_DOC` | Número do processo/documento |
+| 7 | `DESCR_AJ` | Descrição do ajuste |
+
+`montar_e520(apuracao, ajustes)` soma ajustes de débito em `VL_OD_IPI` e de crédito em
+`VL_OC_IPI`, recalculando `VL_SC_IPI`/`VL_SD_IPI` — mesma disciplina de
+`montar_e110`/`Ajuste`. Diferente do E110, o E520 não tem campo de dedução
+(`VL_TOT_DED`): a fórmula aqui é só débito mais outros débitos, menos crédito menos
+outros créditos menos saldo credor anterior.
 
 ## Formato de saída: dict, não a linha de texto do EFD
 
@@ -137,28 +160,32 @@ de dados primeiro, o formato de texto depois, como camada própria).
 
 ## Ainda por implementar
 
-- **Registro E530** (ajuste de apuração do IPI) — equivalente do E111 para IPI.
 - **Registros E200/E210 (ICMS-ST) e E300/E310 (ICMS-DIFAL)** — apurações distintas de
   E110, não cobertas; DIFAL em particular já é gap deliberado desde `imposto_item.py`.
 - **Serialização para o formato de texto do EFD** (pipe-delimited, decimal com
   vírgula) — ver seção acima.
 - **Blocos 0, C, D, H, K, 1, 9** do EFD (identificação, documentos fiscais, inventário,
   totalizadores) — o arquivo completo tem muito mais que o bloco E de apuração; este
-  incremento cobre só três registros de um bloco.
-- **Tabela de códigos de ajuste por UF** — `Ajuste.codigo` vem pronto de quem chama;
-  nenhuma das 27 tabelas estaduais (nem a federal de fallback) foi modelada aqui.
+  incremento cobre só quatro registros de um bloco.
+- **Tabela de códigos de ajuste por UF (ICMS)** — `Ajuste.codigo` vem pronto de quem
+  chama; nenhuma das 27 tabelas estaduais (nem a federal de fallback) foi modelada
+  aqui. A tabela do IPI (`AjusteIpi`) é nacional e também não foi transcrita — só a
+  faixa numérica (001-099/101-199) que decide `IND_AJ`.
 
 ## Arquivos
 
-- `contabil/efd_icms_ipi.py` — `Ajuste`, `montar_e110`, `montar_e111`, `montar_e520`;
-  camada pura, sem Frappe, testável sem bench.
+- `contabil/efd_icms_ipi.py` — `Ajuste`, `AjusteIpi`, `montar_e110`, `montar_e111`,
+  `montar_e520`, `montar_e530`; camada pura, sem Frappe, testável sem bench.
 
 ## Fontes
 
 - Ajuste SINIEF 02/2009 (dispensa dos livros em papel) — confirmado em fontes
   secundárias consistentes (`sped.rfb.gov.br`, `sefaz.pe.gov.br`) — consultado em
   2026-08-30.
-- Guia Prático EFD-ICMS/IPI, layout dos registros E110, E111 e E520 — fonte oficial
-  (`sped.rfb.gov.br`) inacessível às ferramentas de busca no momento; confirmado em
-  guia técnico especializado (`vriconsulting.com.br`) com descrição campo a campo,
+- IN RFB 932/2009 (atualizada pela IN RFB 1009/2010) — tabela nacional de códigos de
+  ajuste do IPI, citada pela mesma fonte técnica do layout do E530 — não lida
+  diretamente, só a faixa numérica que ela define foi usada.
+- Guia Prático EFD-ICMS/IPI, layout dos registros E110, E111, E520 e E530 — fonte
+  oficial (`sped.rfb.gov.br`) inacessível às ferramentas de busca no momento; confirmado
+  em guia técnico especializado (`vriconsulting.com.br`) com descrição campo a campo,
   corroborado por busca cruzada — consultado em 2026-08-30.

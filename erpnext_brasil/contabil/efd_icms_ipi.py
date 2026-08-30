@@ -61,8 +61,12 @@ Dedução (`VL_TOT_DED`) maior que o saldo devedor apurado é situação não co
 levanta erro explícito em vez de inventar um saldo credor originado de dedução (caso
 raro, tratamento não confirmado em fonte).
 
-`E520` (IPI) continua sem ajuste — o registro equivalente (`E530`) ainda não foi
-levantado; `montar_e520` continua zerando `VL_OD_IPI`/`VL_OC_IPI` como antes.
+`E530` faz o mesmo para IPI, com uma diferença estrutural importante: `COD_AJ`
+**tem tabela nacional única**, publicada pela RFB (IN RFB 932/2009, atualizada pela IN
+RFB 1009/2010) — não varia por UF como o `COD_AJ_APUR` do ICMS. A tabela usa faixa
+numérica com natureza embutida: códigos `001`-`099` são crédito, `101`-`199` são
+débito — por isso `AjusteIpi` deriva `IND_AJ` do próprio código, em vez de pedir os
+dois separadamente (evita o chamador informar dois dados que podem divergir entre si).
 
 Formato de saída: dict de campo → valor, não a linha de texto do EFD
 ------------------------------------------------------------------------
@@ -81,7 +85,7 @@ from decimal import Decimal
 
 from erpnext_brasil.contabil.apuracao_periodo import ApuracaoPeriodo
 
-__all__ = ["Ajuste", "EfdInvalido", "montar_e110", "montar_e111", "montar_e520"]
+__all__ = ["Ajuste", "AjusteIpi", "EfdInvalido", "montar_e110", "montar_e111", "montar_e520", "montar_e530"]
 
 ZERO = Decimal("0.00")
 
@@ -215,26 +219,119 @@ def montar_e110(apuracao: ApuracaoPeriodo, ajustes: list[Ajuste] = ()) -> dict:
 	}
 
 
-def montar_e520(apuracao: ApuracaoPeriodo) -> dict:
+_IND_AJ_DEBITO = "0"
+_IND_AJ_CREDITO = "1"
+
+_IND_DOC_VALIDOS = frozenset({"0", "1", "2", "3", "9"})
+
+
+@dataclass(frozen=True)
+class AjusteIpi:
+	"""Um ajuste de apuração do IPI — vira uma linha E530 e soma no campo certo do E520.
+
+	`codigo` (`COD_AJ`) é da tabela **nacional** da RFB (IN RFB 932/2009, atualizada
+	pela IN RFB 1009/2010) — `001`-`099` é crédito, `101`-`199` é débito. `ind_aj` não é
+	parâmetro: é derivado do próprio código, para não deixar o chamador informar os dois
+	separadamente e arriscar divergência (o mesmo motivo de `montar_infnfe` derivar a
+	chave do `ide` em vez de aceitá-la em paralelo).
+	"""
+
+	codigo: str
+	descricao: str
+	valor: Decimal
+	documento_indicador: str = "9"
+	"""`IND_DOC` — origem do documento que respalda o ajuste; `"9"` (outros) é o padrão
+	quando não há processo judicial/administrativo/PER-DCOMP específico a informar."""
+	documento_numero: str = ""
+
+	def __post_init__(self) -> None:
+		if not (len(self.codigo) == 3 and self.codigo.isdigit()):
+			raise EfdInvalido(f"COD_AJ deve ter 3 dígitos, recebido {self.codigo!r}")
+
+		if not (1 <= int(self.codigo) <= 199):
+			raise EfdInvalido(f"COD_AJ deve estar entre 001 e 199, recebido {self.codigo!r}")
+
+		if self.valor < ZERO:
+			raise EfdInvalido(f"valor do ajuste não pode ser negativo, recebido {self.valor}")
+
+		if self.documento_indicador not in _IND_DOC_VALIDOS:
+			raise EfdInvalido(
+				f"IND_DOC deve ser um de {sorted(_IND_DOC_VALIDOS)}, recebido {self.documento_indicador!r}"
+			)
+
+	@property
+	def ind_aj(self) -> str:
+		"""`"0"` (débito, códigos 101-199) ou `"1"` (crédito, códigos 001-099) — a
+		faixa 100 é reservada/inexistente na tabela da RFB."""
+		numero = int(self.codigo)
+
+		if numero <= 99:
+			return _IND_AJ_CREDITO
+
+		if numero >= 101:
+			return _IND_AJ_DEBITO
+
+		raise EfdInvalido(f"COD_AJ {self.codigo!r} (100) não existe na tabela da RFB — reservado")
+
+
+def montar_e530(ajustes: list[AjusteIpi]) -> list[dict]:
+	"""Uma linha E530 por `AjusteIpi` — ordem de campos oficial do Guia Prático EFD."""
+	return [
+		{
+			"REG": "E530",
+			"IND_AJ": a.ind_aj,
+			"VL_AJ": a.valor,
+			"COD_AJ": a.codigo,
+			"IND_DOC": a.documento_indicador,
+			"NUM_DOC": a.documento_numero,
+			"DESCR_AJ": a.descricao,
+		}
+		for a in ajustes
+	]
+
+
+def montar_e520(apuracao: ApuracaoPeriodo, ajustes: list[AjusteIpi] = ()) -> dict:
 	"""Campos do registro E520 ("Apuração do IPI"), na ordem oficial do Guia Prático.
 
 	Pré-condição: `apuracao.tributo` precisa ser `"IPI"` — E520 é o registro de
 	apuração do IPI; ICMS tem registro próprio (`E110`, ver `montar_e110`).
 
-	`VL_SC_IPI`/`VL_SD_IPI` são mutuamente exclusivos (mesma regra de negócio de
-	`ApuracaoPeriodo.saldo_credor_a_transportar`/`a_recolher`, confirmada também no Guia
-	Prático para este registro: quando um é diferente de zero o outro é sempre zero).
+	`ajustes` (ver `AjusteIpi`/`montar_e530`) entra na fórmula do saldo — mesma
+	disciplina de `montar_e110`/`Ajuste`: `ApuracaoPeriodo` sozinho não sabe de ajuste
+	algum, só débito/crédito bruto. Diferente do E110, o E520 não tem campo de dedução
+	(`VL_TOT_DED`) — a fórmula aqui é só débito mais outros débitos, menos crédito menos
+	outros créditos menos saldo credor anterior.
 	"""
 	if apuracao.tributo != "IPI":
 		raise ValueError(f"E520 é o registro de apuração do IPI, recebido tributo={apuracao.tributo!r}")
+
+	ajustes = list(ajustes)
+
+	outros_debitos = sum((a.valor for a in ajustes if a.ind_aj == _IND_AJ_DEBITO), ZERO)
+	outros_creditos = sum((a.valor for a in ajustes if a.ind_aj == _IND_AJ_CREDITO), ZERO)
+
+	bruto = (
+		apuracao.debitos
+		+ outros_debitos
+		- apuracao.creditos
+		- outros_creditos
+		- apuracao.saldo_credor_anterior
+	)
+
+	if bruto >= ZERO:
+		sd_ipi = bruto
+		sc_ipi = ZERO
+	else:
+		sd_ipi = ZERO
+		sc_ipi = -bruto
 
 	return {
 		"REG": "E520",
 		"VL_SD_ANT_IPI": apuracao.saldo_credor_anterior,
 		"VL_DEB_IPI": apuracao.debitos,
 		"VL_CRED_IPI": apuracao.creditos,
-		"VL_OD_IPI": ZERO,
-		"VL_OC_IPI": ZERO,
-		"VL_SC_IPI": apuracao.saldo_credor_a_transportar,
-		"VL_SD_IPI": apuracao.a_recolher,
+		"VL_OD_IPI": outros_debitos,
+		"VL_OC_IPI": outros_creditos,
+		"VL_SC_IPI": sc_ipi,
+		"VL_SD_IPI": sd_ipi,
 	}

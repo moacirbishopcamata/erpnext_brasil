@@ -12,7 +12,15 @@ import unittest
 from decimal import Decimal
 
 from erpnext_brasil.contabil.apuracao_periodo import ApuracaoPeriodo
-from erpnext_brasil.contabil.efd_icms_ipi import Ajuste, EfdInvalido, montar_e110, montar_e111, montar_e520
+from erpnext_brasil.contabil.efd_icms_ipi import (
+	Ajuste,
+	AjusteIpi,
+	EfdInvalido,
+	montar_e110,
+	montar_e111,
+	montar_e520,
+	montar_e530,
+)
 
 
 def d(v: str) -> Decimal:
@@ -254,6 +262,84 @@ class TestMontarE520(unittest.TestCase):
 
 		with self.assertRaises(ValueError):
 			montar_e520(apuracao)
+
+
+class TestAjusteIpi(unittest.TestCase):
+	def test_codigo_precisa_ter_3_digitos(self):
+		with self.assertRaises(EfdInvalido):
+			AjusteIpi(codigo="10", descricao="teste", valor=d("10.00"))
+
+	def test_codigo_fora_da_faixa_e_rejeitado(self):
+		with self.assertRaises(EfdInvalido):
+			AjusteIpi(codigo="200", descricao="teste", valor=d("10.00"))
+
+	def test_codigo_100_reservado_e_rejeitado_ao_ler_ind_aj(self):
+		with self.assertRaises(EfdInvalido):
+			_ = AjusteIpi(codigo="100", descricao="teste", valor=d("10.00")).ind_aj
+
+	def test_faixa_001_a_099_e_credito(self):
+		self.assertEqual(AjusteIpi(codigo="050", descricao="", valor=d("1.00")).ind_aj, "1")
+
+	def test_faixa_101_a_199_e_debito(self):
+		self.assertEqual(AjusteIpi(codigo="150", descricao="", valor=d("1.00")).ind_aj, "0")
+
+	def test_valor_negativo_e_rejeitado(self):
+		with self.assertRaises(EfdInvalido):
+			AjusteIpi(codigo="050", descricao="teste", valor=d("-1.00"))
+
+	def test_ind_doc_invalido_e_rejeitado(self):
+		with self.assertRaises(EfdInvalido):
+			AjusteIpi(codigo="050", descricao="teste", valor=d("1.00"), documento_indicador="7")
+
+	def test_ind_doc_padrao_e_outros(self):
+		self.assertEqual(AjusteIpi(codigo="050", descricao="", valor=d("1.00")).documento_indicador, "9")
+
+
+class TestMontarE530(unittest.TestCase):
+	def test_ordem_dos_campos(self):
+		linhas = montar_e530([AjusteIpi(codigo="050", descricao="teste", valor=d("10.00"))])
+
+		self.assertEqual(
+			list(linhas[0]), ["REG", "IND_AJ", "VL_AJ", "COD_AJ", "IND_DOC", "NUM_DOC", "DESCR_AJ"]
+		)
+
+	def test_reg_e_fixo(self):
+		linhas = montar_e530([AjusteIpi(codigo="050", descricao="", valor=d("10.00"))])
+
+		self.assertEqual(linhas[0]["REG"], "E530")
+
+	def test_lista_vazia_devolve_lista_vazia(self):
+		self.assertEqual(montar_e530([]), [])
+
+
+class TestMontarE520ComAjustes(unittest.TestCase):
+	def test_ajuste_de_debito_soma_em_vl_od_ipi(self):
+		apuracao = ApuracaoPeriodo(tributo="IPI", debitos=d("1000.00"), creditos=d("400.00"))
+		ajustes = [AjusteIpi(codigo="150", descricao="", valor=d("50.00"))]
+		campos = montar_e520(apuracao, ajustes)
+
+		self.assertEqual(campos["VL_OD_IPI"], d("50.00"))
+		self.assertEqual(campos["VL_SD_IPI"], d("650.00"))
+
+	def test_ajuste_de_credito_soma_em_vl_oc_ipi(self):
+		apuracao = ApuracaoPeriodo(tributo="IPI", debitos=d("1000.00"), creditos=d("400.00"))
+		ajustes = [AjusteIpi(codigo="050", descricao="", valor=d("100.00"))]
+		campos = montar_e520(apuracao, ajustes)
+
+		self.assertEqual(campos["VL_OC_IPI"], d("100.00"))
+		self.assertEqual(campos["VL_SD_IPI"], d("500.00"))
+
+	def test_ajuste_pode_transformar_devedor_em_credor(self):
+		apuracao = ApuracaoPeriodo(tributo="IPI", debitos=d("100.00"), creditos=d("90.00"))
+		campos = montar_e520(apuracao, [AjusteIpi(codigo="050", descricao="", valor=d("30.00"))])
+
+		self.assertEqual(campos["VL_SD_IPI"], d("0.00"))
+		self.assertEqual(campos["VL_SC_IPI"], d("20.00"))
+
+	def test_sem_ajustes_e_igual_ao_comportamento_anterior(self):
+		apuracao = ApuracaoPeriodo(tributo="IPI", debitos=d("1000.00"), creditos=d("400.00"))
+
+		self.assertEqual(montar_e520(apuracao), montar_e520(apuracao, []))
 
 
 if __name__ == "__main__":
