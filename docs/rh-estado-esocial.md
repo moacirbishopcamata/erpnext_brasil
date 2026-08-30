@@ -92,8 +92,10 @@ em ordem de proximidade com o que já existe:
 
 ## Ainda por implementar
 
-Tudo. Este documento é só o levantamento — nenhum código de eSocial existe ainda em
-`erpnext_brasil`.
+O usuário escolheu **S-1200 (Remuneração)** como primeira fatia — implementada em
+seguida, ver `docs/rh-esocial-s1200.md` (só `ideEvento`/`ideEmpregador`/
+`TItemRemuneracao`, sem a árvore completa nem a camada de transporte, que continuam
+pendentes).
 
 ## Fontes
 
