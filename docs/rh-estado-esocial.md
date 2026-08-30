@@ -92,10 +92,12 @@ em ordem de proximidade com o que já existe:
 
 ## Ainda por implementar
 
-O usuário escolheu **S-1200 (Remuneração)** como primeira fatia — implementada em
-seguida, ver `docs/rh-esocial-s1200.md` (só `ideEvento`/`ideEmpregador`/
-`TItemRemuneracao`, sem a árvore completa nem a camada de transporte, que continuam
-pendentes).
+O usuário escolheu **S-1200 (Remuneração)** como primeira fatia — a árvore completa de
+negócio do evento está implementada (`docs/rh-esocial-s1200.md`), e o envelope de
+lote/endpoints da camada de transporte também (`docs/rh-esocial-lote.md`). Falta:
+assinatura XML dos eventos, envio HTTP de verdade, leitura da resposta
+(`RetornoEnvioLoteEventos`/`RetornoProcessamentoLote`), e a tabela de rubricas
+S-1010/cadastro do empregador S-1000 (pré-requisitos que nenhum evento pode dispensar).
 
 ## Fontes
 
