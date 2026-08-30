@@ -68,6 +68,19 @@ Funções puras: nenhuma dependência do Frappe. Ainda não plugado em nenhum do
 `docs/plano-de-contas.md` para o obstáculo de integração já identificado (o seletor de
 plano de contas do ERPNext varre uma pasta fixa dentro do próprio app `erpnext`, não um
 hook — outro app não consegue registrar um template ali sem sobrescrever método).
+
+Numeração: convenção deste app, não exigência legal
+---------------------------------------------------------
+O registro I050 da ECD (Escrituração Contábil Digital, ver `docs/ecd.md`) exige um
+código por conta — e, como a seção acima explica, não existe codificação legal única.
+`montar_codigos` gera uma numeração sequencial determinística (`"1"`, `"1.1"`,
+`"1.1.1"`, ...) pela ordem de declaração da árvore, puramente estrutural: cada filha
+recebe o índice de nascimento dentro do pai, concatenado por ponto. É **um padrão
+embutido para quem ainda não tem plano de contas codificado**, não a única numeração
+válida — uma empresa real com plano próprio substitui por completo, sem precisar deste
+módulo. Decisão do usuário deste projeto (2026-08-30): gerar essa numeração-padrão em
+vez de exigir código externo já pronto (que seria mais correto para uma empresa real,
+mas deixaria este incremento sem nada para testar até existir tal caller).
 """
 
 from dataclasses import dataclass, field
@@ -84,6 +97,7 @@ __all__ = [
 	"PlanoDeContasInvalido",
 	"contas_do_tributo",
 	"listar_nomes",
+	"montar_codigos",
 	"validar_arvore",
 ]
 
@@ -279,6 +293,27 @@ def contas_do_tributo(tributo: str, arvore: tuple[tuple[str, Conta], ...] = ARVO
 		for conta in _percorrer(raiz)
 		if conta.tributo == tributo
 	]
+
+
+def montar_codigos(arvore: tuple[tuple[str, Conta], ...] = ARVORE) -> dict[str, str]:
+	"""Numeração sequencial determinística por posição na árvore — ver a seção
+	"Numeração" da docstring do módulo: convenção deste app, não exigência legal.
+
+	Devolve `{nome_da_conta: código}` — cada raiz recebe `"1"`, `"2"`, ... na ordem de
+	`arvore`; cada filha recebe `"{código_do_pai}.{índice_de_nascimento}"`.
+	"""
+	codigos: dict[str, str] = {}
+
+	def _atribuir(conta: Conta, codigo: str) -> None:
+		codigos[conta.nome] = codigo
+
+		for indice, filha in enumerate(conta.filhas, start=1):
+			_atribuir(filha, f"{codigo}.{indice}")
+
+	for indice, (_root_type, raiz) in enumerate(arvore, start=1):
+		_atribuir(raiz, str(indice))
+
+	return codigos
 
 
 def validar_arvore(arvore: tuple[tuple[str, Conta], ...] = ARVORE) -> None:

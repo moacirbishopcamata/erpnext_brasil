@@ -22,6 +22,7 @@ from erpnext_brasil.contabil.plano_de_contas import (
 	PlanoDeContasInvalido,
 	contas_do_tributo,
 	listar_nomes,
+	montar_codigos,
 	validar_arvore,
 )
 
@@ -115,6 +116,35 @@ class TestAmarracaoAosTributos(unittest.TestCase):
 		simples = next(f for f in obrigacoes.filhas if f.nome == "Simples Nacional a Recolher")
 
 		self.assertEqual(simples.tributo, "")
+
+
+class TestMontarCodigos(unittest.TestCase):
+	def test_todos_os_codigos_sao_unicos(self):
+		codigos = montar_codigos()
+
+		self.assertEqual(len(codigos), len(set(codigos.values())))
+
+	def test_todos_os_nomes_da_arvore_tem_codigo(self):
+		codigos = montar_codigos()
+
+		self.assertEqual(set(codigos), set(listar_nomes()))
+
+	def test_raizes_recebem_1_2_3_4_na_ordem_da_arvore(self):
+		codigos = montar_codigos()
+
+		self.assertEqual(codigos["Ativo"], "1")
+		self.assertEqual(codigos["Passivo"], "2")
+		self.assertEqual(codigos["Receita"], "3")
+		self.assertEqual(codigos["Despesa"], "4")
+
+	def test_codigo_da_filha_prefixa_com_o_do_pai(self):
+		codigos = montar_codigos()
+
+		self.assertTrue(codigos["Ativo Circulante"].startswith(codigos["Ativo"] + "."))
+		self.assertTrue(codigos["Clientes"].startswith(codigos["Ativo Circulante"] + "."))
+
+	def test_e_deterministico(self):
+		self.assertEqual(montar_codigos(), montar_codigos())
 
 
 if __name__ == "__main__":

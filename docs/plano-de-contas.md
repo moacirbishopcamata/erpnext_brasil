@@ -109,8 +109,10 @@ brasileira é criada.
   (nested dict com `root_type`/`account_type`) — hoje só existe como estrutura Python.
 - O mecanismo de integração descrito acima (`override_whitelisted_methods` ou criação
   direta de contas via `doc_event`).
-- Códigos de conta (numeração) — deliberadamente fora do escopo deste módulo (ver "Por
-  que grupos, não uma codificação completa" acima); cada instalação real escolhe a sua.
+- ~~Códigos de conta (numeração)~~ — `montar_codigos()` gera uma numeração-padrão
+  determinística (convenção deste app, não exigência legal, ver docstring do módulo e
+  `docs/ecd.md`), para suprir o registro I050 da ECD; uma instalação real ainda pode
+  substituir por completo.
 - Contas específicas de IPI que não são dedução de receita (compõe custo/base do
   produto, tratamento contábil diferente de ICMS/PIS/COFINS/ISS) — hoje só tem
   `a Recolher`/`a Recuperar`, sem conta própria de "IPI sobre Vendas" na DRE.
