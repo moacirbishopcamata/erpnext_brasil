@@ -12,12 +12,11 @@ entra na árvore depois de assinar `infNFe`, como grupo irmão entre `</infNFe>`
 `<Signature>` — a `Reference` da assinatura aponta só para `infNFe`, nunca para
 `infNFeSupl`.
 
-## O algoritmo — só emissão on-line, por ora
+## O algoritmo — on-line e contingência offline
 
-Implementado apenas o caso majoritário: **emissão on-line** (`tpEmis` diferente de `9`).
-A emissão em contingência offline usa uma sequência diferente (dia da emissão, valor
-total, hash do digest em vez do digest inteiro) — declarado como trabalho futuro, não
-escondido (ver "Ainda por implementar" abaixo).
+Cobertos os dois casos: **emissão on-line** (`tpEmis` diferente de `9`, majoritário) e
+**contingência offline** (`tpEmis = 9`, quando o emitente não consegue contato com a
+SEFAZ no momento da venda).
 
 Para o caso on-line:
 
@@ -51,6 +50,24 @@ Nacional da NF-e — a fonte primária — está inacessível às ferramentas de
 projeto (mesmo obstáculo já registrado em `docs/inutilizacao-nfe.md`). Sem conseguir ler
 o XSD/manual oficial diretamente, a segunda fonte independente é o que sustenta a
 confiança na implementação — não uma fonte secundária isolada.
+
+Para o caso de **contingência offline** (`tpEmis = 9`), a sequência muda — troca `cscId`
+sozinho por dia da emissão, valor total e o digest, mantendo `cscId` no fim:
+
+```
+sequência = "{chave}|{versão}|{ambiente}|{dia}|{valor}|{digHex}|{cscId}"
+hash      = SHA-1(sequência + CSC), hexadecimal MAIÚSCULO   (mesmo algoritmo)
+```
+
+Confirmado na mesma leitura do código-fonte (`get200()`, ramo `$tpEmis == 9`). A
+pegadinha real está em `digHex`: **não** é o digest binário decodificado — é a string
+**base64** do `DigestValue`, exatamente como aparece no XML assinado, com **cada
+caractere ASCII** convertido para 2 dígitos hexadecimais
+(`str2Hex`: `sprintf("%02x", ord($c))` por caractere, lido literalmente do PHP).
+Decodificar o base64 antes de gerar o hex produz um `digHex` diferente, e o hash não bate
+com o que a SEFAZ calcula — o tipo de detalhe que só aparece lendo código-fonte, não
+prosa. `dia` tem 2 dígitos (`day:02d`) e `valor` tem sempre 2 casas decimais com ponto
+(`Decimal` com `ROUND_HALF_UP`, nunca `float`).
 
 ## `infNFeSupl`: `qrCode` (CDATA) antes de `urlChave`
 
@@ -109,8 +126,6 @@ nfe_completa = anexar_infnfesupl(nfe_assinada, grupo)
 
 ## Ainda por implementar
 
-- **Emissão em contingência (`tpEmis = 9`)**: sequência diferente
-  (`chave|versão|ambiente|dia|valor|digestHex|cscId`), não implementada.
 - **`urlChave`** (consulta por chave, distinta do QR Code) só tem valor confirmado para
   RO — as outras 26 UFs continuam sem tabela própria, ver `consulta_nfce.py`.
 - **QR Code "versão 3" (NT 2025.001)**: atualização recente troca o esquema de

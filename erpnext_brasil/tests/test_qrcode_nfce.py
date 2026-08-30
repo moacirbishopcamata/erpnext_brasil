@@ -11,6 +11,8 @@ um `Id` decomposto.
 
 import hashlib
 import unittest
+from datetime import datetime
+from decimal import Decimal
 
 from erpnext_brasil.fiscal.documento.chave_acesso import montar_chave
 from erpnext_brasil.fiscal.documento.qrcode_nfce import (
@@ -20,6 +22,7 @@ from erpnext_brasil.fiscal.documento.qrcode_nfce import (
 	QRCodeInvalido,
 	anexar_infnfesupl,
 	montar_infnfesupl,
+	montar_qrcode_offline,
 	montar_qrcode_online,
 )
 from erpnext_brasil.fiscal.documento.serializacao import Cdata, para_xml
@@ -89,6 +92,72 @@ class TestMontarQrcodeOnline(unittest.TestCase):
 		url = montar_qrcode_online(CHAVE, "1", "1", "x", f"{URL_BASE}?p=")
 
 		self.assertEqual(url.count("?p="), 1)
+
+
+class TestMontarQrcodeOffline(unittest.TestCase):
+	"""Contingência offline (tpEmis=9): sequência com dia/valor/digest em vez de só o
+	cscId — mesmo hash SHA-1+CSC do caso on-line."""
+
+	DATA_EMISSAO = datetime(2026, 8, 29, 14, 30, 0)
+	DIGEST_BASE64 = "Tm5zPU1ub3RoZXI="
+
+	def test_sequencia_tem_dia_valor_e_digest_hex(self):
+		url = montar_qrcode_offline(
+			CHAVE, "1", "1", "SEGREDOCSC", URL_BASE, self.DATA_EMISSAO, Decimal("150.00"), self.DIGEST_BASE64
+		)
+
+		dig_hex = "".join(f"{ord(c):02x}" for c in self.DIGEST_BASE64)
+		sequencia_esperada = f"{CHAVE}|2|1|29|150.00|{dig_hex}|1"
+
+		self.assertIn(f"?p={sequencia_esperada}|", url)
+
+	def test_dig_hex_nao_decodifica_o_base64_primeiro(self):
+		"""A pegadinha: digHex é o base64 em si, caractere a caractere em hex — não o
+		digest binário que o base64 representa."""
+		url = montar_qrcode_offline(
+			CHAVE, "1", "1", "x", URL_BASE, self.DATA_EMISSAO, Decimal("1.00"), "AB"
+		)
+
+		# 'A' = 0x41, 'B' = 0x42 — literal, não o byte que "AB" decodificaria em base64.
+		self.assertIn("|4142|", url)
+
+	def test_dia_tem_dois_digitos(self):
+		data = datetime(2026, 8, 5, 10, 0, 0)
+		url = montar_qrcode_offline(CHAVE, "1", "1", "x", URL_BASE, data, Decimal("1.00"), "AB")
+
+		self.assertIn(f"{CHAVE}|2|1|05|", url)
+
+	def test_valor_com_duas_casas_e_ponto(self):
+		url = montar_qrcode_offline(
+			CHAVE, "1", "1", "x", URL_BASE, self.DATA_EMISSAO, Decimal("1234.5"), "AB"
+		)
+
+		self.assertIn("|1234.50|", url)
+
+	def test_hash_igual_ao_calculado_manualmente(self):
+		url = montar_qrcode_offline(
+			CHAVE, "1", "1", "SEGREDOCSC", URL_BASE, self.DATA_EMISSAO, Decimal("150.00"), self.DIGEST_BASE64
+		)
+		hash_recebido = url.rsplit("|", 1)[-1]
+
+		dig_hex = "".join(f"{ord(c):02x}" for c in self.DIGEST_BASE64)
+		sequencia = f"{CHAVE}|2|1|29|150.00|{dig_hex}|1"
+		esperado = hashlib.sha1((sequencia + "SEGREDOCSC").encode("utf-8")).hexdigest().upper()
+
+		self.assertEqual(hash_recebido, esperado)
+
+	def test_digest_vazio_e_erro(self):
+		with self.assertRaises(QRCodeInvalido) as ctx:
+			montar_qrcode_offline(CHAVE, "1", "1", "x", URL_BASE, self.DATA_EMISSAO, Decimal("1.00"), "")
+
+		self.assertEqual(ctx.exception.campo, "digest_value")
+
+	def test_csc_id_tambem_perde_zero_a_esquerda(self):
+		url = montar_qrcode_offline(
+			CHAVE, "1", "000007", "x", URL_BASE, self.DATA_EMISSAO, Decimal("1.00"), "AB"
+		)
+
+		self.assertIn("|4142|7|", url)
 
 
 class TestMontarInfNFeSupl(unittest.TestCase):
