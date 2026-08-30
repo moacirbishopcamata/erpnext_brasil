@@ -131,9 +131,13 @@ nfe_completa = anexar_infnfesupl(nfe_assinada, grupo)
 - **QR Code "versão 3" (NT 2025.001)**: atualização recente troca o esquema de
   contingência específico para assinatura criptográfica em vez de hash com CSC — fora do
   escopo desta primeira implementação, que cobre só a versão 2 vigente e majoritária.
-- Diferenças de transporte específicas de NFC-e (alguns grupos usam autorizador de
-  contingência — SVC-AN/SVC-RS — distinto do autorizador normal de NF-e) ainda não
-  levantadas.
+- ~~Diferenças de transporte específicas de NFC-e via autorizador de contingência
+  (SVC-AN/SVC-RS)~~ — **investigado e descartado em 2026-08-29**: SVC-AN/SVC-RS são
+  exclusivos de NF-e (modelo 55); NFC-e nunca usa SVC, sua contingência é sempre offline
+  (`tpEmis=9`, já implementado neste módulo), exceto SP (SAT/EPEC-NFCe, fora de escopo).
+  Confirmado em `nfephp-org/sped-nfe`'s `docs/Contingency.md`; ver
+  `docs/transporte-nativo-sefaz.md` para a tabela SVC-AN/SVC-RS implementada (só para
+  NF-e).
 
 ## Fonte
 

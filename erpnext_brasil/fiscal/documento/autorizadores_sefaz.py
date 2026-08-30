@@ -66,13 +66,50 @@ ausência confirmada, não esquecimento: esses três reúsam o mesmo endpoint de
 dois modelos (não têm infraestrutura separada). `endpoint(..., modelo="65")` cai para a
 tabela de NF-e automaticamente nesses casos, sem precisar de entrada duplicada.
 
+Contingência SVC-AN/SVC-RS — exclusiva de NF-e (modelo 55), nunca de NFC-e
+--------------------------------------------------------------------------
+Quando a SEFAZ autorizadora do próprio estado está fora do ar mas o emitente tem
+internet, a NF-e pode ser emitida via um dos dois "Sistemas Virtuais de Contingência"
+nacionais: **SVC-AN** (`tpEmis=6`, Ambiente Nacional, hospedado em `sefazvirtual.
+fazenda.gov.br`) ou **SVC-RS** (`tpEmis=7`, hospedado na própria infraestrutura do RS).
+Confirmado que **isso não existe para NFC-e**: a contingência de NFC-e é sempre offline
+(`tpEmis=9`, ver `qrcode_nfce.py`), exceto em SP, que exige SAT/EPEC-NFCe — não há SVC de
+NFC-e em lugar nenhum. Isso resolve, ao contrário do que a implementação do QR Code havia
+deixado como pendência (`docs/nfce-qrcode.md`), que a premissa de "diferença de
+transporte de contingência para NFC-e" estava errada: não existe SVC para modelo 65, o
+transporte de NFC-e não muda por contingência (o documento é que muda, `tpEmis=9`).
+
+`SVC-RS` é a mesma infraestrutura física do grupo `SVRS` — confirmado byte a byte, os
+seis serviços têm URL idêntica em produção e homologação — não coincidência: a
+Sefaz Virtual do RS hospeda tanto o autorizador compartilhado de 16 UFs (`SVRS`) quanto o
+serviço nacional de contingência (`SVC-RS`), então `ENDPOINTS[_SVCRS]` é literalmente
+`ENDPOINTS[_SVRS]` (mesmo dict, não cópia). `SVC-AN` roda em host de fato separado
+(`sefazvirtual.fazenda.gov.br`) e tem tabela própria.
+
+Qual UF cai em qual SVC não é escolha livre do emitente — é fixo por UF (a fonte lista
+qual "serviço atende" cada estado). As 19 UFs de `SVC-AN` são as 16 do grupo `SVRS` mais
+MG, RS e SP (três dos dez estados com webservice próprio) — faz sentido: uma UF não pode
+cair de volta na própria infraestrutura que já usa como autorizador principal. As 8 UFs
+de `SVC-RS` são os sete estados com webservice próprio restantes (AM, BA, GO, MS, MT, PE,
+PR) mais o único integrante do grupo SVAN (MA). 19 + 8 = 27, sem sobreposição — a mesma
+checagem de consistência interna que corrobora a tabela de homologação, aplicada aqui.
+
+**Fonte secundária, não o Portal Nacional** (inacessível às ferramentas de busca no
+momento): `nfephp-org/sped-nfe`'s `docs/Contingency.md`, texto explicativo (não tabela de
+configuração de máquina) — dizendo isso explicitamente porque é o mesmo padrão de
+transparência de fonte usado no resto deste módulo. A consistência interna (27 UFs,
+zero sobreposição, e os endpoints SVC-AN/SVC-RS batendo exatamente com o padrão de nome
+dos outros grupos) é o que dá confiança, não uma segunda fonte independente para a lista
+UF→grupo especificamente — reconferir se houver dúvida antes de operar em contingência.
+
 Funções puras: nenhuma dependência do Frappe.
 
 Fontes: Portal Nacional da NF-e, `webServices.aspx` (produção, todas as UFs) — consultado
 em 2026-08-24; `nfephp-org/sped-nfe`, `storage/wsnfe_4.00_mod55.xml` (homologação dos 12
 grupos, e confirmação cruzada da produção), `storage/wsnfe_4.00_mod65.xml` (endpoints
 próprios de NFC-e) e as páginas oficiais de PR e SP (terceira checagem) — consultados
-em 2026-08-29.
+em 2026-08-29; `docs/Contingency.md` (endpoints e mapa UF→SVC-AN/SVC-RS) — consultado em
+2026-08-29.
 """
 
 __all__ = [
@@ -82,6 +119,7 @@ __all__ = [
 	"ENDPOINTS_NFCE",
 	"ENDPOINTS_NFCE_HOMOLOGACAO",
 	"OPERACAO_SOAP",
+	"UF_CONTINGENCIA_SVC",
 	"UFS_COM_CONSULTA_CADASTRO_NO_SVRS",
 	"AutorizadorDesconhecido",
 	"endpoint",
@@ -90,6 +128,8 @@ __all__ = [
 _PROPRIO = "PROPRIO"
 _SVAN = "SVAN"
 _SVRS = "SVRS"
+_SVCAN = "SVCAN"
+_SVCRS = "SVCRS"
 
 AUTORIZADOR_POR_UF = {
 	# Webservice próprio.
@@ -105,6 +145,20 @@ AUTORIZADOR_POR_UF = {
 
 # Das 16 UFs do grupo SVRS, só estas usam o CadConsultaCadastro do próprio SVRS.
 UFS_COM_CONSULTA_CADASTRO_NO_SVRS = frozenset({"AC", "ES", "RN", "PB", "SC"})
+
+# Qual SVC (Sistema Virtual de Contingência nacional) cada UF usa quando a própria
+# autorizadora está fora do ar — só para NF-e (modelo 55), ver docstring do módulo.
+# Fonte: nfephp-org/sped-nfe, docs/Contingency.md.
+UF_CONTINGENCIA_SVC = {
+	# SVC-AN: as 16 UFs do grupo SVRS + 3 dos 10 estados com webservice próprio.
+	"AC": _SVCAN, "AL": _SVCAN, "AP": _SVCAN, "CE": _SVCAN, "DF": _SVCAN, "ES": _SVCAN,
+	"MG": _SVCAN, "PA": _SVCAN, "PB": _SVCAN, "PI": _SVCAN, "RJ": _SVCAN, "RN": _SVCAN,
+	"RO": _SVCAN, "RR": _SVCAN, "RS": _SVCAN, "SC": _SVCAN, "SE": _SVCAN, "SP": _SVCAN,
+	"TO": _SVCAN,
+	# SVC-RS: os 7 estados restantes com webservice próprio + a única UF do grupo SVAN.
+	"AM": _SVCRS, "BA": _SVCRS, "GO": _SVCRS, "MA": _SVCRS, "MS": _SVCRS, "MT": _SVCRS,
+	"PE": _SVCRS, "PR": _SVCRS,
+}  # fmt: skip
 
 ENDPOINTS = {
 	"AM": {
@@ -216,7 +270,21 @@ ENDPOINTS = {
 		# Confirmado só para AC/ES/RN/PB/SC — ver UFS_COM_CONSULTA_CADASTRO_NO_SVRS.
 		"NfeConsultaCadastro": "https://cad.svrs.rs.gov.br/ws/cadconsultacadastro/cadconsultacadastro4.asmx",
 	},
+	_SVCAN: {
+		"NFeAutorizacao": "https://www.sefazvirtual.fazenda.gov.br/NFeAutorizacao4/NFeAutorizacao4.asmx",
+		"NFeRetAutorizacao": "https://www.sefazvirtual.fazenda.gov.br/NFeRetAutorizacao4/NFeRetAutorizacao4.asmx",
+		"NfeConsultaProtocolo": "https://www.sefazvirtual.fazenda.gov.br/NFeConsultaProtocolo4/NFeConsultaProtocolo4.asmx",
+		"NfeStatusServico": "https://www.sefazvirtual.fazenda.gov.br/NFeStatusServico4/NFeStatusServico4.asmx",
+		"NfeInutilizacao": "https://www.sefazvirtual.fazenda.gov.br/NFeInutilizacao4/NFeInutilizacao4.asmx",
+		"RecepcaoEvento": "https://www.sefazvirtual.fazenda.gov.br/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx",
+		# CadConsultaCadastro não consta para SVC-AN nesta fonte — mesma ausência do SVAN.
+	},
 }
+
+# SVC-RS é a mesma infraestrutura física do SVRS — confirmado byte a byte, os seis
+# serviços têm URL idêntica em produção e homologação (ver docstring do módulo). Mesmo
+# dict, não cópia: se a URL do SVRS mudar, o SVC-RS muda junto, porque é o mesmo host.
+ENDPOINTS[_SVCRS] = ENDPOINTS[_SVRS]
 
 # Homologação: os 11 grupos que faltavam (própria UF × 10 + SVAN) foram confirmados
 # depois — mesma fonte de corroboração já usada para SVRS (`nfephp-org/sped-nfe`,
@@ -335,7 +403,18 @@ ENDPOINTS_HOMOLOGACAO = {
 		"RecepcaoEvento": "https://nfe-homologacao.svrs.rs.gov.br/ws/recepcaoevento/recepcaoevento4.asmx",
 		"NfeConsultaCadastro": "https://cad-homologacao.svrs.rs.gov.br/ws/cadconsultacadastro/cadconsultacadastro4.asmx",
 	},
+	_SVCAN: {
+		"NFeAutorizacao": "https://hom.sefazvirtual.fazenda.gov.br/NFeAutorizacao4/NFeAutorizacao4.asmx",
+		"NFeRetAutorizacao": "https://hom.sefazvirtual.fazenda.gov.br/NFeRetAutorizacao4/NFeRetAutorizacao4.asmx",
+		"NfeConsultaProtocolo": "https://hom.sefazvirtual.fazenda.gov.br/NFeConsultaProtocolo4/NFeConsultaProtocolo4.asmx",
+		"NfeStatusServico": "https://hom.sefazvirtual.fazenda.gov.br/NFeStatusServico4/NFeStatusServico4.asmx",
+		"NfeInutilizacao": "https://hom.sefazvirtual.fazenda.gov.br/NFeInutilizacao4/NFeInutilizacao4.asmx",
+		"RecepcaoEvento": "https://hom.sefazvirtual.fazenda.gov.br/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx",
+	},
 }
+
+# Mesmo motivo do bloco de produção: SVC-RS é literalmente a infraestrutura do SVRS.
+ENDPOINTS_HOMOLOGACAO[_SVCRS] = ENDPOINTS_HOMOLOGACAO[_SVRS]
 
 # Endpoints próprios de NFC-e (modelo 65) — só os grupos que têm host separado de NF-e,
 # confirmados em `storage/wsnfe_4.00_mod65.xml`. BA, PE e SVAN não aparecem aqui de
@@ -516,7 +595,9 @@ class AutorizadorDesconhecido(ValueError):
 		super().__init__(mensagem)
 
 
-def endpoint(uf: str, servico: str, ambiente: str = "producao", modelo: str = "55") -> str | None:
+def endpoint(
+	uf: str, servico: str, ambiente: str = "producao", modelo: str = "55", contingencia: bool = False
+) -> str | None:
 	"""Devolve a URL do webservice, ou `None` quando o serviço não está confirmado
 	para a combinação UF/grupo (nunca uma URL inventada).
 
@@ -528,6 +609,10 @@ def endpoint(uf: str, servico: str, ambiente: str = "producao", modelo: str = "5
 	`NfeConsultaCadastro` nunca usa a tabela de NFC-e — é serviço de consulta cadastral,
 	agnóstico a modelo de documento.
 
+	`contingencia=True` resolve para o SVC (SVC-AN ou SVC-RS) da UF em vez do autorizador
+	normal — pré-condição: só existe para `modelo="55"` (levanta `ValueError` se
+	`modelo="65"`, ver docstring do módulo sobre por que NFC-e nunca usa SVC).
+
 	Grupo sem homologação confirmada levanta `NotImplementedError`: não existe padrão de
 	host confiável para derivar homologação por inferência.
 	"""
@@ -538,6 +623,20 @@ def endpoint(uf: str, servico: str, ambiente: str = "producao", modelo: str = "5
 
 	if modelo not in ("55", "65"):
 		raise ValueError(f"Modelo deve ser '55' (NF-e) ou '65' (NFC-e), recebido {modelo!r}")
+
+	if contingencia and modelo != "55":
+		raise ValueError("Contingência SVC-AN/SVC-RS é exclusiva de NF-e (modelo 55), nunca de NFC-e")
+
+	if contingencia:
+		chave = UF_CONTINGENCIA_SVC.get(sigla)
+
+		if chave is None:
+			raise AutorizadorDesconhecido(f"UF {uf!r} não consta na tabela de contingência SVC")
+
+		if ambiente == "homologacao":
+			return ENDPOINTS_HOMOLOGACAO[chave].get(servico)
+
+		return ENDPOINTS[chave].get(servico)
 
 	grupo = AUTORIZADOR_POR_UF.get(sigla)
 

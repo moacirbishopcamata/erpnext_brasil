@@ -241,6 +241,38 @@ qual ambiente, com qual TLS já preparado" — e é a única coisa que os módul
 recebem além do dado da chamada em si (`documento`/`chave_acesso`/`evento`).
 `TransporteSefaz._contexto()` é o único ponto que constrói um `ContextoSefaz`.
 
+### Contingência SVC-AN/SVC-RS — exclusiva de NF-e (modelo 55)
+
+Quando a SEFAZ autorizadora do próprio estado está fora do ar mas o emitente tem
+internet, a NF-e pode ser emitida via um dos dois sistemas nacionais de contingência:
+**SVC-AN** (`tpEmis=6`, host próprio em `sefazvirtual.fazenda.gov.br`) ou **SVC-RS**
+(`tpEmis=7`) — nunca escolha livre do emitente, é fixo por UF. Confirmado que **NFC-e
+nunca usa SVC**: sua contingência é sempre offline (`tpEmis=9`, ver `qrcode_nfce.py`),
+exceto SP (SAT/EPEC-NFCe) — o que estava registrado como pendência em
+`docs/nfce-qrcode.md` ("diferenças de transporte específicas de NFC-e via SVC-AN/SVC-RS")
+era premissa errada, não lacuna: não existe esse caso.
+
+`SVC-RS` é a mesma infraestrutura física do grupo `SVRS` — confirmado byte a byte
+(6 serviços, produção e homologação, URL idêntica): `ENDPOINTS[_SVCRS]` é literalmente
+`ENDPOINTS[_SVRS]` (mesmo dict, não cópia). `SVC-AN` tem tabela própria
+(`sefazvirtual.fazenda.gov.br`).
+
+`autorizadores_sefaz.endpoint()` ganhou o parâmetro `contingencia: bool = False`: quando
+`True`, resolve pelo mapa `UF_CONTINGENCIA_SVC` (27 UFs, sem sobreposição: 19 em SVC-AN —
+as 16 do grupo SVRS mais MG/RS/SP — e 8 em SVC-RS — os 7 estados com webservice próprio
+restantes mais MA) em vez do autorizador normal. Pré-condição de DbC: `contingencia=True`
+com `modelo="65"` levanta `ValueError` — não existe combinação válida.
+
+A fonte da lista UF→SVC (`nfephp-org/sped-nfe`'s `docs/Contingency.md`, texto explicativo,
+não tabela de configuração de máquina) é secundária, dito explicitamente — a confiança
+vem da consistência interna (27 UFs, zero sobreposição, nenhuma UF caindo na própria pool
+que já usa como autorizador normal) mais os endpoints batendo com o padrão de nome dos
+outros grupos, não de uma segunda fonte independente.
+
+Apenas a tabela de endpoints foi implementada — `TransporteSefaz` ainda não tem um modo
+de "ativar contingência" (que precisaria remontar/reassinar o XML com `tpEmis`/`dhCont`/
+`xJust`, e a chave de acesso muda; ver "Ainda por implementar").
+
 ## Ainda por implementar
 
 - `NfeConsultaCadastro` para AM e SVAN em homologação (ausente na fonte, não confirmado
@@ -248,6 +280,9 @@ recebem além do dado da chamada em si (`documento`/`chave_acesso`/`evento`).
 - `urlChave` (consulta manual de NFC-e sem QR Code) por UF: a única fonte disponível
   (`nfephp-org/sped-nfe`) só tem a URL de QR Code (`NfeConsultaQR`), não uma URL de
   consulta manual separada — pendente de fonte melhor ou orientação do usuário.
+- Ativação de contingência SVC-AN/SVC-RS em `TransporteSefaz`/`montar_nfe`: hoje só o
+  endpoint é resolvível (`endpoint(..., contingencia=True)`); falta remontar o XML com
+  `tpEmis`/`dhCont`/`xJust`, reassinar e tratar a nova chave de acesso gerada.
 
 ## Fonte
 
@@ -258,4 +293,7 @@ corroborado por exemplo real de CC-e homologada e pelo código-fonte de referên
 confirmada em 2026-08-29 pela mesma fonte, com PR e SP checados de novo contra a página
 oficial de cada estado. Infraestrutura própria de NFC-e (9 grupos) confirmada em
 2026-08-29 em `nfephp-org/sped-nfe`'s `storage/wsnfe_4.00_mod65.xml`, com GO reconferido
-byte a byte contra o de NF-e.
+byte a byte contra o de NF-e. Contingência SVC-AN/SVC-RS (endpoints e mapa UF→grupo)
+confirmada em 2026-08-29 em `nfephp-org/sped-nfe`'s `docs/Contingency.md` — fonte
+secundária, dito explicitamente na docstring do módulo; corroborada pela consistência
+interna da lista (27 UFs, zero sobreposição).

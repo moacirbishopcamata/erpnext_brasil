@@ -18,6 +18,7 @@ from erpnext_brasil.fiscal.documento.autorizadores_sefaz import (
 	ENDPOINTS_HOMOLOGACAO,
 	ENDPOINTS_NFCE,
 	ENDPOINTS_NFCE_HOMOLOGACAO,
+	UF_CONTINGENCIA_SVC,
 	UFS_COM_CONSULTA_CADASTRO_NO_SVRS,
 	AutorizadorDesconhecido,
 	endpoint,
@@ -162,9 +163,10 @@ class TestHomologacao(unittest.TestCase):
 					host_homologacao, endpoint(uf, "NFeAutorizacao", ambiente="homologacao")
 				)
 
-	def test_todos_os_12_grupos_tem_homologacao_confirmada(self):
-		"""Os 10 próprios + SVAN + SVRS — nenhum grupo real ficou sem homologação."""
-		self.assertEqual(len(ENDPOINTS_HOMOLOGACAO), 12)
+	def test_todos_os_14_grupos_tem_homologacao_confirmada(self):
+		"""Os 10 próprios + SVAN + SVRS (autorizadores normais) + SVC-AN + SVC-RS
+		(contingência nacional) — nenhum grupo real ficou sem homologação."""
+		self.assertEqual(len(ENDPOINTS_HOMOLOGACAO), 14)
 
 	def test_cadconsultacadastro_de_am_e_svan_fica_de_fora_de_proposito(self):
 		"""A mesma fonte lista o elemento do serviço para AM/SVAN, mas sem URL dentro
@@ -273,6 +275,67 @@ class TestModeloNFCe(unittest.TestCase):
 		"""8 próprios (AM, GO, MG, MS, MT, PR, RS, SP) + SVRS — BA, PE e SVAN ficam de
 		fora de propósito (sem bloco próprio na fonte)."""
 		self.assertEqual(len(ENDPOINTS_NFCE), 9)
+
+
+class TestContingenciaSVC(unittest.TestCase):
+	"""SVC-AN/SVC-RS: contingência nacional exclusiva de NF-e (modelo 55) — nunca existe
+	para NFC-e, que usa contingência offline (`tpEmis=9`) em vez disso."""
+
+	def test_todas_as_27_ufs_estao_mapeadas_para_um_svc(self):
+		self.assertEqual(len(UF_CONTINGENCIA_SVC), 27)
+
+	def test_nenhuma_uf_cai_nos_dois_grupos(self):
+		svcan = {uf for uf, grupo in UF_CONTINGENCIA_SVC.items() if grupo == "SVCAN"}
+		svcrs = {uf for uf, grupo in UF_CONTINGENCIA_SVC.items() if grupo == "SVCRS"}
+
+		self.assertEqual(svcan & svcrs, set())
+		self.assertEqual(len(svcan), 19)
+		self.assertEqual(len(svcrs), 8)
+
+	def test_ro_usa_svcan(self):
+		"""RO está no grupo SVRS (autorizador normal) — em contingência cai no SVC-AN,
+		nunca no próprio SVC-RS (seria cair de volta na mesma infraestrutura)."""
+		self.assertEqual(UF_CONTINGENCIA_SVC["RO"], "SVCAN")
+		url = endpoint("RO", "NFeAutorizacao", modelo="55", contingencia=True)
+
+		self.assertIn("sefazvirtual.fazenda.gov.br", url)
+
+	def test_am_usa_svcrs_mesma_infraestrutura_do_svrs(self):
+		"""AM tem webservice próprio como autorizador normal — em contingência cai no
+		SVC-RS, que é byte a byte a infraestrutura do SVRS (RS), não a de AM."""
+		self.assertEqual(UF_CONTINGENCIA_SVC["AM"], "SVCRS")
+		normal = endpoint("AM", "NFeAutorizacao", modelo="55")
+		contingencia = endpoint("AM", "NFeAutorizacao", modelo="55", contingencia=True)
+
+		self.assertIn("nfe.svrs.rs.gov.br", contingencia)
+		self.assertNotEqual(normal, contingencia)
+
+	def test_svcrs_e_o_mesmo_dict_do_svrs(self):
+		"""Não é coincidência de valor — é o mesmo objeto, confirmado byte a byte na
+		fonte: se a URL do SVRS mudar, o SVC-RS muda junto."""
+		self.assertIs(autorizadores_sefaz.ENDPOINTS["SVCRS"], autorizadores_sefaz.ENDPOINTS["SVRS"])
+		self.assertIs(
+			autorizadores_sefaz.ENDPOINTS_HOMOLOGACAO["SVCRS"], autorizadores_sefaz.ENDPOINTS_HOMOLOGACAO["SVRS"]
+		)
+
+	def test_contingencia_com_modelo_65_levanta_erro(self):
+		"""NFC-e nunca usa SVC — pré-condição de DbC, não um caso silencioso."""
+		with self.assertRaises(ValueError):
+			endpoint("SP", "NFeAutorizacao", modelo="65", contingencia=True)
+
+	def test_homologacao_em_contingencia(self):
+		producao = endpoint("SP", "NFeAutorizacao", modelo="55", contingencia=True)
+		homologacao = endpoint(
+			"SP", "NFeAutorizacao", ambiente="homologacao", modelo="55", contingencia=True
+		)
+
+		self.assertIn("sefazvirtual.fazenda.gov.br", producao)
+		self.assertIn("hom.sefazvirtual.fazenda.gov.br", homologacao)
+		self.assertNotEqual(producao, homologacao)
+
+	def test_uf_desconhecida_em_contingencia_levanta_autorizador_desconhecido(self):
+		with self.assertRaises(AutorizadorDesconhecido):
+			endpoint("XX", "NFeAutorizacao", modelo="55", contingencia=True)
 
 
 if __name__ == "__main__":
