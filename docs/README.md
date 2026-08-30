@@ -29,6 +29,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [rh-esocial-s1200.md](rh-esocial-s1200.md) | S-1200 (remuneração): árvore completa do evento verificada contra XSD de terceiro, ponte com INSS/IRRF, grupos raros fora de escopo |
 | [rh-esocial-lote.md](rh-esocial-lote.md) | Camada de transporte do eSocial: envelope de lote, endpoints por serviço/ambiente, limite de 50 eventos (regra de negócio, não do XSD), o que falta (assinatura, envio) |
 | [rh-esocial-retorno.md](rh-esocial-retorno.md) | Leitura da resposta de envio/processamento de lote: códigos de cdResposta confirmados, tem_erro vs. sucesso, eventos_com_erro |
+| [rh-esocial-assinatura.md](rh-esocial-assinatura.md) | Assinatura XMLDSig do eSocial: mesma canonicalização da NF-e, hash SHA-256 (não SHA-1) provado com verificação criptográfica real |
 | [boleto.md](boleto.md) | Código de barras/linha digitável FEBRABAN (validado contra exemplo real) e leitura do CNAB 400 de retorno para conciliação |
 
 ## Convenções que valem em todo o código
