@@ -94,7 +94,8 @@ decididos pelo chamador em vez de inferi-los.
 - **Pensão alimentícia** como dedução da base — não modelada.
 - **Décimo terceiro salário** (tributação separada, com sua própria tabela e sem o
   redutor da Lei 15.270/2025, que é mensal) — fora de escopo deste módulo.
-- **FGTS**, **eSocial** — ainda não pesquisados.
+- **FGTS** — implementado em seguida, ver `docs/rh-fgts.md`.
+- **eSocial** — ainda não pesquisado.
 
 ## Arquivos
 
