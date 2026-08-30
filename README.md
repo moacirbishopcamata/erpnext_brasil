@@ -56,6 +56,8 @@ Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
 | Ciclo de vida do documento fiscal e porta de transmissão | pronto |
 | Inutilização de faixa de numeração (`inutilizar`) | pronto — CNPJ alfanumérico recusado deliberadamente, ver `docs/inutilizacao-nfe.md` |
 | Carta de correção (CC-e), inutilização e cancelamento assinados digitalmente | pronto — bug de assinatura ausente corrigido |
+| **NFC-e (modelo 65)** — QR Code (`infNFeSupl`, emissão on-line) | pronto — contingência offline e tabela de URL por UF ainda não, ver `docs/nfce-qrcode.md` |
+| Outros documentos fiscais (CT-e, MDF-e, NFS-e) | não iniciado |
 | Obrigações acessórias (SPED, EFD-Reinf) | não iniciado |
 
 ### CNPJ alfanumérico
@@ -320,6 +322,8 @@ Referências detalhadas por assunto estão em [`docs/`](docs/README.md):
 | [transmissao-documento-fiscal.md](docs/transmissao-documento-fiscal.md) | ACBrLib × ACBr API e a fronteira de licença |
 | [transporte-nativo-sefaz.md](docs/transporte-nativo-sefaz.md) | SOAP nativo, autorizadores por UF, cancelamento e CC-e |
 | [inutilizacao-nfe.md](docs/inutilizacao-nfe.md) | Inutilização de faixa de numeração — por que é operação à parte |
+| [nfce-qrcode.md](docs/nfce-qrcode.md) | QR Code da NFC-e: algoritmo do hash, `infNFeSupl`, o que falta |
+| [ambiente-dev-bench.md](docs/ambiente-dev-bench.md) | Bench Frappe local (Windows 11 + WSL2 + Docker) |
 
 ## Decisões de projeto
 

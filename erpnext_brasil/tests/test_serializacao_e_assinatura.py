@@ -27,7 +27,7 @@ from erpnext_brasil.fiscal.documento.assinatura import (
 	montar_signed_info,
 	referencia_do_id,
 )
-from erpnext_brasil.fiscal.documento.serializacao import ErroSerializacao, para_xml
+from erpnext_brasil.fiscal.documento.serializacao import Cdata, ErroSerializacao, para_xml
 
 MATERIAL = MaterialAssinatura(
 	digest="ZGlnZXN0",
@@ -110,6 +110,34 @@ class TestSerializacao(unittest.TestCase):
 	def test_raiz_vazia_e_erro(self):
 		with self.assertRaises(ErroSerializacao):
 			para_xml({"a": {}})
+
+
+class TestCdata(unittest.TestCase):
+	"""`qrCode` da NFC-e exige o conteúdo como CDATA, não texto XML-escapado — a URL tem
+	`&` que, fora de CDATA, teria que virar `&amp;` e mudaria o conteúdo assinado."""
+
+	def test_serializa_como_secao_cdata(self):
+		xml = para_xml({"qrCode": Cdata("http://x?p=1&2")})
+
+		self.assertEqual(xml, "<qrCode><![CDATA[http://x?p=1&2]]></qrCode>")
+
+	def test_conteudo_nao_e_escapado(self):
+		"""Diferente do texto normal, `&`/`<`/`>` dentro do CDATA passam ao vivo."""
+		xml = para_xml({"x": Cdata("<a&b>")})
+
+		self.assertIn("<![CDATA[<a&b>]]>", xml)
+
+	def test_fechamento_de_cdata_no_meio_e_erro(self):
+		with self.assertRaises(ErroSerializacao):
+			Cdata("algo]]>que fecharia a secao no meio")
+
+	def test_cdata_dentro_de_arvore_maior(self):
+		xml = para_xml({"infNFeSupl": {"@versao": "4.00", "qrCode": Cdata("http://x"), "urlChave": "http://y"}})
+
+		self.assertIn("<qrCode><![CDATA[http://x]]></qrCode>", xml)
+		self.assertIn("<urlChave>http://y</urlChave>", xml)
+		# Ordem preservada: qrCode antes de urlChave, como o XSD exige.
+		self.assertLess(xml.index("qrCode"), xml.index("urlChave"))
 
 
 class TestReferencia(unittest.TestCase):

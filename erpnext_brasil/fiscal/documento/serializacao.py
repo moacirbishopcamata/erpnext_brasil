@@ -17,15 +17,19 @@ Regras da conversão
   `Transform` aparecem no layout);
 - valor ``None`` é **omitido** — tag vazia é rejeição, não omissão;
 - a **ordem de inserção** do dicionário é preservada, e isso não é detalhe: canonicalização
-  e assinatura dependem dela, e o XSD da NF-e usa `xs:sequence`, que é ordenado.
+  e assinatura dependem dela, e o XSD da NF-e usa `xs:sequence`, que é ordenado;
+- `Cdata(texto)` no lugar de um valor escapa como seção `<![CDATA[...]]>`, não como texto
+  — necessário para `qrCode` da NFC-e, cujo conteúdo (uma URL com `&`) o leiaute exige
+  como CDATA, não como texto XML-escapado.
 
 Sem dependências: usa só a biblioteca padrão, e por isso é testável em qualquer ambiente.
 Para ler ou canonicalizar XML, use `lxml` na camada de integração — aqui só se escreve.
 """
 
+from dataclasses import dataclass
 from xml.sax.saxutils import escape
 
-__all__ = ["ErroSerializacao", "para_xml"]
+__all__ = ["Cdata", "ErroSerializacao", "para_xml"]
 
 # Escapes de valor de atributo exigidos pela canonicalização C14N. `quoteattr` da
 # biblioteca padrão resolveria as aspas trocando o delimitador para apóstrofo, o que é XML
@@ -53,6 +57,25 @@ def _atributo(valor) -> str:
 
 class ErroSerializacao(ValueError):
 	"""Estrutura que não pode ser convertida em XML."""
+
+
+@dataclass(frozen=True)
+class Cdata:
+	"""Marca um valor para serializar como `<![CDATA[...]]>`, não como texto escapado.
+
+	O conteúdo nunca é escapado — é literalmente o que vai entre `[CDATA[` e `]]>` — por
+	isso a sequência `]]>` dentro dele é proibida (encerraria a seção CDATA no meio),
+	verificado na construção para falhar aqui, não numa rejeição da SEFAZ sem contexto.
+	"""
+
+	texto: str
+
+	def __post_init__(self):
+		if "]]>" in self.texto:
+			raise ErroSerializacao(
+				"Conteúdo de CDATA não pode conter a sequência ']]>' — encerraria a "
+				"seção no meio do texto"
+			)
 
 
 def _texto(valor) -> str:
@@ -93,6 +116,9 @@ def _elemento(nome: str, conteudo) -> str:
 	if isinstance(conteudo, list):
 		# Lista vira irmãos repetidos, não um elemento contendo os itens.
 		return "".join(_elemento(nome, item) for item in conteudo)
+
+	if isinstance(conteudo, Cdata):
+		return f"<{nome}><![CDATA[{conteudo.texto}]]></{nome}>"
 
 	if not isinstance(conteudo, dict):
 		return f"<{nome}>{_texto(conteudo)}</{nome}>"
