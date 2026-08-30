@@ -190,6 +190,31 @@ digest que não bate com o XML final, porque o `xmlns` faz parte do que é canon
 Com isso a montagem da NF-e está completa do lado da estrutura do documento. O que
 falta para emitir de fato é o adaptador de transporte.
 
+## `ativar_contingencia_svc` — `dhCont`/`xJust` e a chave que muda
+
+Contingência SVC-AN/SVC-RS é exclusiva de NF-e (modelo 55) — ver
+`docs/transporte-nativo-sefaz.md` para o porquê e para a tabela de endpoints. Do lado do
+documento, entrar em contingência muda três coisas no grupo `ide` — `tpEmis` (de `"1"`
+para `"6"`/`"7"`), e dois campos novos que só aparecem quando `tpEmis != "1"`: `dhCont`
+(quando a contingência começou) e `xJust` (motivo, 15 a 256 caracteres — mesmo tipo/
+limite do `xJust` de cancelamento em `evento.py`). Confirmado no construtor de
+referência que os dois vêm por último no grupo, depois de `verProc`, não logo após
+`tpEmis`.
+
+Como `tpEmis` é uma das 44 posições da chave de acesso, mudar de emissão normal para
+contingência **muda a chave inteira** — o documento com a chave antiga deixa de valer, e
+precisa ser regravado com a nova (mesmo aviso que a fonte de referência faz).
+`ativar_contingencia_svc(identificacao, justificativa, desde=None)` devolve uma nova
+`Identificacao` (a classe é imutável — a original não muda) já com `tipo_emissao`
+resolvido pela UF do emitente via `UF_CONTINGENCIA_SVC` (não é escolha do chamador,
+evita divergir do que a SEFAZ realmente aceita para aquele estado); o chamador então
+remonta com `montar_infnfe` e assina de novo com `assinar_nfe`.
+
+Não implementado: a orquestração que decide *quando* entrar em contingência (detectar
+timeout/indisponibilidade da SEFAZ, ativar, e depois voltar ao normal) — isso é
+responsabilidade da camada de negócio, este módulo só garante que o documento fica
+estruturalmente correto quando alguém decide entrar em contingência.
+
 ## Ainda não montados
 
 - `enderEmit` e `enderDest` são repassados como vieram, sem validação de conteúdo;
@@ -199,3 +224,7 @@ falta para emitir de fato é o adaptador de transporte.
 
 - `leiauteNFe_v4.00.xsd` — Pacote de Liberação 010e_v1.02, Portal Nacional da NF-e.
 - NT 2019.001 — regra de validação B03-10 (rejeição 897).
+- `nfephp-org/sped-nfe`, `docs/Contingency.md` (regras de contingência, `dhCont`/`xJust`
+  obrigatórios quando `tpEmis != 1`) e `src/Traits/TraitTagIde.php` (ordem dos elementos
+  no grupo `ide`, confirmando `dhCont`/`xJust` como os dois últimos) — consultados em
+  2026-08-29.

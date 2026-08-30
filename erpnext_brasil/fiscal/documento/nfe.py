@@ -32,10 +32,11 @@ Funções puras: nenhuma dependência do Frappe.
 """
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 
 from erpnext_brasil.fiscal.documento.assinatura import Assinador, montar_signature
+from erpnext_brasil.fiscal.documento.autorizadores_sefaz import UF_CONTINGENCIA_SVC
 from erpnext_brasil.fiscal.documento.chave_acesso import calcular_dv, montar_chave
 from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.validators import limpar, validar_cnpj, validar_cpf_cnpj
@@ -44,10 +45,14 @@ __all__ = [
 	"MODELO_NFCE",
 	"MODELO_NFE",
 	"NAMESPACE_NFE",
+	"TIPO_EMISSAO_NORMAL",
+	"TIPO_EMISSAO_SVCAN",
+	"TIPO_EMISSAO_SVCRS",
 	"Destinatario",
 	"Emitente",
 	"Identificacao",
 	"NFeInvalida",
+	"ativar_contingencia_svc",
 	"assinar_nfe",
 	"montar_dest",
 	"montar_emit",
@@ -65,6 +70,19 @@ MODELO_NFCE = "65"
 DESTINO_INTERNA = "1"
 DESTINO_INTERESTADUAL = "2"
 DESTINO_EXTERIOR = "3"
+
+# Forma de emissão (campo `tpEmis`). Só as usadas neste app têm nome — os demais valores
+# do XSD (2/3/4/5/8, contingências deprecadas ou fora de escopo) seguem como literal.
+TIPO_EMISSAO_NORMAL = "1"
+TIPO_EMISSAO_SVCAN = "6"
+TIPO_EMISSAO_SVCRS = "7"
+
+# `xJust` (ide) reusa o mesmo tipo/limite de caracteres do `xJust` de cancelamento
+# (evento.py) — confirmado no XSD para o campo de cancelamento, e corroborado aqui por
+# `nfephp-org/sped-nfe`'s `Factories/Contingency.php`, que valida a mesma faixa para a
+# justificativa de entrada em contingência.
+JUSTIFICATIVA_CONTINGENCIA_MINIMA = 15
+JUSTIFICATIVA_CONTINGENCIA_MAXIMA = 256
 
 _SEQUENCIA_TRIVIAL = re.compile(r"^(\d)\1*$")
 
@@ -108,6 +126,10 @@ class Identificacao:
 	finalidade: str = "1"
 	consumidor_final: str = "0"
 	presenca: str = "1"
+	contingencia_desde: datetime | None = None
+	"""`dhCont` — só preenchido quando `tipo_emissao != "1"`. Ver `ativar_contingencia_svc`."""
+	justificativa_contingencia: str = ""
+	"""`xJust` — obrigatório junto de `contingencia_desde`, 15 a 256 caracteres."""
 
 	def validar(self) -> None:
 		"""Pré-condições do grupo `ide`, incluindo a regra da rejeição 897."""
@@ -134,6 +156,79 @@ class Identificacao:
 				f"recebido {self.modelo!r}",
 				"modelo",
 			)
+
+		if self.tipo_emissao in (TIPO_EMISSAO_SVCAN, TIPO_EMISSAO_SVCRS) and self.modelo != MODELO_NFE:
+			raise NFeInvalida(
+				"Contingência SVC-AN/SVC-RS é exclusiva de NF-e (modelo 55), nunca de NFC-e",
+				"tipo_emissao",
+			)
+
+		if self.tipo_emissao != TIPO_EMISSAO_NORMAL:
+			# "Ao ativar qualquer contingência o XML deve ser remontado com tpEmis,
+			# dhCont e xJust" — vale para toda forma de emissão diferente da normal, não
+			# só SVC-AN/SVC-RS (ver docs/Contingency.md).
+			if self.contingencia_desde is None:
+				raise NFeInvalida(
+					"tipo_emissao diferente de '1' exige contingencia_desde (dhCont)",
+					"contingencia_desde",
+				)
+
+			texto = (self.justificativa_contingencia or "").strip()
+
+			if not (JUSTIFICATIVA_CONTINGENCIA_MINIMA <= len(texto) <= JUSTIFICATIVA_CONTINGENCIA_MAXIMA):
+				raise NFeInvalida(
+					f"A justificativa de contingência deve ter de {JUSTIFICATIVA_CONTINGENCIA_MINIMA} a "
+					f"{JUSTIFICATIVA_CONTINGENCIA_MAXIMA} caracteres, recebidos {len(texto)}",
+					"justificativa_contingencia",
+				)
+
+
+def ativar_contingencia_svc(
+	identificacao: Identificacao, justificativa: str, desde: datetime | None = None
+) -> Identificacao:
+	"""Devolve uma nova `Identificacao` em contingência SVC-AN/SVC-RS.
+
+	`Identificacao` é imutável (`frozen`) — ativar contingência não muda a original, é
+	uma variante nova (mesma disciplina de fronteira usada no resto do app: quem lê
+	sempre recebe algo fresco, ninguém muta por conta própria). O chamador precisa
+	remontar o `infNFe` a partir do resultado (`montar_infnfe`) e assinar de novo — a
+	chave de acesso muda, porque `tpEmis` é uma das suas 44 posições (ver
+	`chave_acesso.py`); o documento com a chave antiga deixa de valer.
+
+	O tipo de SVC (`SVC-AN` ou `SVC-RS`) não é escolha do chamador: é fixo pela UF do
+	emitente (`UF_CONTINGENCIA_SVC`) — mesma disciplina de "modelo sempre derivado de uma
+	única fonte" usada em `TransporteSefaz` para NFC-e. `identificacao.uf` guarda o
+	código IBGE (`cUF`), não a sigla; a tabela de contingência é indexada por sigla, daí a
+	conversão via `CODIGO_UF_POR_SIGLA` (import local: `inutilizacao.py` importa deste
+	módulo, e o import no topo do arquivo criaria um ciclo).
+	"""
+	from erpnext_brasil.fiscal.documento.inutilizacao import CODIGO_UF_POR_SIGLA
+
+	if identificacao.modelo != MODELO_NFE:
+		raise NFeInvalida(
+			"Contingência SVC-AN/SVC-RS é exclusiva de NF-e (modelo 55), nunca de NFC-e", "modelo"
+		)
+
+	sigla_por_codigo = {codigo: sigla for sigla, codigo in CODIGO_UF_POR_SIGLA.items()}
+	sigla = sigla_por_codigo.get(identificacao.uf)
+	grupo = UF_CONTINGENCIA_SVC.get(sigla or "")
+
+	if grupo is None:
+		raise NFeInvalida(
+			f"UF de código {identificacao.uf!r} não consta no mapa de contingência SVC", "uf"
+		)
+
+	tipo_emissao = TIPO_EMISSAO_SVCAN if grupo == "SVCAN" else TIPO_EMISSAO_SVCRS
+
+	nova = replace(
+		identificacao,
+		tipo_emissao=tipo_emissao,
+		contingencia_desde=desde or datetime.now().astimezone(),
+		justificativa_contingencia=justificativa,
+	)
+	nova.validar()
+
+	return nova
 
 
 @dataclass(frozen=True)
@@ -170,10 +265,14 @@ def montar_ide(identificacao: Identificacao, chave: str) -> dict:
 
 	Recebe a chave já pronta para extrair dela o `cDV`, garantindo que os dois nunca
 	divirjam — o dígito publicado no `ide` é sempre o da chave que acompanha o documento.
+
+	`dhCont`/`xJust` só entram quando `tipo_emissao != "1"` — posição confirmada no
+	construtor de referência (`nfephp-org/sped-nfe`): são os dois últimos elementos do
+	grupo, depois de `verProc`, não logo após `tpEmis`.
 	"""
 	identificacao.validar()
 
-	return {
+	grupo = {
 		"cUF": identificacao.uf,
 		"cNF": str(identificacao.codigo_numerico).rjust(8, "0"),
 		"natOp": _obrigatorio(identificacao.natureza_operacao, "natureza da operação"),
@@ -195,6 +294,12 @@ def montar_ide(identificacao: Identificacao, chave: str) -> dict:
 		"procEmi": "0",
 		"verProc": "erpnext_brasil",
 	}
+
+	if identificacao.tipo_emissao != TIPO_EMISSAO_NORMAL:
+		grupo["dhCont"] = identificacao.contingencia_desde.isoformat()
+		grupo["xJust"] = identificacao.justificativa_contingencia.strip()
+
+	return grupo
 
 
 def montar_emit(emitente: Emitente) -> dict:

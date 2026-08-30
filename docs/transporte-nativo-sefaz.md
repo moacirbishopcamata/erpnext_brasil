@@ -280,9 +280,12 @@ de "ativar contingência" (que precisaria remontar/reassinar o XML com `tpEmis`/
 - `urlChave` (consulta manual de NFC-e sem QR Code) por UF: a única fonte disponível
   (`nfephp-org/sped-nfe`) só tem a URL de QR Code (`NfeConsultaQR`), não uma URL de
   consulta manual separada — pendente de fonte melhor ou orientação do usuário.
-- Ativação de contingência SVC-AN/SVC-RS em `TransporteSefaz`/`montar_nfe`: hoje só o
-  endpoint é resolvível (`endpoint(..., contingencia=True)`); falta remontar o XML com
-  `tpEmis`/`dhCont`/`xJust`, reassinar e tratar a nova chave de acesso gerada.
+- ~~Ativação de contingência SVC-AN/SVC-RS: remontar o XML com `tpEmis`/`dhCont`/
+  `xJust`, reassinar e tratar a nova chave de acesso gerada~~ — **implementado em
+  2026-08-29**, ver `nfe.ativar_contingencia_svc` e `docs/montagem-da-nfe.md`. Falta
+  só a orquestração de negócio (decidir *quando* entrar em contingência, detectando
+  timeout/indisponibilidade em `TransporteSefaz`), que é responsabilidade de camada
+  superior, não deste módulo.
 
 ## Fonte
 

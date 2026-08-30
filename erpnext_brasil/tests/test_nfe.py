@@ -17,10 +17,13 @@ from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.documento.nfe import (
 	MODELO_NFCE,
 	NAMESPACE_NFE,
+	TIPO_EMISSAO_SVCAN,
+	TIPO_EMISSAO_SVCRS,
 	Destinatario,
 	Emitente,
 	Identificacao,
 	NFeInvalida,
+	ativar_contingencia_svc,
 	assinar_nfe,
 	montar_dest,
 	montar_emit,
@@ -466,6 +469,76 @@ class TestConformidadeDeTags(unittest.TestCase):
 		)
 
 		self.assertEqual(self._tags(grupo) - self.elementos, set())
+
+
+class TestAtivarContingenciaSVC(unittest.TestCase):
+	"""`ativar_contingencia_svc` — a chave repete `tpEmis` (posição 35), então ativar
+	contingência muda a chave; e o tipo de SVC é derivado da UF, não escolhido à toa."""
+
+	def test_sp_cai_no_svcan(self):
+		nova = ativar_contingencia_svc(identificacao(uf="35"), "SEFAZ SP fora do ar por instabilidade")
+
+		self.assertEqual(nova.tipo_emissao, TIPO_EMISSAO_SVCAN)
+
+	def test_am_cai_no_svcrs(self):
+		"""AM tem webservice próprio como autorizador normal, mas cai no SVC-RS em
+		contingência — não no SVC-AN, e muito menos num "SVC-AM" que não existe."""
+		nova = ativar_contingencia_svc(identificacao(uf="13"), "SEFAZ AM fora do ar por instabilidade")
+
+		self.assertEqual(nova.tipo_emissao, TIPO_EMISSAO_SVCRS)
+
+	def test_original_nao_muda(self):
+		"""Identificacao é imutável — ativar contingência devolve variante nova."""
+		original = identificacao(uf="35")
+		ativar_contingencia_svc(original, "SEFAZ SP fora do ar por instabilidade")
+
+		self.assertEqual(original.tipo_emissao, "1")
+
+	def test_nfce_nao_pode_entrar_em_contingencia_svc(self):
+		with self.assertRaises(NFeInvalida):
+			ativar_contingencia_svc(identificacao(uf="35", modelo=MODELO_NFCE), "SEFAZ SP fora do ar")
+
+	def test_justificativa_curta_e_rejeitada(self):
+		with self.assertRaises(NFeInvalida):
+			ativar_contingencia_svc(identificacao(uf="35"), "curta demais")
+
+	def test_uf_desconhecida_levanta_erro(self):
+		with self.assertRaises(NFeInvalida):
+			ativar_contingencia_svc(identificacao(uf="99"), "SEFAZ fora do ar por instabilidade")
+
+	def test_chave_muda_em_relacao_a_emissao_normal(self):
+		"""tpEmis é a posição 35 da chave — mudar de '1' para '6'/'7' muda a chave
+		inteira, exatamente como a fonte de referência documenta."""
+		normal = identificacao(uf="35")
+		contingencia = ativar_contingencia_svc(normal, "SEFAZ SP fora do ar por instabilidade")
+
+		doc_normal = montar_infnfe(
+			normal, emitente(), destinatario(), [{"prod": {"cProd": "1"}}], {"ICMSTot": {}},
+			transp={"modFrete": "9"}, pag={"detPag": [{"tPag": "90"}]},
+		)  # fmt: skip
+		doc_contingencia = montar_infnfe(
+			contingencia, emitente(), destinatario(), [{"prod": {"cProd": "1"}}], {"ICMSTot": {}},
+			transp={"modFrete": "9"}, pag={"detPag": [{"tPag": "90"}]},
+		)  # fmt: skip
+
+		chave_normal = doc_normal["infNFe"]["@Id"]
+		chave_contingencia = doc_contingencia["infNFe"]["@Id"]
+
+		self.assertNotEqual(chave_normal, chave_contingencia)
+		self.assertEqual(doc_normal["infNFe"]["ide"]["tpEmis"], "1")
+		self.assertEqual(doc_contingencia["infNFe"]["ide"]["tpEmis"], TIPO_EMISSAO_SVCAN)
+
+	def test_dhcont_e_xjust_aparecem_no_ide_em_contingencia_e_so_ai(self):
+		normal = identificacao(uf="35")
+		contingencia = ativar_contingencia_svc(normal, "SEFAZ SP fora do ar por instabilidade")
+
+		ide_normal = montar_ide(normal, "3" * 44)
+		ide_contingencia = montar_ide(contingencia, "3" * 44)
+
+		self.assertNotIn("dhCont", ide_normal)
+		self.assertNotIn("xJust", ide_normal)
+		self.assertEqual(ide_contingencia["xJust"], "SEFAZ SP fora do ar por instabilidade")
+		self.assertIn("dhCont", ide_contingencia)
 
 
 if __name__ == "__main__":
