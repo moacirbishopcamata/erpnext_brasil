@@ -11,8 +11,8 @@ travessia para o formato da ECD — nada pode se perder na conversão.
 import unittest
 from decimal import Decimal
 
-from erpnext_brasil.contabil.ecd_i200 import ContaDesconhecida, montar_i200_i250
-from erpnext_brasil.contabil.lancamento import Lancamento
+from erpnext_brasil.contabil.ecd_i200 import ContaDesconhecida, montar_i200_i250, montar_i200_i250_multiplo
+from erpnext_brasil.contabil.lancamento import Lancamento, LancamentoMultiplo, Partida
 
 DATA = "01012026"
 
@@ -110,6 +110,64 @@ class TestMontarI200I250(unittest.TestCase):
 
 	def test_lista_vazia_devolve_lista_vazia(self):
 		self.assertEqual(montar_i200_i250([], DATA), [])
+
+
+class TestMontarI200I250Multiplo(unittest.TestCase):
+	def test_uma_linha_i250_por_partida(self):
+		lancamento = LancamentoMultiplo(
+			debitos=(
+				Partida("Despesas com Vendas", d("300.00")),
+				Partida("Despesas Gerais e Administrativas", d("200.00")),
+			),
+			creditos=(Partida("Disponibilidades", d("500.00")),),
+			historico="Rateio",
+		)
+		_i200, partidas = montar_i200_i250_multiplo([lancamento], DATA)[0]
+
+		self.assertEqual(len(partidas), 3)
+
+	def test_vl_lcto_e_o_valor_total(self):
+		lancamento = LancamentoMultiplo(
+			debitos=(
+				Partida("Despesas com Vendas", d("300.00")),
+				Partida("Despesas Gerais e Administrativas", d("200.00")),
+			),
+			creditos=(Partida("Disponibilidades", d("500.00")),),
+			historico="Rateio",
+		)
+		i200, _partidas = montar_i200_i250_multiplo([lancamento], DATA)[0]
+
+		self.assertEqual(i200["VL_LCTO"], d("500.00"))
+
+	def test_soma_dos_ind_dc_fecha_com_vl_lcto(self):
+		lancamento = LancamentoMultiplo(
+			debitos=(
+				Partida("Despesas com Vendas", d("300.00")),
+				Partida("Despesas Gerais e Administrativas", d("200.00")),
+			),
+			creditos=(Partida("Disponibilidades", d("500.00")),),
+			historico="Rateio",
+		)
+		i200, partidas = montar_i200_i250_multiplo([lancamento], DATA)[0]
+
+		soma_debitos = sum((p["VL_DC"] for p in partidas if p["IND_DC"] == "D"), d("0.00"))
+		soma_creditos = sum((p["VL_DC"] for p in partidas if p["IND_DC"] == "C"), d("0.00"))
+
+		self.assertEqual(soma_debitos, i200["VL_LCTO"])
+		self.assertEqual(soma_creditos, i200["VL_LCTO"])
+
+	def test_conta_desconhecida_levanta_erro(self):
+		lancamento = LancamentoMultiplo(
+			debitos=(Partida("Conta Inventada", d("100.00")),),
+			creditos=(Partida("Disponibilidades", d("100.00")),),
+			historico="teste",
+		)
+
+		with self.assertRaises(ContaDesconhecida):
+			montar_i200_i250_multiplo([lancamento], DATA)
+
+	def test_lista_vazia_devolve_lista_vazia(self):
+		self.assertEqual(montar_i200_i250_multiplo([], DATA), [])
 
 
 if __name__ == "__main__":

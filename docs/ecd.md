@@ -130,6 +130,15 @@ resultado (`"E"`) nem extemporâneo (`"X"`). `COD_CCUS`, `COD_HIST_PAD`, `COD_PA
 `NUM_ARQ` ficam sempre em branco — as tabelas auxiliares correspondentes (centro de
 custo, histórico padronizado, participante, documento anexado) não existem neste app.
 
+### `montar_i200_i250_multiplo` — rateio entre mais de duas contas
+
+`LancamentoMultiplo` (ver `docs/lancamentos-contabeis.md`) modela um rateio: mais de uma
+conta de cada lado, com a única invariante que importa (soma dos débitos igual à soma
+dos créditos) verificada na própria construção do tipo. `montar_i200_i250_multiplo` gera
+o mesmo I200 — `VL_LCTO` é `LancamentoMultiplo.valor_total`, já garantido igual dos dois
+lados — mas uma linha I250 **por partida**, não só duas. A resolução de `COD_CTA` é a
+mesma função compartilhada com `montar_i200_i250`.
+
 ## I150/I155 — saldos periódicos por conta
 
 `contabil/ecd_i150.py` consolida os `Lancamento` de um período em saldo por conta: I150
@@ -209,8 +218,8 @@ linha. Layout (3 campos):
 
 ## Ainda por implementar
 
-- **Lançamento com mais de duas pontas** (rateio entre três ou mais contas) — pede um
-  tipo mais rico que `Lancamento`, hoje limitado a um débito e um crédito.
+- ~~Lançamento com mais de duas pontas (rateio)~~ — **feito em 2026-08-30**, ver
+  `LancamentoMultiplo`/`montar_i200_i250_multiplo` acima.
 - ~~Serialização para o formato de texto do SPED~~ — **feito em 2026-08-30**, ver
   `docs/sped-texto.md` (`contabil/sped_texto.montar_linha`); ainda falta o
   sequenciamento de registros relacionados (I250 depois do I200 certo, I051 depois do
@@ -223,7 +232,7 @@ linha. Layout (3 campos):
 
 - `contabil/ecd_i050.py` — `montar_i050`, `montar_i051`, `MapeamentoReferencial`;
   camada pura, sem Frappe, testável sem bench.
-- `contabil/ecd_i200.py` — `montar_i200_i250`; idem.
+- `contabil/ecd_i200.py` — `montar_i200_i250`, `montar_i200_i250_multiplo`; idem.
 - `contabil/ecd_i150.py` — `montar_i150`, `montar_i155`, `SaldoInicial`; idem.
 - `contabil/plano_de_contas.montar_codigos` — a numeração-padrão que os três usam.
 

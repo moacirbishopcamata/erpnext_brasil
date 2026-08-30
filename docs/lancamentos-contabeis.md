@@ -123,10 +123,28 @@ exceder o valor da nota — os dois casos levantam `LancamentoInvalido`.
 - **A própria elegibilidade de crédito na compra**: `gerar_lancamentos_compra` não
   decide se um tributo é recuperável (ver seção acima) — só lança o que já foi decidido.
 
+## `Partida`/`LancamentoMultiplo` — rateio entre mais de duas contas
+
+`Lancamento` (usado por `gerar_lancamentos_venda`/`gerar_lancamentos_compra`) modela
+sempre um débito e um crédito do mesmo valor — suficiente para tudo que este módulo
+produz, mas não para um rateio de verdade (uma despesa dividida entre três centros de
+custo, um recebimento que quita duas contas a receber diferentes de uma vez).
+`LancamentoMultiplo` cobre esse caso: uma lista de débitos e uma de créditos
+(`Partida`, cada uma com sua conta e valor), com a única invariante que de fato importa
+em partida dobrada — soma dos débitos igual à soma dos créditos — verificada no próprio
+`__post_init__` da dataclass, não confiada a uma função de validação que alguém poderia
+esquecer de chamar.
+
+Não substitui `Lancamento` — os dois convivem: a maioria das operações continua usando
+o tipo mais simples; `LancamentoMultiplo` existe só para o caso que genuinamente precisa
+de mais de duas pontas. `ecd_i200.montar_i200_i250_multiplo` faz a conversão
+correspondente para a ECD (ver `docs/ecd.md`) — uma linha I250 por partida, não só duas.
+
 ## Arquivos
 
-- `contabil/lancamento.py` — `Lancamento`, `gerar_lancamentos_venda`,
-  `gerar_lancamentos_compra`; camada pura, sem Frappe, testável sem bench.
+- `contabil/lancamento.py` — `Lancamento`, `Partida`, `LancamentoMultiplo`,
+  `gerar_lancamentos_venda`, `gerar_lancamentos_compra`; camada pura, sem Frappe,
+  testável sem bench.
 
 ## Fontes
 

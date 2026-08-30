@@ -28,6 +28,13 @@ usa a numeração-padrão de `montar_codigos()` (ver `docs/ecd.md`: convenção 
 não exigência legal) para resolver nome → código. Um nome que não exista na árvore
 levanta erro explícito, nunca um `COD_CTA` vazio ou inventado.
 
+`montar_i200_i250_multiplo` faz o mesmo para `LancamentoMultiplo`
+------------------------------------------------------------------------
+Um rateio (`LancamentoMultiplo`, mais de uma conta de cada lado) vira o mesmo I200 —
+`VL_LCTO` é `valor_total`, já garantido igual dos dois lados pela invariante do próprio
+tipo — mais uma linha I250 **por partida**, não só duas. A conversão de nome de conta
+para `COD_CTA` é a mesma função, compartilhada entre as duas versões.
+
 Fora de escopo desta primeira versão
 ----------------------------------------
 - **`IND_LCTO`** sempre `"N"` (lançamento normal) — `"E"` (encerramento de contas de
@@ -47,14 +54,14 @@ Formato de saída: dict, não a linha de texto do SPED — mesma decisão já re
 Funções puras: nenhuma dependência do Frappe.
 """
 
-from erpnext_brasil.contabil.lancamento import Lancamento
+from erpnext_brasil.contabil.lancamento import Lancamento, LancamentoMultiplo
 from erpnext_brasil.contabil.plano_de_contas import montar_codigos
 
-__all__ = ["ContaDesconhecida", "montar_i200_i250"]
+__all__ = ["ContaDesconhecida", "montar_i200_i250", "montar_i200_i250_multiplo"]
 
 
 class ContaDesconhecida(ValueError):
-	"""`Lancamento` referencia uma conta que não existe em `plano_de_contas.ARVORE`."""
+	"""Lançamento referencia uma conta que não existe em `plano_de_contas.ARVORE`."""
 
 
 def _codigo_ou_erro(codigos: dict[str, str], nome: str) -> str:
@@ -62,6 +69,30 @@ def _codigo_ou_erro(codigos: dict[str, str], nome: str) -> str:
 		raise ContaDesconhecida(f"Conta {nome!r} não existe em plano_de_contas.ARVORE")
 
 	return codigos[nome]
+
+
+def _linha_i250(codigos: dict[str, str], conta: str, valor, indicador: str, historico: str) -> dict:
+	return {
+		"REG": "I250",
+		"COD_CTA": _codigo_ou_erro(codigos, conta),
+		"COD_CCUS": "",
+		"VL_DC": valor,
+		"IND_DC": indicador,
+		"NUM_ARQ": "",
+		"COD_HIST_PAD": "",
+		"HIST": historico,
+		"COD_PART": "",
+	}
+
+
+def _linha_i200(num_lcto: str, data_lancamento: str, valor) -> dict:
+	return {
+		"REG": "I200",
+		"NUM_LCTO": num_lcto,
+		"DT_LCTO": data_lancamento,
+		"VL_LCTO": valor,
+		"IND_LCTO": "N",
+	}
 
 
 def montar_i200_i250(
@@ -78,30 +109,35 @@ def montar_i200_i250(
 	pares: list[tuple[dict, list[dict]]] = []
 
 	for indice, lancamento in enumerate(lancamentos, start=numero_inicial):
-		num_lcto = str(indice)
+		i200 = _linha_i200(str(indice), data_lancamento, lancamento.valor)
+		partidas = [
+			_linha_i250(codigos, lancamento.conta_debito, lancamento.valor, "D", lancamento.historico),
+			_linha_i250(codigos, lancamento.conta_credito, lancamento.valor, "C", lancamento.historico),
+		]
 
-		i200 = {
-			"REG": "I200",
-			"NUM_LCTO": num_lcto,
-			"DT_LCTO": data_lancamento,
-			"VL_LCTO": lancamento.valor,
-			"IND_LCTO": "N",
-		}
+		pares.append((i200, partidas))
 
-		def _i250(nome_conta: str, indicador: str) -> dict:
-			return {
-				"REG": "I250",
-				"COD_CTA": _codigo_ou_erro(codigos, nome_conta),
-				"COD_CCUS": "",
-				"VL_DC": lancamento.valor,
-				"IND_DC": indicador,
-				"NUM_ARQ": "",
-				"COD_HIST_PAD": "",
-				"HIST": lancamento.historico,
-				"COD_PART": "",
-			}
+	return pares
 
-		partidas = [_i250(lancamento.conta_debito, "D"), _i250(lancamento.conta_credito, "C")]
+
+def montar_i200_i250_multiplo(
+	lancamentos: list[LancamentoMultiplo], data_lancamento: str, *, numero_inicial: int = 1
+) -> list[tuple[dict, list[dict]]]:
+	"""Mesma ideia de `montar_i200_i250`, para rateio: uma linha I250 **por partida**,
+	não só duas — `VL_LCTO` é `LancamentoMultiplo.valor_total`, já garantido igual nos
+	dois lados pela invariante do próprio tipo (ver `lancamento.py`)."""
+	codigos = montar_codigos()
+	pares: list[tuple[dict, list[dict]]] = []
+
+	for indice, lancamento in enumerate(lancamentos, start=numero_inicial):
+		i200 = _linha_i200(str(indice), data_lancamento, lancamento.valor_total)
+		partidas = [
+			_linha_i250(codigos, partida.conta, partida.valor, "D", lancamento.historico)
+			for partida in lancamento.debitos
+		] + [
+			_linha_i250(codigos, partida.conta, partida.valor, "C", lancamento.historico)
+			for partida in lancamento.creditos
+		]
 
 		pares.append((i200, partidas))
 

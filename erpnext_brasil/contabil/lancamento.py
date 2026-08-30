@@ -65,6 +65,21 @@ Fora de escopo desta primeira versão
 - **Compras** (crédito de tributo recuperável): pedem o valor total da nota de entrada,
   não só a apuração de tributo — módulo próprio quando chegar a vez.
 
+`Lancamento` é sempre duas pontas — `LancamentoMultiplo` cobre rateio
+-------------------------------------------------------------------------
+`Lancamento` (venda/compra acima) modela sempre um débito e um crédito do mesmo valor —
+suficiente para tudo que `gerar_lancamentos_venda`/`gerar_lancamentos_compra` produzem,
+mas não para um rateio de verdade (uma despesa dividida entre três centros de custo, um
+recebimento que quita duas contas a receber diferentes de uma vez). `LancamentoMultiplo`
+cobre esse caso: uma lista de débitos e uma de créditos (`Partida`, cada uma com sua
+conta e valor), com a única invariante que de fato importa em partida dobrada — soma dos
+débitos igual à soma dos créditos — verificada na construção (`__post_init__`), não
+confiada a quem monta a lista.
+
+Não substitui `Lancamento` — os dois convivem: a maioria das operações deste app tem
+duas pontas e continua usando o tipo mais simples; `LancamentoMultiplo` existe para o
+caso que genuinamente precisa de mais.
+
 Funções puras: nenhuma dependência do Frappe.
 """
 
@@ -77,6 +92,8 @@ __all__ = [
 	"TRIBUTOS_RECUPERAVEIS",
 	"Lancamento",
 	"LancamentoInvalido",
+	"LancamentoMultiplo",
+	"Partida",
 	"gerar_lancamentos_compra",
 	"gerar_lancamentos_venda",
 ]
@@ -107,6 +124,54 @@ class Lancamento:
 	conta_credito: str
 	valor: Decimal
 	historico: str
+
+
+@dataclass(frozen=True)
+class Partida:
+	"""Uma ponta de `LancamentoMultiplo` — uma conta, um valor, sem indicar débito ou
+	crédito (isso é decidido por em qual das duas listas — `debitos` ou `creditos` — a
+	partida está, nunca por um campo próprio que pudesse divergir da lista que a contém)."""
+
+	conta: str
+	valor: Decimal
+
+	def __post_init__(self) -> None:
+		if self.valor <= ZERO:
+			raise LancamentoInvalido(f"valor da partida deve ser positivo, recebido {self.valor}")
+
+
+@dataclass(frozen=True)
+class LancamentoMultiplo:
+	"""Um lançamento com rateio — mais de uma conta do lado do débito e/ou do crédito.
+
+	A única invariante que partida dobrada exige de fato: soma dos débitos igual à soma
+	dos créditos. Verificada aqui, na construção — não confiada a quem monta as duas
+	listas (a mesma disciplina de `ApuracaoPeriodo`/`Ajuste`: a invariante vive no
+	`__post_init__`, não em uma função de validação que alguém pode esquecer de chamar).
+	"""
+
+	debitos: tuple[Partida, ...]
+	creditos: tuple[Partida, ...]
+	historico: str
+
+	def __post_init__(self) -> None:
+		if not self.debitos or not self.creditos:
+			raise LancamentoInvalido("LancamentoMultiplo precisa de ao menos uma partida de cada lado")
+
+		total_debitos = sum((p.valor for p in self.debitos), ZERO)
+		total_creditos = sum((p.valor for p in self.creditos), ZERO)
+
+		if total_debitos != total_creditos:
+			raise LancamentoInvalido(
+				f"Soma dos débitos ({total_debitos}) diferente da soma dos créditos "
+				f"({total_creditos}) — partida dobrada exige os dois lados iguais"
+			)
+
+	@property
+	def valor_total(self) -> Decimal:
+		"""O valor que circula no lançamento — mesmo total dos dois lados, por
+		construção (ver `__post_init__`)."""
+		return sum((p.valor for p in self.debitos), ZERO)
 
 
 def _somar_pis_cofins(apuracao: ApuracaoDocumento) -> tuple[Decimal, Decimal]:

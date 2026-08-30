@@ -13,6 +13,8 @@ from decimal import Decimal
 
 from erpnext_brasil.contabil.lancamento import (
 	LancamentoInvalido,
+	LancamentoMultiplo,
+	Partida,
 	gerar_lancamentos_compra,
 	gerar_lancamentos_venda,
 )
@@ -250,6 +252,54 @@ class TestGerarLancamentosCompra(unittest.TestCase):
 		lancamentos = gerar_lancamentos_compra(d("1000.00"), {"ICMS": d("180.00")}, historico="NF 456")
 
 		self.assertTrue(all(l.historico == "NF 456" for l in lancamentos))
+
+
+class TestPartida(unittest.TestCase):
+	def test_valor_zero_ou_negativo_e_rejeitado(self):
+		with self.assertRaises(LancamentoInvalido):
+			Partida(conta="Disponibilidades", valor=d("0.00"))
+
+		with self.assertRaises(LancamentoInvalido):
+			Partida(conta="Disponibilidades", valor=d("-1.00"))
+
+
+class TestLancamentoMultiplo(unittest.TestCase):
+	def test_rateio_entre_tres_contas_de_debito(self):
+		lancamento = LancamentoMultiplo(
+			debitos=(
+				Partida("Despesas com Vendas", d("300.00")),
+				Partida("Despesas Gerais e Administrativas", d("200.00")),
+				Partida("Despesas Financeiras", d("100.00")),
+			),
+			creditos=(Partida("Disponibilidades", d("600.00")),),
+			historico="Rateio de despesa",
+		)
+
+		self.assertEqual(lancamento.valor_total, d("600.00"))
+
+	def test_debitos_e_creditos_desbalanceados_e_rejeitado(self):
+		with self.assertRaises(LancamentoInvalido):
+			LancamentoMultiplo(
+				debitos=(Partida("Despesas com Vendas", d("300.00")),),
+				creditos=(Partida("Disponibilidades", d("250.00")),),
+				historico="teste",
+			)
+
+	def test_sem_partida_de_um_dos_lados_e_rejeitado(self):
+		with self.assertRaises(LancamentoInvalido):
+			LancamentoMultiplo(debitos=(), creditos=(Partida("Disponibilidades", d("100.00")),), historico="teste")
+
+	def test_valor_total_e_o_mesmo_dos_dois_lados(self):
+		lancamento = LancamentoMultiplo(
+			debitos=(Partida("Clientes", d("1000.00")),),
+			creditos=(
+				Partida("Receita Bruta de Vendas e Serviços", d("800.00")),
+				Partida("ICMS a Recolher", d("200.00")),
+			),
+			historico="teste",
+		)
+
+		self.assertEqual(lancamento.valor_total, d("1000.00"))
 
 
 if __name__ == "__main__":
