@@ -20,6 +20,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [sped-fiscal.md](sped-fiscal.md) | EFD-ICMS/IPI: por que o livro em papel foi dispensado (Ajuste SINIEF 02/09), layout dos registros E110 (ICMS) e E520 (IPI), escopo sem ajuste de apuração |
 | [ecd.md](ecd.md) | ECD (SPED Contábil): registros I050/I051/I200/I250/I150/I155, numeração-padrão de contas, a pegadinha do `COD_NAT` do Patrimônio Líquido |
 | [sped-texto.md](sped-texto.md) | Serialização de linha pipe-delimited do SPED, comum a EFD e ECD; a correção do formato de data (`DDMMAAAA`, sem separador) |
+| [rh-estado-hrms.md](rh-estado-hrms.md) | Bloco RH: estado do `frappe/hrms`, confirmação de que o Brasil não existe nem lá nem no ERPNext, e o hook `regional_overrides` que permite tropicalizar sem fork |
 | [boleto.md](boleto.md) | Código de barras/linha digitável FEBRABAN (validado contra exemplo real) e leitura do CNAB 400 de retorno para conciliação |
 
 ## Convenções que valem em todo o código
