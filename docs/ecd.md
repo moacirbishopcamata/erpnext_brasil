@@ -211,9 +211,10 @@ linha. Layout (3 campos):
 
 - **Lançamento com mais de duas pontas** (rateio entre três ou mais contas) — pede um
   tipo mais rico que `Lancamento`, hoje limitado a um débito e um crédito.
-- **Serialização para o formato de texto do SPED** — mesma decisão já registrada em
-  `docs/sped-fiscal.md`: este módulo devolve `list[dict]`/`list[tuple[dict, list[dict]]]`,
-  não a linha de texto.
+- ~~Serialização para o formato de texto do SPED~~ — **feito em 2026-08-30**, ver
+  `docs/sped-texto.md` (`contabil/sped_texto.montar_linha`); ainda falta o
+  sequenciamento de registros relacionados (I250 depois do I200 certo, I051 depois do
+  I050 certo) num arquivo — ver "Ainda por implementar" em `docs/sped-texto.md`.
 - **Persistência do saldo inicial entre períodos** — `SaldoInicial` é sempre parâmetro
   explícito; nenhum mecanismo guarda o saldo final de um mês para virar o inicial do
   seguinte automaticamente.

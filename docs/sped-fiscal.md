@@ -162,8 +162,8 @@ de dados primeiro, o formato de texto depois, como camada própria).
 
 - **Registros E200/E210 (ICMS-ST) e E300/E310 (ICMS-DIFAL)** — apurações distintas de
   E110, não cobertas; DIFAL em particular já é gap deliberado desde `imposto_item.py`.
-- **Serialização para o formato de texto do EFD** (pipe-delimited, decimal com
-  vírgula) — ver seção acima.
+- ~~Serialização para o formato de texto do EFD~~ — **feito em 2026-08-30**, ver
+  `docs/sped-texto.md` (`contabil/sped_texto.montar_linha`).
 - **Blocos 0, C, D, H, K, 1, 9** do EFD (identificação, documentos fiscais, inventário,
   totalizadores) — o arquivo completo tem muito mais que o bloco E de apuração; este
   incremento cobre só quatro registros de um bloco.
