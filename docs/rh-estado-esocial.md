@@ -93,11 +93,13 @@ em ordem de proximidade com o que já existe:
 ## Ainda por implementar
 
 O usuário escolheu **S-1200 (Remuneração)** como primeira fatia — a árvore completa de
-negócio do evento está implementada (`docs/rh-esocial-s1200.md`), e o envelope de
-lote/endpoints da camada de transporte também (`docs/rh-esocial-lote.md`). Falta:
-assinatura XML dos eventos, envio HTTP de verdade, leitura da resposta
-(`RetornoEnvioLoteEventos`/`RetornoProcessamentoLote`), e a tabela de rubricas
-S-1010/cadastro do empregador S-1000 (pré-requisitos que nenhum evento pode dispensar).
+negócio do evento está implementada (`docs/rh-esocial-s1200.md`), o envelope de
+lote/endpoints (`docs/rh-esocial-lote.md`) e a leitura da resposta de
+envio/processamento (`docs/rh-esocial-retorno.md`) também. Falta: assinatura XML dos
+eventos, envio HTTP de verdade (o `requests.post` com certificado, equivalente ao
+`_enviar` de `integracao/autorizacao_sefaz.py` da NF-e), e a tabela de rubricas
+S-1010/cadastro do empregador S-1000 (pré-requisitos que nenhum evento pode
+dispensar).
 
 ## Fontes
 
