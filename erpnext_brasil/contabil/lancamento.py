@@ -73,13 +73,24 @@ from decimal import Decimal
 
 from erpnext_brasil.fiscal.impostos.apuracao import ApuracaoDocumento
 
-__all__ = ["Lancamento", "LancamentoInvalido", "gerar_lancamentos_venda"]
+__all__ = [
+	"TRIBUTOS_RECUPERAVEIS",
+	"Lancamento",
+	"LancamentoInvalido",
+	"gerar_lancamentos_compra",
+	"gerar_lancamentos_venda",
+]
 
 ZERO = Decimal("0.00")
 
 
 class LancamentoInvalido(ValueError):
 	"""A apuração recebida tem um dado que este módulo ainda não sabe lançar."""
+
+
+# Tributos com conta "a Recuperar" em plano_de_contas.py — só estes podem aparecer em
+# `creditos_tributarios` de `gerar_lancamentos_compra`.
+TRIBUTOS_RECUPERAVEIS = frozenset({"ICMS", "IPI", "PIS", "COFINS"})
 
 
 @dataclass(frozen=True)
@@ -190,6 +201,82 @@ def gerar_lancamentos_venda(apuracao: ApuracaoDocumento, *, historico: str = "Ve
 	assert debito_clientes == apuracao.total_documento - total_is, (
 		"Débito em Clientes não fecha com o total do documento — receita reconhecida "
 		"mais IPI deveria esgotar o total_documento (sem Imposto Seletivo, já barrado)"
+	)
+
+	return lancamentos
+
+
+def gerar_lancamentos_compra(
+	valor_total_nota: Decimal, creditos_tributarios: dict[str, Decimal], *, historico: str = "Compra"
+) -> list[Lancamento]:
+	"""Gera as partidas de uma compra de mercadoria, dado o crédito já decidido.
+
+	**Elegibilidade de crédito é decisão do chamador, não deste módulo.** Diferente da
+	venda — onde a apuração (`ApuracaoDocumento`) já sabe exatamente quanto de cada
+	tributo foi destacado —, o direito ao crédito na compra depende de regras de
+	elegibilidade com corpo de lei próprio e complexo por tributo:
+
+	- **ICMS**: crédito vale para mercadoria destinada a revenda/industrialização por
+	  contribuinte (LC 87/1996, Art. 20), com uma lista extensa de vedações e estornos;
+	- **IPI**: crédito vale para insumo de industrialização por estabelecimento
+	  industrial/equiparado (RIPI, Decreto 7.212/2010);
+	- **PIS/COFINS**: crédito só no regime não-cumulativo, e só sobre o que a lei chama
+	  de "insumo" — definição que o STJ (REsp 1.221.170/PR, repetitivo) fixou como
+	  "essencial ou relevante" à atividade, não uma lista fechada de itens.
+
+	Inferir isso a partir de `Operacao`/`ItemFiscal` (que descrevem a **venda**, não a
+	elegibilidade de crédito do **comprador**) seria apostar em regra tributária não
+	verificada — o erro que este projeto existe para evitar. Por isso a assinatura pede
+	`creditos_tributarios` já resolvido: o valor que a camada de negócio (que conhece a
+	classificação fiscal do item e o regime do comprador) determinou ser recuperável.
+	Este módulo só sabe a mecânica contábil de o que fazer com esse valor, não se ele é
+	devido.
+
+	`valor_total_nota` é o valor da nota de entrada como recebida (o que vai para
+	`Fornecedores`), *antes* de qualquer crédito ser destacado — não a apuração de um
+	item isolado, porque a nota pode ter itens sem direito a crédito nenhum.
+	"""
+	tributos_desconhecidos = set(creditos_tributarios) - TRIBUTOS_RECUPERAVEIS
+
+	if tributos_desconhecidos:
+		raise LancamentoInvalido(
+			f"Tributo(s) sem conta 'a Recuperar' em plano_de_contas.py: {sorted(tributos_desconhecidos)} "
+			f"— só {sorted(TRIBUTOS_RECUPERAVEIS)} têm"
+		)
+
+	total_creditos = sum(creditos_tributarios.values(), ZERO)
+
+	if total_creditos > valor_total_nota:
+		raise LancamentoInvalido(
+			f"Soma dos créditos ({total_creditos}) maior que o valor da nota "
+			f"({valor_total_nota}) — não há como recuperar mais tributo do que foi pago"
+		)
+
+	lancamentos = [
+		Lancamento(
+			conta_debito="Estoques", conta_credito="Fornecedores", valor=valor_total_nota, historico=historico
+		),
+	]
+
+	for tributo, valor in creditos_tributarios.items():
+		if valor:
+			lancamentos.append(
+				Lancamento(
+					conta_debito=f"{tributo} a Recuperar",
+					conta_credito="Estoques",
+					valor=valor,
+					historico=historico,
+				)
+			)
+
+	# Pós-condição: o custo líquido que sobra em Estoques (débito inicial menos as
+	# reclassificações de crédito) é sempre o valor da nota menos o que foi recuperado —
+	# nunca "o que sobrou por acaso" da soma dos lançamentos.
+	debito_estoques = sum((l.valor for l in lancamentos if l.conta_debito == "Estoques"), ZERO)
+	credito_estoques = sum((l.valor for l in lancamentos if l.conta_credito == "Estoques"), ZERO)
+
+	assert debito_estoques - credito_estoques == valor_total_nota - total_creditos, (
+		"Custo líquido em Estoques não fecha com nota menos créditos recuperados"
 	)
 
 	return lancamentos

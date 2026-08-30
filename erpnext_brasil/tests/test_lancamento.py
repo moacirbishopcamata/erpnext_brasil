@@ -11,7 +11,11 @@ individual estar correta, a composição do conjunto também precisa fechar.
 import unittest
 from decimal import Decimal
 
-from erpnext_brasil.contabil.lancamento import LancamentoInvalido, gerar_lancamentos_venda
+from erpnext_brasil.contabil.lancamento import (
+	LancamentoInvalido,
+	gerar_lancamentos_compra,
+	gerar_lancamentos_venda,
+)
 from erpnext_brasil.contabil.plano_de_contas import listar_nomes
 from erpnext_brasil.fiscal.impostos.apuracao import ApuracaoDocumento, ItemFiscal, Operacao, apurar, apurar_documento
 
@@ -185,6 +189,67 @@ class TestSimplesNacional(unittest.TestCase):
 
 		with self.assertRaises(ValueError):
 			aliquotas_do_regime("simples_nacional")
+
+
+class TestGerarLancamentosCompra(unittest.TestCase):
+	def test_sem_credito_e_so_estoques_contra_fornecedores(self):
+		lancamentos = gerar_lancamentos_compra(d("1000.00"), {})
+
+		self.assertEqual(len(lancamentos), 1)
+		self.assertEqual(lancamentos[0].conta_debito, "Estoques")
+		self.assertEqual(lancamentos[0].conta_credito, "Fornecedores")
+		self.assertEqual(lancamentos[0].valor, d("1000.00"))
+
+	def test_credito_de_icms_reduz_o_custo_em_estoques(self):
+		lancamentos = gerar_lancamentos_compra(d("1000.00"), {"ICMS": d("180.00")})
+
+		linha_credito = next(l for l in lancamentos if l.conta_debito == "ICMS a Recuperar")
+		self.assertEqual(linha_credito.conta_credito, "Estoques")
+		self.assertEqual(linha_credito.valor, d("180.00"))
+
+		debito_estoques = sum((l.valor for l in lancamentos if l.conta_debito == "Estoques"), d("0.00"))
+		credito_estoques = sum((l.valor for l in lancamentos if l.conta_credito == "Estoques"), d("0.00"))
+		self.assertEqual(debito_estoques - credito_estoques, d("820.00"))
+
+	def test_varios_creditos_simultaneos(self):
+		lancamentos = gerar_lancamentos_compra(
+			d("1000.00"), {"ICMS": d("180.00"), "IPI": d("100.00"), "PIS": d("16.50"), "COFINS": d("76.00")}
+		)
+		contas_debito = {l.conta_debito for l in lancamentos}
+
+		self.assertEqual(
+			contas_debito, {"Estoques", "ICMS a Recuperar", "IPI a Recuperar", "PIS a Recuperar", "COFINS a Recuperar"}
+		)
+
+	def test_credito_zerado_nao_gera_lancamento_vazio(self):
+		lancamentos = gerar_lancamentos_compra(d("1000.00"), {"IPI": d("0.00")})
+
+		self.assertEqual(len(lancamentos), 1)  # só Estoques/Fornecedores
+
+	def test_tributo_sem_conta_a_recuperar_e_rejeitado(self):
+		with self.assertRaises(LancamentoInvalido):
+			gerar_lancamentos_compra(d("1000.00"), {"ISS": d("50.00")})
+
+	def test_soma_de_creditos_maior_que_a_nota_e_rejeitada(self):
+		with self.assertRaises(LancamentoInvalido):
+			gerar_lancamentos_compra(d("100.00"), {"ICMS": d("50.00"), "IPI": d("60.00")})
+
+	def test_todas_as_contas_usadas_existem_no_plano_de_contas(self):
+		nomes_do_plano = set(listar_nomes())
+		lancamentos = gerar_lancamentos_compra(
+			d("1000.00"), {"ICMS": d("180.00"), "IPI": d("100.00"), "PIS": d("16.50"), "COFINS": d("76.00")}
+		)
+
+		for lancamento in lancamentos:
+			with self.subTest(conta=lancamento.conta_debito):
+				self.assertIn(lancamento.conta_debito, nomes_do_plano)
+			with self.subTest(conta=lancamento.conta_credito):
+				self.assertIn(lancamento.conta_credito, nomes_do_plano)
+
+	def test_historico_customizado_propaga(self):
+		lancamentos = gerar_lancamentos_compra(d("1000.00"), {"ICMS": d("180.00")}, historico="NF 456")
+
+		self.assertTrue(all(l.historico == "NF 456" for l in lancamentos))
 
 
 if __name__ == "__main__":

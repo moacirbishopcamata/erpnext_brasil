@@ -1,9 +1,10 @@
-# Lançamentos automáticos de venda
+# Lançamentos automáticos de venda e compra
 
 Segundo incremento do bloco contábil, sobre o primeiro
 ([plano-de-contas.md](plano-de-contas.md)): `contabil/lancamento.py` transforma uma
-apuração já calculada (`fiscal/impostos/apuracao.py`) num conjunto de partidas dobradas,
-cada uma referenciando uma conta real de `plano_de_contas.ARVORE`.
+apuração já calculada (`fiscal/impostos/apuracao.py`), ou um crédito de compra já
+decidido, num conjunto de partidas dobradas, cada uma referenciando uma conta real de
+`plano_de_contas.ARVORE`.
 
 ## Por que o IPI não é uma "dedução da receita" como ICMS/PIS/COFINS
 
@@ -84,22 +85,48 @@ precisa de verificação ativa é que a composição do conjunto não perdeu nem
 centavo em relação à apuração de origem. Mesma disciplina de Design by Contract já
 aplicada em `qrcode_nfce.py`: postcondição vira `assert` executável, não comentário.
 
-## Fora de escopo desta primeira versão
+## `gerar_lancamentos_compra` — a elegibilidade de crédito é decisão do chamador
+
+Diferente da venda, onde `ApuracaoDocumento` já sabe exatamente quanto de cada tributo
+foi destacado, o direito ao **crédito na compra** depende de regras de elegibilidade com
+corpo de lei próprio e complexo por tributo:
+
+- **ICMS**: vale para mercadoria destinada a revenda/industrialização por contribuinte
+  (LC 87/1996, Art. 20), com lista extensa de vedações e estornos;
+- **IPI**: vale para insumo de industrialização por estabelecimento
+  industrial/equiparado (RIPI, Decreto 7.212/2010);
+- **PIS/COFINS**: só no regime não-cumulativo, e só sobre o que a lei chama de
+  "insumo" — definição que o STJ (REsp 1.221.170/PR, repetitivo) fixou como "essencial
+  ou relevante" à atividade, não uma lista fechada de itens.
+
+Inferir isso a partir de `Operacao`/`ItemFiscal` (que descrevem a venda, não a
+elegibilidade de crédito do comprador) seria apostar em regra tributária não verificada.
+Por isso `gerar_lancamentos_compra(valor_total_nota, creditos_tributarios, ...)` recebe
+o crédito **já resolvido** pela camada de negócio — este módulo só sabe a mecânica
+contábil (`Débito Estoques / Crédito Fornecedores` pelo valor cheio da nota, depois
+`Débito <Tributo> a Recuperar / Crédito Estoques` reclassificando o que for
+recuperável), não se o crédito é devido.
+
+`creditos_tributarios` só aceita as chaves com conta "a Recuperar" em
+`plano_de_contas.py` (`TRIBUTOS_RECUPERAVEIS`: ICMS, IPI, PIS, COFINS) e a soma não pode
+exceder o valor da nota — os dois casos levantam `LancamentoInvalido`.
+
+## Fora de escopo desta versão
 
 - **ISS**: `fiscal/impostos/apuracao.py` não calcula ISS (cobre mercadoria, não
-  serviço) — sem apuração, sem lançamento automático ainda.
+  serviço) — sem apuração, sem lançamento automático de venda ainda.
 - **Imposto Seletivo**: item com `imposto_seletivo != 0` faz `gerar_lancamentos_venda`
   levantar `LancamentoInvalido` em vez de produzir um lançamento desbalanceado
   silenciosamente — não há conta própria em `plano_de_contas.py` para isso ainda.
 - **CMV/baixa de estoque**: exige custo do produto vendido, dado que `ApuracaoDocumento`
   não carrega (só preço de venda e tributos).
-- **Compras** (crédito de tributo recuperável): pedem o valor total da nota de entrada,
-  não só a apuração de tributo — módulo próprio quando chegar a vez.
+- **A própria elegibilidade de crédito na compra**: `gerar_lancamentos_compra` não
+  decide se um tributo é recuperável (ver seção acima) — só lança o que já foi decidido.
 
 ## Arquivos
 
-- `contabil/lancamento.py` — `Lancamento`, `gerar_lancamentos_venda`; camada pura, sem
-  Frappe, testável sem bench.
+- `contabil/lancamento.py` — `Lancamento`, `gerar_lancamentos_venda`,
+  `gerar_lancamentos_compra`; camada pura, sem Frappe, testável sem bench.
 
 ## Fontes
 
@@ -111,4 +138,11 @@ aplicada em `qrcode_nfce.py`: postcondição vira `assert` executável, não com
   descartada — aquele artigo, no Decreto 7.212/2010 (RIPI), trata de crédito de IPI, não
   de exclusão de receita bruta. Registrado aqui como exemplo do próprio processo de
   verificação, não só o resultado — a primeira citação parecia plausível e estava errada.
+- LC 87/1996 Art. 20 (crédito de ICMS), RIPI/Decreto 7.212/2010 (crédito de IPI) e
+  REsp 1.221.170/PR — STJ, repetitivo (conceito de insumo para PIS/COFINS não
+  cumulativo), citados na seção sobre `gerar_lancamentos_compra` como **contexto do
+  porquê a elegibilidade não é inferida por este módulo** — não foram reconferidos
+  contra o texto integral nesta sessão (diferente do DL 1.598/1977, que foi). Se algum
+  dia este módulo tentar decidir elegibilidade de crédito automaticamente, essas três
+  fontes precisam ser lidas na íntegra primeiro, não assumidas do que está escrito aqui.
 - Consultado em 2026-08-29.
