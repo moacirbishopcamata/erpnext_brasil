@@ -19,6 +19,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [apuracao-periodica.md](apuracao-periodica.md) | Fechamento periódico de ICMS/IPI: não cumulatividade (Art. 155/153 CF), saldo a recolher × saldo credor a transportar |
 | [sped-fiscal.md](sped-fiscal.md) | EFD-ICMS/IPI: por que o livro em papel foi dispensado (Ajuste SINIEF 02/09), layout dos registros E110 (ICMS) e E520 (IPI), escopo sem ajuste de apuração |
 | [ecd.md](ecd.md) | ECD (SPED Contábil): registros I050/I200/I250, numeração-padrão de contas, a pegadinha do `COD_NAT` do Patrimônio Líquido |
+| [boleto.md](boleto.md) | Código de barras/linha digitável FEBRABAN: a mudança do fator de vencimento em 2025, módulo 10/11, validado contra exemplo real |
 
 ## Convenções que valem em todo o código
 
