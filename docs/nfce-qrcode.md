@@ -134,9 +134,21 @@ nfe_completa = anexar_infnfesupl(nfe_assinada, grupo)
   ENCAT (mais CE só em homologação), ver `consulta_nfce.URL_CHAVE_POR_UF`/`url_chave`.
   Goiás, Minas Gerais, Pernambuco e Santa Catarina continuam sem confirmação — ausência
   real na fonte primária, não falta de busca.
-- **QR Code "versão 3" (NT 2025.001)**: atualização recente troca o esquema de
-  contingência específico para assinatura criptográfica em vez de hash com CSC — fora do
-  escopo desta primeira implementação, que cobre só a versão 2 vigente e majoritária.
+- **QR Code "versão 3" (NT 2025.001)** — **status revisado em 2026-08-30, mais urgente
+  do que o registrado antes**: troca o esquema de contingência offline (`tpEmis=9`) de
+  hash com CSC para assinatura criptográfica, eliminando o CSC nesse cenário. Confirmado
+  em fonte secundária que **a obrigatoriedade em produção já entrou em vigor em
+  01/09/2025** — não é mais "futuro sem data definida" como esta seção registrava.
+  Continua **não implementado aqui**, mas agora por bloqueio de fonte, não por escolha
+  de escopo: não achei nenhuma fonte (a oficial, `nfe.fazenda.gov.br`, está inacessível
+  às ferramentas de busca — redirecionamento em loop) que detalhe o algoritmo exato
+  (quais campos entram na assinatura, em que ordem, qual algoritmo de hash/assinatura,
+  qual chave, como o resultado é codificado na URL). Implementar sem essa confirmação
+  seria adivinhar um esquema criptográfico — o erro que este projeto existe para evitar,
+  ainda mais grave aqui porque uma assinatura errada não dá erro visível na hora, só
+  falha quando alguém tenta validar o QR Code depois. Escopo desta implementação
+  continua sendo só a versão 2 (emissão normal e contingência offline com CSC), que
+  segue válida para tudo que não é o caso específico que a NT 2025.001 endureceu.
 - ~~Diferenças de transporte específicas de NFC-e via autorizador de contingência
   (SVC-AN/SVC-RS)~~ — **investigado e descartado em 2026-08-29**: SVC-AN/SVC-RS são
   exclusivos de NF-e (modelo 55); NFC-e nunca usa SVC, sua contingência é sempre offline

@@ -18,6 +18,14 @@ Cobertos os dois casos: **emissão on-line** (`tpEmis` diferente de `9`, majorit
 **contingência offline** (`tpEmis = 9`) — usada quando o emitente não consegue contato
 com a SEFAZ no momento da venda e autoriza depois.
 
+**Contingência offline desatualizada desde 01/09/2025** (NT 2025.001): a partir dessa
+data, a SEFAZ passou a exigir QR Code "versão 3" (assinatura criptográfica, sem CSC)
+especificamente para esse cenário — `montar_qrcode_offline` ainda implementa a versão 2
+(hash com CSC), porque o algoritmo de assinatura da versão 3 não foi confirmado em
+nenhuma fonte acessível até agora (ver o aviso na docstring da função e `docs/
+nfce-qrcode.md`). Emissão on-line não é afetada pela NT — `montar_qrcode_online`
+continua vigente sem ressalva.
+
 Para o caso on-line, o algoritmo foi confirmado em duas fontes independentes que batem
 exatamente:
 
@@ -154,6 +162,17 @@ def montar_qrcode_offline(
 	"""Monta a URL completa do QR Code para emissão em contingência offline
 	(`tpEmis = 9`) — usada quando o emitente não consegue contato com a SEFAZ no
 	momento da venda.
+
+	**ATENÇÃO — desatualizada para uso real desde 01/09/2025.** Esta função implementa
+	o QR Code "versão 2" (hash com CSC). A Nota Técnica 2025.001 tornou obrigatória, a
+	partir dessa data, a "versão 3" (assinatura criptográfica) especificamente para
+	contingência offline — o CSC deixou de valer nesse cenário. **Não implementado
+	ainda**: não foi possível confirmar o algoritmo exato de assinatura em nenhuma fonte
+	acessível (a oficial, `nfe.fazenda.gov.br`, está inacessível às ferramentas de busca)
+	— ver `docs/nfce-qrcode.md`, seção "Ainda por implementar", para o registro completo
+	do bloqueio. Usar esta função para uma contingência offline real hoje produz um QR
+	Code que a SEFAZ pode não aceitar mais; para emissão normal (`montar_qrcode_online`),
+	a versão 2 continua vigente e não é afetada.
 
 	`digest_value` é a string base64 do `DigestValue` **exatamente como está no XML**
 	assinado — este módulo converte cada caractere ASCII dela para hex (`digHex`), não
