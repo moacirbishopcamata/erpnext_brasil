@@ -1,4 +1,4 @@
-# ECD (Escrituração Contábil Digital): registro I050
+# ECD (Escrituração Contábil Digital): registros I050, I200 e I250
 
 Sexto incremento do bloco contábil, sobre
 [plano-de-contas.md](plano-de-contas.md) — a ECD é o SPED Contábil: os livros Diário e
@@ -75,24 +75,83 @@ usa_cod_nat_03_nao_02`), incluindo que uma folha **dentro** de Patrimônio Líqu
 `ativar_contingencia_svc` receber `desde` como parâmetro: mantém a função determinística
 e testável sem mockar tempo.
 
+## I200/I250 — lançamento contábil e suas partidas
+
+`contabil/ecd_i200.montar_i200_i250` converte uma lista de `Lancamento` (já gerada por
+`lancamento.gerar_lancamentos_venda`/`gerar_lancamentos_compra`) num par de registros
+por lançamento: **I200** (cabeçalho — número, data, valor) e **I250** (as partidas —
+sempre duas, débito e crédito, porque `Lancamento` não modela lançamento com mais de
+duas pontas).
+
+### Por que dois registros para um `Lancamento`
+
+A ECD não modela "débito e crédito" como dois campos do mesmo registro — modela o
+lançamento como cabeçalho (I200, com o valor total) mais uma lista de partidas (I250,
+cada uma com sua própria conta e um indicador `D`/`C`). Um rateio entre três contas
+precisaria de um tipo mais rico que `Lancamento` ainda não é — fora de escopo.
+
+### `COD_CTA` resolvido por `montar_codigos()`
+
+`Lancamento.conta_debito`/`conta_credito` são nomes (`"Clientes"`, `"ICMS a
+Recolher"`) — a conversão usa a mesma numeração-padrão de `plano_de_contas.
+montar_codigos()` já usada pelo I050. Um nome que não exista na árvore levanta
+`ContaDesconhecida`, nunca um `COD_CTA` vazio ou inventado.
+
+### Layout dos dois registros
+
+**I200:**
+
+| # | Campo | Descrição |
+|---|---|---|
+| 1 | `REG` | Fixo, `"I200"` |
+| 2 | `NUM_LCTO` | Identificador único do lançamento |
+| 3 | `DT_LCTO` | Data do lançamento |
+| 4 | `VL_LCTO` | Valor do lançamento |
+| 5 | `IND_LCTO` | `"N"` normal / `"E"` encerramento de resultado / `"X"` extemporâneo |
+
+**I250** (uma linha por partida):
+
+| # | Campo | Descrição |
+|---|---|---|
+| 1 | `REG` | Fixo, `"I250"` |
+| 2 | `COD_CTA` | Código da conta analítica debitada/creditada |
+| 3 | `COD_CCUS` | Centro de custo (não modelado — sempre vazio) |
+| 4 | `VL_DC` | Valor da partida (igual ao `VL_LCTO` do I200) |
+| 5 | `IND_DC` | `"D"` débito / `"C"` crédito |
+| 6 | `NUM_ARQ` | Referência a documento anexado (não modelado — vazio) |
+| 7 | `COD_HIST_PAD` | Histórico padronizado, tabela I075 (não modelada — vazio) |
+| 8 | `HIST` | Texto do histórico — vem de `Lancamento.historico` |
+| 9 | `COD_PART` | Participante, tabela 0150 (não modelada — vazio) |
+
+### Escopo desta versão
+
+`IND_LCTO` sempre `"N"` — `lancamento.py` não produz lançamento de encerramento de
+resultado (`"E"`) nem extemporâneo (`"X"`). `COD_CCUS`, `COD_HIST_PAD`, `COD_PART` e
+`NUM_ARQ` ficam sempre em branco — as tabelas auxiliares correspondentes (centro de
+custo, histórico padronizado, participante, documento anexado) não existem neste app.
+
 ## Ainda por implementar
 
 - **Registro I051** (plano de contas referencial da RFB) — mapeamento entre o plano
   próprio e o plano referencial que a ECD também aceita, para quem usa o de terceiros.
-- **Registros I150/I155/I200/I250** (saldos periódicos e lançamentos) — o I050 só
-  declara o plano; os lançamentos de verdade (que `contabil/lancamento.py` já gera)
-  ainda não têm conversor para o formato do bloco I da ECD.
+- **Registro I150/I155** (saldos periódicos) — I200/I250 cobrem o lançamento em si, não
+  o saldo consolidado por conta ao fim do período.
+- **Lançamento com mais de duas pontas** (rateio entre três ou mais contas) — pede um
+  tipo mais rico que `Lancamento`, hoje limitado a um débito e um crédito.
 - **Serialização para o formato de texto do SPED** — mesma decisão já registrada em
-  `docs/sped-fiscal.md`: este módulo devolve `list[dict]`, não a linha de texto.
+  `docs/sped-fiscal.md`: este módulo devolve `list[dict]`/`list[tuple[dict, list[dict]]]`,
+  não a linha de texto.
 
 ## Arquivos
 
 - `contabil/ecd_i050.py` — `montar_i050`; camada pura, sem Frappe, testável sem bench.
-- `contabil/plano_de_contas.montar_codigos` — a numeração-padrão que este módulo usa.
+- `contabil/ecd_i200.py` — `montar_i200_i250`; idem.
+- `contabil/plano_de_contas.montar_codigos` — a numeração-padrão que os dois usam.
 
 ## Fontes
 
-- Layout do registro I050 e tabela `COD_NAT` — fonte oficial (`sped.rfb.gov.br`, o
-  Manual de Orientação da ECD) inacessível às ferramentas de busca no momento;
-  confirmado em guia técnico especializado (`vriconsulting.com.br`), corroborado por
-  busca cruzada que reproduziu a mesma tabela de códigos — consultado em 2026-08-30.
+- Layout dos registros I050, I200 e I250, e tabelas `COD_NAT`/`IND_LCTO`/`IND_DC` —
+  fonte oficial (`sped.rfb.gov.br`, o Manual de Orientação da ECD) inacessível às
+  ferramentas de busca no momento; confirmado em guia técnico especializado
+  (`vriconsulting.com.br`), corroborado por busca cruzada que reproduziu a mesma tabela
+  de códigos — consultado em 2026-08-30.

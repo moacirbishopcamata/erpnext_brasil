@@ -18,7 +18,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [lancamentos-contabeis.md](lancamentos-contabeis.md) | Partidas dobradas de uma venda: por que IPI não passa pela receita (DL 1.598/77), tratamento provisório de IBS/CBS e sua fase de teste sem recolhimento real |
 | [apuracao-periodica.md](apuracao-periodica.md) | Fechamento periódico de ICMS/IPI: não cumulatividade (Art. 155/153 CF), saldo a recolher × saldo credor a transportar |
 | [sped-fiscal.md](sped-fiscal.md) | EFD-ICMS/IPI: por que o livro em papel foi dispensado (Ajuste SINIEF 02/09), layout dos registros E110 (ICMS) e E520 (IPI), escopo sem ajuste de apuração |
-| [ecd.md](ecd.md) | ECD (SPED Contábil): registro I050, numeração-padrão de contas, a pegadinha do `COD_NAT` do Patrimônio Líquido |
+| [ecd.md](ecd.md) | ECD (SPED Contábil): registros I050/I200/I250, numeração-padrão de contas, a pegadinha do `COD_NAT` do Patrimônio Líquido |
 
 ## Convenções que valem em todo o código
 
