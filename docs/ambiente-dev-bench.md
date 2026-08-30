@@ -238,6 +238,21 @@ Installed apps: ['frappe', 'erpnext', 'erpnext_brasil']
 hooks.py chaves: 10
 ```
 
+**`bench run-tests` confirmado contra o site real** (precisa de
+`bench --site erpnext-brasil.localhost set-config allow_tests true` antes, exigência
+padrão do bench):
+
+```
+$ bench --site erpnext-brasil.localhost run-tests --app erpnext_brasil
+Ran 685 tests in 10.520s
+OK (skipped=1)
+```
+
+Mesma contagem da suíte pura (`python -m unittest`, sem bench) — primeira vez que ela
+roda pelo executor real do Frappe, com banco e Redis de verdade, não só sintaxe/mocks.
+O único skip é esperado (`test_compatibilidade.py`, degrada quando uma tabela de
+referência externa não está disponível no ambiente).
+
 ## Comandos do dia a dia
 
 ```bash
