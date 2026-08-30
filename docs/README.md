@@ -24,6 +24,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [rh-inss.md](rh-inss.md) | Contribuição previdenciária do empregado (tabela 2026), verificada faixa a faixa contra o método da parcela a deduzir |
 | [rh-irrf.md](rh-irrf.md) | Imposto de Renda Retido na Fonte na folha: tabela 2026, o redutor da Lei 15.270/2025, os 5 exemplos oficiais da Receita Federal reproduzidos como teste |
 | [rh-fgts.md](rh-fgts.md) | FGTS: depósito mensal (não é desconto do empregado), multa rescisória por motivo de desligamento, o que fica de fora (prazo, saque) |
+| [rh-integracao-salary-slip.md](rh-integracao-salary-slip.md) | Primeira integração real com o `hrms`: hook `regional_overrides`, INSS/IRRF no `Salary Slip`, por que FGTS fica de fora, estado de verificação sem bench |
 | [boleto.md](boleto.md) | Código de barras/linha digitável FEBRABAN (validado contra exemplo real) e leitura do CNAB 400 de retorno para conciliação |
 
 ## Convenções que valem em todo o código

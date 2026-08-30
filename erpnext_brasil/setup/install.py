@@ -11,6 +11,7 @@ ou ficar desatualizados quando o ERPNext altera o DocType base, e `create_custom
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
+from erpnext_brasil.integracao.folha import COMPONENTES_DESTE_MODULO
 from erpnext_brasil.integracao.seed_codigos import criar_listas_de_codigos
 from erpnext_brasil.setup.campos_documento import get_custom_fields as get_campos_documento
 from erpnext_brasil.setup.custom_fields import get_custom_fields
@@ -19,11 +20,37 @@ from erpnext_brasil.setup.custom_fields import get_custom_fields
 def after_install():
 	criar_campos_fiscais()
 	criar_listas_de_codigos()
+	criar_componentes_salariais()
 
 
 def after_migrate():
 	criar_campos_fiscais()
 	criar_listas_de_codigos()
+	criar_componentes_salariais()
+
+
+def criar_componentes_salariais() -> None:
+	"""Cria os `Salary Component` que `integracao/folha.py` referencia (INSS, IRRF).
+
+	Condicional à instalação do `hrms`: `erpnext_brasil` não o exige em
+	`required_apps` (o bloco fiscal funciona sem RH nenhum instalado), então o
+	DocType `Salary Component` pode simplesmente não existir — checar antes de
+	tentar, em vez de deixar a instalação fiscal quebrar por falta de um app opcional.
+	"""
+	if not frappe.db.exists("DocType", "Salary Component"):
+		return
+
+	for nome in COMPONENTES_DESTE_MODULO:
+		if frappe.db.exists("Salary Component", nome):
+			continue
+
+		frappe.get_doc(
+			{
+				"doctype": "Salary Component",
+				"salary_component": nome,
+				"type": "Deduction",
+			}
+		).insert(ignore_permissions=True)
 
 
 def criar_campos_fiscais(update: bool = True):

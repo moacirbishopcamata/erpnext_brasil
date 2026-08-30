@@ -86,8 +86,8 @@ decididos pelo chamador em vez de inferi-los.
 
 ## Ainda por implementar
 
-- **Plugar em `SalarySlip.apply_regional_deductions`** — hoje é só a conta, sem
-  nenhuma integração com Frappe/doctype.
+- **Plugar em `SalarySlip.apply_regional_deductions`** — feito, ver
+  `docs/rh-integracao-salary-slip.md` (não exercitado contra bench real ainda).
 - **Dedução por dependente** (R$ 189,59/mês por dependente, valor histórico da
   tabela tradicional) não modelada como conceito de primeira classe — quem chama
   `calcular_irrf` já precisa ter descontado isso da base, se for o método escolhido.

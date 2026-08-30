@@ -54,9 +54,8 @@ e errado.
 
 ## Ainda por implementar
 
-- **Plugar em `SalarySlip.apply_regional_deductions`** (o hook do `hrms`, ver
-  `docs/rh-estado-hrms.md`) — hoje `calcular_inss` é só a conta, sem nenhuma
-  integração com Frappe/doctype.
+- **Plugar em `SalarySlip.apply_regional_deductions`** — feito, ver
+  `docs/rh-integracao-salary-slip.md` (não exercitado contra bench real ainda).
 - **INSS patronal** (a contribuição do empregador sobre a folha, alíquota e regras
   diferentes — inclusive Simples Nacional/Desoneração da Folha têm tratamento
   próprio) — não coberto, só a contribuição do empregado.

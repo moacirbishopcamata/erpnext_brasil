@@ -7,6 +7,18 @@ app_license = "MIT"
 
 required_apps = ["frappe/erpnext"]
 
+# O bloco fiscal roda sem RH nenhum instalado — `hrms` não é obrigatório. Este hook só
+# tem efeito quando `hrms` também está instalado: é ele quem lê `regional_overrides`
+# (via `hrms.allow_regional`), erpnext_brasil não precisa verificar a presença dele
+# aqui. Ver `docs/rh-estado-hrms.md` e `integracao/folha.py`.
+regional_overrides = {
+	"Brazil": {
+		"hrms.payroll.doctype.salary_slip.salary_slip.apply_regional_deductions": (
+			"erpnext_brasil.integracao.folha.apply_regional_deductions"
+		),
+	}
+}
+
 after_install = "erpnext_brasil.setup.install.after_install"
 after_migrate = "erpnext_brasil.setup.install.after_migrate"
 
