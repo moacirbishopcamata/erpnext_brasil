@@ -26,24 +26,43 @@ suposição inicial errada (cheguei a cogitar "E200"), corrigida antes de escrev
 qualquer código: E200/E210 são de ICMS-Substituição Tributária, E300/E310 são de ICMS-
 DIFAL (EC 87/2015). A apuração do IPI vive no bloco E500-E530, não perto do E110/E2xx.
 
-Escopo desta primeira versão: só o caso sem ajuste de apuração
+Escopo: E110/E111 (ICMS) cobrem ajuste real; E520 (IPI) ainda não
 -------------------------------------------------------------------
-O registro E110 tem 13 campos de valor; só 6 correspondem ao que `ApuracaoPeriodo`
-calcula. Os outros 7 — `VL_AJ_DEBITOS`, `VL_TOT_AJ_DEBITOS`, `VL_ESTORNOS_CRED`,
-`VL_AJ_CREDITOS`, `VL_TOT_AJ_CREDITOS`, `VL_ESTORNOS_DEB`, `VL_TOT_DED` — são **ajustes
-de apuração**: cada um discriminado, no registro E111 do mesmo bloco, contra uma tabela
-de códigos própria (Tabela 5.3 do Guia Prático EFD) que este app não modela ainda. No
-E520, os dois campos análogos (`VL_OD_IPI`, `VL_OC_IPI` — "outros débitos"/"outros
-créditos", que também cobrem estornos) têm o registro **E530** como equivalente do E111.
+O registro E110 tem 13 campos de valor; só 6 vêm direto de `ApuracaoPeriodo`. Os outros
+7 são **ajustes de apuração** — cada um discriminado, no registro **E111** do mesmo
+bloco, contra uma tabela de códigos própria por UF (Ato COTEPE/ICMS 09/2008, item
+5.1.1, com fallback para a tabela federal quando o estado não tem tabela própria — a
+mesma variação por UF já vista em `boleto.py`/`cnab400_retorno.py`: não modelada aqui,
+o código vem pronto de quem chama).
 
-`montar_e110`/`montar_e520` zeram os campos de ajuste dos respectivos registros. Isto
-está **correto** para uma apuração sem nenhum ajuste (o caso comum — nenhuma glosa,
-nenhum estorno, nenhuma dedução do período). Não está correto para uma apuração que
-precise de ajuste real: usar estas funções nesse caso produziria um registro
-estruturalmente válido, mas que subestimaria ou superestimaria o que é devido —
-silenciosamente. Por isso não há, hoje, nenhum ponto de entrada que descubra sozinho
-"este período teve ajuste" e ainda assim chame estas funções; isso fica para quando os
-registros E111/E530 forem implementados.
+`COD_AJ_APUR` tem 4 caracteres; o **quarto** decide para qual campo do E110 o valor do
+ajuste soma:
+
+| 4º caractere | Tipo | Campo do E110 |
+|---|---|---|
+| `0` | Outros débitos | `VL_TOT_AJ_DEBITOS` |
+| `1` | Estornos de crédito | `VL_ESTORNOS_CRED` |
+| `2` | Outros créditos | `VL_TOT_AJ_CREDITOS` |
+| `3` | Estornos de débito | `VL_ESTORNOS_DEB` |
+| `4` | Deduções | `VL_TOT_DED` |
+| `5` | Débitos especiais (extemporâneos) | `DEB_ESP` |
+
+`VL_AJ_DEBITOS`/`VL_AJ_CREDITOS` (os dois campos "não-total", distintos de
+`VL_TOT_AJ_DEBITOS`/`VL_TOT_AJ_CREDITOS`) representam ajuste **vinculado a um documento
+fiscal específico** — categoria diferente do ajuste "solto" que `Ajuste`/`montar_e111`
+modelam aqui, e por isso ficam sempre zerados; não confundir com "ainda não suportado
+por engano" (é uma origem de dado genuinamente diferente, fora de escopo declarado).
+
+`montar_e110` recalcula `VL_SLD_APURADO`/`VL_ICMS_RECOLHER`/`VL_SLD_CREDOR_TRANSPORTAR`
+somando os ajustes à fórmula — não reaproveita `ApuracaoPeriodo.a_recolher`/
+`saldo_credor_a_transportar` direto, porque esses dois **não sabem de ajuste**
+(`ApuracaoPeriodo` é escopo de débito/crédito bruto só, ver `docs/apuracao-periodica.md`).
+Dedução (`VL_TOT_DED`) maior que o saldo devedor apurado é situação não coberta —
+levanta erro explícito em vez de inventar um saldo credor originado de dedução (caso
+raro, tratamento não confirmado em fonte).
+
+`E520` (IPI) continua sem ajuste — o registro equivalente (`E530`) ainda não foi
+levantado; `montar_e520` continua zerando `VL_OD_IPI`/`VL_OC_IPI` como antes.
 
 Formato de saída: dict de campo → valor, não a linha de texto do EFD
 ------------------------------------------------------------------------
@@ -57,41 +76,142 @@ de dados do XML final. Este módulo só resolve a primeira.
 Funções puras: nenhuma dependência do Frappe.
 """
 
+from dataclasses import dataclass
 from decimal import Decimal
 
 from erpnext_brasil.contabil.apuracao_periodo import ApuracaoPeriodo
 
-__all__ = ["montar_e110", "montar_e520"]
+__all__ = ["Ajuste", "EfdInvalido", "montar_e110", "montar_e111", "montar_e520"]
 
 ZERO = Decimal("0.00")
 
+# 4º caractere de COD_AJ_APUR — ver a tabela na docstring do módulo.
+_TIPO_OUTROS_DEBITOS = "0"
+_TIPO_ESTORNO_CREDITO = "1"
+_TIPO_OUTROS_CREDITOS = "2"
+_TIPO_ESTORNO_DEBITO = "3"
+_TIPO_DEDUCAO = "4"
+_TIPO_DEBITO_ESPECIAL = "5"
 
-def montar_e110(apuracao: ApuracaoPeriodo) -> dict:
+_TIPOS_VALIDOS = frozenset(
+	{_TIPO_OUTROS_DEBITOS, _TIPO_ESTORNO_CREDITO, _TIPO_OUTROS_CREDITOS, _TIPO_ESTORNO_DEBITO, _TIPO_DEDUCAO, _TIPO_DEBITO_ESPECIAL}
+)
+
+
+class EfdInvalido(ValueError):
+	"""Dado de ajuste que não se encaixa no que os registros E110/E111 esperam."""
+
+
+@dataclass(frozen=True)
+class Ajuste:
+	"""Um ajuste de apuração do ICMS — vira uma linha E111 e soma no campo certo do E110.
+
+	`codigo` é o `COD_AJ_APUR` já resolvido por quem chama (tabela da UF do
+	contribuinte, ou a federal quando o estado não tem tabela própria — Ato
+	COTEPE/ICMS 09/2008, item 5.1.1) — este módulo não conhece nenhuma tabela de UF,
+	só lê o 4º caractere para saber o tipo.
+	"""
+
+	codigo: str
+	descricao: str
+	valor: Decimal
+
+	def __post_init__(self) -> None:
+		if len(self.codigo) != 4:
+			raise EfdInvalido(f"COD_AJ_APUR deve ter 4 caracteres, recebido {self.codigo!r}")
+
+		if self.codigo[3] not in _TIPOS_VALIDOS:
+			raise EfdInvalido(
+				f"4º caractere de {self.codigo!r} deve ser um de {sorted(_TIPOS_VALIDOS)}, "
+				f"recebido {self.codigo[3]!r}"
+			)
+
+		if self.valor < ZERO:
+			raise EfdInvalido(f"valor do ajuste não pode ser negativo, recebido {self.valor}")
+
+	@property
+	def tipo(self) -> str:
+		return self.codigo[3]
+
+
+def montar_e111(ajustes: list[Ajuste]) -> list[dict]:
+	"""Uma linha E111 por `Ajuste` — ordem de campos oficial do Guia Prático EFD."""
+	return [
+		{"REG": "E111", "COD_AJ_APUR": a.codigo, "DESCR_COMPL_AJ": a.descricao, "VL_AJ_APUR": a.valor}
+		for a in ajustes
+	]
+
+
+def _somar_por_tipo(ajustes: list[Ajuste], tipo: str) -> Decimal:
+	return sum((a.valor for a in ajustes if a.tipo == tipo), ZERO)
+
+
+def montar_e110(apuracao: ApuracaoPeriodo, ajustes: list[Ajuste] = ()) -> dict:
 	"""Campos do registro E110, na ordem oficial do Guia Prático EFD-ICMS/IPI.
 
 	Pré-condição: `apuracao.tributo` precisa ser `"ICMS"` — E110 é o registro de
 	apuração do ICMS; IPI tem registro próprio (`E520`, ver `montar_e520`), layout
 	diferente.
+
+	`ajustes` (ver `Ajuste`/`montar_e111`) entra na fórmula de `VL_SLD_APURADO` —
+	`ApuracaoPeriodo` sozinho não sabe de ajuste algum, só débito/crédito bruto.
 	"""
 	if apuracao.tributo != "ICMS":
 		raise ValueError(f"E110 é o registro de apuração do ICMS, recebido tributo={apuracao.tributo!r}")
+
+	ajustes = list(ajustes)
+
+	tot_aj_debitos = _somar_por_tipo(ajustes, _TIPO_OUTROS_DEBITOS)
+	estornos_cred = _somar_por_tipo(ajustes, _TIPO_ESTORNO_CREDITO)
+	tot_aj_creditos = _somar_por_tipo(ajustes, _TIPO_OUTROS_CREDITOS)
+	estornos_deb = _somar_por_tipo(ajustes, _TIPO_ESTORNO_DEBITO)
+	tot_ded = _somar_por_tipo(ajustes, _TIPO_DEDUCAO)
+	deb_esp = _somar_por_tipo(ajustes, _TIPO_DEBITO_ESPECIAL)
+
+	# Débitos + ajustes + estornos, menos créditos, menos o saldo credor que já vinha
+	# do período anterior — o mesmo formato que ApuracaoPeriodo.saldo usa, só que agora
+	# com os ajustes somados aos dois lados.
+	bruto = (
+		apuracao.debitos
+		+ tot_aj_debitos
+		+ estornos_cred
+		- apuracao.creditos
+		- tot_aj_creditos
+		- estornos_deb
+		- apuracao.saldo_credor_anterior
+	)
+
+	if bruto >= ZERO:
+		if tot_ded > bruto:
+			raise EfdInvalido(
+				f"Dedução ({tot_ded}) maior que o saldo devedor apurado ({bruto}) — "
+				"caso não coberto, não há fonte confirmada para o tratamento correto"
+			)
+
+		sld_apurado = bruto
+		icms_recolher = bruto - tot_ded
+		sld_credor_transportar = ZERO
+	else:
+		sld_apurado = ZERO
+		icms_recolher = ZERO
+		sld_credor_transportar = -bruto
 
 	return {
 		"REG": "E110",
 		"VL_TOT_DEBITOS": apuracao.debitos,
 		"VL_AJ_DEBITOS": ZERO,
-		"VL_TOT_AJ_DEBITOS": ZERO,
-		"VL_ESTORNOS_CRED": ZERO,
+		"VL_TOT_AJ_DEBITOS": tot_aj_debitos,
+		"VL_ESTORNOS_CRED": estornos_cred,
 		"VL_TOT_CREDITOS": apuracao.creditos,
 		"VL_AJ_CREDITOS": ZERO,
-		"VL_TOT_AJ_CREDITOS": ZERO,
-		"VL_ESTORNOS_DEB": ZERO,
+		"VL_TOT_AJ_CREDITOS": tot_aj_creditos,
+		"VL_ESTORNOS_DEB": estornos_deb,
 		"VL_SLD_CREDOR_ANT": apuracao.saldo_credor_anterior,
-		"VL_SLD_APURADO": apuracao.a_recolher,
-		"VL_TOT_DED": ZERO,
-		"VL_ICMS_RECOLHER": apuracao.a_recolher,
-		"VL_SLD_CREDOR_TRANSPORTAR": apuracao.saldo_credor_a_transportar,
-		"DEB_ESP": ZERO,
+		"VL_SLD_APURADO": sld_apurado,
+		"VL_TOT_DED": tot_ded,
+		"VL_ICMS_RECOLHER": icms_recolher,
+		"VL_SLD_CREDOR_TRANSPORTAR": sld_credor_transportar,
+		"DEB_ESP": deb_esp,
 	}
 
 

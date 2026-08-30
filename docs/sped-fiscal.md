@@ -1,4 +1,4 @@
-# SPED Fiscal (EFD-ICMS/IPI): registros E110 e E520
+# SPED Fiscal (EFD-ICMS/IPI): registros E110, E111 e E520
 
 Quarto incremento do bloco contábil, sobre
 [apuracao-periodica.md](apuracao-periodica.md) — primeiro passo em "obrigações
@@ -79,22 +79,51 @@ mesma ordem. Para o E520, a mesma fonte confirma explicitamente que `VL_SC_IPI` 
 `VL_SD_IPI` são mutuamente exclusivos — a mesma regra que `ApuracaoPeriodo` já
 implementava antes de eu ler essa confirmação, não o contrário.
 
-## Escopo desta primeira versão: só o caso sem ajuste de apuração
+## E111: ajuste de apuração do ICMS, agora coberto
 
-Dos 13 campos de valor do E110, só 6 correspondem ao que `ApuracaoPeriodo` calcula. Os
-outros 7 (`VL_AJ_DEBITOS`, `VL_TOT_AJ_DEBITOS`, `VL_ESTORNOS_CRED`, `VL_AJ_CREDITOS`,
-`VL_TOT_AJ_CREDITOS`, `VL_ESTORNOS_DEB`, `VL_TOT_DED`) são **ajustes de apuração** —
-cada um discriminado, no registro **E111** do mesmo bloco, contra uma tabela de códigos
-própria (Tabela 5.3 do Guia Prático) que este app não modela ainda. No E520, os dois
-campos análogos (`VL_OD_IPI`, `VL_OC_IPI`) têm o registro **E530** como equivalente.
+O registro E111 discrimina, um a um, cada ajuste que compõe os 7 campos de ajuste do
+E110 — `VL_TOT_AJ_DEBITOS`, `VL_ESTORNOS_CRED`, `VL_TOT_AJ_CREDITOS`,
+`VL_ESTORNOS_DEB`, `VL_TOT_DED`, `DEB_ESP` (`VL_AJ_DEBITOS`/`VL_AJ_CREDITOS` são
+ajuste vinculado a documento fiscal específico, categoria diferente, continuam fora de
+escopo). Layout (4 campos, ordem oficial):
 
-`montar_e110`/`montar_e520` zeram os campos de ajuste. Isso está **correto** para uma
-apuração sem nenhum ajuste (nenhuma glosa, nenhum estorno, nenhuma dedução do período —
-o caso comum). **Não** está correto para uma apuração que precise de ajuste real: usaria
-a função e produziria um registro estruturalmente válido, mas que mentiria sobre o valor
-devido, silenciosamente. Por isso não existe hoje nenhum ponto de entrada que decida
-sozinho "este período não teve ajuste" e chame estas funções — essa decisão continua
-sendo de quem chama, até os registros E111/E530 existirem.
+| # | Campo | Descrição |
+|---|---|---|
+| 1 | `REG` | Fixo, `"E111"` |
+| 2 | `COD_AJ_APUR` | Código do ajuste (4 caracteres) |
+| 3 | `DESCR_COMPL_AJ` | Descrição complementar |
+| 4 | `VL_AJ_APUR` | Valor do ajuste |
+
+`COD_AJ_APUR` **não tem tabela nacional única** — cada UF mantém sua própria tabela de
+códigos (Ato COTEPE/ICMS 09/2008, item 5.1.1, usado como *fallback* só quando o estado
+não tem tabela própria) — mesma variação por UF já vista em `boleto.py`
+(`campo_livre`)/`cnab400_retorno.py` (dialeto por banco). Por isso `Ajuste.codigo` vem
+pronto de quem chama; este módulo só lê o **4º caractere**, que decide o tipo (e,
+portanto, para qual campo do E110 o valor soma):
+
+| 4º caractere | Tipo | Campo do E110 |
+|---|---|---|
+| `0` | Outros débitos | `VL_TOT_AJ_DEBITOS` |
+| `1` | Estornos de crédito | `VL_ESTORNOS_CRED` |
+| `2` | Outros créditos | `VL_TOT_AJ_CREDITOS` |
+| `3` | Estornos de débito | `VL_ESTORNOS_DEB` |
+| `4` | Deduções | `VL_TOT_DED` |
+| `5` | Débitos especiais (extemporâneos) | `DEB_ESP` |
+
+`montar_e110(apuracao, ajustes)` recalcula `VL_SLD_APURADO`/`VL_ICMS_RECOLHER`/
+`VL_SLD_CREDOR_TRANSPORTAR` somando os ajustes à fórmula — não reaproveita
+`ApuracaoPeriodo.a_recolher`/`saldo_credor_a_transportar` direto, porque esses dois não
+sabem de ajuste algum (escopo de débito/crédito bruto só). `DEB_ESP` fica de fora da
+fórmula — confirmado na fonte como valor informativo (débito extemporâneo), não algo
+que altera o saldo apurado. Dedução maior que o saldo devedor apurado levanta erro
+explícito (`EfdInvalido`) — caso não coberto, sem fonte confirmada para o tratamento
+correto.
+
+## E520 (IPI) continua sem ajuste — E530 ainda não levantado
+
+Diferente do par E110/E111, o par E520/E530 do IPI não teve seu registro de ajuste
+(E530) pesquisado ainda — `montar_e520` continua zerando `VL_OD_IPI`/`VL_OC_IPI` como
+antes, com a mesma ressalva: correto sem ajuste real, não correto com ajuste.
 
 ## Formato de saída: dict, não a linha de texto do EFD
 
@@ -108,27 +137,28 @@ de dados primeiro, o formato de texto depois, como camada própria).
 
 ## Ainda por implementar
 
-- **Registros E111/E530** (discriminação de ajustes) — pré-requisito para
-  `montar_e110`/`montar_e520` cobrirem apuração com ajuste real.
+- **Registro E530** (ajuste de apuração do IPI) — equivalente do E111 para IPI.
 - **Registros E200/E210 (ICMS-ST) e E300/E310 (ICMS-DIFAL)** — apurações distintas de
   E110, não cobertas; DIFAL em particular já é gap deliberado desde `imposto_item.py`.
 - **Serialização para o formato de texto do EFD** (pipe-delimited, decimal com
   vírgula) — ver seção acima.
 - **Blocos 0, C, D, H, K, 1, 9** do EFD (identificação, documentos fiscais, inventário,
   totalizadores) — o arquivo completo tem muito mais que o bloco E de apuração; este
-  incremento cobre só dois registros de um bloco.
+  incremento cobre só três registros de um bloco.
+- **Tabela de códigos de ajuste por UF** — `Ajuste.codigo` vem pronto de quem chama;
+  nenhuma das 27 tabelas estaduais (nem a federal de fallback) foi modelada aqui.
 
 ## Arquivos
 
-- `contabil/efd_icms_ipi.py` — `montar_e110`, `montar_e520`; camada pura, sem Frappe,
-  testável sem bench.
+- `contabil/efd_icms_ipi.py` — `Ajuste`, `montar_e110`, `montar_e111`, `montar_e520`;
+  camada pura, sem Frappe, testável sem bench.
 
 ## Fontes
 
 - Ajuste SINIEF 02/2009 (dispensa dos livros em papel) — confirmado em fontes
   secundárias consistentes (`sped.rfb.gov.br`, `sefaz.pe.gov.br`) — consultado em
   2026-08-30.
-- Guia Prático EFD-ICMS/IPI, layout dos registros E110 e E520 — fonte oficial
+- Guia Prático EFD-ICMS/IPI, layout dos registros E110, E111 e E520 — fonte oficial
   (`sped.rfb.gov.br`) inacessível às ferramentas de busca no momento; confirmado em
   guia técnico especializado (`vriconsulting.com.br`) com descrição campo a campo,
   corroborado por busca cruzada — consultado em 2026-08-30.

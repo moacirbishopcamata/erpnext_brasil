@@ -277,9 +277,9 @@ de "ativar contingência" (que precisaria remontar/reassinar o XML com `tpEmis`/
 
 - `NfeConsultaCadastro` para AM e SVAN em homologação (ausente na fonte, não confirmado
   em nenhuma outra) — inutilização já implementada, ver `docs/inutilizacao-nfe.md`.
-- `urlChave` (consulta manual de NFC-e sem QR Code) por UF: a única fonte disponível
-  (`nfephp-org/sped-nfe`) só tem a URL de QR Code (`NfeConsultaQR`), não uma URL de
-  consulta manual separada — pendente de fonte melhor ou orientação do usuário.
+- ~~`urlChave` (consulta manual de NFC-e sem QR Code) por UF~~ — **resolvido em
+  2026-08-30** via fonte oficial do ENCAT: 22 das 27 UFs confirmadas em produção, ver
+  `docs/nfce-qrcode.md` e `consulta_nfce.URL_CHAVE_POR_UF`.
 - ~~Ativação de contingência SVC-AN/SVC-RS: remontar o XML com `tpEmis`/`dhCont`/
   `xJust`, reassinar e tratar a nova chave de acesso gerada~~ — **implementado em
   2026-08-29**, ver `nfe.ativar_contingencia_svc` e `docs/montagem-da-nfe.md`. Falta
