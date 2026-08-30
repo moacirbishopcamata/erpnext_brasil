@@ -7,16 +7,30 @@ calculava (INSS, IRRF).
 
 ## O que esta fatia cobre
 
-Só os grupos verificados contra um XSD literal: `ideEvento`, `ideEmpregador`
-(`TEmpregador`) e `TItemRemuneracao` (a linha de rubrica dentro de
-`detVerbas`/`itensRemun`) — mais `linhas_de_inss_irrf`, a ponte que transforma os
-valores já calculados por `folha/inss.py`/`folha/irrf.py` nessas linhas.
+Todos os grupos verificados contra um XSD literal: `ideEvento`, `ideEmpregador`
+(`TEmpregador`), `ideTrabalhador` (com `infoComplem`), `TItemRemuneracao`
+(`detVerbas`/`itensRemun`), `RemunPerApur`, `IdeEstabLot`, `InfoPerApur` e `DmDev` —
+a árvore inteira que aninha uma linha de rubrica dentro do
+estabelecimento/lotação/categoria do trabalhador e do período — mais
+`linhas_de_inss_irrf`, a ponte que transforma os valores já calculados por
+`folha/inss.py`/`folha/irrf.py` em `ItemRemuneracao`.
 
-**Não cobre**: a árvore inteira do evento (`ideTrabalhador`, `dmDev`, `infoPerApur`,
-`ideEstabLot`, `remunPerApur` — os grupos que aninham as linhas de rubrica dentro da
-identificação do estabelecimento/lotação e do período), nem a serialização para XML,
-assinatura ou envio — isso é a "camada de transporte", uma fatia à parte que ainda não
-foi atacada (ver `docs/rh-estado-esocial.md`).
+**Não cobre, deliberadamente**:
+
+- `infoMV` (trabalhador com múltiplos vínculos, afeta o teto do INSS) e
+  `procJudTrab` (decisão judicial que muda a tributação de uma verba), dentro de
+  `ideTrabalhador` — grupos raros, cada um exigiria sua própria tabela de domínio.
+- `infoPerAnt`/`ideADC` (remuneração de período anterior por acordo/convenção
+  coletiva retroativos), dentro de `DmDev` — outro grupo raro com árvore própria
+  (`idePeriodo`, análoga a `infoPerApur`).
+- `infoSaudeColet`/`infoAgNocivo`, dentro de `RemunPerApur` — condicionais a
+  situações específicas (plano de saúde coletivo, agente nocivo).
+- A serialização para XML, assinatura ou envio — isso é a "camada de transporte",
+  uma fatia à parte que ainda não foi atacada (ver `docs/rh-estado-esocial.md`).
+
+Em todos os casos acima, a decisão foi a mesma: modelar sem uma fonte tão bem
+verificada quanto o resto deste módulo arriscaria uma estrutura errada silenciosa
+— pior que simplesmente não ter o grupo ainda.
 
 ## Fonte do XSD: um obstáculo novo, diferente do "PDF digitalizado"
 
@@ -69,6 +83,21 @@ chamado por quem monta o evento, mesma separação de `nfe.py` não revalidar o 
 centavo) — quando ausentes (o caso de INSS/IRRF, informados como valor final direto),
 `vrRubr` é aceito como está.
 
+### A árvore: `DmDev` → `InfoPerApur` → `IdeEstabLot` → `RemunPerApur` → `ItemRemuneracao`
+
+| Grupo | Campos próprios | Limite do XSD |
+|---|---|---|
+| `ideTrabalhador` | `cpfTrab` (11 dígitos), `nisTrab` (11 dígitos, opcional), `infoComplem` | — |
+| `infoComplem` | `nmTrab` (2-70), `dtNascto`, `codCBO` (4-6 dígitos), `natAtividade`/`qtdDiasTrab` opcionais | — |
+| `DmDev` | `ideDmDev` (1-30), `codCateg` (3 dígitos — tabela de categoria do eSocial, enumeração completa não modelada) | até 99 `DmDev` por evento |
+| `InfoPerApur` | lista de `IdeEstabLot` | até 24 |
+| `IdeEstabLot` | `tpInsc`/`nrInsc` (mesmo formato de `ideEmpregador`), `codLotacao` (1-30), `qtdDiasAv` opcional | até 24 por `InfoPerApur`, até 8 `RemunPerApur` cada |
+| `RemunPerApur` | `matricula` opcional (1-30), `indSimples` opcional, lista de `ItemRemuneracao` | 1 a 200 itens |
+
+`nrInsc` de `IdeEstabLot` reaproveita a mesma validação de formato de `ideEmpregador`
+(`_validar_nr_insc`, fatorado para as duas) — mesmo dígito verificador de CNPJ/CPF
+ficando fora deste módulo nos dois casos.
+
 ## Por que o código de rubrica nunca é inferido
 
 `codRubr`/`ideTabRubr` vêm da tabela de rubricas do próprio empregador (evento
@@ -85,21 +114,24 @@ aplicada aqui a uma ausência de linha em vez de um campo vazio na tela.
 
 ## Ainda por implementar
 
-- **`ideTrabalhador`, `dmDev`, `infoPerApur`, `ideEstabLot`, `remunPerApur`** — os
-  grupos que envolvem as linhas de rubrica na árvore completa do evento.
+- **`infoMV`, `procJudTrab`, `infoPerAnt`/`ideADC`, `infoSaudeColet`/`infoAgNocivo`**
+  — grupos raros, fora de escopo deliberadamente (ver acima).
 - **Serialização XML, assinatura, envio, consulta de processamento** — a camada de
   transporte, arquitetura já mapeada em `docs/rh-estado-esocial.md` (SOAP, X.509
   SHA256, produção restrita).
 - **Tabela de rubricas (S-1010)** e o cadastro do empregador (S-1000,
   pré-requisito de qualquer evento) — não modelados.
+- **Enumeração completa de `codCateg`** (categoria do trabalhador) — só o formato de
+  3 dígitos é validado, os valores da tabela em si não.
 - **Leitura direta do XSD oficial `gov.br/esocial`** — hoje só via projeto
   open-source de terceiro; se a fonte oficial se tornar extraível de forma confiável
   no futuro, vale reconferir os campos aqui contra ela.
 
 ## Arquivos
 
-- `folha/esocial_s1200.py` — `IdeEvento`, `IdeEmpregador`, `ItemRemuneracao`,
-  `linhas_de_inss_irrf`; camada pura, sem Frappe, testável sem bench.
+- `folha/esocial_s1200.py` — `IdeEvento`, `IdeEmpregador`, `IdeTrabalhador`,
+  `InfoComplem`, `ItemRemuneracao`, `RemunPerApur`, `IdeEstabLot`, `InfoPerApur`,
+  `DmDev`, `linhas_de_inss_irrf`; camada pura, sem Frappe, testável sem bench.
 
 ## Fontes
 

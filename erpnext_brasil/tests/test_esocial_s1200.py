@@ -1,19 +1,27 @@
 # Copyright (c) 2026, ERPNext Brasil contributors
 # License: MIT. See license.txt
 
-"""Testes de `folha/esocial_s1200.py` — grupos `ideEvento`, `ideEmpregador` e
-`TItemRemuneracao` do evento S-1200, e a ponte com INSS/IRRF já calculados."""
+"""Testes de `folha/esocial_s1200.py` — grupos `ideEvento`, `ideEmpregador`,
+`ideTrabalhador`, `TItemRemuneracao` e a árvore `DmDev`/`InfoPerApur`/`IdeEstabLot`/
+`RemunPerApur` do evento S-1200, e a ponte com INSS/IRRF já calculados."""
 
 import unittest
+from datetime import date
 from decimal import Decimal
 
 from erpnext_brasil.folha.esocial_s1200 import (
 	AMBIENTE_PRODUCAO,
 	AMBIENTE_PRODUCAO_RESTRITA,
+	DmDev,
 	EsocialInvalido,
 	IdeEmpregador,
+	IdeEstabLot,
 	IdeEvento,
+	IdeTrabalhador,
+	InfoComplem,
+	InfoPerApur,
 	ItemRemuneracao,
+	RemunPerApur,
 	linhas_de_inss_irrf,
 )
 
@@ -123,6 +131,129 @@ class TestLinhasDeInssIrrf(unittest.TestCase):
 		linhas = linhas_de_inss_irrf(d("0.00"), d("0.00"), cod_rubrica_inss="9001", cod_rubrica_irrf="9002")
 
 		self.assertEqual(len(linhas), 2)
+
+
+class TestInfoComplem(unittest.TestCase):
+	def test_valido(self):
+		InfoComplem(nm_trab="Maria Silva", dt_nascto=date(1990, 5, 1), cod_cbo="252105")
+
+	def test_nome_curto_demais_e_erro(self):
+		with self.assertRaises(EsocialInvalido):
+			InfoComplem(nm_trab="M", dt_nascto=date(1990, 5, 1), cod_cbo="252105")
+
+	def test_cbo_fora_do_tamanho_e_erro(self):
+		with self.assertRaises(EsocialInvalido):
+			InfoComplem(nm_trab="Maria Silva", dt_nascto=date(1990, 5, 1), cod_cbo="12")
+
+	def test_cbo_nao_numerico_e_erro(self):
+		with self.assertRaises(EsocialInvalido):
+			InfoComplem(nm_trab="Maria Silva", dt_nascto=date(1990, 5, 1), cod_cbo="ABCDEF")
+
+
+class TestIdeTrabalhador(unittest.TestCase):
+	def test_so_cpf_e_valido(self):
+		IdeTrabalhador(cpf_trab="12345678901")
+
+	def test_com_info_complem(self):
+		IdeTrabalhador(
+			cpf_trab="12345678901",
+			info_complem=InfoComplem(nm_trab="Maria Silva", dt_nascto=date(1990, 5, 1), cod_cbo="252105"),
+		)
+
+	def test_cpf_fora_do_tamanho_e_erro(self):
+		with self.assertRaises(EsocialInvalido):
+			IdeTrabalhador(cpf_trab="123")
+
+	def test_cpf_nao_numerico_e_erro(self):
+		with self.assertRaises(EsocialInvalido):
+			IdeTrabalhador(cpf_trab="1234567890A")
+
+	def test_nis_trab_fora_do_tamanho_e_erro(self):
+		with self.assertRaises(EsocialInvalido):
+			IdeTrabalhador(cpf_trab="12345678901", nis_trab="123")
+
+
+class TestRemunPerApur(unittest.TestCase):
+	def _item(self):
+		return ItemRemuneracao(cod_rubr="9001", vr_rubr=Decimal("100.00"))
+
+	def test_valido(self):
+		RemunPerApur(itens_remun=(self._item(),))
+
+	def test_sem_itens_e_erro(self):
+		with self.assertRaises(EsocialInvalido):
+			RemunPerApur(itens_remun=())
+
+	def test_mais_de_200_itens_e_erro(self):
+		with self.assertRaises(EsocialInvalido):
+			RemunPerApur(itens_remun=tuple(self._item() for _ in range(201)))
+
+	def test_matricula_vazia_e_erro(self):
+		with self.assertRaises(EsocialInvalido):
+			RemunPerApur(itens_remun=(self._item(),), matricula="")
+
+
+class TestIdeEstabLot(unittest.TestCase):
+	def _remun(self):
+		return RemunPerApur(itens_remun=(ItemRemuneracao(cod_rubr="9001", vr_rubr=Decimal("100.00")),))
+
+	def test_valido(self):
+		IdeEstabLot(tp_insc=1, nr_insc="12345678000199", cod_lotacao="1", remun_per_apur=(self._remun(),))
+
+	def test_sem_remun_per_apur_e_erro(self):
+		with self.assertRaises(EsocialInvalido):
+			IdeEstabLot(tp_insc=1, nr_insc="12345678000199", cod_lotacao="1", remun_per_apur=())
+
+	def test_mais_de_8_remun_per_apur_e_erro(self):
+		with self.assertRaises(EsocialInvalido):
+			IdeEstabLot(
+				tp_insc=1,
+				nr_insc="12345678000199",
+				cod_lotacao="1",
+				remun_per_apur=tuple(self._remun() for _ in range(9)),
+			)
+
+	def test_nr_insc_invalido_e_erro(self):
+		with self.assertRaises(EsocialInvalido):
+			IdeEstabLot(tp_insc=1, nr_insc="123", cod_lotacao="1", remun_per_apur=(self._remun(),))
+
+
+class TestInfoPerApur(unittest.TestCase):
+	def _estab_lot(self):
+		remun = RemunPerApur(itens_remun=(ItemRemuneracao(cod_rubr="9001", vr_rubr=Decimal("100.00")),))
+		return IdeEstabLot(tp_insc=1, nr_insc="12345678000199", cod_lotacao="1", remun_per_apur=(remun,))
+
+	def test_valido(self):
+		InfoPerApur(ide_estab_lot=(self._estab_lot(),))
+
+	def test_sem_estab_lot_e_erro(self):
+		with self.assertRaises(EsocialInvalido):
+			InfoPerApur(ide_estab_lot=())
+
+	def test_mais_de_24_estab_lot_e_erro(self):
+		with self.assertRaises(EsocialInvalido):
+			InfoPerApur(ide_estab_lot=tuple(self._estab_lot() for _ in range(25)))
+
+
+class TestDmDev(unittest.TestCase):
+	def _info_per_apur(self):
+		remun = RemunPerApur(itens_remun=(ItemRemuneracao(cod_rubr="9001", vr_rubr=Decimal("100.00")),))
+		estab_lot = IdeEstabLot(tp_insc=1, nr_insc="12345678000199", cod_lotacao="1", remun_per_apur=(remun,))
+		return InfoPerApur(ide_estab_lot=(estab_lot,))
+
+	def test_valido_sem_info_per_apur(self):
+		DmDev(ide_dm_dev="1", cod_categ=101)
+
+	def test_valido_com_arvore_completa(self):
+		DmDev(ide_dm_dev="1", cod_categ=101, info_per_apur=self._info_per_apur())
+
+	def test_cod_categ_fora_de_3_digitos_e_erro(self):
+		with self.assertRaises(EsocialInvalido):
+			DmDev(ide_dm_dev="1", cod_categ=99)
+
+	def test_ide_dm_dev_vazio_e_erro(self):
+		with self.assertRaises(EsocialInvalido):
+			DmDev(ide_dm_dev="", cod_categ=101)
 
 
 if __name__ == "__main__":

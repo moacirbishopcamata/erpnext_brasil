@@ -10,15 +10,20 @@ uma fatia primeiro).
 
 O que esta fatia cobre, e o que não cobre
 ------------------------------------------------
-Este módulo modela só os grupos verificados contra o XSD literal do evento —
-`ideEvento`, `ideEmpregador` e `TItemRemuneracao` (a linha de rubrica dentro de
-`detVerbas`/`itensRemun`) — e a ponte que transforma o INSS/IRRF já calculados por
-`folha/inss.py`/`folha/irrf.py` nessas linhas. **Não modela** a árvore inteira do
-evento (`ideTrabalhador`, `dmDev`, `infoPerApur`, `ideEstabLot`, `remunPerApur`) nem a
-serialização para XML/assinatura/envio — isso é a "camada de transporte", a fatia que
-ficou para depois (ver `docs/rh-estado-esocial.md`). O objetivo aqui é ter as peças
-verificadas e testadas antes de montar a árvore completa, mesmo espírito de
-`fiscal/documento/nfe.py` ter começado por `montar_ide` antes de `montar_dest`.
+Este módulo modela os grupos verificados contra o XSD literal do evento —
+`ideEvento`, `ideEmpregador`, `ideTrabalhador` (com `infoComplem`), `TItemRemuneracao`,
+`RemunPerApur`, `IdeEstabLot`, `InfoPerApur` e `DmDev` — a árvore inteira que aninha
+uma linha de rubrica dentro do período/estabelecimento/lotação/categoria do
+trabalhador. **Não modela**: `infoMV` (múltiplos vínculos empregatícios) e
+`procJudTrab` (processos judiciais que afetam a tributação) dentro de
+`ideTrabalhador` — grupos raros, deliberadamente fora de escopo, ver docstring de
+`IdeTrabalhador`; `infoPerAnt`/`ideADC` dentro de `DmDev` (remuneração de período
+anterior por acordo/convenção coletiva retroativos) — outro grupo raro, mesma
+decisão; e a serialização para XML/assinatura/envio, que é a "camada de transporte",
+uma fatia à parte (ver `docs/rh-estado-esocial.md`). O objetivo aqui é ter a árvore de
+negócio pronta e testada antes de montar o envelope XML, mesmo espírito de
+`fiscal/documento/nfe.py` ter modelado `Identificacao`/`montar_ide` antes de qualquer
+assinatura ou envio.
 
 Fonte do XSD: não o oficial `gov.br/esocial` diretamente
 ------------------------------------------------------------------
@@ -45,15 +50,22 @@ Funções puras: nenhuma dependência do Frappe.
 """
 
 from dataclasses import dataclass
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
 __all__ = [
 	"AMBIENTE_PRODUCAO",
 	"AMBIENTE_PRODUCAO_RESTRITA",
+	"DmDev",
 	"EsocialInvalido",
 	"IdeEmpregador",
+	"IdeEstabLot",
 	"IdeEvento",
+	"IdeTrabalhador",
+	"InfoComplem",
+	"InfoPerApur",
 	"ItemRemuneracao",
+	"RemunPerApur",
 	"linhas_de_inss_irrf",
 ]
 
@@ -69,6 +81,19 @@ class EsocialInvalido(ValueError):
 
 def _arredondar(valor: Decimal) -> Decimal:
 	return valor.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def _validar_digito_unico(valor: int, campo: str) -> None:
+	if not (0 <= valor <= 9):
+		raise EsocialInvalido(f"{campo} deve ser um dígito único (0-9), recebido {valor}")
+
+
+def _validar_nr_insc(valor: str, campo: str = "nrInsc") -> None:
+	"""`nrInsc` (`TEmpregador`/`IdeEstabLot`) — mesmo formato XSD nos dois grupos:
+	8 a 15 dígitos numéricos. Só o formato; o dígito verificador de CNPJ/CPF é
+	responsabilidade de `fiscal/validators`, chamado por quem monta o evento."""
+	if not valor.isdigit() or not (8 <= len(valor) <= 15):
+		raise EsocialInvalido(f"{campo} deve ter entre 8 e 15 dígitos numéricos, recebido {valor!r}")
 
 
 @dataclass(frozen=True)
@@ -103,8 +128,7 @@ class IdeEvento:
 		if self.tp_amb not in (AMBIENTE_PRODUCAO, AMBIENTE_PRODUCAO_RESTRITA):
 			raise EsocialInvalido(f"tpAmb deve ser 1 (Produção) ou 2 (Produção Restrita), recebido {self.tp_amb}")
 
-		if not (0 <= self.proc_emi <= 9):
-			raise EsocialInvalido(f"procEmi deve ser um dígito único (0-9), recebido {self.proc_emi}")
+		_validar_digito_unico(self.proc_emi, "procEmi")
 
 		if not (1 <= len(self.ver_proc) <= 20):
 			raise EsocialInvalido(f"verProc deve ter entre 1 e 20 caracteres, recebido {self.ver_proc!r}")
@@ -128,13 +152,8 @@ class IdeEmpregador:
 	nr_insc: str
 
 	def __post_init__(self):
-		if not (0 <= self.tp_insc <= 9):
-			raise EsocialInvalido(f"tpInsc deve ser um dígito único (0-9), recebido {self.tp_insc}")
-
-		limpo = self.nr_insc
-
-		if not limpo.isdigit() or not (8 <= len(limpo) <= 15):
-			raise EsocialInvalido(f"nrInsc deve ter entre 8 e 15 dígitos numéricos, recebido {self.nr_insc!r}")
+		_validar_digito_unico(self.tp_insc, "tpInsc")
+		_validar_nr_insc(self.nr_insc)
 
 
 @dataclass(frozen=True)
@@ -177,6 +196,151 @@ class ItemRemuneracao:
 					f"vrRubr ({self.vr_rubr}) não bate com qtdRubr*fatorRubr*vrUnit "
 					f"({calculado}) além da tolerância de arredondamento"
 				)
+
+
+@dataclass(frozen=True)
+class InfoComplem:
+	"""Grupo `infoComplem` de `ideTrabalhador` — dados cadastrais complementares do
+	trabalhador exigidos apenas em admissões/situações específicas; quando presente,
+	os quatro campos abaixo (fora os dois opcionais) são obrigatórios pelo XSD."""
+
+	nm_trab: str
+	dt_nascto: date
+	cod_cbo: str
+	nat_atividade: int | None = None
+	qtd_dias_trab: int | None = None
+
+	def __post_init__(self):
+		if not (2 <= len(self.nm_trab) <= 70):
+			raise EsocialInvalido(f"nmTrab deve ter entre 2 e 70 caracteres, recebido {self.nm_trab!r}")
+
+		if not self.cod_cbo.isdigit() or not (4 <= len(self.cod_cbo) <= 6):
+			raise EsocialInvalido(f"codCBO deve ter entre 4 e 6 dígitos numéricos, recebido {self.cod_cbo!r}")
+
+		if self.nat_atividade is not None:
+			_validar_digito_unico(self.nat_atividade, "natAtividade")
+
+		if self.qtd_dias_trab is not None and not (0 <= self.qtd_dias_trab <= 99):
+			raise EsocialInvalido(f"qtdDiasTrab deve ter 1 ou 2 dígitos, recebido {self.qtd_dias_trab}")
+
+
+@dataclass(frozen=True)
+class IdeTrabalhador:
+	"""Grupo `ideTrabalhador` — cobre `cpfTrab`/`nisTrab`/`infoComplem`.
+
+	**Fora de escopo, deliberadamente**: `infoMV` (o trabalhador tem outros vínculos
+	simultâneos que afetam o teto do INSS) e `procJudTrab` (uma decisão judicial muda
+	a tributação de alguma verba) — ambos raros e cada um exigiria sua própria tabela
+	de domínio; incluí-los sem uma fonte tão bem verificada quanto o resto deste
+	módulo arriscaria uma modelagem errada silenciosa, pior que não ter nenhuma."""
+
+	cpf_trab: str
+	nis_trab: str | None = None
+	info_complem: InfoComplem | None = None
+
+	def __post_init__(self):
+		if not self.cpf_trab.isdigit() or len(self.cpf_trab) != 11:
+			raise EsocialInvalido(f"cpfTrab deve ter exatamente 11 dígitos numéricos, recebido {self.cpf_trab!r}")
+
+		if self.nis_trab is not None and (not self.nis_trab.isdigit() or len(self.nis_trab) != 11):
+			raise EsocialInvalido(f"nisTrab deve ter exatamente 11 dígitos numéricos, recebido {self.nis_trab!r}")
+
+
+@dataclass(frozen=True)
+class RemunPerApur:
+	"""Grupo `remunPerApur` — as linhas de rubrica (`itensRemun`) de um período,
+	dentro de um estabelecimento/lotação (`IdeEstabLot`). Limite do XSD: 1 a 200
+	itens; `infoSaudeColet`/`infoAgNocivo` não modelados (grupos condicionais a
+	situações específicas — plano de saúde coletivo, agente nocivo — fora de escopo
+	pela mesma razão de `infoMV`/`procJudTrab`)."""
+
+	itens_remun: tuple[ItemRemuneracao, ...]
+	matricula: str | None = None
+	ind_simples: int | None = None
+
+	def __post_init__(self):
+		if not self.itens_remun:
+			raise EsocialInvalido("remunPerApur precisa de ao menos uma linha em itensRemun")
+
+		if len(self.itens_remun) > 200:
+			raise EsocialInvalido(f"itensRemun aceita no máximo 200 linhas, recebido {len(self.itens_remun)}")
+
+		if self.matricula is not None and not (1 <= len(self.matricula) <= 30):
+			raise EsocialInvalido(f"matricula deve ter entre 1 e 30 caracteres, recebido {self.matricula!r}")
+
+		if self.ind_simples is not None:
+			_validar_digito_unico(self.ind_simples, "indSimples")
+
+
+@dataclass(frozen=True)
+class IdeEstabLot:
+	"""Grupo `ideEstabLot` — identifica o estabelecimento/lotação tributária a que
+	pertence cada `RemunPerApur`. Limite do XSD: até 24 lotações por período, até 8
+	`RemunPerApur` por lotação (competências concorrentes, ex. mês normal + rescisão
+	no mesmo período)."""
+
+	tp_insc: int
+	nr_insc: str
+	cod_lotacao: str
+	remun_per_apur: tuple[RemunPerApur, ...]
+	qtd_dias_av: int | None = None
+
+	def __post_init__(self):
+		_validar_digito_unico(self.tp_insc, "tpInsc")
+		_validar_nr_insc(self.nr_insc)
+
+		if not (1 <= len(self.cod_lotacao) <= 30):
+			raise EsocialInvalido(f"codLotacao deve ter entre 1 e 30 caracteres, recebido {self.cod_lotacao!r}")
+
+		if not self.remun_per_apur:
+			raise EsocialInvalido("ideEstabLot precisa de ao menos um remunPerApur")
+
+		if len(self.remun_per_apur) > 8:
+			raise EsocialInvalido(
+				f"remunPerApur aceita no máximo 8 ocorrências, recebido {len(self.remun_per_apur)}"
+			)
+
+		if self.qtd_dias_av is not None and not (0 <= self.qtd_dias_av <= 99):
+			raise EsocialInvalido(f"qtdDiasAv deve ter 1 ou 2 dígitos, recebido {self.qtd_dias_av}")
+
+
+@dataclass(frozen=True)
+class InfoPerApur:
+	"""Grupo `infoPerApur` — a lista de estabelecimentos/lotações do período. Limite
+	do XSD: até 24 `ideEstabLot`."""
+
+	ide_estab_lot: tuple[IdeEstabLot, ...]
+
+	def __post_init__(self):
+		if not self.ide_estab_lot:
+			raise EsocialInvalido("infoPerApur precisa de ao menos um ideEstabLot")
+
+		if len(self.ide_estab_lot) > 24:
+			raise EsocialInvalido(f"ideEstabLot aceita no máximo 24 ocorrências, recebido {len(self.ide_estab_lot)}")
+
+
+@dataclass(frozen=True)
+class DmDev:
+	"""Grupo `dmDev` — o "demonstrativo de valores devidos" de uma categoria de
+	trabalhador no período. `cod_categ` é a categoria do eSocial (tabela de domínio
+	própria — ex. 101 empregado geral; enumeração completa não modelada nesta rodada,
+	só o formato de 3 dígitos é validado).
+
+	**Fora de escopo, deliberadamente**: `infoPerAnt`/`ideADC` — remuneração de
+	período anterior por acordo/convenção coletiva com efeito retroativo, um grupo
+	raro com sua própria árvore aninhada (`idePeriodo`, análoga a `infoPerApur`); a
+	mesma decisão de não modelar sem fonte tão verificada quanto o resto."""
+
+	ide_dm_dev: str
+	cod_categ: int
+	info_per_apur: InfoPerApur | None = None
+
+	def __post_init__(self):
+		if not (1 <= len(self.ide_dm_dev) <= 30):
+			raise EsocialInvalido(f"ideDmDev deve ter entre 1 e 30 caracteres, recebido {self.ide_dm_dev!r}")
+
+		if not (100 <= self.cod_categ <= 999):
+			raise EsocialInvalido(f"codCateg deve ter exatamente 3 dígitos, recebido {self.cod_categ}")
 
 
 def linhas_de_inss_irrf(
