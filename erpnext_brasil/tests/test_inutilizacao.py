@@ -123,12 +123,13 @@ class TestValidacao(unittest.TestCase):
 
 		self.assertEqual(ctx.exception.campo, "cnpj")
 
-	def test_cnpj_alfanumerico_e_recusado_explicitamente(self):
-		"""Gap deliberado: ver a docstring do módulo sobre NT 2026.004 não confirmada."""
-		with self.assertRaises(InutilizacaoInvalida) as ctx:
-			inutilizacao(cnpj="12ABC34501DE35")
+	def test_cnpj_alfanumerico_e_aceito(self):
+		"""Confirmado em 2026-08-29 (`leiauteInutNFe_v4.00.xsd` do pacote PL_010_V1.30,
+		NT 2026.004) — mesmo CNPJ de exemplo já usado em `test_nfe.py`."""
+		doc = inutilizacao(cnpj="12ABC34501DE35")["inutNFe"]["infInut"]
 
-		self.assertEqual(ctx.exception.campo, "cnpj")
+		self.assertEqual(doc["CNPJ"], "12ABC34501DE35")
+		self.assertIn("12ABC34501DE35", doc["@Id"])
 
 	def test_modelo_invalido_e_erro(self):
 		with self.assertRaises(InutilizacaoInvalida) as ctx:

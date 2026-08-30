@@ -36,20 +36,19 @@ Padrão confirmado: `ID[0-9]{41}`, e a regra (decompondo um `Id` real de exemplo
 à esquerda** em campos que, no corpo do documento, não a levam (`TSerie`/`TNF` no XSD
 não têm zero à esquerda — só o `@Id` os preenche).
 
-CNPJ alfanumérico: gap conhecido, deliberadamente não coberto
+CNPJ alfanumérico: confirmado e aceito desde 2026-08-29
 ------------------------------------------------------------------
 A Nota Técnica 2026.004 (v1.01, 08/06/2026) inclui o layout de `NFeInutilizacao` entre os
-atualizados para aceitar CNPJ alfanumérico (IN RFB 2.229/2024) — confirmado em fontes
-secundárias (blogs técnicos), mas **o XSD atualizado não foi localizado nem lido
-diretamente** até a implementação deste módulo: o pacote oficial ainda espelhado em
-repositórios de referência (`nfephp-org/sped-nfe`) continha, nesta data, apenas a versão
-anterior (`TCnpj` = `[0-9]{14}`, só numérico). Adivinhar o novo padrão do `@Id` sem
-confirmação directa do XSD seria o mesmo erro que este app existe para evitar — por isso
-`montar_inutilizacao` **recusa explicitamente** um CNPJ alfanumérico com uma mensagem que
-aponta a causa, em vez de aceitar silenciosamente e arriscar um `@Id` malformado. CNPJ
-numérico (a esmagadora maioria dos emitentes até este cadastro se esgotar) continua
-funcionando normalmente. Levantar essa restrição exige primeiro ler o XSD real
-pós-NT-2026.004 — não é trabalho para depois "quando alguém reclamar".
+atualizados para aceitar CNPJ alfanumérico (IN RFB 2.229/2024). Isto ficou como gap
+deliberado enquanto o XSD atualizado não tinha sido lido diretamente — o pacote
+`nfephp-org/sped-nfe` espelhava, até então, só o pacote antigo (`PL_009_V4`/`PL_010_V1`,
+`TCnpj` = `[0-9]{14}`). Confirmado em 2026-08-29 no pacote **`PL_010_V1.30`** do mesmo
+repositório: `tiposBasico_v4.00.xsd` já define `TCnpj` como `[0-9A-Z]{12}[0-9]{2}`, e
+`leiauteInutNFe_v4.00.xsd` desse mesmo pacote referencia `CNPJ` a esse tipo — a sequência
+de `infInut` não mudou (segue a mesma ordem confirmada acima). O `@Id` também não muda de
+tamanho — o CNPJ continua ocupando 14 posições, só passa a aceitar letra nas 12
+primeiras. `montar_inutilizacao` usa `validar_cnpj` (que já produz esse mesmo padrão)
+sem nenhuma restrição adicional.
 
 Funções puras: nenhuma dependência do Frappe.
 """
@@ -166,14 +165,11 @@ def montar_inutilizacao(
 	except ValueError as e:
 		raise InutilizacaoInvalida(f"CNPJ inválido: {e}", "cnpj") from e
 
-	if not cnpj_valido.isdigit():
-		# Gap deliberado — ver a seção "CNPJ alfanumérico" na docstring do módulo.
-		raise InutilizacaoInvalida(
-			"Inutilização com CNPJ alfanumérico ainda não é suportada: o layout "
-			"atualizado (NT 2026.004) não foi confirmado neste módulo. Use um CNPJ "
-			"numérico ou aguarde a confirmação do XSD atualizado.",
-			"cnpj",
-		)
+	# CNPJ alfanumérico aceito desde 2026-08-29 — ver a seção "CNPJ alfanumérico" na
+	# docstring do módulo: `TCnpj` do XSD pós-NT-2026.004 (`leiauteInutNFe_v4.00.xsd`,
+	# pacote PL_010_V1.30) confirma `[0-9A-Z]{12}[0-9]{2}`, o mesmo padrão que
+	# `validar_cnpj` já produz. `@Id` não muda de tamanho (CNPJ continua 14 caracteres),
+	# só passa a aceitar letra nas 12 primeiras posições.
 
 	if modelo not in MODELOS_VALIDOS:
 		raise InutilizacaoInvalida(f"mod deve ser '55' ou '65', recebido {modelo!r}", "modelo")

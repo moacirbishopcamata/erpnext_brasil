@@ -54,21 +54,21 @@ que as duas tabelas (sigla→código e o conjunto de códigos válidos) nunca di
 `cUF` errado não geraria erro de schema (ainda seria um código de 2 dígitos válido),
 só uma inutilização registrada contra a UF errada.
 
-## CNPJ alfanumérico: gap conhecido, deliberadamente não coberto
+## CNPJ alfanumérico: confirmado e aceito desde 2026-08-29
 
 A Nota Técnica 2026.004 (v1.01, 08/06/2026) inclui o layout de `NFeInutilizacao` entre os
-atualizados para aceitar CNPJ alfanumérico (IN RFB 2.229/2024) — confirmado em fontes
-secundárias (blogs técnicos especializados), mas o XSD atualizado (`TCnpj` com o novo
-padrão `[A-Z0-9]{12}[0-9]{2}`) **não foi localizado nem lido diretamente**: o pacote de
-referência espelhado publicamente (`nfephp-org/sped-nfe`) ainda trazia, nesta data, só a
-versão anterior (`TCnpj` = `[0-9]{14}`, puramente numérico). Adivinhar o novo padrão do
-`@Id` sem confirmar no XSD real seria exatamente o erro que este app existe para evitar
-— por isso `montar_inutilizacao` **recusa explicitamente** um CNPJ alfanumérico com uma
-mensagem que aponta a causa, em vez de aceitar silenciosamente e arriscar um `@Id`
-malformado que a SEFAZ rejeitaria sem dizer por quê. CNPJ numérico (a esmagadora maioria
-dos emitentes até esgotar a faixa atual) continua funcionando sem restrição. Levantar essa
-recusa exige primeiro ler o XSD real pós-NT-2026.004 — está listado em "Ainda por
-implementar" abaixo, não é para "depois que alguém reclamar".
+atualizados para aceitar CNPJ alfanumérico (IN RFB 2.229/2024). Isto ficou como gap
+deliberado enquanto o XSD atualizado (`TCnpj` com o novo padrão `[0-9A-Z]{12}[0-9]{2}`)
+não tinha sido lido diretamente — o pacote de referência espelhado publicamente
+(`nfephp-org/sped-nfe`) trazia, até então, só a versão anterior (`TCnpj` = `[0-9]{14}`,
+puramente numérico), sob o diretório antigo (`PL_009_V4`/`PL_010_V1`).
+
+**Confirmado em 2026-08-29** no pacote **`schemes/PL_010_V1.30`** do mesmo repositório:
+`tiposBasico_v4.00.xsd` já define `TCnpj` como `[0-9A-Z]{12}[0-9]{2}`, e
+`leiauteInutNFe_v4.00.xsd` desse pacote referencia o elemento `CNPJ` a esse tipo — a
+sequência de `infInut` não mudou. `@Id` também não muda de tamanho (CNPJ continua 14
+posições, só passa a aceitar letra nas 12 primeiras). `montar_inutilizacao` não tem mais
+restrição própria: usa `validar_cnpj`, que já produz esse mesmo padrão.
 
 ## Resposta: um único `cStat`, sem par lote/evento
 
@@ -98,12 +98,17 @@ padrão não é seguido desde a primeira versão.
 
 ## Ainda por implementar
 
-- Confirmar o XSD atualizado pós-NT-2026.004 e levantar a recusa de CNPJ alfanumérico.
-- Endpoints de homologação para os 11 grupos que não são SVRS (mesma lacuna documentada
-  em `transporte-nativo-sefaz.md`).
+- ~~Confirmar o XSD atualizado pós-NT-2026.004 e levantar a recusa de CNPJ
+  alfanumérico~~ — feito em 2026-08-29, ver seção acima.
+- ~~Endpoints de homologação para os 11 grupos que não são SVRS~~ — feito: os 14 grupos
+  (10 próprios + SVAN + SVRS + SVC-AN + SVC-RS) têm homologação confirmada, ver
+  `transporte-nativo-sefaz.md`.
+- `NfeConsultaCadastro` para AM e SVAN em homologação continua sem confirmação (ausente
+  na fonte, não esquecimento) — não bloqueia inutilização, que não usa esse serviço.
 
 ## Fonte
 
 `leiauteInutNFe_v4.00.xsd` e `tiposBasico_v4.00.xsd` (pacote oficial da NF-e, espelhado
-em `nfephp-org/sped-nfe`), tabela de códigos IBGE por UF, e cobertura da NT 2026.004 em
-fontes secundárias — consultados em 2026-08-28.
+em `nfephp-org/sped-nfe`), tabela de códigos IBGE por UF — consultados em 2026-08-28.
+CNPJ alfanumérico (`TCnpj` pós-NT-2026.004) confirmado diretamente no XSD do pacote
+`schemes/PL_010_V1.30` do mesmo repositório — consultado em 2026-08-29.
