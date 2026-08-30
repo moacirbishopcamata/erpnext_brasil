@@ -1,4 +1,4 @@
-# ECD (Escrituração Contábil Digital): registros I050, I200 e I250
+# ECD (Escrituração Contábil Digital): registros I050, I200, I250, I150 e I155
 
 Sexto incremento do bloco contábil, sobre
 [plano-de-contas.md](plano-de-contas.md) — a ECD é o SPED Contábil: os livros Diário e
@@ -130,28 +130,84 @@ resultado (`"E"`) nem extemporâneo (`"X"`). `COD_CCUS`, `COD_HIST_PAD`, `COD_PA
 `NUM_ARQ` ficam sempre em branco — as tabelas auxiliares correspondentes (centro de
 custo, histórico padronizado, participante, documento anexado) não existem neste app.
 
+## I150/I155 — saldos periódicos por conta
+
+`contabil/ecd_i150.py` consolida os `Lancamento` de um período em saldo por conta: I150
+identifica o período (início/fim); I155 traz, para cada conta **com movimento no
+período** (confirmado na fonte: conta sem lançamento nenhum não gera linha, mesmo com
+saldo transportado diferente de zero), o saldo inicial, o total de débitos e créditos, e
+o saldo final.
+
+### A aritmética D/C é mecânica, nunca condicionada à "natureza" da conta
+
+`IND_DC_INI`/`IND_DC_FIN` dizem de que lado o saldo está (`"D"` devedor, `"C"` credor) —
+nunca em branco, mesmo quando o saldo é zero (convenção deste módulo para o empate:
+`"D"`, já que a fonte só exige não deixar em branco, sem dizer qual dos dois usar no
+zero). A conta de "que lado o saldo termina" **não depende** de a conta ser
+"naturalmente devedora" (Ativo/Despesa) ou "naturalmente credora" (Passivo/PL/Receita):
+registrar um débito sempre empurra para o lado D, um crédito sempre empurra para o lado
+C, seja qual for a conta — testado explicitamente
+(`test_saldo_credor_recebendo_debito_pode_virar_devedor`, uma conta credora que vira
+devedora depois de um débito grande o bastante). Por isso `ecd_i150.py` converte
+`(valor, indicador)` para um número com sinal e soma/subtrai diretamente, sem consultar
+`root_type` nem nada de `plano_de_contas.py` além do código da conta.
+
+### Saldo inicial é parâmetro, não persistido
+
+Mesma disciplina de `apuracao_periodo.apurar_periodo` (`saldo_credor_anterior`):
+`SaldoInicial` vem de fora — nenhum mecanismo aqui guarda o saldo final de um período
+para virar o inicial do seguinte automaticamente. Conta sem `SaldoInicial` informado
+começa do zero devedor, não erro — a maioria das contas de resultado (Receita/Despesa)
+realmente zera a cada período; só as patrimoniais carregam saldo de fato.
+
+### Layout dos dois registros
+
+**I150:**
+
+| # | Campo | Descrição |
+|---|---|---|
+| 1 | `REG` | Fixo, `"I150"` |
+| 2 | `DT_INI` | Data de início do período |
+| 3 | `DT_FIN` | Data de fim do período |
+
+**I155** (uma linha por conta com movimento):
+
+| # | Campo | Descrição |
+|---|---|---|
+| 1 | `REG` | Fixo, `"I155"` |
+| 2 | `COD_CTA` | Código da conta analítica |
+| 3 | `COD_CCUS` | Centro de custo (não modelado — sempre vazio) |
+| 4 | `VL_SLD_INI` | Saldo inicial do período |
+| 5 | `IND_DC_INI` | `"D"`/`"C"` do saldo inicial |
+| 6 | `VL_DEB` | Total de débitos do período |
+| 7 | `VL_CRED` | Total de créditos do período |
+| 8 | `VL_SLD_FIN` | Saldo final do período |
+| 9 | `IND_DC_FIN` | `"D"`/`"C"` do saldo final |
+
 ## Ainda por implementar
 
 - **Registro I051** (plano de contas referencial da RFB) — mapeamento entre o plano
   próprio e o plano referencial que a ECD também aceita, para quem usa o de terceiros.
-- **Registro I150/I155** (saldos periódicos) — I200/I250 cobrem o lançamento em si, não
-  o saldo consolidado por conta ao fim do período.
 - **Lançamento com mais de duas pontas** (rateio entre três ou mais contas) — pede um
   tipo mais rico que `Lancamento`, hoje limitado a um débito e um crédito.
 - **Serialização para o formato de texto do SPED** — mesma decisão já registrada em
   `docs/sped-fiscal.md`: este módulo devolve `list[dict]`/`list[tuple[dict, list[dict]]]`,
   não a linha de texto.
+- **Persistência do saldo inicial entre períodos** — `SaldoInicial` é sempre parâmetro
+  explícito; nenhum mecanismo guarda o saldo final de um mês para virar o inicial do
+  seguinte automaticamente.
 
 ## Arquivos
 
 - `contabil/ecd_i050.py` — `montar_i050`; camada pura, sem Frappe, testável sem bench.
 - `contabil/ecd_i200.py` — `montar_i200_i250`; idem.
-- `contabil/plano_de_contas.montar_codigos` — a numeração-padrão que os dois usam.
+- `contabil/ecd_i150.py` — `montar_i150`, `montar_i155`, `SaldoInicial`; idem.
+- `contabil/plano_de_contas.montar_codigos` — a numeração-padrão que os três usam.
 
 ## Fontes
 
-- Layout dos registros I050, I200 e I250, e tabelas `COD_NAT`/`IND_LCTO`/`IND_DC` —
-  fonte oficial (`sped.rfb.gov.br`, o Manual de Orientação da ECD) inacessível às
-  ferramentas de busca no momento; confirmado em guia técnico especializado
-  (`vriconsulting.com.br`), corroborado por busca cruzada que reproduziu a mesma tabela
-  de códigos — consultado em 2026-08-30.
+- Layout dos registros I050, I200, I250, I150 e I155, e tabelas
+  `COD_NAT`/`IND_LCTO`/`IND_DC` — fonte oficial (`sped.rfb.gov.br`, o Manual de
+  Orientação da ECD) inacessível às ferramentas de busca no momento; confirmado em guia
+  técnico especializado (`vriconsulting.com.br`), corroborado por busca cruzada que
+  reproduziu a mesma tabela de códigos — consultado em 2026-08-30.
