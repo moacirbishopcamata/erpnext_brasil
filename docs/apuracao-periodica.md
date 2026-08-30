@@ -72,10 +72,9 @@ precisa saber.
   ainda guarda o saldo de um período para o próximo automaticamente (isso pertence à
   camada de negócio/doctype, quando existir).
 - **PIS/COFINS**: fora de escopo desta versão, ver acima.
-- **Livro de apuração como documento** (Registro de Apuração do ICMS/IPI, no sentido do
-  Convênio SINIEF, com layout e prazo próprios) — este módulo calcula o saldo, não
-  gera o livro formal nem a obrigação acessória (SPED Fiscal cobre isso, ainda não
-  implementado).
+- ~~Livro de apuração como documento~~ — o livro de papel foi dispensado pelo Ajuste
+  SINIEF 02/2009 para quem é obrigado ao EFD; o artefato real é o registro digital,
+  ver [sped-fiscal.md](sped-fiscal.md) (`contabil/efd_icms_ipi.montar_e110`).
 
 ## Arquivos
 
