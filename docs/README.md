@@ -22,6 +22,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [sped-texto.md](sped-texto.md) | Serialização de linha pipe-delimited do SPED, comum a EFD e ECD; a correção do formato de data (`DDMMAAAA`, sem separador) |
 | [rh-estado-hrms.md](rh-estado-hrms.md) | Bloco RH: estado do `frappe/hrms`, confirmação de que o Brasil não existe nem lá nem no ERPNext, e o hook `regional_overrides` que permite tropicalizar sem fork |
 | [rh-inss.md](rh-inss.md) | Contribuição previdenciária do empregado (tabela 2026), verificada faixa a faixa contra o método da parcela a deduzir |
+| [rh-irrf.md](rh-irrf.md) | Imposto de Renda Retido na Fonte na folha: tabela 2026, o redutor da Lei 15.270/2025, os 5 exemplos oficiais da Receita Federal reproduzidos como teste |
 | [boleto.md](boleto.md) | Código de barras/linha digitável FEBRABAN (validado contra exemplo real) e leitura do CNAB 400 de retorno para conciliação |
 
 ## Convenções que valem em todo o código

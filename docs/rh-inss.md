@@ -63,8 +63,9 @@ e errado.
 - **Categorias diferentes de segurado** (contribuinte individual, facultativo — a
   fonte já mostra que têm tabela própria, diferente da de empregado) — fora de escopo,
   este módulo cobre só "empregado, empregado doméstico e trabalhador avulso".
-- **IRRF na folha**, **FGTS**, **eSocial** — os outros itens já listados no
-  levantamento de estado, nenhum pesquisado ainda.
+- **IRRF na folha** — implementado em seguida, ver `docs/rh-irrf.md`.
+- **FGTS**, **eSocial** — os outros itens já listados no levantamento de estado,
+  nenhum pesquisado ainda.
 
 ## Arquivos
 
