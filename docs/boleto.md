@@ -80,22 +80,59 @@ partir dos parâmetros e comparar byte a byte com o resultado esperado — os tr
 de `TestExemploReal` fazem exatamente isso. Bateu exato: DV geral, os três DVs de
 campo, a montagem inteira.
 
+## Conciliação: leitura do arquivo de retorno CNAB 400
+
+`contabil/cnab400_retorno.py` lê o registro detalhe do arquivo que o banco devolve
+informando o que aconteceu com cada título — a metade que fecha o ciclo de
+conciliação. Só o registro detalhe (tipo `1`) importa aqui; cabeçalho e trailer não são
+lidos.
+
+**Cada banco tem seu próprio dialeto de CNAB 400** — confirmado ao pesquisar: existe
+uma tabela "padrão" de código de ocorrência, mas bancos divergem em detalhe. Por isso
+as posições de byte e a tabela de códigos vêm de uma única fonte técnica consistente
+(um provedor de banking-as-a-service regulado) — **não foi possível cruzar contra uma
+segunda fonte posição a posição**, diferente do rigor que o código de barras conseguiu
+(validado contra exemplo real). Os quatro códigos mais comuns (`02`, `03`, `06`, `09`)
+foram corroborados por busca cruzada independente; os demais, não — `CODIGOS_
+OCORRENCIA_CORROBORADOS` marca essa distinção explicitamente no próprio código.
+
+### `FOI_PAGO`: nem todo código "positivo" é dinheiro recebido
+
+`02` (entrada confirmada) é só a confirmação de que o banco recebeu o registro do
+título — não fecha nada. `FOI_PAGO = {"06", "17"}` cobre só liquidação de fato: `06`
+(liquidação normal) e `17` (liquidação após baixa ou título não registrado, o caso de
+um boleto pago depois de já ter sido baixado). Tratar `02` como "pago" seria o erro
+óbvio que motivou separar essa lista — testado explicitamente
+(`test_confirmacao_de_entrada_nao_e_pago`).
+
+### Posições do registro detalhe (fonte única, ver cautela acima)
+
+| Campo | Posições (1-indexed) |
+|---|---|
+| Nosso número | 71-82 |
+| Código de ocorrência | 109-110 |
+| Data de ocorrência (`DDMMAA`) | 147-152 |
+| Valor pago/recebido (11 inteiros + 2 decimais implícitos) | 254-266 |
+
 ## Ainda por implementar
 
 - **Registro do título via API/CNAB do banco** — este módulo só calcula código de
   barras/linha digitável a partir de dados já decididos; não fala com nenhum banco.
-- **Conciliação do arquivo de retorno (CNAB 400/240)** — leitura do retorno bancário
-  informando o que foi pago, ainda não implementada.
+- **CNAB 240** (layout mais novo, também usado por vários bancos) — só o 400 foi
+  coberto.
 - **Geração da imagem do código de barras** (padrão "2 de 5 intercalado") — este
   módulo produz a sequência de 44 dígitos, não a representação gráfica de barras.
 - **Validação (não só geração)**: conferir um código de barras/linha digitável
   recebidos de fora contra os DVs esperados — hoje só monta, não audita.
+- **Cabeçalho/trailer do CNAB 400** — só o registro detalhe é lido; nenhuma validação
+  de que o arquivo inteiro está bem formado (contagem de registros, banco do trailer).
 
 ## Arquivos
 
 - `contabil/boleto.py` — `calcular_fator_vencimento`, `calcular_dv_barra`,
   `calcular_dv_campo`, `montar_codigo_barras`, `montar_linha_digitavel`; camada pura,
   sem Frappe, testável sem bench.
+- `contabil/cnab400_retorno.py` — `ler_registro_detalhe`, `foi_pago`; idem.
 
 ## Fontes
 
@@ -108,3 +145,7 @@ campo, a montagem inteira.
   2026-08-30.
 - Exemplo real de código de barras/linha digitável usado para validação byte a byte —
   consultado em 2026-08-30.
+- Layout do registro detalhe do CNAB 400 de retorno e tabela de códigos de ocorrência —
+  fonte técnica única (provedor de banking-as-a-service regulado); os quatro códigos
+  mais comuns (`02`, `03`, `06`, `09`) corroborados por busca cruzada independente, os
+  demais não — dito explicitamente na docstring do módulo — consultado em 2026-08-30.
