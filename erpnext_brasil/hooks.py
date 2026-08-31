@@ -7,6 +7,12 @@ app_license = "MIT"
 
 required_apps = ["frappe/erpnext"]
 
+# Transições/animações discretas do Desk (identidade visual) — só opacity/transform
+# (aceleradas por GPU, sem reflow de layout) e um único listener de evento, para não
+# pesar no desempenho do sistema. Ver `docs/desk-transicoes.md`.
+app_include_css = "/assets/erpnext_brasil/css/desk_transitions.css"
+app_include_js = "/assets/erpnext_brasil/js/desk_transitions.js"
+
 # O bloco fiscal roda sem RH nenhum instalado — `hrms` não é obrigatório. Este hook só
 # tem efeito quando `hrms` também está instalado: é ele quem lê `regional_overrides`
 # (via `hrms.allow_regional`), erpnext_brasil não precisa verificar a presença dele

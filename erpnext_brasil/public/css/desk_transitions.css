@@ -1,0 +1,76 @@
+/*
+ * Copyright (c) 2026, ERPNext Brasil contributors
+ * License: MIT. See license.txt
+ *
+ * Transições e animações discretas do Desk — identidade visual do erpnext_brasil.
+ *
+ * Só `opacity`/`transform`, nunca `width`/`height`/`top`/`left`
+ * ------------------------------------------------------------------------------
+ * As duas únicas propriedades animadas aqui rodam no compositor da GPU, sem
+ * disparar reflow/repaint de layout — o motivo de escolha explícito, não um
+ * acidente de estilo. Animar `width`/`margin`/`top` seria visualmente parecido
+ * mas custaria reflow a cada frame, exatamente o "pesar no sistema" que se quer
+ * evitar.
+ *
+ * `prefers-reduced-motion`: desliga tudo, não só reduz
+ * ------------------------------------------------------------------------------
+ * Quem configurou o sistema operacional para reduzir movimento normalmente tem
+ * um motivo real (enjoo, vestibular) — reduzir a animação pela metade ainda
+ * causa o mesmo problema. A guarda abaixo remove a transição inteira, não só
+ * encurta a duração.
+ */
+
+@media (prefers-reduced-motion: no-preference) {
+	/* Fade-in sutil ao trocar de rota — a classe é alternada por
+	   desk_transitions.js no evento "page-change" que o próprio Frappe já
+	   dispara (frappe/public/js/frappe/views/container.js). */
+	.page-container.erpnext-brasil-fade-in {
+		animation: erpnext-brasil-fade-in 220ms ease-out;
+	}
+
+	@keyframes erpnext-brasil-fade-in {
+		from {
+			opacity: 0;
+			transform: translateY(6px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	/* Transições suaves em elementos interativos comuns — hover/focus, não troca
+	   de estrutura. Cada seletor já existe no Desk padrão; nenhum elemento novo
+	   é criado, só a transição entre estados que o Frappe já teria trocado
+	   instantaneamente. */
+	.btn,
+	.list-row,
+	.list-row-container .list-row,
+	.sidebar-item,
+	.standard-sidebar-item,
+	.form-sidebar .sidebar-item,
+	.awesomplete-item,
+	.dropdown-item {
+		transition:
+			opacity 150ms ease,
+			transform 150ms ease,
+			background-color 150ms ease;
+	}
+
+	.btn:active {
+		transform: scale(0.97);
+	}
+
+	.list-row:hover,
+	.list-row-container .list-row:hover {
+		transform: translateX(2px);
+	}
+
+	/* Seta de Section Break colapsável — o Frappe já anima a expansão do
+	   conteúdo; isto só suaviza o giro do próprio ícone, que hoje troca de
+	   estado sem transição. */
+	.section-head .collapse-indicator,
+	.section-head .icon {
+		transition: transform 150ms ease;
+	}
+}

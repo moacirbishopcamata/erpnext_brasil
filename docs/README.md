@@ -6,6 +6,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | Documento | Assunto |
 |---|---|
 | [arquitetura.md](arquitetura.md) | Camadas, por que `fiscal/` é puro, como testar sem bench |
+| [desk-transicoes.md](desk-transicoes.md) | Transições/animações do Desk (identidade visual): evento `page-change` real do Frappe, só `opacity`/`transform`, `prefers-reduced-motion` |
 | [chave-de-acesso.md](chave-de-acesso.md) | Layout das 44 posições, cálculo do DV, impacto do CNPJ alfanumérico |
 | [cfop.md](cfop.md) | CFOP: determinação (não só validação de formato) para um núcleo de 16 códigos — compra/venda/devolução, mesmo/outro estado |
 | [montagem-da-nfe.md](montagem-da-nfe.md) | Grupos `ide`, `emit`, `dest`; por que a chave é derivada; rejeição 897 |
