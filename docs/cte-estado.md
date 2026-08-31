@@ -45,9 +45,14 @@ momento (não é mais uma leitura de terceiro, é o arquivo-fonte).
 | `infPAA` | 4866 | Programa de Alimentação do Aviador (setor específico, não investigado) |
 | `qrCodCTe` | 4929 | QR Code (CT-e tem QR Code, análogo ao da NFC-e — não investigado a fundo ainda) |
 
-Confirmado que a `ide` do CT-e não carrega `toma3`/`toma4` no nível investigado aqui — o
-tomador do serviço (quem paga o frete) precisa de investigação própria antes de implementar
-(está dentro de `ide`, em profundidade ainda não lida linha a linha).
+**Investigado em seguida** — `toma3`/`toma4` estão dentro de `ide`, logo depois de `indIEToma`
+(linha 2985): é um `xs:choice` entre `toma3` (linha 3003 — o tomador é uma das partes já
+citadas no próprio CT-e, indicada por um código 0-remetente/1-expedidor/2-recebedor/
+3-destinatário, sem repetir dado) e `toma4` (linha 3032 — papel fixo "4-Outros", exige dados
+cadastrais completos do tomador: CNPJ/CPF, IE, `xNome`, `enderToma`). Achado real: o CT-e evita
+duplicar dado do tomador sempre que ele coincide com uma parte já identificada na prestação —
+mesmo espírito de "preencha o que o sistema já sabe" citado nas preferências de engenharia deste
+projeto, só que aplicado pelo próprio layout do XSD, não por uma decisão de UI deste app.
 
 ## `imp` (impostos) — `TImp`, `complexType` na linha 6672
 
@@ -88,22 +93,30 @@ complementar, que carrega só `chCTe` do CT-e complementado (até 10) — mais s
 desses é prioritário**; rodoviário é o candidato natural para o primeiro incremento (mais comum
 no Brasil), mas isso é suposição, não verificação.
 
+**`infDoc` investigado em seguida** (linha 4119): é um `xs:choice` entre `infNF` (linha 4128 —
+documento originário é NF modelo 01/04 em papel, carrega o detalhamento fiscal inteiro: `vBC`,
+`vICMS`, `vBCST`, `vST`, `vProd`, `vNF`, `nCFOP` — caso legado, cada vez mais raro) e `infNFe`
+(linha 4271 — documento originário é NF-e eletrônica, referenciada só pela `chave` de acesso,
+tipo `TChDFe`). **Achado direto para o MDF-e**: é essa `chave` de `infNFe` — só ela, sem
+detalhamento fiscal repetido — que fecha a ponte de correlação; o MDF-e vai precisar da mesma
+lista de chaves (de CT-e e de NF-e) para o seu próprio `infDoc`. **Implementado em seguida** (ver
+`docs/cte-infnfe.md`): `fiscal/cte.py::montar_infnfe`, reusando `ler_chave`/`ChaveInvalida` de
+`fiscal/documento/chave_acesso.py` — mesmo layout de 44 posições e dígito verificador da NF-e,
+confirmado idêntico entre os documentos da família (só o dígito de modelo muda).
+
 ## O que ainda falta investigar antes de implementar
 
-- Conteúdo de `ide` além do que já foi lido aqui — em especial o tomador (`toma3`/`toma4`).
-- `infCarga`/`infDoc` a fundo — são a ponte de correlação com a NF-e transportada, que é
-  exatamente o dado que o MDF-e precisa referenciar depois.
 - `cteModalRodoviario_v4.00.xsd` — estrutura do modal rodoviário (veículo, motorista, RNTRC).
 - Assinatura/chave de acesso do CT-e — hipótese de trabalho: mesmo algoritmo da NF-e (SHA-1,
   44 posições) por ser da mesma família de padrão (Ajuste SINIEF), **não confirmado ainda**.
 - Autorizador/webservice por UF — provavelmente segue o mesmo SVRS/SVSP/próprio já mapeado em
   `docs/transporte-nativo-sefaz.md` para NF-e, mas CT-e pode ter ambiente próprio — não verificado.
+- `infNF` (NF em papel) — deliberadamente não implementado; caso legado, prioridade baixa.
 
-## Nada implementado ainda
+## Implementado até agora
 
-Este documento é só levantamento — nenhum código de CT-e existe em `erpnext_brasil/` além do que
-já existia (nada). Não é uma frente iniciada, é uma frente **desbloqueada**: o obstáculo de
-extração que impedia o levantamento foi contornado (baixar e usar grep local em vez de resumo de
-página), então o próximo incremento de verdade (`fiscal/cte.py` com CFOP + `ICMSUFFim`, o
-subconjunto mais próximo do que já existe para NF-e/DIFAL) pode começar sem reabrir essa
-investigação.
+`fiscal/cte.py`: `montar_icms_uf_fim` (grupo `ICMSUFFim`, ver `docs/cte-icms-uf-fim.md`) e
+`montar_infnfe` (grupo `infDoc/infNFe`, ver `docs/cte-infnfe.md`). `fiscal/cfop_transporte.py`:
+CFOP de prestação de serviço de transporte (ver `docs/cfop-transporte.md`). O que falta para uma
+prestação de CT-e completa: `toma3`/`toma4` montado em XML (a estrutura já está mapeada acima,
+falta a função de montagem), modal rodoviário, assinatura, transmissão.

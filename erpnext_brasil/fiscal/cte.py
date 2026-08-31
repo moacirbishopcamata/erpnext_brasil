@@ -29,13 +29,24 @@ Reuso deliberado
 A única coisa nova aqui é o **nome dos campos** no grupo `ICMSUFFim` do CT-e, que diverge do
 `ICMSUFDest` da NF-e (`vBCUFFim` em vez de `vBCUFDest`, `pICMSUFFim` em vez de `pICMSUFDest`) —
 confirmado por leitura direta do XSD, não suposto por analogia.
+
+`montar_infnfe` monta o grupo `infDoc/infNFe` (a ponte com a NF-e transportada — o dado que o
+MDF-e vai precisar referenciar depois, ver `docs/cte-estado.md`). Não reimplementa validação de
+chave de acesso: reusa `fiscal.documento.chave_acesso.ler_chave`, a mesma função que a NF-e usa
+— o layout de 44 posições e o dígito verificador são idênticos entre os documentos da família
+(NF-e, CT-e, MDF-e), só o dígito de modelo muda. Confirmado por leitura do XSD (`infNFe.chave`,
+tipo `TChDFe` — "T**Ch****D**ocumento **F**iscal **e**letrônico", o mesmo tipo genérico usado
+para `chCTe` em outros grupos do próprio CT-e) que o campo é só a chave, sem repetir o valor da
+nota (diferente de `infNF`, para NF modelo 01/04 em papel, que carrega o detalhamento fiscal
+inteiro — esse grupo não foi implementado, é o caso legado, cada vez mais raro).
 """
 
 from decimal import Decimal
 
+from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, ler_chave
 from erpnext_brasil.fiscal.impostos.icms import calcular_difal
 
-__all__ = ["montar_icms_uf_fim"]
+__all__ = ["montar_icms_uf_fim", "montar_infnfe"]
 
 
 def montar_icms_uf_fim(
@@ -70,5 +81,31 @@ def montar_icms_uf_fim(
 		"vICMSUFFim": str(resultado["difal"]),
 		"vICMSUFIni": str(resultado["icms_origem"]),
 	}
+
+	return grupo
+
+
+def montar_infnfe(chaves_nfe: list[str]) -> list[dict]:
+	"""Monta a lista de referências `infDoc/infNFe` — uma por NF-e transportada.
+
+	Cada item vira `{"chave": <44 dígitos>}` — o XSD não carrega mais nada obrigatório
+	além da chave (ver docstring do módulo). Valida cada chave com a mesma rotina da
+	NF-e (`ler_chave`) e recusa uma chave que não seja de NF-e — evitaria colar por
+	engano a chave de outro CT-e ou de um MDF-e no lugar errado, erro que só apareceria
+	na rejeição da SEFAZ sem essa checagem local.
+	"""
+	grupo = []
+
+	for chave in chaves_nfe:
+		decomposta = ler_chave(chave)
+
+		if decomposta.modelo != "55":
+			raise ChaveInvalida(
+				f"infDoc/infNFe só aceita chave de NF-e (modelo 55), "
+				f"recebida chave de modelo {decomposta.modelo} ({decomposta.documento})",
+				chave,
+			)
+
+		grupo.append({"chave": decomposta.valor})
 
 	return grupo

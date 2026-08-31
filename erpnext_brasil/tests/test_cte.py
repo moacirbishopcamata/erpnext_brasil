@@ -1,13 +1,40 @@
 # Copyright (c) 2026, ERPNext Brasil contributors
 # License: MIT. See license.txt
 
-"""Testes de `fiscal/cte.py` — montagem do grupo `ICMSUFFim` do CT-e."""
+"""Testes de `fiscal/cte.py` — montagem dos grupos `ICMSUFFim` e `infDoc/infNFe` do CT-e."""
 
 import unittest
 from decimal import Decimal
 
-from erpnext_brasil.fiscal.cte import montar_icms_uf_fim
+from erpnext_brasil.fiscal.cte import montar_icms_uf_fim, montar_infnfe
+from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, montar_chave
 from erpnext_brasil.fiscal.impostos.icms import calcular_difal
+
+
+def _chave_nfe(numero: str = "000000001") -> str:
+	return montar_chave(
+		uf="35",
+		ano_mes="2608",
+		cnpj="11222333000181",
+		modelo="55",
+		serie="001",
+		numero=numero,
+		tipo_emissao="1",
+		codigo_numerico="12345678",
+	)
+
+
+def _chave_cte(numero: str = "000000001") -> str:
+	return montar_chave(
+		uf="35",
+		ano_mes="2608",
+		cnpj="11222333000181",
+		modelo="57",
+		serie="001",
+		numero=numero,
+		tipo_emissao="1",
+		codigo_numerico="12345678",
+	)
 
 
 class TestMontarIcmsUfFim(unittest.TestCase):
@@ -75,6 +102,36 @@ class TestMontarIcmsUfFim(unittest.TestCase):
 		)
 
 		self.assertNotEqual(com_base_dupla["vBCUFFim"], com_base_unica["vBCUFFim"])
+
+
+class TestMontarInfnfe(unittest.TestCase):
+	def test_uma_chave(self):
+		chave = _chave_nfe()
+
+		grupo = montar_infnfe([chave])
+
+		self.assertEqual(grupo, [{"chave": chave}])
+
+	def test_varias_chaves_preserva_ordem(self):
+		chave_1 = _chave_nfe("000000001")
+		chave_2 = _chave_nfe("000000002")
+
+		grupo = montar_infnfe([chave_1, chave_2])
+
+		self.assertEqual(grupo, [{"chave": chave_1}, {"chave": chave_2}])
+
+	def test_lista_vazia_devolve_lista_vazia(self):
+		self.assertEqual(montar_infnfe([]), [])
+
+	def test_chave_invalida_levanta_erro(self):
+		with self.assertRaises(ChaveInvalida):
+			montar_infnfe(["0" * 43 + "9"])  # DV errado
+
+	def test_recusa_chave_que_nao_e_de_nfe(self):
+		"""infDoc/infNFe só aceita NF-e (modelo 55) — colar por engano a chave de outro
+		CT-e (modelo 57) tem que falhar aqui, não só na rejeição da SEFAZ."""
+		with self.assertRaises(ChaveInvalida):
+			montar_infnfe([_chave_cte()])
 
 
 if __name__ == "__main__":

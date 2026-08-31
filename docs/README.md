@@ -50,6 +50,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [cte-estado.md](cte-estado.md) | Levantamento do CT-e: estrutura de `TCTe` verificada por grep local (não resumo de ferramenta, que alucinou 3x), `imp` como `xs:choice` de 7 CSTs, `ICMSUFFim` como equivalente do DIFAL da NF-e |
 | [cte-icms-uf-fim.md](cte-icms-uf-fim.md) | Primeiro código de CT-e: grupo `ICMSUFFim`, reuso direto de `calcular_difal`, por que o CFOP de transporte ficou de fora |
 | [cfop-transporte.md](cfop-transporte.md) | CFOP de prestação de serviço de transporte (`ide.CFOP` do CT-e): oito perfis de tomador, nível de confiança declarado (só fonte secundária cruzada, sem o Ajuste SINIEF localizado) |
+| [cte-infnfe.md](cte-infnfe.md) | Grupo `infDoc/infNFe` do CT-e: ponte com a NF-e transportada (dado que o MDF-e vai precisar depois), reuso de `ler_chave` da NF-e, recusa de chave que não seja modelo 55 |
 
 ## Convenções que valem em todo o código
 
