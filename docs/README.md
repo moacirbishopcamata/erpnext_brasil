@@ -39,6 +39,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [rh-esocial-s2200.md](rh-esocial-s2200.md) | S-2200 (Admissão): pré-requisito do S-1200, três níveis de confiança por campo (enumeração literal, citada, só formato) declarados explicitamente |
 | [rh-esocial-s2299.md](rh-esocial-s2299.md) | S-2299 (Desligamento): reaproveita de verdade o `DmDev` do S-1200, três variações de `procEmi` confirmadas, `mtvDeslig`/Tabela 19 genuinamente não localizada |
 | [boleto.md](boleto.md) | Código de barras/linha digitável FEBRABAN (validado contra exemplo real) e leitura do CNAB 400 de retorno para conciliação |
+| [cnab240-retorno.md](cnab240-retorno.md) | Sucessor do CNAB 400: Segmentos T/U do retorno, posições confirmadas contra dois bancos independentes, `codigo_movimento` como hipótese de trabalho |
 
 ## Convenções que valem em todo o código
 

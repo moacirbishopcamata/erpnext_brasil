@@ -133,6 +133,7 @@ um boleto pago depois de já ter sido baixado). Tratar `02` como "pago" seria o 
   `calcular_dv_campo`, `montar_codigo_barras`, `montar_linha_digitavel`; camada pura,
   sem Frappe, testável sem bench.
 - `contabil/cnab400_retorno.py` — `ler_registro_detalhe`, `foi_pago`; idem.
+- `contabil/cnab240_retorno.py` — sucessor do CNAB 400, ver `docs/cnab240-retorno.md`.
 
 ## Fontes
 
