@@ -25,14 +25,11 @@ isoladamente não expõe.
 
 ## O que este módulo não faz: assinar
 
-A árvore que `montar_evt_remun` produz **não tem** `Signature`. A ordem correta,
-ainda não implementada, é: (1) serializar a árvore sem assinatura, (2) assinar esses
-bytes com `AssinadorLocalEsocial.assinar` (`docs/rh-esocial-assinatura.md`), usando
-o `id_evento` do atributo `Id` de `evtRemun` como referência, (3) mesclar o
-`Signature` resultante de `montar_signature` como **irmão** de `evtRemun` dentro do
-mesmo dicionário `eSocial`, (4) serializar a árvore completa de novo, desta vez com
-a assinatura dentro. Essa orquestração cabe na camada de integração (mistura
-dataclasses puros com uma classe que usa `cryptography`), não neste módulo puro.
+A árvore que `montar_evt_remun` produz **não tem** `Signature`. A orquestração
+serializar→assinar→mesclar→serializar de novo está em
+`folha/esocial_montagem.py::montar_evento_assinado` (`docs/rh-esocial-montagem.md`)
+— um módulo à parte, ainda puro (o assinador é injetado), para manter este aqui só
+com a tradução dataclass→dict do S-1200.
 
 ## Prova de bem-formação: `lxml` analisa o resultado de verdade
 

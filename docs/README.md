@@ -31,6 +31,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [rh-esocial-retorno.md](rh-esocial-retorno.md) | Leitura da resposta de envio/processamento de lote: códigos de cdResposta confirmados, tem_erro vs. sucesso, eventos_com_erro |
 | [rh-esocial-assinatura.md](rh-esocial-assinatura.md) | Assinatura XMLDSig do eSocial: mesma canonicalização da NF-e, hash SHA-256 (não SHA-1) provado com verificação criptográfica real |
 | [rh-esocial-serializacao.md](rh-esocial-serializacao.md) | Árvore do S-1200 serializada em XML de verdade (provado com lxml), reaproveitando `para_xml`; a descoberta do gap `indApuracao` no processo |
+| [rh-esocial-montagem.md](rh-esocial-montagem.md) | Orquestração serializar→assinar→mesclar→serializar; assinador injetado (continua puro); prova ponta a ponta com assinatura real verificada |
 | [boleto.md](boleto.md) | Código de barras/linha digitável FEBRABAN (validado contra exemplo real) e leitura do CNAB 400 de retorno para conciliação |
 
 ## Convenções que valem em todo o código

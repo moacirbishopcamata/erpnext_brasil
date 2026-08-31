@@ -15,13 +15,13 @@ da NF-e, apesar de onde mora — mesma decisão já tomada em
 
 O que este módulo NÃO faz
 --------------------------------
-Monta a árvore **sem assinatura** — não chama `AssinadorLocalEsocial` nem
-`folha/esocial_assinatura.py`. Assinar exige primeiro serializar (para ter os bytes
-que o assinador canonicaliza), depois mesclar o `Signature` resultante de volta na
-árvore como irmão de `evtRemun`, e só então serializar de novo, desta vez o
-documento completo e assinado. Essa orquestração cabe na camada de integração,
-quando o envio de verdade for implementado — este módulo só entrega a árvore de
-negócio pronta para o primeiro desses dois `para_xml`.
+Monta a árvore **sem assinatura** — não chama `AssinadorLocalEsocial` nem sabe que
+existe. Assinar exige primeiro serializar (para ter os bytes que o assinador
+canonicaliza), depois mesclar o `Signature` resultante de volta na árvore como irmão
+de `evtRemun`, e só então serializar de novo, desta vez o documento completo e
+assinado — essa orquestração está em `folha/esocial_montagem.py::montar_evento_assinado`,
+um módulo à parte (ainda puro, recebe o assinador por injeção de dependência) para
+manter este aqui só com a tradução dataclass→dict do S-1200.
 
 Namespace do evento
 --------------------------
