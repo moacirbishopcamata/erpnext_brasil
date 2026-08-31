@@ -96,22 +96,26 @@ class TestStatusRetorno(unittest.TestCase):
 
 class TestDadosRecepcaoLote(unittest.TestCase):
 	def test_valido(self):
-		DadosRecepcaoLote(protocolo_envio="1.2.202601010000000000001")
+		DadosRecepcaoLote(protocolo_envio="1.1.0000000000000000001")
 
 	def test_vazio_e_erro(self):
 		with self.assertRaises(EsocialRetornoInvalido):
 			DadosRecepcaoLote(protocolo_envio="")
 
-	def test_grande_demais_e_erro(self):
+	def test_fora_do_formato_e_erro(self):
 		with self.assertRaises(EsocialRetornoInvalido):
 			DadosRecepcaoLote(protocolo_envio="1" * 31)
+
+	def test_sequencial_com_numero_errado_de_digitos_e_erro(self):
+		with self.assertRaises(EsocialRetornoInvalido):
+			DadosRecepcaoLote(protocolo_envio="1.1.123")
 
 
 class TestRetornoEnvioLote(unittest.TestCase):
 	def test_sucesso_com_protocolo(self):
 		retorno = RetornoEnvioLote(
 			status=StatusRetorno(cd_resposta=CODIGO_LOTE_RECEBIDO_SUCESSO, desc_resposta="OK"),
-			dados_recepcao=DadosRecepcaoLote(protocolo_envio="1.2.202601010000000000001"),
+			dados_recepcao=DadosRecepcaoLote(protocolo_envio="1.1.0000000000000000001"),
 		)
 
 		self.assertTrue(retorno.status.sucesso)

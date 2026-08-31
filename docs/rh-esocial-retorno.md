@@ -62,8 +62,9 @@ saber quais eventos do lote precisam de atenção.
 - **Parsing de XML real** para essas estruturas — os dataclasses recebem os campos já
   extraídos; a extração de um XML/SOAP real para estes campos ainda não foi escrita
   (mesma situação da assinatura/envio em si, ver `docs/rh-esocial-lote.md`).
-- **Formato exato de `protocolo_envio`** (`"A.B.NNN..."`, citado por busca agregada)
-  — não confirmado por leitura direta do XSD, só o tamanho máximo é validado.
+- ~~Formato exato de `protocolo_envio` não confirmado~~ — resolvido em
+  `docs/rh-esocial-consulta.md`: `A.B.` + 19 dígitos, confirmado no XSD de
+  `ConsultaLoteEventos-v1_0_0.xsd`. `DadosRecepcaoLote` já valida o formato completo.
 
 ## Arquivos
 

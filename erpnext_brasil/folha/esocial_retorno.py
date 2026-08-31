@@ -44,6 +44,8 @@ Funções puras: nenhuma dependência do Frappe, nenhuma chamada de rede.
 
 from dataclasses import dataclass
 
+from erpnext_brasil.folha.esocial_consulta import protocolo_e_valido
+
 __all__ = [
 	"CODIGO_ERRO_PREENCHIMENTO",
 	"CODIGO_ERRO_SERVIDOR",
@@ -144,19 +146,24 @@ class StatusRetorno:
 @dataclass(frozen=True)
 class DadosRecepcaoLote:
 	"""`dadosRecepcaoLote` (`TDadosRecepcao`) — carrega o `protocolo_envio`, a chave
-	usada depois para consultar o processamento (`endpoint("consultarLoteEventos", ...)`
-	em `esocial_lote.py`). Formato exato de `protocolo_envio` ("A.B.NNN...", citado por
-	busca agregada) não confirmado por leitura direta do XSD — só o tamanho máximo é
-	validado aqui."""
+	usada depois para consultar o processamento
+	(`esocial_consulta.montar_consulta_lote_eventos`, `esocial_lote.endpoint`).
+
+	Formato de `protocolo_envio` confirmado contra `ConsultaLoteEventos-v1_0_0.xsd`
+	(`esocial_consulta.PADRAO_PROTOCOLO_ENVIO`) — "A.B." + 19 dígitos sequenciais —
+	desde que `esocial_consulta.py` leu o XSD que documenta esse formato
+	explicitamente; a ressalva anterior ("formato não confirmado, só o tamanho
+	validado") não vale mais para este campo."""
 
 	protocolo_envio: str
 	dh_recepcao: str | None = None
 	versao_aplicativo_recepcao: str | None = None
 
 	def __post_init__(self):
-		if not self.protocolo_envio or len(self.protocolo_envio) > 30:
+		if not protocolo_e_valido(self.protocolo_envio):
 			raise EsocialRetornoInvalido(
-				f"protocoloEnvio deve ter entre 1 e 30 caracteres, recebido {self.protocolo_envio!r}"
+				f"protocoloEnvio deve seguir o formato 'A.B.' + 19 dígitos "
+				f"(ex. '1.1.0000000000000000001'), recebido {self.protocolo_envio!r}"
 			)
 
 

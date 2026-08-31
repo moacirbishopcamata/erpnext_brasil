@@ -31,13 +31,13 @@ mesmo "quem chama entrega XML pronto" já usado em `esocial_montagem.py` para o
 `soap_action(servico)` monta o cabeçalho HTTP `SOAPAction` exigido — confirmado nos
 dois WSDLs como `<namespace>/Servico<Operação>/<Operação>`.
 
-## O que não está aqui: o conteúdo de `<consulta>`
+## O conteúdo de `<consulta>`: resolvido em seguida
 
-O wrapper de `ConsultarLoteEventos` chama-se `consulta`, mas a estrutura XML exata
-que vai por dentro dele (`ConsultaLoteEventos-v1_0_0.xsd` — provavelmente algo como
-`<eSocial><consultaLoteEventos><protocoloEnvio>...</protocoloEnvio></consultaLoteEventos></eSocial>`)
-não foi lida nesta rodada — só o nome do elemento wrapper externo. Registrado como
-gap explícito, não inferido.
+O wrapper de `ConsultarLoteEventos` chama-se `consulta` — o conteúdo XML por dentro
+dele (`ConsultaLoteEventos-v1_0_0.xsd`) foi lido no incremento seguinte
+(`docs/rh-esocial-consulta.md`): é só `<eSocial><consultaLoteEventos><protocoloEnvio>
+...</protocoloEnvio></consultaLoteEventos></eSocial>`, com o formato exato do
+protocolo confirmado.
 
 ## Autenticação por certificado: TLS mútuo, não deste módulo
 
@@ -57,8 +57,6 @@ real (elemento `*Result` embrulhando `<eSocial><retornoEnvioLoteEventos>...`).
 
 ## O que ainda falta
 
-- **A estrutura interna de `<consulta>`** (`ConsultaLoteEventos-v1_0_0.xsd`), não
-  verificada nesta rodada.
 - **A chamada HTTP de verdade** (`requests.post` com o certificado como client cert
   TLS, cabeçalhos `Content-Type`/`SOAPAction`) — equivalente ao `_enviar` de
   `integracao/autorizacao_sefaz.py` da NF-e, ainda não escrito.
