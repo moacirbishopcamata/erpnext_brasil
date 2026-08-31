@@ -36,6 +36,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [rh-esocial-consulta.md](rh-esocial-consulta.md) | Conteúdo de `<consulta>`: formato exato do `protocoloEnvio` (agente/ambiente/sequencial), três domínios de "ambiente" que não são o mesmo conceito |
 | [rh-esocial-id.md](rh-esocial-id.md) | Geração do `Id` de 36 caracteres do evento: composição confirmada, zeros à direita (não à esquerda) e por quê |
 | [rh-esocial-s1010.md](rh-esocial-s1010.md) | S-1010 (Tabela de Rubricas): a peça que falta para o S-1200 funcionar, quatro tabelas de incidência confirmadas no XSD |
+| [rh-esocial-s2200.md](rh-esocial-s2200.md) | S-2200 (Admissão): pré-requisito do S-1200, três níveis de confiança por campo (enumeração literal, citada, só formato) declarados explicitamente |
 | [boleto.md](boleto.md) | Código de barras/linha digitável FEBRABAN (validado contra exemplo real) e leitura do CNAB 400 de retorno para conciliação |
 
 ## Convenções que valem em todo o código
