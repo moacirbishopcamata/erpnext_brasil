@@ -17,9 +17,30 @@ recorte. Estão cobertas as variantes que `fiscal/impostos/icms.py` já sabe cal
 - **ICMSSN101/102** — Simples Nacional, com e sem crédito.
 
 **Fora do escopo, e não finja que está coberto**: ICMS-ST nas variantes próprias
-(`ICMSPart`, `ICMSST`), partilha interestadual (`ICMSUFDest`/DIFAL), `PISST`/`COFINSST`,
-`II` (imposto de importação). Adicionar precisa vir acompanhado do cálculo correspondente
-— este módulo só monta o que a apuração sabe calcular, nunca o contrário.
+(`ICMSPart`, `ICMSST`), `PISST`/`COFINSST`, `II` (imposto de importação). Adicionar
+precisa vir acompanhado do cálculo correspondente — este módulo só monta o que a
+apuração sabe calcular, nunca o contrário.
+
+DIFAL (`ICMSUFDest`) já está coberto — não é mais gap
+------------------------------------------------------------
+`fiscal/impostos/icms.calcular_difal` já calculava o diferencial de alíquotas (EC
+87/2015) desde antes, mas este módulo não sabia montar o grupo `ICMSUFDest` da
+NF-e — o cálculo existia sem ter como entrar no XML. `montar_icms_uf_dest`
+(`_grupo_icms_uf_dest`) fecha essa lacuna: monta os nove campos do grupo,
+confirmados contra a NT 2015.003 (`vBCUFDest`, `vBCFCPUFDest`, `pFCPUFDest`,
+`pICMSUFDest`, `pICMSInter`, `pICMSInterPart`, `vFCPUFDest`, `vICMSUFDest`,
+`vICMSUFRemet`, nesta ordem).
+
+`vICMSUFRemet` existe no leiaute, mas é **sempre zero desde 2019**
+------------------------------------------------------------------------------
+A partilha do DIFAL entre origem e destino foi um regime de transição (EC 87/2015):
+a partir de 2019, 100% do diferencial vai para o destino — não há mais parcela para
+a UF de origem. O campo continua existindo no XSD (não foi removido), só que seu
+valor é estruturalmente zero a partir dessa data. Este módulo não hardcoda esse
+"sempre 100%" — `percentual_partilha_destino` é parâmetro obrigatório, calculado
+por quem chama a partir da data da operação, mesma disciplina de nunca supor uma
+alíquota legalmente faseada (ver `ibs_cbs.py`/`ANO_TESTE`, `boleto.py`/bases de
+fator de vencimento).
 
 A escolha de qual variante montar (mercadoria × serviço, qual CST de ICMS) é do
 chamador — este módulo não infere natureza de operação a partir de dado incompleto.
@@ -36,7 +57,12 @@ from erpnext_brasil.fiscal.documento.ibs_cbs_xml import grupo_ibscbs_item
 from erpnext_brasil.fiscal.impostos.apuracao import ApuracaoItem
 from erpnext_brasil.fiscal.impostos.icms import arredondar
 
-__all__ = ["CST_COM_ICMS_DESONERADO", "ImpostoInvalido", "montar_imposto_item"]
+__all__ = [
+	"CST_COM_ICMS_DESONERADO",
+	"ImpostoInvalido",
+	"montar_icms_uf_dest",
+	"montar_imposto_item",
+]
 
 # CSTs em que `vICMSDeson`/`motDesICMS` fazem sentido — desoneração condicional
 # (ex.: isenção de IPVA/ICMS para taxista). Confirmado no leiaute e no guia de uso.
@@ -185,6 +211,54 @@ def _grupo_issqn(
 	}
 
 
+def montar_icms_uf_dest(
+	resultado_difal: dict,
+	aliquota_interestadual: Decimal,
+	aliquota_interna_destino: Decimal,
+	percentual_partilha_destino: Decimal,
+	aliquota_fcp: Decimal = Decimal(0),
+) -> dict:
+	"""Grupo `ICMSUFDest` — partilha do DIFAL (EC 87/2015) entre origem e destino.
+
+	`resultado_difal` é a saída de `fiscal/impostos/icms.calcular_difal` (mesmo
+	`aliquota_fcp` usado nos dois, para que `resultado_difal["fcp"]` e os campos de
+	FCP aqui montados venham da mesma base). `percentual_partilha_destino` nunca é
+	suposto — ver docstring do módulo sobre por que `vICMSUFRemet` não é hardcodado
+	como zero, mesmo sendo estruturalmente zero desde 2019.
+	"""
+	if not (Decimal("0") <= percentual_partilha_destino <= Decimal("1")):
+		raise ImpostoInvalido(
+			"percentual_partilha_destino deve ser uma fração entre 0 e 1",
+			"percentual_partilha_destino",
+		)
+
+	difal = resultado_difal["difal"]
+	v_icms_uf_dest = arredondar(difal * percentual_partilha_destino)
+	v_icms_uf_remet = arredondar(difal - v_icms_uf_dest)
+
+	grupo = {"vBCUFDest": _valor(resultado_difal["base_destino"])}
+
+	if aliquota_fcp:
+		grupo["vBCFCPUFDest"] = _valor(resultado_difal["base_destino"])
+		grupo["pFCPUFDest"] = _percentual(aliquota_fcp)
+
+	grupo.update(
+		{
+			"pICMSUFDest": _percentual(aliquota_interna_destino),
+			"pICMSInter": _percentual(aliquota_interestadual),
+			"pICMSInterPart": _percentual(percentual_partilha_destino),
+		}
+	)
+
+	if aliquota_fcp:
+		grupo["vFCPUFDest"] = _valor(resultado_difal["fcp"])
+
+	grupo["vICMSUFDest"] = _valor(v_icms_uf_dest)
+	grupo["vICMSUFRemet"] = _valor(v_icms_uf_remet)
+
+	return grupo
+
+
 def montar_imposto_item(
 	apuracao: ApuracaoItem,
 	cst_icms: str | None = None,
@@ -192,6 +266,7 @@ def montar_imposto_item(
 	icms_tributado: bool = True,
 	ipi_tributado: bool = False,
 	issqn: dict | None = None,
+	icms_uf_dest: dict | None = None,
 ) -> dict:
 	"""Monta o grupo `imposto` de um item.
 
@@ -199,9 +274,20 @@ def montar_imposto_item(
 	Nacional informa CSOSN. Informar ISSQN torna o item de serviço, e é incompatível com
 	ICMS/IPI no mesmo item — mercadoria e serviço não se misturam no mesmo detalhe.
 
+	`icms_uf_dest` (saída de `montar_icms_uf_dest`) entra como `ICMSUFDest`, **dentro**
+	do grupo `ICMS` — irmão de `ICMS00`/`ICMSSN101`/etc, não fora dele (confirmado
+	contra o caminho oficial `det/imposto/ICMS/ICMSUFDest`, não um grupo separado no
+	nível de `imposto`). Incompatível com ISSQN pela mesma razão que ICMS em si é.
+
 	O grupo IBS/CBS entra sempre que a apuração o tiver calculado, independente do item
     ser mercadoria ou serviço: a reforma tributária alcança os dois.
 	"""
+	if icms_uf_dest and issqn:
+		raise ImpostoInvalido(
+			"Item de serviço (ISSQN) não tem ICMSUFDest: mercadoria e serviço não se "
+			"misturam no mesmo item",
+			"icms_uf_dest",
+		)
 	if cst_icms and csosn:
 		raise ImpostoInvalido("Informe CST ou CSOSN, nunca os dois", "cst_icms")
 
@@ -230,6 +316,9 @@ def montar_imposto_item(
 			"para o escopo coberto",
 			"cst_icms",
 		)
+
+	if icms_uf_dest:
+		grupo["ICMS"]["ICMSUFDest"] = icms_uf_dest
 
 	if not issqn:
 		grupo["IPI"] = _grupo_ipi(apuracao, ipi_tributado)

@@ -124,12 +124,18 @@ fazê-lo pela metade seria pior que ser explícito sobre o recorte.
 **Cobertas** (as que `fiscal/impostos/icms.py` já calcula): ICMS00 (integral), ICMS20
 (redução de base), ICMS40/41/60 (isenta/não tributada/ST anterior), ICMSSN101/102
 (Simples Nacional, com e sem crédito). IPI, PIS e COFINS no padrão "Aliq" (alíquota por
-percentual). ISSQN para item de serviço.
+percentual). ISSQN para item de serviço. **DIFAL** (`ICMSUFDest`, EC 87/2015) —
+`montar_icms_uf_dest` fecha a lacuna entre o cálculo (`calcular_difal`, que já existia)
+e o XML: nove campos confirmados contra a NT 2015.003 e, de forma independente, contra
+o manifesto oficial de elementos (`fiscal/documento/elementos_nfe.json`). O grupo entra
+**dentro** de `ICMS`, irmão de `ICMS00`/etc — não fora dele (caminho oficial
+`det/imposto/ICMS/ICMSUFDest`). `vICMSUFRemet` continua existindo no leiaute mesmo
+sendo estruturalmente zero desde 2019 (100% da partilha vai para o destino) —
+`percentual_partilha_destino` é sempre parâmetro explícito, nunca hardcodado como 1.
 
 **Fora do escopo, declarado no código**: ICMS-ST em suas variantes próprias (`ICMSPart`,
-`ICMSST`), DIFAL (`ICMSUFDest`), `PISST`/`COFINSST`, imposto de importação (`II`).
-Adicionar uma dessas exige primeiro o cálculo correspondente — o módulo só monta o que a
-apuração sabe calcular.
+`ICMSST`), `PISST`/`COFINSST`, imposto de importação (`II`). Adicionar uma dessas exige
+primeiro o cálculo correspondente — o módulo só monta o que a apuração sabe calcular.
 
 **Exclusividade mútua**, com erro explícito quando violada:
 

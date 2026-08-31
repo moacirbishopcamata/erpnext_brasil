@@ -11,8 +11,13 @@ erro explícito, não escolha silenciosa — mesma disciplina já aplicada em `d
 import unittest
 from decimal import Decimal
 
-from erpnext_brasil.fiscal.documento.imposto_item import ImpostoInvalido, montar_imposto_item
+from erpnext_brasil.fiscal.documento.imposto_item import (
+	ImpostoInvalido,
+	montar_icms_uf_dest,
+	montar_imposto_item,
+)
 from erpnext_brasil.fiscal.impostos.apuracao import ItemFiscal, Operacao, apurar
+from erpnext_brasil.fiscal.impostos.icms import calcular_difal
 
 
 def apuracao(**ajustes):
@@ -273,6 +278,146 @@ class TestConformidadeDeTags(unittest.TestCase):
 			},
 		)
 		self.assertEqual(self._tags(grupo) - self.elementos, set())
+
+
+class TestMontarIcmsUfDest(unittest.TestCase):
+	"""DIFAL (EC 87/2015) — `fiscal/impostos/icms.calcular_difal` já calculava o
+	diferencial; este grupo é o que faltava para ele entrar no XML."""
+
+	def _resultado(self, aliquota_fcp=Decimal("0")):
+		return calcular_difal(
+			valor_operacao=Decimal("1000.00"),
+			aliquota_interestadual=Decimal("0.12"),
+			aliquota_interna_destino=Decimal("0.18"),
+			aliquota_fcp=aliquota_fcp,
+		)
+
+	def test_estrutura_sem_fcp(self):
+		grupo = montar_icms_uf_dest(
+			self._resultado(),
+			aliquota_interestadual=Decimal("0.12"),
+			aliquota_interna_destino=Decimal("0.18"),
+			percentual_partilha_destino=Decimal("1"),
+		)
+
+		self.assertNotIn("vBCFCPUFDest", grupo)
+		self.assertNotIn("pFCPUFDest", grupo)
+		self.assertNotIn("vFCPUFDest", grupo)
+		self.assertIn("vBCUFDest", grupo)
+		self.assertIn("vICMSUFDest", grupo)
+		self.assertIn("vICMSUFRemet", grupo)
+
+	def test_estrutura_com_fcp(self):
+		grupo = montar_icms_uf_dest(
+			self._resultado(aliquota_fcp=Decimal("0.02")),
+			aliquota_interestadual=Decimal("0.12"),
+			aliquota_interna_destino=Decimal("0.18"),
+			percentual_partilha_destino=Decimal("1"),
+			aliquota_fcp=Decimal("0.02"),
+		)
+
+		self.assertIn("vBCFCPUFDest", grupo)
+		self.assertIn("pFCPUFDest", grupo)
+		self.assertIn("vFCPUFDest", grupo)
+
+	def test_partilha_100_por_cento_zera_vicmsufremet(self):
+		"""Regime vigente desde 2019: toda a partilha vai para o destino."""
+		grupo = montar_icms_uf_dest(
+			self._resultado(),
+			aliquota_interestadual=Decimal("0.12"),
+			aliquota_interna_destino=Decimal("0.18"),
+			percentual_partilha_destino=Decimal("1"),
+		)
+
+		self.assertEqual(grupo["vICMSUFRemet"], "0.00")
+
+	def test_partilha_parcial_reparte_entre_origem_e_destino(self):
+		"""Regime de transição (2016-2018), só para provar que a divisão funciona —
+		não sugere que este percentual valha hoje."""
+		resultado = self._resultado()
+		grupo = montar_icms_uf_dest(
+			resultado,
+			aliquota_interestadual=Decimal("0.12"),
+			aliquota_interna_destino=Decimal("0.18"),
+			percentual_partilha_destino=Decimal("0.60"),
+		)
+
+		esperado_destino = (resultado["difal"] * Decimal("0.60")).quantize(Decimal("0.01"))
+		esperado_remet = resultado["difal"] - esperado_destino
+
+		self.assertEqual(Decimal(grupo["vICMSUFDest"]), esperado_destino)
+		self.assertEqual(Decimal(grupo["vICMSUFRemet"]), esperado_remet)
+
+	def test_percentual_fora_de_0_a_1_e_erro(self):
+		with self.assertRaises(ImpostoInvalido):
+			montar_icms_uf_dest(
+				self._resultado(),
+				aliquota_interestadual=Decimal("0.12"),
+				aliquota_interna_destino=Decimal("0.18"),
+				percentual_partilha_destino=Decimal("1.5"),
+			)
+
+	def test_todos_os_campos_estao_no_manifesto_oficial(self):
+		import json
+		import pathlib
+
+		manifesto = (
+			pathlib.Path(__file__).resolve().parents[1] / "fiscal" / "documento" / "elementos_nfe.json"
+		)
+		elementos = set(json.loads(manifesto.read_text(encoding="utf-8")))
+
+		grupo = montar_icms_uf_dest(
+			self._resultado(aliquota_fcp=Decimal("0.02")),
+			aliquota_interestadual=Decimal("0.12"),
+			aliquota_interna_destino=Decimal("0.18"),
+			percentual_partilha_destino=Decimal("1"),
+			aliquota_fcp=Decimal("0.02"),
+		)
+
+		self.assertEqual(set(grupo) - elementos, set())
+
+
+class TestIcmsUfDestDentroDoGrupoIcms(unittest.TestCase):
+	"""Confirma o posicionamento oficial: ICMSUFDest é irmão de ICMS00 dentro de
+	ICMS, não um grupo separado no nível de `imposto` (det/imposto/ICMS/ICMSUFDest)."""
+
+	def test_fica_dentro_de_icms_irmao_do_cst(self):
+		resultado = calcular_difal(
+			valor_operacao=Decimal("1000.00"),
+			aliquota_interestadual=Decimal("0.12"),
+			aliquota_interna_destino=Decimal("0.18"),
+		)
+		icms_uf_dest = montar_icms_uf_dest(
+			resultado,
+			aliquota_interestadual=Decimal("0.12"),
+			aliquota_interna_destino=Decimal("0.18"),
+			percentual_partilha_destino=Decimal("1"),
+		)
+
+		grupo = montar_imposto_item(apuracao(), cst_icms="00", icms_uf_dest=icms_uf_dest)["imposto"]
+
+		self.assertIn("ICMS00", grupo["ICMS"])
+		self.assertIn("ICMSUFDest", grupo["ICMS"])
+
+	def test_icms_uf_dest_com_issqn_e_erro(self):
+		icms_uf_dest = montar_icms_uf_dest(
+			calcular_difal(Decimal("1000.00"), Decimal("0.12"), Decimal("0.18")),
+			aliquota_interestadual=Decimal("0.12"),
+			aliquota_interna_destino=Decimal("0.18"),
+			percentual_partilha_destino=Decimal("1"),
+		)
+
+		with self.assertRaises(ImpostoInvalido):
+			montar_imposto_item(
+				apuracao(),
+				issqn={
+					"base": Decimal("1000.00"),
+					"aliquota": Decimal("0.05"),
+					"municipio": "3550308",
+					"item_lista_servico": "01.01",
+				},
+				icms_uf_dest=icms_uf_dest,
+			)
 
 
 if __name__ == "__main__":
