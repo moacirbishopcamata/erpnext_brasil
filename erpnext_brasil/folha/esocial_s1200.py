@@ -56,6 +56,8 @@ from decimal import ROUND_HALF_UP, Decimal
 __all__ = [
 	"AMBIENTE_PRODUCAO",
 	"AMBIENTE_PRODUCAO_RESTRITA",
+	"INDICADOR_APURACAO_DECIMO_TERCEIRO",
+	"INDICADOR_APURACAO_MENSAL",
 	"DmDev",
 	"EsocialInvalido",
 	"IdeEmpregador",
@@ -96,6 +98,15 @@ def _validar_nr_insc(valor: str, campo: str = "nrInsc") -> None:
 		raise EsocialInvalido(f"{campo} deve ter entre 8 e 15 dígitos numéricos, recebido {valor!r}")
 
 
+# indApuracao — confirmado por busca agregada, ausente do XSD (que só declara
+# xs:byte livre): 1 = apuração mensal normal (perApur em "AAAA-MM"), 2 = segunda
+# parcela do décimo terceiro salário (perApur em "AAAA", só o ano). A 1ª parcela do
+# 13º usa indApuracao=1 (vai junto da folha normal do mês em que foi paga) — só a
+# 2ª parcela usa o valor 2, enviada separadamente.
+INDICADOR_APURACAO_MENSAL = 1
+INDICADOR_APURACAO_DECIMO_TERCEIRO = 2
+
+
 @dataclass(frozen=True)
 class IdeEvento:
 	"""Grupo `ideEvento` do S-1200.
@@ -104,9 +115,18 @@ class IdeEvento:
 	marca o campo como opcional (`minOccurs=0`), mas a regra de negócio (confirmada
 	via busca agregada às Perguntas Frequentes do eSocial) o torna obrigatório nesse
 	caso; verificado aqui como invariante, não deixado para a SEFAZ rejeitar depois.
+
+	`ind_apuracao` decide o formato de `per_apur` — não são dois campos
+	independentes: mensal (`INDICADOR_APURACAO_MENSAL`) exige "AAAA-MM" (7
+	caracteres); décimo terceiro (`INDICADOR_APURACAO_DECIMO_TERCEIRO`) exige só o
+	ano, "AAAA" (4 caracteres). Este campo tinha ficado de fora do primeiro
+	incremento deste módulo — descoberto e corrigido ao montar a serialização XML
+	completa, quando ficou claro que "perApur entre 4 e 7 caracteres" sozinho não
+	bastava para saber qual dos dois formatos era exigido em cada caso.
 	"""
 
 	ind_retif: int
+	ind_apuracao: int
 	per_apur: str
 	tp_amb: int
 	proc_emi: int
@@ -120,9 +140,21 @@ class IdeEvento:
 		if self.ind_retif == 2 and not self.nr_recibo:
 			raise EsocialInvalido("nrRecibo é obrigatório quando indRetif=2 (retificação)")
 
-		if not (4 <= len(self.per_apur) <= 7):
+		if self.ind_apuracao not in (INDICADOR_APURACAO_MENSAL, INDICADOR_APURACAO_DECIMO_TERCEIRO):
 			raise EsocialInvalido(
-				f"perApur deve ter entre 4 e 7 caracteres (formato AAAA-MM), recebido {self.per_apur!r}"
+				f"indApuracao deve ser 1 (mensal) ou 2 (décimo terceiro), recebido {self.ind_apuracao}"
+			)
+
+		if self.ind_apuracao == INDICADOR_APURACAO_MENSAL and len(self.per_apur) != 7:
+			raise EsocialInvalido(
+				f"perApur deve ter 7 caracteres (formato AAAA-MM) quando indApuracao=1, "
+				f"recebido {self.per_apur!r}"
+			)
+
+		if self.ind_apuracao == INDICADOR_APURACAO_DECIMO_TERCEIRO and len(self.per_apur) != 4:
+			raise EsocialInvalido(
+				f"perApur deve ter 4 caracteres (formato AAAA) quando indApuracao=2, "
+				f"recebido {self.per_apur!r}"
 			)
 
 		if self.tp_amb not in (AMBIENTE_PRODUCAO, AMBIENTE_PRODUCAO_RESTRITA):

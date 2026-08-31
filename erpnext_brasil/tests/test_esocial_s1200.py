@@ -12,6 +12,8 @@ from decimal import Decimal
 from erpnext_brasil.folha.esocial_s1200 import (
 	AMBIENTE_PRODUCAO,
 	AMBIENTE_PRODUCAO_RESTRITA,
+	INDICADOR_APURACAO_DECIMO_TERCEIRO,
+	INDICADOR_APURACAO_MENSAL,
 	DmDev,
 	EsocialInvalido,
 	IdeEmpregador,
@@ -32,7 +34,12 @@ def d(v: str) -> Decimal:
 
 def _ide_evento_valido(**overrides) -> dict:
 	base = dict(
-		ind_retif=1, per_apur="2026-01", tp_amb=AMBIENTE_PRODUCAO, proc_emi=1, ver_proc="ERPNextBrasil-1.0"
+		ind_retif=1,
+		ind_apuracao=INDICADOR_APURACAO_MENSAL,
+		per_apur="2026-01",
+		tp_amb=AMBIENTE_PRODUCAO,
+		proc_emi=1,
+		ver_proc="ERPNextBrasil-1.0",
 	)
 	base.update(overrides)
 
@@ -60,6 +67,21 @@ class TestIdeEvento(unittest.TestCase):
 	def test_per_apur_fora_do_tamanho_e_erro(self):
 		with self.assertRaises(EsocialInvalido):
 			IdeEvento(**_ide_evento_valido(per_apur="26"))
+
+	def test_decimo_terceiro_exige_per_apur_so_com_o_ano(self):
+		IdeEvento(**_ide_evento_valido(ind_apuracao=INDICADOR_APURACAO_DECIMO_TERCEIRO, per_apur="2026"))
+
+	def test_decimo_terceiro_com_per_apur_mensal_e_erro(self):
+		with self.assertRaises(EsocialInvalido):
+			IdeEvento(**_ide_evento_valido(ind_apuracao=INDICADOR_APURACAO_DECIMO_TERCEIRO, per_apur="2026-01"))
+
+	def test_mensal_com_per_apur_so_ano_e_erro(self):
+		with self.assertRaises(EsocialInvalido):
+			IdeEvento(**_ide_evento_valido(ind_apuracao=INDICADOR_APURACAO_MENSAL, per_apur="2026"))
+
+	def test_ind_apuracao_invalido_e_erro(self):
+		with self.assertRaises(EsocialInvalido):
+			IdeEvento(**_ide_evento_valido(ind_apuracao=3))
 
 	def test_tp_amb_invalido_e_erro(self):
 		with self.assertRaises(EsocialInvalido):

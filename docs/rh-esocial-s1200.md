@@ -63,10 +63,23 @@ pelo próprio `gov.br/esocial`.
 |---|---|---|
 | `indRetif` | dígito único | 1 = original, 2 = retificação |
 | `nrRecibo` | 1-40 caracteres | Opcional no XSD, mas **obrigatório quando `indRetif=2`** — verificado como invariante deste módulo, confirmado via Perguntas Frequentes do eSocial |
-| `perApur` | 4-7 caracteres | Formato `AAAA-MM`; só o tamanho é verificado, não o padrão exato (regex não confirmada nesta rodada) |
+| `indApuracao` | dígito único | 1 = mensal, 2 = 2ª parcela do décimo terceiro — decide o formato de `perApur` (ver abaixo). **Faltava no incremento original deste módulo** — descoberto e corrigido ao tentar montar a serialização XML completa do evento |
+| `perApur` | 4 ou 7 caracteres (não "entre 4 e 7") | `AAAA-MM` (7) quando `indApuracao=1`; só `AAAA` (4) quando `indApuracao=2` — validação cruzada com `indApuracao`, não dois campos independentes |
 | `tpAmb` | dígito único | 1 = Produção, 2 = **Produção Restrita** — mesma numeração da NF-e, rótulo diferente para o código `2` (não é "Homologação") |
 | `procEmi` | dígito único | Domínio de significado (1 = aplicativo do empregador? 2 = governamental?) não confirmado nesta rodada — só o formato (dígito 0-9) é validado |
 | `verProc` | 1-20 caracteres | Versão do aplicativo emissor |
+
+## Correção registrada: `indApuracao` estava faltando
+
+O primeiro incremento deste módulo modelou `perApur` como "entre 4 e 7 caracteres",
+mas não perguntou **por que** o XSD permite dois tamanhos — a resposta é que são dois
+formatos distintos (`AAAA-MM` para apuração mensal, só `AAAA` para a 2ª parcela do
+décimo terceiro), cada um ligado a um valor diferente de um campo (`indApuracao`) que
+tinha ficado de fora do dataclass inteiro. Descoberto ao tentar montar a serialização
+XML completa do evento e perguntar "que campo decide qual dos dois formatos usar
+aqui" — a mesma pergunta que uma leitura só da lista de campos, sem tentar montar o
+documento inteiro, não força a fazer. `IdeEvento` agora exige `ind_apuracao` e valida
+o tamanho exato de `per_apur` de acordo com ele.
 
 ### `ideEmpregador` (`TEmpregador`)
 
