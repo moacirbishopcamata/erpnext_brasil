@@ -95,13 +95,16 @@ em ordem de proximidade com o que já existe:
 O usuário escolheu **S-1200 (Remuneração)** como primeira fatia — a árvore completa de
 negócio do evento (`docs/rh-esocial-s1200.md`), o envelope de lote/endpoints
 (`docs/rh-esocial-lote.md`), a leitura da resposta de envio/processamento
-(`docs/rh-esocial-retorno.md`) e a assinatura digital (`docs/rh-esocial-assinatura.md`
+(`docs/rh-esocial-retorno.md`), a assinatura digital (`docs/rh-esocial-assinatura.md`
 — confirmado que o assinador da NF-e **não** é reaproveitável sem ajuste: mesma
-canonicalização, hash SHA-256 em vez de SHA-1) estão implementados. Falta: a
-serialização XML completa de um evento a partir da árvore de negócio, o envio HTTP de
-verdade (o `requests.post` com certificado, equivalente ao `_enviar` de
-`integracao/autorizacao_sefaz.py` da NF-e), e a tabela de rubricas S-1010/cadastro do
-empregador S-1000 (pré-requisitos que nenhum evento pode dispensar).
+canonicalização, hash SHA-256 em vez de SHA-1) e a serialização da árvore em XML
+(`docs/rh-esocial-serializacao.md`, provada com `lxml` de verdade) estão
+implementados. Falta: mesclar a assinatura de volta na árvore serializada (a
+orquestração serializar→assinar→mesclar→serializar de novo), o envio HTTP de verdade
+(o `requests.post` com certificado, equivalente ao `_enviar` de
+`integracao/autorizacao_sefaz.py` da NF-e), o formato do `Id` de 36 caracteres do
+evento, e a tabela de rubricas S-1010/cadastro do empregador S-1000 (pré-requisitos
+que nenhum evento pode dispensar).
 
 ## Fontes
 
