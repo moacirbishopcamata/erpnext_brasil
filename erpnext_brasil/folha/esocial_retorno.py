@@ -39,6 +39,23 @@ Fonte do XSD: mesma família já usada em `esocial_lote.py`
 fonte primária oficial, mesma advertência já registrada para os outros módulos de
 eSocial deste projeto.
 
+Correção registrada: `RetornoEvento` tinha um `status` que o XSD não dá
+------------------------------------------------------------------------------------
+A primeira versão deste módulo modelava `RetornoEvento` com um campo `status:
+StatusRetorno`, como se o processamento de cada evento individual replicasse a
+mesma estrutura do status do lote inteiro. Uma leitura mais específica do XSD (o
+complexType anônimo de `retornoEventos/evento`) mostrou que isso está errado: o
+elemento `evento` só tem os atributos `Id`/`evtDupl` confirmados e um filho
+`retornoEvento` (`TArquivoEsocial`, um `xs:any`) — o status/ocorrências de
+processamento daquele evento específico fica **dentro** desse `xs:any`, num schema
+próprio ("retornoEvento de verdade") que não foi localizado nesta rodada. Corrigido:
+`RetornoEvento` agora guarda esse conteúdo como XML opaco (`xml_retorno: str`), sem
+fingir que sabe interpretá-lo — mesmo padrão de "quem chama entrega/recebe XML
+pronto" já usado em `esocial_lote.EventoLote`. A função `eventos_com_erro`, que
+dependia do campo `status` inexistente de verdade, foi removida (não adaptada) —
+mantê-la funcionando exigiria inventar uma estrutura para `xml_retorno` sem fonte,
+o que seria pior que não ter a função.
+
 Funções puras: nenhuma dependência do Frappe, nenhuma chamada de rede.
 """
 
@@ -63,7 +80,6 @@ __all__ = [
 	"RetornoEvento",
 	"RetornoProcessamentoLote",
 	"StatusRetorno",
-	"eventos_com_erro",
 ]
 
 # Códigos de cdResposta confirmados por busca agregada — não uma tabela completa
@@ -112,8 +128,10 @@ class Ocorrencia:
 
 @dataclass(frozen=True)
 class StatusRetorno:
-	"""`status` (`TStatus`) — presente tanto no retorno do lote inteiro quanto,
-	replicado, no retorno de cada evento (`RetornoEvento.status`).
+	"""`status` (`TStatus`) — o status do **lote como um todo**
+	(`RetornoEnvioLote.status`/`RetornoProcessamentoLote.status`). Não existe um
+	`status` equivalente por evento individual — ver a correção registrada na
+	docstring do módulo sobre `RetornoEvento`.
 
 	`sucesso`/`pendente` só reconhecem os códigos confirmados em
 	`CODIGOS_SUCESSO`/`CODIGO_LOTE_JA_RECEBIDO_EM_FILA` — qualquer outro código não é
@@ -182,15 +200,25 @@ class RetornoEvento:
 	"""Uma linha de `retornoEventos/evento` — o resultado do processamento de **um**
 	evento específico do lote. `id_evento` casa com o `EventoLote.id_evento` que foi
 	enviado (mesma chave, ida e volta). `evento_duplicado` reflete o atributo
-	`evtDupl` do XSD — o eSocial já tinha recebido este evento antes (reenvio)."""
+	`evtDupl` do XSD — o eSocial já tinha recebido este evento antes (reenvio).
+
+	`xml_retorno` é o conteúdo de `retornoEvento` (`TArquivoEsocial`) **sem
+	interpretação** — o XSD confirma que é um `xs:any`, cujo schema de verdade (onde
+	mora o status/ocorrências de processamento deste evento específico) não foi
+	localizado nesta rodada. Este módulo não finge saber estruturar esse conteúdo
+	(ver correção registrada na docstring do módulo); quem chama decide como lê-lo.
+	"""
 
 	id_evento: str
-	status: StatusRetorno
+	xml_retorno: str
 	evento_duplicado: bool = False
 
 	def __post_init__(self):
 		if not self.id_evento:
 			raise EsocialRetornoInvalido("id_evento não pode ser vazio")
+
+		if not self.xml_retorno:
+			raise EsocialRetornoInvalido("xml_retorno não pode ser vazio")
 
 
 @dataclass(frozen=True)
@@ -209,10 +237,3 @@ class RetornoProcessamentoLote:
 				f"retornoEventos aceita no máximo {LIMITE_MAXIMO_EVENTOS_NO_RETORNO} eventos, "
 				f"recebido {len(self.eventos)}"
 			)
-
-
-def eventos_com_erro(retorno: RetornoProcessamentoLote) -> tuple[RetornoEvento, ...]:
-	"""Filtra os eventos do lote cujo processamento teve ao menos um erro — o ponto
-	de partida natural para decidir o que reenviar/corrigir, sem que quem chama
-	precise conhecer a estrutura de `StatusRetorno`/`Ocorrencia` por dentro."""
-	return tuple(evento for evento in retorno.eventos if evento.status.tem_erro)

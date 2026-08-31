@@ -48,12 +48,22 @@ Um lote pode ter `cdResposta=202` (sucesso com advertências) e ainda ter uma
 menos uma ocorrência do **tipo 1 (erro)**, distinto de tipo 2 (aviso). Um status pode
 ser "sucesso" e ainda ter avisos; os dois são informações independentes.
 
-## `eventos_com_erro`: o ponto de partida para decidir o que corrigir
+## Correção registrada: `RetornoEvento` não tem um `status` — e `eventos_com_erro` foi removida
 
-`RetornoProcessamentoLote` tem uma lista de `RetornoEvento`, cada um com seu próprio
-`status`. `eventos_com_erro(retorno)` filtra os que tiveram ao menos um erro — quem
-chama não precisa navegar a estrutura de `StatusRetorno`/`Ocorrencia` por dentro para
-saber quais eventos do lote precisam de atenção.
+Uma leitura mais específica do XSD (o complexType anônimo de `retornoEventos/evento`
+em `RetornoProcessamentoLote-v1_3_0.xsd`) mostrou que o modelo original deste
+incremento estava errado: `evento` só tem os atributos `Id`/`evtDupl` confirmados e
+um filho `retornoEvento` (`TArquivoEsocial`, um `xs:any`) — o status/ocorrências de
+processamento de cada evento fica **dentro** desse conteúdo opaco, num schema
+próprio que não foi localizado nesta rodada (não é `sped-esocial/schemes/comunicacao/`,
+nem apareceu em nenhuma pasta de primeiro nível óbvia do mesmo repositório).
+
+`RetornoEvento` foi corrigido: em vez de um campo `status: StatusRetorno` inventado
+por semelhança com o status do lote, guarda `xml_retorno: str` — o conteúdo cru, sem
+interpretação, mesmo padrão de "quem chama entrega/recebe XML pronto" já usado em
+`esocial_lote.EventoLote`. A função `eventos_com_erro` dependia diretamente do campo
+removido e foi **removida**, não adaptada — mantê-la funcionando exigiria inventar
+uma estrutura para `xml_retorno` sem fonte, pior que não ter a função.
 
 ## O que não está aqui
 
@@ -62,6 +72,9 @@ saber quais eventos do lote precisam de atenção.
 - **Parsing de XML real** para essas estruturas — os dataclasses recebem os campos já
   extraídos; a extração de um XML/SOAP real para estes campos ainda não foi escrita
   (mesma situação da assinatura/envio em si, ver `docs/rh-esocial-lote.md`).
+- **Interpretação de `RetornoEvento.xml_retorno`** — o schema de onde mora o
+  status/ocorrências de cada evento individual não foi localizado (ver correção
+  acima); até achá-lo, esse conteúdo fica opaco.
 - ~~Formato exato de `protocolo_envio` não confirmado~~ — resolvido em
   `docs/rh-esocial-consulta.md`: `A.B.` + 19 dígitos, confirmado no XSD de
   `ConsultaLoteEventos-v1_0_0.xsd`. `DadosRecepcaoLote` já valida o formato completo.
@@ -69,8 +82,8 @@ saber quais eventos do lote precisam de atenção.
 ## Arquivos
 
 - `folha/esocial_retorno.py` — `Ocorrencia`, `StatusRetorno`, `DadosRecepcaoLote`,
-  `RetornoEnvioLote`, `RetornoEvento`, `RetornoProcessamentoLote`,
-  `eventos_com_erro`; camada pura, sem Frappe, sem rede, testável sem bench.
+  `RetornoEnvioLote`, `RetornoEvento`, `RetornoProcessamentoLote`; camada pura, sem
+  Frappe, sem rede, testável sem bench.
 
 ## Fontes
 

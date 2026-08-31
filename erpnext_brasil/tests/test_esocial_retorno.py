@@ -21,7 +21,6 @@ from erpnext_brasil.folha.esocial_retorno import (
 	RetornoEvento,
 	RetornoProcessamentoLote,
 	StatusRetorno,
-	eventos_com_erro,
 )
 
 
@@ -132,73 +131,41 @@ class TestRetornoEnvioLote(unittest.TestCase):
 
 class TestRetornoEvento(unittest.TestCase):
 	def test_valido(self):
-		RetornoEvento(
-			id_evento="ID1",
-			status=StatusRetorno(cd_resposta=CODIGO_LOTE_RECEBIDO_SUCESSO, desc_resposta="OK"),
-		)
+		RetornoEvento(id_evento="ID1", xml_retorno="<retornoEvento>...</retornoEvento>")
 
 	def test_id_vazio_e_erro(self):
 		with self.assertRaises(EsocialRetornoInvalido):
-			RetornoEvento(id_evento="", status=StatusRetorno(cd_resposta=201, desc_resposta="OK"))
+			RetornoEvento(id_evento="", xml_retorno="<retornoEvento>...</retornoEvento>")
+
+	def test_xml_retorno_vazio_e_erro(self):
+		with self.assertRaises(EsocialRetornoInvalido):
+			RetornoEvento(id_evento="ID1", xml_retorno="")
 
 	def test_evento_duplicado_e_registrado(self):
 		evento = RetornoEvento(
-			id_evento="ID1",
-			status=StatusRetorno(cd_resposta=CODIGO_LOTE_RECEBIDO_SUCESSO, desc_resposta="OK"),
-			evento_duplicado=True,
+			id_evento="ID1", xml_retorno="<retornoEvento>...</retornoEvento>", evento_duplicado=True
 		)
 
 		self.assertTrue(evento.evento_duplicado)
 
 
 class TestRetornoProcessamentoLote(unittest.TestCase):
-	def _evento_ok(self, n=1):
-		return RetornoEvento(
-			id_evento=f"ID{n}", status=StatusRetorno(cd_resposta=CODIGO_LOTE_RECEBIDO_SUCESSO, desc_resposta="OK")
-		)
-
-	def _evento_com_erro(self, n=1):
-		return RetornoEvento(
-			id_evento=f"ID{n}",
-			status=StatusRetorno(
-				cd_resposta=CODIGO_ERRO_PREENCHIMENTO,
-				desc_resposta="Erro",
-				ocorrencias=(Ocorrencia(codigo=1, descricao="CPF inválido", tipo=TIPO_OCORRENCIA_ERRO),),
-			),
-		)
+	def _evento(self, n=1):
+		return RetornoEvento(id_evento=f"ID{n}", xml_retorno=f"<retornoEvento>{n}</retornoEvento>")
 
 	def test_valido(self):
 		RetornoProcessamentoLote(
 			status=StatusRetorno(cd_resposta=CODIGO_LOTE_RECEBIDO_SUCESSO, desc_resposta="OK"),
-			eventos=(self._evento_ok(),),
+			eventos=(self._evento(),),
 		)
 
 	def test_mais_de_50_eventos_e_erro(self):
-		eventos = tuple(self._evento_ok(n) for n in range(LIMITE_MAXIMO_EVENTOS_NO_RETORNO + 1))
+		eventos = tuple(self._evento(n) for n in range(LIMITE_MAXIMO_EVENTOS_NO_RETORNO + 1))
 
 		with self.assertRaises(EsocialRetornoInvalido):
 			RetornoProcessamentoLote(
 				status=StatusRetorno(cd_resposta=CODIGO_LOTE_RECEBIDO_SUCESSO, desc_resposta="OK"), eventos=eventos
 			)
-
-	def test_eventos_com_erro_filtra_corretamente(self):
-		lote = RetornoProcessamentoLote(
-			status=StatusRetorno(cd_resposta=CODIGO_LOTE_RECEBIDO_COM_ADVERTENCIAS, desc_resposta="Parcial"),
-			eventos=(self._evento_ok(1), self._evento_com_erro(2), self._evento_ok(3)),
-		)
-
-		com_erro = eventos_com_erro(lote)
-
-		self.assertEqual(len(com_erro), 1)
-		self.assertEqual(com_erro[0].id_evento, "ID2")
-
-	def test_eventos_com_erro_vazio_quando_tudo_ok(self):
-		lote = RetornoProcessamentoLote(
-			status=StatusRetorno(cd_resposta=CODIGO_LOTE_RECEBIDO_SUCESSO, desc_resposta="OK"),
-			eventos=(self._evento_ok(1), self._evento_ok(2)),
-		)
-
-		self.assertEqual(eventos_com_erro(lote), ())
 
 
 if __name__ == "__main__":
