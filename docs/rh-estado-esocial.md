@@ -100,11 +100,16 @@ negócio do evento (`docs/rh-esocial-s1200.md`), o envelope de lote/endpoints
 canonicalização, hash SHA-256 em vez de SHA-1), a serialização da árvore em XML
 (`docs/rh-esocial-serializacao.md`, provada com `lxml` de verdade) e a orquestração
 serializar→assinar→mesclar→serializar de novo (`docs/rh-esocial-montagem.md`,
-provada de ponta a ponta com assinatura real verificada) estão implementados.
-Falta: o envio HTTP de verdade (o `requests.post` do lote com certificado,
-equivalente ao `_enviar` de `integracao/autorizacao_sefaz.py` da NF-e), o formato do
-`Id` de 36 caracteres do evento, e a tabela de rubricas S-1010/cadastro do
-empregador S-1000 (pré-requisitos que nenhum evento pode dispensar).
+provada de ponta a ponta com assinatura real verificada) e o envelope SOAP
+(`docs/rh-esocial-soap.md` — SOAP 1.1, não 1.2 como a NF-e, terceira divergência real
+confirmada neste bloco) estão implementados. Falta: o envio HTTP de verdade
+(`requests.post` com o certificado como client cert TLS, cabeçalhos
+`Content-Type`/`SOAPAction`, equivalente ao `_enviar` de
+`integracao/autorizacao_sefaz.py` da NF-e), o polling de lote pendente
+(`cdResposta=203`), a estrutura interna de `<consulta>` (`ConsultaLoteEventos-v1_0_0.xsd`),
+o formato do `Id` de 36 caracteres do evento, e a tabela de rubricas
+S-1010/cadastro do empregador S-1000 (pré-requisitos que nenhum evento pode
+dispensar).
 
 ## Fontes
 
