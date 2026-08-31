@@ -102,13 +102,14 @@ canonicalização, hash SHA-256 em vez de SHA-1), a serialização da árvore em
 serializar→assinar→mesclar→serializar de novo (`docs/rh-esocial-montagem.md`,
 provada de ponta a ponta com assinatura real verificada), o envelope SOAP
 (`docs/rh-esocial-soap.md` — SOAP 1.1, não 1.2 como a NF-e), o conteúdo de
-`<consulta>` (`docs/rh-esocial-consulta.md`) e a geração do `Id` de 36 caracteres
-(`docs/rh-esocial-id.md`) estão implementados. Falta: o envio HTTP de verdade
-(`requests.post` com o certificado como client cert TLS, cabeçalhos
-`Content-Type`/`SOAPAction`, equivalente ao `_enviar` de
-`integracao/autorizacao_sefaz.py` da NF-e), o polling de lote pendente
-(`cdResposta=203`), e a tabela de rubricas S-1010/cadastro do empregador S-1000
-(pré-requisitos que nenhum evento pode dispensar).
+`<consulta>` (`docs/rh-esocial-consulta.md`), a geração do `Id` de 36 caracteres
+(`docs/rh-esocial-id.md`) e a estrutura do S-1010/Tabela de Rubricas
+(`docs/rh-esocial-s1010.md` — a peça de configuração que faltava para o S-1200 fazer
+sentido) estão implementados. Falta: o envio HTTP de verdade (`requests.post` com o
+certificado como client cert TLS, cabeçalhos `Content-Type`/`SOAPAction`,
+equivalente ao `_enviar` de `integracao/autorizacao_sefaz.py` da NF-e), o polling de
+lote pendente (`cdResposta=203`), o schema de `RetornoEvento.xml_retorno` (não
+localizado, ver `docs/rh-esocial-retorno.md`), e o cadastro do empregador S-1000.
 
 ## Fontes
 
