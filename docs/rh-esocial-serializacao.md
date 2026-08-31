@@ -47,13 +47,15 @@ string que parece XML".
 fora de escopo lá (`infoMV`, `procJudTrab`, `infoPerAnt`/`ideADC`,
 `infoSaudeColet`/`infoAgNocivo`) também estão fora daqui, pela mesma razão.
 
-## O `Id` de `evtRemun` não é gerado por este módulo
+## O `Id` de `evtRemun` continua recebido pronto, não gerado aqui
 
-`docs/rh-estado-esocial.md` já tinha citado que o `Id` do evento tem 36 caracteres
-com posições fixas (tipo, CNPJ/CPF do empregador, timestamp), análogo em espírito ao
-`Id` da NF-e — mas o formato exato não foi verificado o bastante para implementar
-`montar_evt_remun` gerando-o sozinho. `id_evento` é recebido pronto, mesmo padrão de
-"caller decide" já usado para código de rubrica, `campo_livre` do boleto, etc.
+`montar_evt_remun` recebe `id_evento` como parâmetro — mesmo padrão de "caller
+decide" já usado para código de rubrica, `campo_livre` do boleto, etc. O formato
+exato do `Id` (36 caracteres) já foi verificado e implementado separadamente em
+`folha/esocial_id.py::gerar_id_evento` (`docs/rh-esocial-id.md`) — quem monta um
+evento de verdade chama `gerar_id_evento` primeiro e passa o resultado para
+`montar_evt_remun`, mas os dois módulos continuam desacoplados (um não chama o
+outro).
 
 ## Arquivos
 

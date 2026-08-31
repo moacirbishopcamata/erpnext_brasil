@@ -34,6 +34,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [rh-esocial-montagem.md](rh-esocial-montagem.md) | Orquestração serializar→assinar→mesclar→serializar; assinador injetado (continua puro); prova ponta a ponta com assinatura real verificada |
 | [rh-esocial-soap.md](rh-esocial-soap.md) | Envelope SOAP do eSocial: SOAP 1.1 (não 1.2 como a NF-e), wrapper por serviço, o que falta para o envio HTTP de verdade |
 | [rh-esocial-consulta.md](rh-esocial-consulta.md) | Conteúdo de `<consulta>`: formato exato do `protocoloEnvio` (agente/ambiente/sequencial), três domínios de "ambiente" que não são o mesmo conceito |
+| [rh-esocial-id.md](rh-esocial-id.md) | Geração do `Id` de 36 caracteres do evento: composição confirmada, zeros à direita (não à esquerda) e por quê |
 | [boleto.md](boleto.md) | Código de barras/linha digitável FEBRABAN (validado contra exemplo real) e leitura do CNAB 400 de retorno para conciliação |
 
 ## Convenções que valem em todo o código

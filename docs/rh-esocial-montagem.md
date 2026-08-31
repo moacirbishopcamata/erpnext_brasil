@@ -48,8 +48,9 @@ espera uma árvore no formato `{"eSocial": {"@xmlns": ..., "<elementoDoEvento>":
 - **Envio HTTP de verdade** — este módulo produz o XML assinado, pronto para entrar
   num `EventoLote` (`esocial_lote.py`); o `POST` SOAP com o lote em si ainda não
   existe.
-- **Geração do `Id` de 36 caracteres** — recebido pronto, não gerado (mesma decisão
-  já registrada em `docs/rh-esocial-serializacao.md`).
+- ~~Geração do `Id` de 36 caracteres~~ — resolvido em `docs/rh-esocial-id.md`
+  (`folha/esocial_id.py::gerar_id_evento`); `montar_evento_assinado` continua
+  recebendo `id_evento` como parâmetro, desacoplado de como ele foi gerado.
 - **Múltiplas assinaturas num mesmo lote** — cada evento é assinado individualmente
   antes de entrar no envelope; a orquestração de assinar N eventos e montar um
   `LoteEventos` com eles ainda não foi escrita.
