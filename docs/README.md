@@ -12,7 +12,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [transmissao-documento-fiscal.md](transmissao-documento-fiscal.md) | Opções de transporte (ACBrLib × ACBr API) e a fronteira de licença |
 | [transporte-nativo-sefaz.md](transporte-nativo-sefaz.md) | Decisão de falar direto com a SEFAZ; tabela de autorizadores por UF (RO confirmado) |
 | [inutilizacao-nfe.md](inutilizacao-nfe.md) | Inutilização de faixa de numeração: por que é operação à parte, `@Id`, `cUF` × sigla |
-| [ambiente-dev-bench.md](ambiente-dev-bench.md) | Bench Frappe local (Windows 11 + WSL2 + Docker): decisões, obstáculos e como reproduzir |
+| [ambiente-dev-bench.md](ambiente-dev-bench.md) | Bench Frappe local (Windows 11 + WSL2 + Docker): decisões, obstáculos e como reproduzir; Memurai/MariaDB nativos como alternativa ainda não testada |
 | [nfce-qrcode.md](nfce-qrcode.md) | QR Code da NFC-e: algoritmo do hash, `infNFeSupl`, CDATA, o que falta (contingência, tabela de UF) |
 | [plano-de-contas.md](plano-de-contas.md) | Bloco contábil: grupos do balanço/DRE (Lei 6.404/76), amarração aos tributos, obstáculo de integração com o seletor de plano de contas do ERPNext |
 | [lancamentos-contabeis.md](lancamentos-contabeis.md) | Partidas dobradas de uma venda: por que IPI não passa pela receita (DL 1.598/77), tratamento provisório de IBS/CBS e sua fase de teste sem recolhimento real |

@@ -1,6 +1,41 @@
 # Ambiente de desenvolvimento: bench Frappe local (Windows 11 + WSL2 + Docker)
 
-## Por que não bench nativo no Windows
+## Atualização: Redis e MariaDB nativos agora disponíveis no Windows
+
+Desde 2026-08-31, a máquina de desenvolvimento tem **Memurai for Redis v8.2-RC3** e
+**MariaDB** instalados nativamente no Windows (fora de WSL2/Docker) — os dois
+serviços cuja ausência nativa (binário Redis para Windows, rede WSL↔Windows para o
+MariaDB) motivou originalmente a decisão de WSL2 + Docker registrada abaixo.
+
+- **Memurai for Redis** (`docs.memurai.com/en/installation.html`) é compatível com o
+  protocolo Redis/RESP (documentação cita compatibilidade com a API do Redis 7),
+  instalado via MSI, roda como **serviço Windows** (conta `NT AUTHORITY\
+  NetworkService`, início automático), porta padrão **6379**, configurável no
+  instalador ou depois via arquivo de configuração. É o substituto direto do
+  "Redis não foi para Docker — `bench init` exige o binário local" (seção abaixo):
+  com Memurai, esse binário passa a existir nativamente no Windows, não só dentro do
+  WSL2 via `apt`.
+- **MariaDB** nativo do Windows já estava presente antes (`G:\MariaDB 12.3`, citado
+  na seção seguinte como a tentativa original que não emplacou por causa da rede
+  WSL2↔Windows) — o que muda agora é que, com o bench também rodando nativo no
+  Windows (não mais em WSL2 chamando para fora), essa travessia de rede deixa de
+  ser necessária: bench e MariaDB estariam na mesma máquina/host, sem fronteira de
+  rede virtual para atravessar.
+
+**Consequência esperada, ainda não exercitada nesta sessão**: com os dois serviços
+nativos presentes, o bench pode em tese rodar **localmente no Windows, sem WSL2 nem
+Docker** — eliminando a cadeia de obstáculos registrada nas seções seguintes deste
+documento (rede WSL2↔Windows, Hyper-V Firewall, Git Bash → `wsl.exe` corrompendo
+caminhos, `sudo` sem senha, etc. — todos específicos de rodar o bench *dentro* do
+WSL2). Isso pressupõe que o próprio `bench`/Frappe funcione nativo no Windows
+(historicamente um caminho frágil, motivo original de ter ido para WSL2 — ver seção
+seguinte) — **não testado nesta sessão**. O ambiente WSL2 + Docker documentado
+abaixo continua sendo o único confirmado funcionando de ponta a ponta (`bench
+run-tests` rodado de verdade, 685 testes). Até essa alternativa nativa ser
+efetivamente tentada e confirmada, tratar como uma opção disponível, não como o
+caminho validado.
+
+## Por que não bench nativo no Windows (decisão original, antes do Memurai)
 
 O `bench` (CLI do Frappe) assume um ambiente Unix: symlinks, `bash`, e historicamente
 Redis sem build oficial para Windows. Rodar nativo no Windows é caminho frágil e pouco
@@ -294,3 +329,8 @@ git pull /mnt/g/PROJECTS/erpnext_brasil <branch>
 Testado e documentado em 2026-08-29, na máquina de desenvolvimento deste projeto
 (Windows 11 Pro, build 26100; WSL 2.7.12; Docker CE 29.7.2; MariaDB 12.3 nativo do
 Windows e MariaDB 10.6 em container; Ubuntu 24.04.4 LTS no WSL2).
+
+Atualização de 2026-08-31: Memurai for Redis v8.2-RC3 instalado nativamente
+(`docs.memurai.com/en/installation.html`) — registrado como opção disponível para
+rodar o bench sem WSL2/Docker, ainda não exercitado (ver seção no topo deste
+documento).
