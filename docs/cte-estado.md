@@ -104,9 +104,14 @@ lista de chaves (de CT-e e de NF-e) para o seu próprio `infDoc`. **Implementado
 `fiscal/documento/chave_acesso.py` — mesmo layout de 44 posições e dígito verificador da NF-e,
 confirmado idêntico entre os documentos da família (só o dígito de modelo muda).
 
+**Modal rodoviário investigado e implementado em seguida** (ver `docs/cte-modal-rodoviario.md`):
+`cteModalRodoviario_v4.00.xsd` tem só 102 linhas — lido inteiro, sem risco de truncamento.
+Achado: **não** carrega veículo nem motorista (isso é do MDF-e); só `RNTRC` (obrigatório,
+`[0-9]{8}|ISENTO` — a palavra `ISENTO` é valor legítimo, não erro de formato, para frota
+própria) e `occ` (ordens de coleta, opcional).
+
 ## O que ainda falta investigar antes de implementar
 
-- `cteModalRodoviario_v4.00.xsd` — estrutura do modal rodoviário (veículo, motorista, RNTRC).
 - Assinatura/chave de acesso do CT-e — hipótese de trabalho: mesmo algoritmo da NF-e (SHA-1,
   44 posições) por ser da mesma família de padrão (Ajuste SINIEF), **não confirmado ainda**.
 - Autorizador/webservice por UF — provavelmente segue o mesmo SVRS/SVSP/próprio já mapeado em
@@ -117,6 +122,7 @@ confirmado idêntico entre os documentos da família (só o dígito de modelo mu
 
 `fiscal/cte.py`: `montar_icms_uf_fim` (grupo `ICMSUFFim`, ver `docs/cte-icms-uf-fim.md`) e
 `montar_infnfe` (grupo `infDoc/infNFe`, ver `docs/cte-infnfe.md`). `fiscal/cfop_transporte.py`:
-CFOP de prestação de serviço de transporte (ver `docs/cfop-transporte.md`). O que falta para uma
-prestação de CT-e completa: `toma3`/`toma4` montado em XML (a estrutura já está mapeada acima,
-falta a função de montagem), modal rodoviário, assinatura, transmissão.
+CFOP de prestação de serviço de transporte (ver `docs/cfop-transporte.md`).
+`fiscal/cte_rodoviario.py`: modal rodoviário — `RNTRC`/`occ` (ver `docs/cte-modal-rodoviario.md`).
+O que falta para uma prestação de CT-e completa: `toma3`/`toma4` montado em XML (a estrutura já
+está mapeada acima, falta a função de montagem), assinatura, transmissão.
