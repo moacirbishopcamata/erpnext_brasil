@@ -131,6 +131,16 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"fieldtype": "Data",
 				"insert_after": "inscricao_municipal",
 			},
+			{
+				"fieldname": "chave_pix",
+				"label": "Chave Pix",
+				"fieldtype": "Data",
+				"insert_after": "cnae_principal",
+				"description": (
+					"CPF/CNPJ, e-mail, telefone ou chave aleatória — usada para gerar o "
+					"payload Pix ('Copia e Cola') na cobrança."
+				),
+			},
 		],
 		"Customer": _campos_de_parte("tax_id"),
 		"Supplier": _campos_de_parte("tax_id"),
