@@ -16,10 +16,10 @@ transporte. Confirmado por leitura direta do XSD (`cte_v4.00.xsd`, linha 3960, v
 ## Por que só isso, e não o CFOP de transporte também
 
 O levantamento confirmou que `ide.CFOP` do CT-e usa o mesmo tipo `TCfop` de 4 dígitos de
-`fiscal/cfop.py`, mas os **valores específicos** de prestação de serviço de transporte (grupo
-5.35x/6.35x/6.36x do Convênio SINIEF 6/89) não foram verificados contra fonte primária nesta
-investigação. Implementar de memória seria repetir o erro que a disciplina deste projeto existe
-para evitar — fica para um incremento com fonte citada.
+`fiscal/cfop.py`, mas os **valores específicos** de prestação de serviço de transporte não
+tinham sido verificados ainda quando este incremento foi escrito. **Feito em seguida** — ver
+`docs/cfop-transporte.md` (`fiscal/cfop_transporte.py`), com o nível de confiança mais baixo
+declarado explicitamente (fonte secundária cruzada, Ajuste SINIEF original não localizado).
 
 ## Reuso, não reimplementação
 
