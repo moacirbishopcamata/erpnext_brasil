@@ -19,6 +19,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [apuracao-periodica.md](apuracao-periodica.md) | Fechamento periódico de ICMS/IPI: não cumulatividade (Art. 155/153 CF), saldo a recolher × saldo credor a transportar |
 | [sped-fiscal.md](sped-fiscal.md) | EFD-ICMS/IPI: por que o livro em papel foi dispensado (Ajuste SINIEF 02/09), layout dos registros E110 (ICMS) e E520 (IPI), escopo sem ajuste de apuração |
 | [efd-contribuicoes.md](efd-contribuicoes.md) | EFD-Contribuições: registros M200/M210 (PIS) e M600/M610 (Cofins) — mesmo layout confirmado entre os dois, fórmulas citadas literalmente |
+| [reinf-r4020.md](reinf-r4020.md) | EFD-Reinf R-4020: retenções de IRRF/CSLL/Cofins/PIS-Pasep sobre pagamento a PJ, irmão do eSocial mas com `procEmi` de domínio diferente |
 | [ecd.md](ecd.md) | ECD (SPED Contábil): registros I050/I051/I200/I250/I150/I155, numeração-padrão de contas, a pegadinha do `COD_NAT` do Patrimônio Líquido |
 | [sped-texto.md](sped-texto.md) | Serialização de linha pipe-delimited do SPED, comum a EFD e ECD; a correção do formato de data (`DDMMAAAA`, sem separador) |
 | [rh-estado-hrms.md](rh-estado-hrms.md) | Bloco RH: estado do `frappe/hrms`, confirmação de que o Brasil não existe nem lá nem no ERPNext, e o hook `regional_overrides` que permite tropicalizar sem fork |
