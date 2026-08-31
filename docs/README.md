@@ -48,6 +48,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [cnab240-retorno.md](cnab240-retorno.md) | Sucessor do CNAB 400: Segmentos T/U do retorno, posições confirmadas contra dois bancos independentes, `codigo_movimento` como hipótese de trabalho |
 | [pix.md](pix.md) | Payload Pix (BR Code/"Copia e Cola"): TLV + CRC16 verificado contra vetor padrão universal, gap real no app `payments`, PDV ainda sem fio puxado |
 | [cte-estado.md](cte-estado.md) | Levantamento do CT-e: estrutura de `TCTe` verificada por grep local (não resumo de ferramenta, que alucinou 3x), `imp` como `xs:choice` de 7 CSTs, `ICMSUFFim` como equivalente do DIFAL da NF-e |
+| [cte-icms-uf-fim.md](cte-icms-uf-fim.md) | Primeiro código de CT-e: grupo `ICMSUFFim`, reuso direto de `calcular_difal`, por que o CFOP de transporte ficou de fora |
 
 ## Convenções que valem em todo o código
 
