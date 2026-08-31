@@ -13,6 +13,10 @@ from erpnext_brasil.fiscal.cfop import (
 	cfop_compra,
 	cfop_devolucao_compra,
 	cfop_devolucao_venda,
+	cfop_entrada_para_industrializacao,
+	cfop_remessa_para_industrializacao,
+	cfop_retorno_da_industrializacao_realizada,
+	cfop_retorno_de_industrializacao,
 	cfop_venda,
 )
 
@@ -117,6 +121,67 @@ class TestSimetriaEntreParesEspelhados(unittest.TestCase):
 				# Compra é grupo 1xxx/2xxx (entrada); devolução de compra é 5xxx/6xxx
 				# (saída) -- só os dois últimos dígitos e o "1" x "5"/"2" x "6" batem.
 				self.assertEqual(compra[2:], devolucao[2:])
+
+
+class TestCfopImportacaoExportacao(unittest.TestCase):
+	"""Compra/venda com o exterior — mesmo segundo e últimos dois dígitos das
+	operações domésticas, só o primeiro dígito muda (`1`/`2`→`3`, `5`/`6`→`7`)."""
+
+	def test_compra_importacao_industrializacao(self):
+		self.assertEqual(
+			cfop_compra(mesmo_estado=True, finalidade=FINALIDADE_INDUSTRIALIZACAO, exterior=True), "3101"
+		)
+
+	def test_compra_importacao_comercializacao(self):
+		self.assertEqual(
+			cfop_compra(mesmo_estado=True, finalidade=FINALIDADE_COMERCIALIZACAO, exterior=True), "3102"
+		)
+
+	def test_compra_importacao_ignora_mesmo_estado(self):
+		"""Importação não distingue UF de origem -- mesmo_estado=False dá o mesmo
+		resultado que mesmo_estado=True quando exterior=True."""
+		com_true = cfop_compra(mesmo_estado=True, finalidade=FINALIDADE_INDUSTRIALIZACAO, exterior=True)
+		com_false = cfop_compra(mesmo_estado=False, finalidade=FINALIDADE_INDUSTRIALIZACAO, exterior=True)
+
+		self.assertEqual(com_true, com_false)
+
+	def test_venda_exportacao_producao_propria(self):
+		self.assertEqual(cfop_venda(mesmo_estado=True, producao_propria=True, exterior=True), "7101")
+
+	def test_venda_exportacao_mercadoria_de_terceiros(self):
+		self.assertEqual(cfop_venda(mesmo_estado=True, producao_propria=False, exterior=True), "7102")
+
+	def test_venda_exportacao_ignora_mesmo_estado(self):
+		com_true = cfop_venda(mesmo_estado=True, producao_propria=True, exterior=True)
+		com_false = cfop_venda(mesmo_estado=False, producao_propria=True, exterior=True)
+
+		self.assertEqual(com_true, com_false)
+
+
+class TestCfopIndustrializacaoPorEncomenda(unittest.TestCase):
+	def test_remessa_para_industrializacao_mesmo_estado(self):
+		self.assertEqual(cfop_remessa_para_industrializacao(mesmo_estado=True), "5901")
+
+	def test_remessa_para_industrializacao_outro_estado(self):
+		self.assertEqual(cfop_remessa_para_industrializacao(mesmo_estado=False), "6901")
+
+	def test_entrada_para_industrializacao_mesmo_estado(self):
+		self.assertEqual(cfop_entrada_para_industrializacao(mesmo_estado=True), "1901")
+
+	def test_entrada_para_industrializacao_outro_estado(self):
+		self.assertEqual(cfop_entrada_para_industrializacao(mesmo_estado=False), "2901")
+
+	def test_retorno_de_industrializacao_mesmo_estado(self):
+		self.assertEqual(cfop_retorno_de_industrializacao(mesmo_estado=True), "1902")
+
+	def test_retorno_de_industrializacao_outro_estado(self):
+		self.assertEqual(cfop_retorno_de_industrializacao(mesmo_estado=False), "2902")
+
+	def test_retorno_da_industrializacao_realizada_mesmo_estado(self):
+		self.assertEqual(cfop_retorno_da_industrializacao_realizada(mesmo_estado=True), "5902")
+
+	def test_retorno_da_industrializacao_realizada_outro_estado(self):
+		self.assertEqual(cfop_retorno_da_industrializacao_realizada(mesmo_estado=False), "6902")
 
 
 if __name__ == "__main__":

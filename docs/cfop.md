@@ -28,11 +28,42 @@ pares `1101`/`2101`, `5101`/`6101`, `1202`/`2202`, não suposto por padrão isol
 | Devolução de compra | `5201` | `6201` | industrialização, devolvida ao fornecedor |
 | Devolução de compra | `5202` | `6202` | comercialização, devolvida ao fornecedor |
 
-**Fora do escopo, e não finja que está coberto**: operação com o exterior (`3`/`7`),
-transferência entre estabelecimentos, remessa/retorno de industrialização por conta
-de terceiros, bonificação/doação/brinde, consignação, ativo imobilizado/uso e
-consumo, substituição tributária, prestação de serviço de transporte. `determinar_cfop`
-levanta erro explícito para qualquer combinação não coberta.
+## Importação/exportação: mesmo padrão, primeiro dígito vira `3`/`7`
+
+`cfop_compra`/`cfop_venda` ganharam `exterior: bool = False` — quando `True`, monta
+`3101`/`3102` (compra do exterior) ou `7101`/`7102` (venda para o exterior) em vez
+do par doméstico, ignorando `mesmo_estado` (importação/exportação não distingue UF).
+Confirmado que o segundo e os dois últimos dígitos mantêm o mesmo significado entre
+operação doméstica e com o exterior — só o primeiro dígito muda. Um bug real foi
+pego pelo próprio teste antes do commit: a primeira implementação montava `f"3{sufixo}"`
+(3 dígitos, faltando o segundo) em vez de `f"31{sufixo}"` — corrigido antes de
+qualquer código de produção depender disso.
+
+## Industrialização por encomenda: achado ao investigar o módulo de Subcontratação
+
+Ao levantar o estado do PCP/manufatura do ERPNext (a pedido do usuário), achado que
+`Subcontracting Order`/`Subcontracting Receipt` não têm nenhum tratamento fiscal
+hoje — mesmo gap já registrado para Sales Order/Purchase Order. Quatro funções
+novas cobrem os dois papéis dessa operação:
+
+| Papel | Função | Mesmo estado | Outro estado |
+|---|---|---|---|
+| Dono do material (remessa, saída) | `cfop_remessa_para_industrializacao` | `5901` | `6901` |
+| Industrializador (entrada) | `cfop_entrada_para_industrializacao` | `1901` | `2901` |
+| Dono do material (retorno, entrada) | `cfop_retorno_de_industrializacao` | `1902` | `2902` |
+| Industrializador (retorno, saída) | `cfop_retorno_da_industrializacao_realizada` | `5902` | `6902` |
+
+`Subcontracting Order` (remessa) e `Subcontracting Receipt` (retorno) do ERPNext
+modelam o papel de **dono do material** — só `5901`/`6901` e `1902`/`2902` importam
+para esse fluxo; os outros dois servem quem usa este app do lado do
+industrializador. `1901`/`2901`/`1902` confirmados explicitamente por fonte; `2902`
+inferido pelo mesmo padrão consistente já validado para o resto do módulo (não
+encontrado explicitamente numa busca isolada).
+
+**Fora do escopo, e não finja que está coberto**: transferência entre
+estabelecimentos, bonificação/doação/brinde, consignação, ativo imobilizado/uso e
+consumo, substituição tributária, prestação de serviço de transporte. Qualquer
+combinação fora deste núcleo levanta `CfopInvalido`.
 
 ## Devolução não é o espelho direto de direção — só de finalidade
 
@@ -54,7 +85,10 @@ natureza de operação a partir de dado incompleto. Quem chama informa
 ## Arquivos
 
 - `fiscal/cfop.py` — `cfop_compra`, `cfop_venda`, `cfop_devolucao_venda`,
-  `cfop_devolucao_compra`; camada pura, sem Frappe, testável sem bench.
+  `cfop_devolucao_compra`, `cfop_remessa_para_industrializacao`,
+  `cfop_entrada_para_industrializacao`, `cfop_retorno_de_industrializacao`,
+  `cfop_retorno_da_industrializacao_realizada`; camada pura, sem Frappe, testável
+  sem bench.
 
 ## Fontes
 
@@ -62,3 +96,7 @@ natureza de operação a partir de dado incompleto. Quem chama informa
   (não uma fonte isolada por código) — nenhuma leitura direta do Convênio SINIEF
   s/nº de 15/12/1970 (texto original) nem do Ajuste SINIEF que consolidou a tabela
   vigente nesta rodada. Consultado em 2026-08-31.
+- `erpnext/subcontracting/doctype/` (código-fonte lido diretamente do clone
+  local) — usado para confirmar que `Subcontracting Order`/`Subcontracting
+  Receipt` não têm tratamento fiscal, motivando a extensão de industrialização
+  por encomenda.

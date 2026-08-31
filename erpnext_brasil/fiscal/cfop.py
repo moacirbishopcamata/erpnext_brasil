@@ -39,13 +39,29 @@ não serviço nem industrialização de terceiros):
 | Devolução de compra (saída) | `5201` | `6201` | industrialização, devolvida ao fornecedor |
 | Devolução de compra (saída) | `5202` | `6202` | comercialização, devolvida ao fornecedor |
 
+**Industrialização por encomenda** (achado ao levantar o estado do módulo de
+Subcontratação do ERPNext, `Subcontracting Order`/`Subcontracting Receipt` — hoje
+sem tratamento fiscal nenhum, mesmo gap já registrado para Sales Order/Purchase
+Order): quatro códigos a mais, cobrindo os dois papéis da operação —
+
+| Papel | Operação | Mesmo estado | Outro estado |
+|---|---|---|---|
+| Dono do material | Remessa para industrialização (saída) | `5901` | `6901` |
+| Industrializador | Entrada do insumo recebido (entrada) | `1901` | `2901` |
+| Dono do material | Retorno recebido de volta (entrada) | `1902` | `2902` |
+| Industrializador | Retorno do que industrializou (saída) | `5902` | `6902` |
+
+`Subcontracting Order` (remessa) e `Subcontracting Receipt` (retorno) do ERPNext
+modelam o papel de **dono do material** — por isso só `5901`/`6901` e `1902`/`2902`
+importam para esse fluxo específico; os outros dois (`1901`/`2901`, `5902`/`6902`)
+são fornecidos para quem usa este app do lado do industrializador.
+
 **Fora do escopo, e não finja que está coberto**: operação com o exterior (`3`/`7`),
-transferência entre estabelecimentos da mesma empresa, remessa/retorno de
-industrialização por conta de terceiros, bonificação/doação/brinde, consignação,
-ativo imobilizado/uso e consumo, substituição tributária, prestação de serviço de
-transporte, e qualquer código fora deste núcleo de dezesseis. `determinar_cfop`
-levanta erro explícito para qualquer combinação não coberta — nunca inventa um
-código plausível.
+transferência entre estabelecimentos da mesma empresa, bonificação/doação/brinde,
+consignação, ativo imobilizado/uso e consumo, substituição tributária, prestação
+de serviço de transporte, e qualquer código fora deste núcleo. `CfopInvalido` é
+levantado para qualquer combinação não coberta — nunca um código plausível
+inventado.
 
 Este módulo não decide industrialização × comercialização, nem mesmo/outro estado
 ------------------------------------------------------------------------------------------------
@@ -64,6 +80,10 @@ __all__ = [
 	"cfop_compra",
 	"cfop_devolucao_compra",
 	"cfop_devolucao_venda",
+	"cfop_entrada_para_industrializacao",
+	"cfop_remessa_para_industrializacao",
+	"cfop_retorno_da_industrializacao_realizada",
+	"cfop_retorno_de_industrializacao",
 	"cfop_venda",
 ]
 
@@ -85,21 +105,35 @@ def _validar_finalidade(finalidade: str) -> None:
 		)
 
 
-def cfop_compra(mesmo_estado: bool, finalidade: str) -> str:
+def cfop_compra(mesmo_estado: bool, finalidade: str, exterior: bool = False) -> str:
 	"""`1101`/`2101` (industrialização) ou `1102`/`2102` (comercialização) —
-	entrada de mercadoria comprada de terceiros."""
+	entrada de mercadoria comprada de terceiros. `exterior=True` monta `3101`/`3102`
+	(compra do exterior/importação) em vez disso — `mesmo_estado` é ignorado nesse
+	caso, importação não distingue UF de origem. Confirmado que o segundo e os dois
+	últimos dígitos mantêm o mesmo significado entre operação doméstica e com o
+	exterior — só o primeiro dígito muda (`1`/`2` → `3`)."""
 	_validar_finalidade(finalidade)
 
 	sufixo = "01" if finalidade == FINALIDADE_INDUSTRIALIZACAO else "02"
+
+	if exterior:
+		return f"31{sufixo}"
+
 	prefixo = "1" if mesmo_estado else "2"
 
 	return f"{prefixo}1{sufixo}"
 
 
-def cfop_venda(mesmo_estado: bool, producao_propria: bool) -> str:
+def cfop_venda(mesmo_estado: bool, producao_propria: bool, exterior: bool = False) -> str:
 	"""`5101`/`6101` (produção própria do estabelecimento) ou `5102`/`6102`
-	(mercadoria adquirida/recebida de terceiros) — saída por venda."""
+	(mercadoria adquirida/recebida de terceiros) — saída por venda. `exterior=True`
+	monta `7101`/`7102` (venda para o exterior/exportação) em vez disso —
+	`mesmo_estado` é ignorado, exportação não distingue UF de destino."""
 	sufixo = "01" if producao_propria else "02"
+
+	if exterior:
+		return f"71{sufixo}"
+
 	prefixo = "5" if mesmo_estado else "6"
 
 	return f"{prefixo}1{sufixo}"
@@ -124,3 +158,29 @@ def cfop_devolucao_compra(mesmo_estado: bool, finalidade: str) -> str:
 	prefixo = "5" if mesmo_estado else "6"
 
 	return f"{prefixo}2{sufixo}"
+
+
+def cfop_remessa_para_industrializacao(mesmo_estado: bool) -> str:
+	"""`5901`/`6901` — saída do **dono do material**, enviando insumo para um
+	terceiro industrializar por encomenda. Equivalente ao `Subcontracting Order`
+	do ERPNext (envio de matéria-prima ao subcontratado)."""
+	return "5901" if mesmo_estado else "6901"
+
+
+def cfop_entrada_para_industrializacao(mesmo_estado: bool) -> str:
+	"""`1901`/`2901` — entrada no **industrializador**, recebendo o insumo que vai
+	processar por encomenda de terceiro."""
+	return "1901" if mesmo_estado else "2901"
+
+
+def cfop_retorno_de_industrializacao(mesmo_estado: bool) -> str:
+	"""`1902`/`2902` — entrada no **dono do material**, recebendo de volta a
+	mercadoria que tinha remetido para industrializar. Equivalente ao
+	`Subcontracting Receipt` do ERPNext (recebimento do produto processado)."""
+	return "1902" if mesmo_estado else "2902"
+
+
+def cfop_retorno_da_industrializacao_realizada(mesmo_estado: bool) -> str:
+	"""`5902`/`6902` — saída do **industrializador**, devolvendo ao dono do
+	material o que processou por encomenda."""
+	return "5902" if mesmo_estado else "6902"
