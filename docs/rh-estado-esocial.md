@@ -105,14 +105,16 @@ provada de ponta a ponta com assinatura real verificada), o envelope SOAP
 `<consulta>` (`docs/rh-esocial-consulta.md`), a geração do `Id` de 36 caracteres
 (`docs/rh-esocial-id.md`), a estrutura do S-1010/Tabela de Rubricas
 (`docs/rh-esocial-s1010.md` — a peça de configuração que faltava para o S-1200 fazer
-sentido) e a estrutura do S-2200/Admissão (`docs/rh-esocial-s2200.md`, com três
-níveis de confiança por campo declarados explicitamente) estão implementados.
-Falta: o envio HTTP de verdade (`requests.post` com o certificado como client cert
-TLS, cabeçalhos `Content-Type`/`SOAPAction`, equivalente ao `_enviar` de
+sentido) a estrutura do S-2200/Admissão (`docs/rh-esocial-s2200.md`, com três
+níveis de confiança por campo declarados explicitamente) e o S-2299/Desligamento
+(`docs/rh-esocial-s2299.md` — reaproveita de verdade o `DmDev` do S-1200 para as
+verbas rescisórias) estão implementados. Falta: o envio HTTP de verdade
+(`requests.post` com o certificado como client cert TLS, cabeçalhos
+`Content-Type`/`SOAPAction`, equivalente ao `_enviar` de
 `integracao/autorizacao_sefaz.py` da NF-e), o polling de lote pendente
-(`cdResposta=203`), o schema de `RetornoEvento.xml_retorno` (não localizado, ver
-`docs/rh-esocial-retorno.md`), o S-2299 (Desligamento — natural par do S-2200, ainda
-não modelado), e o cadastro do empregador S-1000.
+(`cdResposta=203`), o schema de `RetornoEvento.xml_retorno` e a Tabela 19 de motivos
+de desligamento (nenhum dos dois localizado nas fontes consultadas), e o cadastro do
+empregador S-1000.
 
 ## Fontes
 
