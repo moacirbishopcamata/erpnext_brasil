@@ -34,6 +34,13 @@ INDICADORES_IE = "\n".join(
 	]
 )
 
+# Finalidade da compra do item, para decidir CFOP (`fiscal/cfop.py`) — não confundir
+# com `br_destinado_a_revenda`/`Operacao.destinado_a_industrializacao_ou_comercio`,
+# que decide se o IPI compõe a base do ICMS (consumo final × não consumo final), um
+# eixo diferente (ver `docs/pcp-estado.md` para o erro que quase aconteceu ao
+# reaproveitar aquele campo aqui).
+FINALIDADES_COMPRA = "\n".join(["", "Industrialização", "Comercialização"])
+
 # Origem da mercadoria: as opções do Select saem da mesma tabela normativa que alimenta
 # o Code List. Escrever a lista aqui de novo criaria duas fontes para o mesmo dado, que
 # divergiriam na primeira alteração — o mesmo motivo pelo qual não se duplica `tax_id`.
@@ -201,6 +208,31 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"insert_after": "origem_mercadoria",
 				"depends_on": "eval:!doc.is_stock_item",
 				"description": "Usado na NFS-e. Só se aplica a itens de serviço.",
+			},
+			{
+				"fieldname": "producao_propria",
+				"label": "Produção Própria",
+				"fieldtype": "Check",
+				"insert_after": "codigo_servico_lc116",
+				"depends_on": "eval:doc.is_stock_item",
+				"description": (
+					"Marque se este item é fabricado por esta empresa, não comprado pronto "
+					"para revenda. Decide o CFOP de venda (produção própria × mercadoria de "
+					"terceiros, ver fiscal/cfop.py)."
+				),
+			},
+			{
+				"fieldname": "finalidade_compra",
+				"label": "Finalidade da Compra",
+				"fieldtype": "Select",
+				"options": FINALIDADES_COMPRA,
+				"insert_after": "producao_propria",
+				"description": (
+					"Para que esta empresa compra este item: para industrializar (usar como "
+					"insumo de produção) ou para comercializar (revender como veio). Decide o "
+					"CFOP de compra — não confundir com 'destinado a revenda' na apuração de "
+					"impostos, que é uma regra diferente (IPI na base do ICMS)."
+				),
 			},
 		],
 	}

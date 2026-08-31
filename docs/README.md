@@ -10,6 +10,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [chave-de-acesso.md](chave-de-acesso.md) | Layout das 44 posições, cálculo do DV, impacto do CNPJ alfanumérico |
 | [cfop.md](cfop.md) | CFOP: determinação (não só validação de formato) para um núcleo de 16 códigos — compra/venda/devolução, mesmo/outro estado, importação/exportação, industrialização por encomenda |
 | [pcp-estado.md](pcp-estado.md) | Levantamento do PCP/manufatura: módulo já existe no core, gap real em Subcontratação, e um campo quase reaproveitado errado para CFOP |
+| [cfop-sugestao.md](cfop-sugestao.md) | Sugestão de CFOP em Pedidos/Subcontratação: dois campos novos no Item, `mesmo_estado` via UF, por que a sugestão nunca sobrescreve nada |
 | [montagem-da-nfe.md](montagem-da-nfe.md) | Grupos `ide`, `emit`, `dest`; por que a chave é derivada; rejeição 897 |
 | [reforma-tributaria.md](reforma-tributaria.md) | IBS, CBS e IS: cronograma, alíquota-teste, obrigatoriedade vigente |
 | [transmissao-documento-fiscal.md](transmissao-documento-fiscal.md) | Opções de transporte (ACBrLib × ACBr API) e a fronteira de licença |

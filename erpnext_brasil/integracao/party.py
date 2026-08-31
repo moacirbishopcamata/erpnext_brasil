@@ -62,13 +62,17 @@ def validar_tax_id(doc, method=None):
 	doc.tax_id = formatar_cpf(limpo) if len(limpo) == 11 else formatar_cnpj(limpo)
 
 
-def _uf_da_parte(doc) -> str | None:
+def uf_da_parte(doc) -> str | None:
 	"""Descobre a UF da parte a partir do endereço padrão dela.
 
 	A Inscrição Estadual mora na parte, mas a UF que define o algoritmo mora no
 	Address — e `state` no ERPNext é texto livre. Quando a UF não puder ser afirmada,
 	devolve None e a validação da IE é dispensada, em vez de arriscar rejeitar um
 	cadastro legítimo.
+
+	Função pública (não mais `_uf_da_parte`) desde que `integracao/cfop_sugestao.py`
+	passou a precisar da mesma UF para decidir `mesmo_estado` do CFOP — segunda
+	chamadora real é o que justifica generalizar, não suposição de uso futuro.
 	"""
 	from frappe.contacts.doctype.address.address import get_default_address
 
@@ -88,7 +92,7 @@ def validar_ie(doc, method=None):
 	if not ie or not _pais_e_brasil():
 		return
 
-	uf = _uf_da_parte(doc)
+	uf = uf_da_parte(doc)
 
 	if not uf:
 		return

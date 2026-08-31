@@ -54,7 +54,10 @@ doc_events = {
 }
 
 # A apuração roda em `validate` para que o usuário veja os impostos enquanto ainda pode
-# corrigir o documento — em `on_submit` seria tarde.
+# corrigir o documento — em `on_submit` seria tarde. A sugestão de CFOP roda junto
+# nesses quatro (documentos com apuração fiscal completa) e também em Pedidos/
+# Subcontratação, que não têm apuração (documento interno, sem chave de acesso) mas
+# ainda se beneficiam de saber qual CFOP usar quando virarem NF-e depois.
 for _doctype in (
 	"Sales Invoice",
 	"Delivery Note",
@@ -67,5 +70,16 @@ for _doctype in (
 			# item cuja combinação de CST e cClassTrib a SEFAZ recusaria.
 			"erpnext_brasil.integracao.validacao_fiscal.validar_classificacao_dos_itens",
 			"erpnext_brasil.integracao.documento.apurar_impostos",
+			"erpnext_brasil.integracao.cfop_sugestao.sugerir_cfop_compra_venda",
 		]
+	}
+
+for _doctype in ("Sales Order", "Purchase Order"):
+	doc_events[_doctype] = {
+		"validate": ["erpnext_brasil.integracao.cfop_sugestao.sugerir_cfop_compra_venda"]
+	}
+
+for _doctype in ("Subcontracting Order", "Subcontracting Receipt"):
+	doc_events[_doctype] = {
+		"validate": ["erpnext_brasil.integracao.cfop_sugestao.sugerir_cfop_subcontratacao"]
 	}

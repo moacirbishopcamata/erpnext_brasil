@@ -19,6 +19,16 @@ ITENS = (
 	"Purchase Receipt Item",
 )
 
+# Só recebem a sugestão de CFOP (`integracao/cfop_sugestao.py`), não a apuração
+# fiscal inteira — Pedido/Subcontratação são documentos internos, sem chave de
+# acesso nem NF-e própria.
+ITENS_SO_CFOP_SUGERIDO = (
+	"Sales Order Item",
+	"Purchase Order Item",
+	"Subcontracting Order Item",
+	"Subcontracting Receipt Item",
+)
+
 CABECALHOS = ("Sales Invoice", "Delivery Note", "Purchase Invoice", "Purchase Receipt")
 
 TABELAS_DE_IMPOSTO = ("Sales Taxes and Charges", "Purchase Taxes and Charges")
@@ -167,11 +177,29 @@ def _resultados_do_item() -> list[dict]:
 	return campos
 
 
+def _cfop_sugerido() -> dict:
+	"""Campo só de leitura, recalculado a cada `validate` — nunca um valor que o
+	usuário edita e um recálculo pisaria por cima (ver `integracao/cfop_sugestao.py`
+	sobre por que isso é seguro para este campo especificamente)."""
+	return {
+		"fieldname": "br_cfop_sugerido",
+		"label": "CFOP Sugerido",
+		"fieldtype": "Data",
+		"insert_after": "item_code",
+		"read_only": 1,
+		"no_copy": 1,
+		"description": "Sugestão calculada a partir da UF e do cadastro do item — confira antes de emitir.",
+	}
+
+
 def get_custom_fields() -> dict[str, list[dict]]:
 	campos = {}
 
 	for doctype in ITENS:
-		campos[doctype] = _entradas_do_item() + _resultados_do_item()
+		campos[doctype] = _entradas_do_item() + _resultados_do_item() + [_cfop_sugerido()]
+
+	for doctype in ITENS_SO_CFOP_SUGERIDO:
+		campos[doctype] = [_cfop_sugerido()]
 
 	for doctype in CABECALHOS:
 		campos[doctype] = [

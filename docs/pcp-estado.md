@@ -57,8 +57,9 @@ mercadoria de terceiros (para venda). Candidatos, nenhum decidido ainda:
   "Industrialização"/"Comercialização") — diferente do já existente
   `br_destinado_a_revenda`, que continua servindo só a regra de IPI-na-base.
 
-Não implementado — decisão de onde esse campo mora e como se chama fica para
-quando o usuário confirmar, não para ser suposto.
+**Implementado em seguida** (o usuário autorizou decidir a nomenclatura): ver
+`docs/cfop-sugestao.md` — `Item.producao_propria` (venda) e
+`Item.finalidade_compra` (compra), ambos separados de `br_destinado_a_revenda`.
 
 ## Rastreabilidade: já cobre o que a maioria da legislação brasileira exige
 
