@@ -110,11 +110,13 @@ física, não o CT-e (que é só o contrato de uma prestação).
 
 ## Implementado até agora
 
-`fiscal/mdfe.py::montar_infdoc` (ver `docs/mdfe-infdoc.md`) e `fiscal/mdfe_rodoviario.py`
+`fiscal/mdfe.py::montar_infdoc` (ver `docs/mdfe-infdoc.md`), `fiscal/mdfe_rodoviario.py`
 (veículo/motorista, ver `docs/mdfe-modal-rodoviario.md`, reusando `validar_rntrc`/`RntrcInvalido`
-do CT-e). Ainda falta: chave de acesso/assinatura (hipótese, não corroborada), autorizador por
-UF, eventos, `emit`/`seg`/`tot`/`lacres`, e um orquestrador `montar_ide`/`montar_mdfe` que amarre
-tudo — mesmo papel que `fiscal/cte.py::montar_ide`/`montar_cte` cumprem para o CT-e.
+do CT-e) e `fiscal/mdfe.py::assinar_mdfe` (assinatura digital, ver `docs/mdfe-assinatura.md`,
+reuso total de `assinatura.py`, confirmado por código de produção — não presumido só por CT-e já
+ter sido confirmado). Ainda falta: autorizador por UF, eventos, `emit`/`seg`/`tot`/`lacres`, e um
+orquestrador `montar_ide`/`montar_mdfe` que amarre tudo — mesmo papel que
+`fiscal/cte.py::montar_ide`/`montar_cte` cumprem para o CT-e.
 
 ## Fontes
 

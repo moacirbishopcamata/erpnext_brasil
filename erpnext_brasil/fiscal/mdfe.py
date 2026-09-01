@@ -23,13 +23,29 @@ teria produzido uma lista plana onde o layout exige agrupamento.
 
 `infMDFeTransp` (referência a outro MDF-e — sub-manifesto de transferência multimodal) não foi
 implementado ainda: caso menos comum, fora do escopo deste primeiro incremento.
+
+`assinar_mdfe` reusa `fiscal.documento.assinatura.py` inteiro, sem alteração — mesma disciplina
+de `fiscal.cte.assinar_cte`: verificar antes de reaproveitar, nunca supor por "mesma família de
+documento" (o `modal` e o `procEmi` do `ide` já divergiram entre CT-e e MDF-e nesta mesma
+investigação, ver `docs/mdfe-estado.md` — a assinatura poderia ter divergido também). Duas
+confirmações, mesmo padrão do CT-e:
+
+- XSD: `infMDFe/@Id`, padrão `MDFe[0-9]{44}` (`mdfeTiposBasico_v3.00.xsd`, linha 1230) — mesma
+  convenção `<prefixo><chave>`.
+- Código de produção: `signMDFe()` de `nfephp-org/sped-mdfe` (`src/Common/Tools.php`) chama
+  `Signer::sign` com `$this->algorithm`, cujo valor padrão na própria classe é
+  `OPENSSL_ALGO_SHA1` — o mesmo algoritmo já confirmado para o CT-e (`docs/cte-assinatura.md`).
 """
 
 from dataclasses import dataclass, field
 
+from erpnext_brasil.fiscal.documento.assinatura import Assinador, montar_signature
 from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, ler_chave
+from erpnext_brasil.fiscal.documento.serializacao import para_xml
 
-__all__ = ["MunicipioDescarga", "montar_infdoc"]
+__all__ = ["NAMESPACE_MDFE", "MunicipioDescarga", "assinar_mdfe", "montar_infdoc"]
+
+NAMESPACE_MDFE = "http://www.portalfiscal.inf.br/mdfe"
 
 
 @dataclass(frozen=True)
@@ -88,3 +104,20 @@ def montar_infdoc(municipios: list[MunicipioDescarga]) -> dict:
 		infmun.append(item)
 
 	return {"infDoc": {"infMunDescarga": infmun}}
+
+
+def assinar_mdfe(mdfe: dict, assinador: Assinador) -> dict:
+	"""Assina o documento e devolve a árvore completa, com `Signature` anexado.
+
+	Mesma costura de `fiscal.cte.assinar_cte`/`fiscal.documento.nfe.assinar_nfe`: serializa a
+	árvore (com o `Id` já aplicado em `infMDFe`), assina, e monta o envelope `Signature` como
+	irmão de `infMDFe` dentro de `MDFe`. Recebe `mdfe`, não `infmdfe`, pelo mesmo motivo dos
+	outros dois: o digest tem que ser calculado sobre a árvore com o namespace já aplicado.
+	"""
+	id_elemento = mdfe["MDFe"]["infMDFe"]["@Id"]
+	xml = para_xml(mdfe).encode("utf-8")
+
+	material = assinador.assinar(xml, id_elemento)
+	signature = montar_signature(id_elemento, material)
+
+	return {"MDFe": {**mdfe["MDFe"], **signature}}

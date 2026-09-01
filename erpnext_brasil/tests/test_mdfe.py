@@ -1,12 +1,14 @@
 # Copyright (c) 2026, ERPNext Brasil contributors
 # License: MIT. See license.txt
 
-"""Testes de `fiscal/mdfe.py` — montagem de `infDoc` do MDF-e."""
+"""Testes de `fiscal/mdfe.py` — montagem de `infDoc` e assinatura do MDF-e."""
 
 import unittest
 
+from erpnext_brasil.fiscal.documento.assinatura import MaterialAssinatura
 from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, montar_chave
-from erpnext_brasil.fiscal.mdfe import MunicipioDescarga, montar_infdoc
+from erpnext_brasil.fiscal.documento.serializacao import para_xml
+from erpnext_brasil.fiscal.mdfe import MunicipioDescarga, assinar_mdfe, montar_infdoc
 
 
 def _chave(modelo: str, numero: str = "000000001") -> str:
@@ -71,6 +73,65 @@ class TestMontarInfdoc(unittest.TestCase):
 
 		with self.assertRaises(ChaveInvalida):
 			montar_infdoc([municipio])
+
+
+class AssinadorFalso:
+	"""Duplo que satisfaz a porta `Assinador` sem certificado — registra o que recebeu.
+
+	Mesmo duplo de `test_cte.py`/`test_nfe.py`, repetido aqui: um teste de `fiscal/mdfe.py`
+	não deveria depender de um detalhe de teste de outro módulo."""
+
+	def __init__(self):
+		self.recebido: tuple[bytes, str] | None = None
+
+	def assinar(self, xml: bytes, id_elemento: str):
+		self.recebido = (xml, id_elemento)
+
+		return MaterialAssinatura(
+			digest="ZGlnZXN0", assinatura="YXNzaW5hdHVyYQ==", certificado="Y2VydA=="
+		)
+
+
+def _chave_mdfe() -> str:
+	return _chave("58")
+
+
+def _mdfe_minimo() -> dict:
+	chave = _chave_mdfe()
+
+	return {"MDFe": {"infMDFe": {"@Id": f"MDFe{chave}", "ide": {"cUF": "35"}}}}
+
+
+class TestAssinarMdfe(unittest.TestCase):
+	def setUp(self):
+		self.mdfe = _mdfe_minimo()
+		self.assinador = AssinadorFalso()
+		self.assinado = assinar_mdfe(self.mdfe, self.assinador)
+
+	def test_assina_o_id_do_infmdfe(self):
+		self.assertEqual(self.assinador.recebido[1], self.mdfe["MDFe"]["infMDFe"]["@Id"])
+
+	def test_id_assinado_usa_o_prefixo_mdfe(self):
+		id_assinado = self.assinador.recebido[1]
+
+		self.assertTrue(id_assinado.startswith("MDFe"))
+		self.assertFalse(id_assinado.startswith("CTe"))
+		self.assertFalse(id_assinado.startswith("NFe"))
+
+	def test_signature_e_irma_de_infmdfe(self):
+		"""Enveloped: Signature dentro de MDFe, ao lado de infMDFe — não dentro dele."""
+		self.assertIn("infMDFe", self.assinado["MDFe"])
+		self.assertIn("Signature", self.assinado["MDFe"])
+		self.assertNotIn("Signature", self.assinado["MDFe"]["infMDFe"])
+
+	def test_infmdfe_nao_muda_ao_assinar(self):
+		self.assertEqual(self.assinado["MDFe"]["infMDFe"], self.mdfe["MDFe"]["infMDFe"])
+
+	def test_documento_assinado_serializa(self):
+		xml = para_xml(self.assinado)
+
+		self.assertIn("<infMDFe", xml)
+		self.assertIn("<Signature", xml)
 
 
 if __name__ == "__main__":
