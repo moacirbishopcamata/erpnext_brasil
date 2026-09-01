@@ -1,14 +1,27 @@
 # Copyright (c) 2026, ERPNext Brasil contributors
 # License: MIT. See license.txt
 
-"""Testes de `fiscal/mdfe.py` — montagem de `infDoc` e assinatura do MDF-e."""
+"""Testes de `fiscal/mdfe.py` — montagem de `infDoc`, `ide` e assinatura do MDF-e."""
 
 import unittest
+from datetime import datetime
 
 from erpnext_brasil.fiscal.documento.assinatura import MaterialAssinatura
 from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, montar_chave
 from erpnext_brasil.fiscal.documento.serializacao import para_xml
-from erpnext_brasil.fiscal.mdfe import MunicipioDescarga, assinar_mdfe, montar_infdoc
+from erpnext_brasil.fiscal.mdfe import (
+	EMITENTE_TRANSPORTADOR_CARGA_PROPRIA,
+	MODAL_RODOVIARIO,
+	NAMESPACE_MDFE,
+	IdentificacaoMdfe,
+	MdfeInvalido,
+	MunicipioCarrega,
+	MunicipioDescarga,
+	assinar_mdfe,
+	montar_ide,
+	montar_infdoc,
+	montar_mdfe,
+)
 
 
 def _chave(modelo: str, numero: str = "000000001") -> str:
@@ -132,6 +145,135 @@ class TestAssinarMdfe(unittest.TestCase):
 
 		self.assertIn("<infMDFe", xml)
 		self.assertIn("<Signature", xml)
+
+
+def _identificacao(**kwargs) -> IdentificacaoMdfe:
+	base = {
+		"uf": "35",
+		"tipo_emitente": EMITENTE_TRANSPORTADOR_CARGA_PROPRIA,
+		"serie": "1",
+		"numero": "1",
+		"codigo_numerico": "12345678",
+		"modal": MODAL_RODOVIARIO,
+		"emissao": datetime(2026, 8, 31, 12, 0, 0),
+		"uf_inicio": "SP",
+		"uf_fim": "RJ",
+		"municipios_carrega": [MunicipioCarrega(codigo="3550308", nome="São Paulo")],
+	}
+	base.update(kwargs)
+	return IdentificacaoMdfe(**base)
+
+
+class TestIdentificacaoMdfeValidar(unittest.TestCase):
+	def test_tipo_emitente_invalido(self):
+		with self.assertRaises(MdfeInvalido):
+			_identificacao(tipo_emitente="9").validar()
+
+	def test_tipo_transportador_invalido(self):
+		with self.assertRaises(MdfeInvalido):
+			_identificacao(tipo_transportador="9").validar()
+
+	def test_tipo_transportador_vazio_e_valido(self):
+		"""tpTransp é opcional no XSD -- string vazia não deve levantar erro."""
+		_identificacao(tipo_transportador="").validar()
+
+	def test_modal_invalido(self):
+		with self.assertRaises(MdfeInvalido):
+			_identificacao(modal="99").validar()
+
+	def test_modal_do_cte_e_invalido_aqui(self):
+		"""'01' (zero à esquerda) é válido no CT-e, não no MDF-e -- tabelas diferentes."""
+		with self.assertRaises(MdfeInvalido):
+			_identificacao(modal="01").validar()
+
+	def test_sem_municipio_de_carrega_e_invalido(self):
+		with self.assertRaises(MdfeInvalido):
+			_identificacao(municipios_carrega=[]).validar()
+
+	def test_valores_validos_nao_levantam(self):
+		_identificacao().validar()
+
+
+class TestMontarIde(unittest.TestCase):
+	def test_campos_basicos(self):
+		grupo = montar_ide(_identificacao(), _chave_mdfe())
+
+		self.assertEqual(grupo["cUF"], "35")
+		self.assertEqual(grupo["mod"], "58")
+		self.assertEqual(grupo["modal"], MODAL_RODOVIARIO)
+		self.assertNotIn("CFOP", grupo)
+		self.assertNotIn("natOp", grupo)
+
+	def test_cdv_e_o_digito_verificador_da_chave(self):
+		chave = _chave_mdfe()
+
+		grupo = montar_ide(_identificacao(), chave)
+
+		self.assertEqual(grupo["cDV"], chave[-1])
+
+	def test_chave_de_outro_modelo_levanta_erro(self):
+		with self.assertRaises(MdfeInvalido):
+			montar_ide(_identificacao(), _chave("57"))
+
+	def test_cmdf_preenchido_com_zeros_a_esquerda(self):
+		grupo = montar_ide(_identificacao(codigo_numerico="7"), _chave_mdfe())
+
+		self.assertEqual(grupo["cMDF"], "00000007")
+
+	def test_tptransp_ausente_quando_nao_informado(self):
+		grupo = montar_ide(_identificacao(), _chave_mdfe())
+
+		self.assertNotIn("tpTransp", grupo)
+
+	def test_infmuncarrega_com_varios_municipios(self):
+		municipios = [
+			MunicipioCarrega(codigo="3550308", nome="São Paulo"),
+			MunicipioCarrega(codigo="3304557", nome="Rio de Janeiro"),
+		]
+
+		grupo = montar_ide(_identificacao(municipios_carrega=municipios), _chave_mdfe())
+
+		self.assertEqual(len(grupo["infMunCarrega"]), 2)
+		self.assertEqual(grupo["infMunCarrega"][0], {"cMunCarrega": "3550308", "xMunCarrega": "São Paulo"})
+
+	def test_infpercurso_ausente_quando_vazio(self):
+		grupo = montar_ide(_identificacao(), _chave_mdfe())
+
+		self.assertNotIn("infPercurso", grupo)
+
+	def test_infpercurso_presente_quando_informado(self):
+		grupo = montar_ide(_identificacao(ufs_percurso=["MG"]), _chave_mdfe())
+
+		self.assertEqual(grupo["infPercurso"], [{"UFPer": "MG"}])
+
+	def test_identificacao_invalida_propaga_erro(self):
+		with self.assertRaises(MdfeInvalido):
+			montar_ide(_identificacao(modal="99"), _chave_mdfe())
+
+
+class TestMontarMdfe(unittest.TestCase):
+	def test_envolve_infmdfe_com_namespace_e_id(self):
+		chave = _chave_mdfe()
+		infmdfe = montar_ide(_identificacao(), chave)
+
+		mdfe = montar_mdfe(infmdfe, chave)
+
+		self.assertEqual(mdfe["MDFe"]["@xmlns"], NAMESPACE_MDFE)
+		self.assertEqual(mdfe["MDFe"]["infMDFe"]["@Id"], f"MDFe{chave}")
+
+	def test_serializa_e_pode_ser_assinado(self):
+		"""Ponta a ponta: montar_ide -> montar_mdfe -> assinar_mdfe, mesma prova já feita
+		para o CT-e."""
+		chave = _chave_mdfe()
+		infmdfe = montar_ide(_identificacao(), chave)
+		mdfe = montar_mdfe(infmdfe, chave)
+
+		xml = para_xml(mdfe)
+		self.assertIn("<infMDFe", xml)
+
+		assinado = assinar_mdfe(mdfe, AssinadorFalso())
+
+		self.assertIn("Signature", assinado["MDFe"])
 
 
 if __name__ == "__main__":

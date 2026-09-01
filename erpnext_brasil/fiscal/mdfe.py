@@ -35,17 +35,181 @@ confirmações, mesmo padrão do CT-e:
 - Código de produção: `signMDFe()` de `nfephp-org/sped-mdfe` (`src/Common/Tools.php`) chama
   `Signer::sign` com `$this->algorithm`, cujo valor padrão na própria classe é
   `OPENSSL_ALGO_SHA1` — o mesmo algoritmo já confirmado para o CT-e (`docs/cte-assinatura.md`).
+
+`montar_ide`/`montar_mdfe` orquestram — o papel que `fiscal.cte.montar_ide`/`montar_cte` cumprem
+para o CT-e. Lição aplicada desde o início desta vez (não depois, como no CT-e): `montar_ide`
+já nasce recebendo `chave` como parâmetro obrigatório e extraindo `cDV` dela via `ler_chave`
+(nunca `chave[-1]` cru), com a mesma pré-condição de Design by Contract — a chave decomposta
+precisa ser de MDF-e (`modelo == "58"`) — em vez de ser corrigido depois de um bug passar
+despercebido (ver `docs/cte-orquestracao.md`, seção "Correção: `cDV` estava ausente").
+
+Os 21 campos de `ide` foram lidos e ordenados por leitura direta do XSD
+(`mdfeTiposBasico_v3.00.xsd`, linhas 17–232, ver `docs/mdfe-estado.md`), não por analogia com o
+CT-e — `modal`/`procEmi` já divergiram entre os dois documentos nesta mesma investigação.
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from erpnext_brasil.fiscal.documento.assinatura import Assinador, montar_signature
 from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, ler_chave
 from erpnext_brasil.fiscal.documento.serializacao import para_xml
 
-__all__ = ["NAMESPACE_MDFE", "MunicipioDescarga", "assinar_mdfe", "montar_infdoc"]
+__all__ = [
+	"AMBIENTE_HOMOLOGACAO",
+	"AMBIENTE_PRODUCAO",
+	"EMITENTE_PRESTADOR_CTE_GLOBALIZADO",
+	"EMITENTE_PRESTADOR_SERVICO",
+	"EMITENTE_TRANSPORTADOR_CARGA_PROPRIA",
+	"MODAL_AEREO",
+	"MODAL_AQUAVIARIO",
+	"MODAL_FERROVIARIO",
+	"MODAL_RODOVIARIO",
+	"NAMESPACE_MDFE",
+	"PROCESSO_EMISSAO_APLICATIVO_CONTRIBUINTE",
+	"PROCESSO_EMISSAO_PAA",
+	"TRANSPORTADOR_CTC",
+	"TRANSPORTADOR_ETC",
+	"TRANSPORTADOR_TAC",
+	"IdentificacaoMdfe",
+	"MdfeInvalido",
+	"MunicipioCarrega",
+	"MunicipioDescarga",
+	"assinar_mdfe",
+	"montar_ide",
+	"montar_infdoc",
+	"montar_mdfe",
+]
 
 NAMESPACE_MDFE = "http://www.portalfiscal.inf.br/mdfe"
+
+# `tpEmit` — confirmado em `ide/tpEmit` (linha 37).
+EMITENTE_PRESTADOR_SERVICO = "1"
+EMITENTE_TRANSPORTADOR_CARGA_PROPRIA = "2"
+EMITENTE_PRESTADOR_CTE_GLOBALIZADO = "3"
+
+# `tpTransp` — confirmado em `ide/tpTransp` (linha 47), opcional.
+TRANSPORTADOR_ETC = "1"
+TRANSPORTADOR_TAC = "2"
+TRANSPORTADOR_CTC = "3"
+
+# `modal` do MDF-e — confirmado em `ide/modal` (linha 100). **Diverge do `modal` do CT-e**
+# (`"01"`–`"06"`, com Dutoviário/Multimodal) — aqui é `"1"`–`"4"`, sem zero à esquerda, sem
+# Dutoviário nem Multimodal. Ver `docs/mdfe-estado.md`.
+MODAL_RODOVIARIO = "1"
+MODAL_AEREO = "2"
+MODAL_AQUAVIARIO = "3"
+MODAL_FERROVIARIO = "4"
+
+# `procEmi` — confirmado em `ide/procEmi` (linha 128). **Diverge do `procEmi` do CT-e**
+# (`"0"`/`"3"`) — aqui é `"0"`/`"4"` (aplicativo do contribuinte / Provedor de Assinatura e
+# Autorização - PAA).
+PROCESSO_EMISSAO_APLICATIVO_CONTRIBUINTE = "0"
+PROCESSO_EMISSAO_PAA = "4"
+
+AMBIENTE_PRODUCAO = "1"
+AMBIENTE_HOMOLOGACAO = "2"
+
+_EMITENTES_VALIDOS = {
+	EMITENTE_PRESTADOR_SERVICO, EMITENTE_TRANSPORTADOR_CARGA_PROPRIA, EMITENTE_PRESTADOR_CTE_GLOBALIZADO,
+}
+_TRANSPORTADORES_VALIDOS = {TRANSPORTADOR_ETC, TRANSPORTADOR_TAC, TRANSPORTADOR_CTC}
+_MODAIS_VALIDOS = {MODAL_RODOVIARIO, MODAL_AEREO, MODAL_AQUAVIARIO, MODAL_FERROVIARIO}
+_PROCESSOS_EMISSAO_VALIDOS = {PROCESSO_EMISSAO_APLICATIVO_CONTRIBUINTE, PROCESSO_EMISSAO_PAA}
+_TIPOS_EMISSAO_VALIDOS = {"1", "2", "3"}
+
+
+class MdfeInvalido(ValueError):
+	"""Dado que impediria a autorização do MDF-e."""
+
+	def __init__(self, mensagem: str, campo: str = ""):
+		super().__init__(mensagem)
+		self.campo = campo
+
+
+@dataclass(frozen=True)
+class MunicipioCarrega:
+	"""Um município de carregamento — `ide/infMunCarrega` (até 50, ao menos um é obrigatório)."""
+
+	codigo: str
+	"""`cMunCarrega` — código IBGE."""
+	nome: str
+	"""`xMunCarrega`."""
+
+
+@dataclass(frozen=True)
+class IdentificacaoMdfe:
+	"""Dados que identificam o documento — origem do grupo `ide`.
+
+	Campos confirmados por leitura direta do XSD (`mdfeTiposBasico_v3.00.xsd`, linhas
+	17–232), na ordem exata do `xs:sequence`. Bem mais enxuto que o `ide` do CT-e/NF-e:
+	sem `CFOP` nem `natOp` — o MDF-e não é uma operação tributável, é um manifesto.
+	"""
+
+	uf: str
+	"""`cUF` — código IBGE, não a sigla."""
+	tipo_emitente: str
+	serie: str
+	numero: str
+	codigo_numerico: str
+	"""`cMDF` — 8 dígitos, mesmo padrão de `cCT`/`cNF`."""
+	modal: str
+	emissao: datetime
+	uf_inicio: str
+	uf_fim: str
+	municipios_carrega: list[MunicipioCarrega]
+	"""`infMunCarrega` — até 50, ao menos um é obrigatório (sem `minOccurs="0"` no XSD)."""
+	tipo_transportador: str = ""
+	ufs_percurso: list[str] = field(default_factory=list)
+	"""`infPercurso/UFPer` — opcional, até 25. Não repetir `uf_inicio`/`uf_fim`."""
+	dh_inicio_viagem: datetime | None = None
+	canal_verde: bool = False
+	carrega_posterior: bool = False
+	tipo_emissao: str = "1"
+	processo_emissao: str = PROCESSO_EMISSAO_APLICATIVO_CONTRIBUINTE
+	versao_processo: str = "1.0.0"
+	ambiente: str = AMBIENTE_HOMOLOGACAO
+	"""1 = produção, 2 = homologação — mesmo padrão-seguro de `cte.IdentificacaoCte`."""
+
+	def validar(self) -> None:
+		if self.tipo_emitente not in _EMITENTES_VALIDOS:
+			raise MdfeInvalido(
+				f"tipo_emitente deve ser um de {sorted(_EMITENTES_VALIDOS)}, "
+				f"recebido {self.tipo_emitente!r}",
+				"tipo_emitente",
+			)
+
+		if self.tipo_transportador and self.tipo_transportador not in _TRANSPORTADORES_VALIDOS:
+			raise MdfeInvalido(
+				f"tipo_transportador deve ser um de {sorted(_TRANSPORTADORES_VALIDOS)}, "
+				f"recebido {self.tipo_transportador!r}",
+				"tipo_transportador",
+			)
+
+		if self.modal not in _MODAIS_VALIDOS:
+			raise MdfeInvalido(
+				f"modal deve ser um de {sorted(_MODAIS_VALIDOS)}, recebido {self.modal!r}", "modal"
+			)
+
+		if self.tipo_emissao not in _TIPOS_EMISSAO_VALIDOS:
+			raise MdfeInvalido(
+				f"tipo_emissao deve ser um de {sorted(_TIPOS_EMISSAO_VALIDOS)}, "
+				f"recebido {self.tipo_emissao!r}",
+				"tipo_emissao",
+			)
+
+		if self.processo_emissao not in _PROCESSOS_EMISSAO_VALIDOS:
+			raise MdfeInvalido(
+				f"processo_emissao deve ser um de {sorted(_PROCESSOS_EMISSAO_VALIDOS)}, "
+				f"recebido {self.processo_emissao!r}",
+				"processo_emissao",
+			)
+
+		if not self.municipios_carrega:
+			raise MdfeInvalido(
+				"infMunCarrega precisa de ao menos um município (XSD: minOccurs=1)",
+				"municipios_carrega",
+			)
 
 
 @dataclass(frozen=True)
@@ -104,6 +268,85 @@ def montar_infdoc(municipios: list[MunicipioDescarga]) -> dict:
 		infmun.append(item)
 
 	return {"infDoc": {"infMunDescarga": infmun}}
+
+
+def montar_ide(identificacao: IdentificacaoMdfe, chave: str) -> dict:
+	"""Monta o grupo `ide`, na ordem exata do XSD.
+
+	Recebe `chave` para extrair `cDV` — mesma disciplina de `fiscal.cte.montar_ide` (que
+	só ganhou essa disciplina depois de um bug, ver `docs/cte-orquestracao.md`; aqui já
+	nasce correta). Pré-condição de Design by Contract: a chave decomposta precisa ser
+	de MDF-e (`modelo == "58"`) — sem essa checagem, uma chave de CT-e ou NF-e passada
+	por engano produziria um `ide` com `cDV` "correto" mas de outro documento.
+	"""
+	identificacao.validar()
+
+	chave_decomposta = ler_chave(chave)
+
+	if chave_decomposta.modelo != "58":
+		raise MdfeInvalido(
+			f"ide/cDV precisa de uma chave de MDF-e (modelo 58), recebida chave de modelo "
+			f"{chave_decomposta.modelo} ({chave_decomposta.documento})",
+			"chave",
+		)
+
+	grupo: dict = {
+		"cUF": identificacao.uf,
+		"tpAmb": identificacao.ambiente,
+		"tpEmit": identificacao.tipo_emitente,
+	}
+
+	if identificacao.tipo_transportador:
+		grupo["tpTransp"] = identificacao.tipo_transportador
+
+	grupo.update(
+		{
+			"mod": "58",
+			"serie": str(identificacao.serie).lstrip("0") or "0",
+			"nMDF": str(identificacao.numero).lstrip("0") or "0",
+			"cMDF": str(identificacao.codigo_numerico).rjust(8, "0"),
+			"cDV": chave_decomposta.dv,
+			"modal": identificacao.modal,
+			"dhEmi": identificacao.emissao.isoformat(),
+			"tpEmis": identificacao.tipo_emissao,
+			"procEmi": identificacao.processo_emissao,
+			"verProc": identificacao.versao_processo,
+			"UFIni": identificacao.uf_inicio,
+			"UFFim": identificacao.uf_fim,
+			"infMunCarrega": [
+				{"cMunCarrega": m.codigo, "xMunCarrega": m.nome} for m in identificacao.municipios_carrega
+			],
+		}
+	)
+
+	if identificacao.ufs_percurso:
+		grupo["infPercurso"] = [{"UFPer": uf} for uf in identificacao.ufs_percurso]
+
+	if identificacao.dh_inicio_viagem is not None:
+		grupo["dhIniViagem"] = identificacao.dh_inicio_viagem.isoformat()
+
+	if identificacao.canal_verde:
+		grupo["indCanalVerde"] = "1"
+
+	if identificacao.carrega_posterior:
+		grupo["indCarregaPosterior"] = "1"
+
+	return grupo
+
+
+def montar_mdfe(infmdfe: dict, chave: str) -> dict:
+	"""Envolve `infMDFe` na raiz `MDFe`, com o namespace do leiaute e o `Id` derivado.
+
+	Mesma disciplina de `fiscal.cte.montar_cte`/`fiscal.documento.nfe.montar_nfe`: o `Id`
+	é `"MDFe" + chave`, nunca informado em paralelo — não há como divergir do que a
+	chave realmente é.
+	"""
+	return {
+		"MDFe": {
+			"@xmlns": NAMESPACE_MDFE,
+			"infMDFe": {**infmdfe, "@Id": f"MDFe{chave}"},
+		}
+	}
 
 
 def assinar_mdfe(mdfe: dict, assinador: Assinador) -> dict:
