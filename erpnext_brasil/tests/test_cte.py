@@ -6,8 +6,10 @@
 import unittest
 from decimal import Decimal
 
-from erpnext_brasil.fiscal.cte import montar_icms_uf_fim, montar_infnfe
+from erpnext_brasil.fiscal.cte import assinar_cte, montar_icms_uf_fim, montar_infnfe
+from erpnext_brasil.fiscal.documento.assinatura import MaterialAssinatura
 from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, montar_chave
+from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.impostos.icms import calcular_difal
 
 
@@ -132,6 +134,62 @@ class TestMontarInfnfe(unittest.TestCase):
 		CT-e (modelo 57) tem que falhar aqui, não só na rejeição da SEFAZ."""
 		with self.assertRaises(ChaveInvalida):
 			montar_infnfe([_chave_cte()])
+
+
+class AssinadorFalso:
+	"""Duplo que satisfaz a porta `Assinador` sem certificado — registra o que recebeu.
+
+	Mesmo duplo de `test_nfe.py`, repetido aqui em vez de importado: um teste de
+	`fiscal/cte.py` não deveria depender de um detalhe de teste de `fiscal/documento/`."""
+
+	def __init__(self):
+		self.recebido: tuple[bytes, str] | None = None
+
+	def assinar(self, xml: bytes, id_elemento: str):
+		self.recebido = (xml, id_elemento)
+
+		return MaterialAssinatura(
+			digest="ZGlnZXN0", assinatura="YXNzaW5hdHVyYQ==", certificado="Y2VydA=="
+		)
+
+
+def _cte_minimo() -> dict:
+	chave = _chave_cte()
+
+	return {"CTe": {"infCte": {"@Id": f"CTe{chave}", "ide": {"cUF": "35"}}}}
+
+
+class TestAssinarCte(unittest.TestCase):
+	def setUp(self):
+		self.cte = _cte_minimo()
+		self.assinador = AssinadorFalso()
+		self.assinado = assinar_cte(self.cte, self.assinador)
+
+	def test_assina_o_id_do_infcte(self):
+		"""O que se assina é o Id de infCte — mesmo elemento que o XSD identifica como
+		alvo da assinatura (`infCte/@Id`, padrão `CTe[0-9]{44}`)."""
+		self.assertEqual(self.assinador.recebido[1], self.cte["CTe"]["infCte"]["@Id"])
+
+	def test_id_assinado_usa_o_prefixo_cte_nao_nfe(self):
+		id_assinado = self.assinador.recebido[1]
+
+		self.assertTrue(id_assinado.startswith("CTe"))
+		self.assertFalse(id_assinado.startswith("NFe"))
+
+	def test_signature_e_irma_de_infcte(self):
+		"""Enveloped: Signature dentro de CTe, ao lado de infCte — não dentro dele."""
+		self.assertIn("infCte", self.assinado["CTe"])
+		self.assertIn("Signature", self.assinado["CTe"])
+		self.assertNotIn("Signature", self.assinado["CTe"]["infCte"])
+
+	def test_infcte_nao_muda_ao_assinar(self):
+		self.assertEqual(self.assinado["CTe"]["infCte"], self.cte["CTe"]["infCte"])
+
+	def test_documento_assinado_serializa(self):
+		xml = para_xml(self.assinado)
+
+		self.assertIn("<infCte", xml)
+		self.assertIn("<Signature", xml)
 
 
 if __name__ == "__main__":

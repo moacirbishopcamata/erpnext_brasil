@@ -52,6 +52,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [cfop-transporte.md](cfop-transporte.md) | CFOP de prestação de serviço de transporte (`ide.CFOP` do CT-e): oito perfis de tomador, nível de confiança declarado (só fonte secundária cruzada, sem o Ajuste SINIEF localizado) |
 | [cte-infnfe.md](cte-infnfe.md) | Grupo `infDoc/infNFe` do CT-e: ponte com a NF-e transportada (dado que o MDF-e vai precisar depois), reuso de `ler_chave` da NF-e, recusa de chave que não seja modelo 55 |
 | [cte-modal-rodoviario.md](cte-modal-rodoviario.md) | Modal rodoviário do CT-e: só RNTRC (com a pegadinha do valor `ISENTO`) e ordens de coleta — veículo/motorista é responsabilidade do MDF-e, não do CT-e |
+| [cte-assinatura.md](cte-assinatura.md) | Assinatura digital do CT-e: reuso total de `assinatura.py` da NF-e, confirmado (não suposto) por código de produção do `sped-common`/`sped-cte`, não pelo texto do Ajuste SINIEF (não localizado) |
 
 ## Convenções que valem em todo o código
 

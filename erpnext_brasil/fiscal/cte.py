@@ -39,14 +39,36 @@ tipo `TChDFe` — "T**Ch****D**ocumento **F**iscal **e**letrônico", o mesmo tip
 para `chCTe` em outros grupos do próprio CT-e) que o campo é só a chave, sem repetir o valor da
 nota (diferente de `infNF`, para NF modelo 01/04 em papel, que carrega o detalhamento fiscal
 inteiro — esse grupo não foi implementado, é o caso legado, cada vez mais raro).
+
+`assinar_cte` reusa `fiscal.documento.assinatura.py` inteiro, sem alteração — `referencia_do_id`,
+`montar_signed_info` e `montar_signature` já eram genéricos (parametrizados por `id_elemento`,
+nunca fixados em `"NFe"`), então não havia nada a mudar para o CT-e. A única coisa a verificar
+era se o **perfil** de assinatura do CT-e é mesmo o mesmo da NF-e — não é suposição por analogia:
+
+- O XSD confirma o formato do `Id`: `infCte/@Id`, padrão `CTe[0-9]{44}` (linha 4917 de
+  `cteTiposBasico_v4.00.xsd`) — mesma convenção `<prefixo><chave>` da NF-e, só troca `NFe` por
+  `CTe`.
+- O algoritmo de assinatura foi corroborado por **código de produção**, não por manual: a classe
+  `Signer` de `nfephp-org/sped-common` — usada por `sped-nfe`, `sped-cte`, `sped-mdfe` e outros
+  pacotes da mesma família — tem `OPENSSL_ALGO_SHA1` como algoritmo padrão; `signCTe()` de
+  `nfephp-org/sped-cte` chama esse `Signer::sign` sem sobrescrever o algoritmo. É uma
+  corroboração mais forte que a maioria das fontes secundárias deste projeto (não é um blog
+  resumindo a regra, é a implementação que assina CT-e de verdade em produção), mas ainda não é
+  o texto do Ajuste SINIEF — declarado como tal, mesmo padrão de honestidade do módulo
+  `cfop_transporte.py`. Sem essa corroboração, reusar `assinatura.py` seria supor que o CT-e
+  segue a NF-e por "fazerem parte da mesma família" — o mesmo tipo de suposição que já se provou
+  falsa uma vez neste projeto (eSocial usa SHA-256, não SHA-1, apesar de também ser um
+  documento fiscal eletrônico brasileiro — ver `docs/rh-esocial-assinatura.md`).
 """
 
 from decimal import Decimal
 
+from erpnext_brasil.fiscal.documento.assinatura import Assinador, montar_signature
 from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, ler_chave
+from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.impostos.icms import calcular_difal
 
-__all__ = ["montar_icms_uf_fim", "montar_infnfe"]
+__all__ = ["assinar_cte", "montar_icms_uf_fim", "montar_infnfe"]
 
 
 def montar_icms_uf_fim(
@@ -109,3 +131,21 @@ def montar_infnfe(chaves_nfe: list[str]) -> list[dict]:
 		grupo.append({"chave": decomposta.valor})
 
 	return grupo
+
+
+def assinar_cte(cte: dict, assinador: Assinador) -> dict:
+	"""Assina o documento e devolve a árvore completa, com `Signature` anexado.
+
+	Mesma costura de `fiscal.documento.nfe.assinar_nfe`: serializa a árvore (com o `Id`
+	já aplicado em `infCte`), assina, e monta o envelope `Signature` como irmão de
+	`infCte` dentro de `CTe`. Recebe `cte` — não `infcte` — pelo mesmo motivo da NF-e: o
+	`Id` a assinar é o de `infCte`, mas o digest tem que ser calculado sobre a árvore com
+	o namespace já aplicado.
+	"""
+	id_elemento = cte["CTe"]["infCte"]["@Id"]
+	xml = para_xml(cte).encode("utf-8")
+
+	material = assinador.assinar(xml, id_elemento)
+	signature = montar_signature(id_elemento, material)
+
+	return {"CTe": {**cte["CTe"], **signature}}
