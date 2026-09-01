@@ -59,7 +59,10 @@ __all__ = [
 # Padrão do tipo TChNFe, lido do XSD oficial.
 _PADRAO = re.compile(r"^[0-9]{6}[0-9A-Z]{12}[0-9]{26}$")
 
-MODELOS = {"55": "NF-e", "65": "NFC-e"}
+MODELOS = {"55": "NF-e", "65": "NFC-e", "57": "CT-e", "58": "MDF-e"}
+"""Nomes exibidos por `ChaveAcesso.documento`. "57"/"58" confirmados em `ide/mod` do CT-e e
+do MDF-e (`docs/cte-estado.md`/`docs/mdfe-estado.md`) — o layout de 44 posições da chave é o
+mesmo entre os quatro documentos, só o dígito de modelo muda."""
 
 _TAMANHO = 44
 _SEM_DV = 43

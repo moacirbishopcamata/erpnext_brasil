@@ -55,6 +55,8 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [cte-assinatura.md](cte-assinatura.md) | Assinatura digital do CT-e: reuso total de `assinatura.py` da NF-e, confirmado (não suposto) por código de produção do `sped-common`/`sped-cte`, não pelo texto do Ajuste SINIEF (não localizado) |
 | [cte-toma.md](cte-toma.md) | Tomador do serviço do CT-e: `toma3` (reaproveita parte já citada) vs `toma4` (cadastro completo, ordem de campos estrita do `xs:sequence`) |
 | [cte-orquestracao.md](cte-orquestracao.md) | `montar_ide`/`montar_cte`: os 30 campos de `ide` verificados e ordenados contra o XSD, composição com tomador/CFOP/assinatura já prontos, prova de ponta a ponta |
+| [mdfe-estado.md](mdfe-estado.md) | Levantamento do MDF-e: `ide` bem mais simples que o do CT-e, achado de que `modal`/`procEmi` divergem entre os dois documentos, veículo/motorista mora no MDF-e (não no CT-e) |
+| [mdfe-infdoc.md](mdfe-infdoc.md) | `infDoc` do MDF-e: referências a CT-e/NF-e agrupadas por município de descarga (não lista plana como no CT-e), `chave_acesso.MODELOS` ganha `"57"`/`"58"` |
 
 ## Convenções que valem em todo o código
 
