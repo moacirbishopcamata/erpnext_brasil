@@ -54,6 +54,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [cte-modal-rodoviario.md](cte-modal-rodoviario.md) | Modal rodoviário do CT-e: só RNTRC (com a pegadinha do valor `ISENTO`) e ordens de coleta — veículo/motorista é responsabilidade do MDF-e, não do CT-e |
 | [cte-assinatura.md](cte-assinatura.md) | Assinatura digital do CT-e: reuso total de `assinatura.py` da NF-e, confirmado (não suposto) por código de produção do `sped-common`/`sped-cte`, não pelo texto do Ajuste SINIEF (não localizado) |
 | [cte-toma.md](cte-toma.md) | Tomador do serviço do CT-e: `toma3` (reaproveita parte já citada) vs `toma4` (cadastro completo, ordem de campos estrita do `xs:sequence`) |
+| [cte-orquestracao.md](cte-orquestracao.md) | `montar_ide`/`montar_cte`: os 30 campos de `ide` verificados e ordenados contra o XSD, composição com tomador/CFOP/assinatura já prontos, prova de ponta a ponta |
 
 ## Convenções que valem em todo o código
 

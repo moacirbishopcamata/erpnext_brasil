@@ -4,15 +4,22 @@
 """Testes de `fiscal/cte.py` — montagem dos grupos `ICMSUFFim` e `infDoc/infNFe` do CT-e."""
 
 import unittest
+from datetime import datetime
 from decimal import Decimal
 
 from erpnext_brasil.fiscal.cte import (
+	MODAL_RODOVIARIO,
+	NAMESPACE_CTE,
+	TIPO_SERVICO_NORMAL,
 	TOMADOR_DESTINATARIO,
 	TOMADOR_OUTROS,
 	CteInvalido,
+	IdentificacaoCte,
 	TomadorOutros,
 	assinar_cte,
+	montar_cte,
 	montar_icms_uf_fim,
+	montar_ide,
 	montar_infnfe,
 	montar_toma3,
 	montar_toma4,
@@ -218,6 +225,143 @@ class TestMontarToma4(unittest.TestCase):
 
 		self.assertNotIn("email", sem_email)
 		self.assertEqual(com_email["email"], "contato@alem.com.br")
+
+
+def _identificacao(**kwargs) -> IdentificacaoCte:
+	base = {
+		"uf": "35",
+		"cfop": "5352",
+		"natureza_operacao": "Prestação de serviço de transporte",
+		"serie": "1",
+		"numero": "1",
+		"codigo_numerico": "12345678",
+		"emissao": datetime(2026, 8, 31, 12, 0, 0),
+		"modal": MODAL_RODOVIARIO,
+		"tipo_servico": TIPO_SERVICO_NORMAL,
+		"municipio_inicio": "3550308",
+		"municipio_inicio_nome": "São Paulo",
+		"uf_inicio": "SP",
+		"municipio_fim": "3304557",
+		"municipio_fim_nome": "Rio de Janeiro",
+		"uf_fim": "RJ",
+		"municipio_envio": "3550308",
+		"municipio_envio_nome": "São Paulo",
+		"uf_envio": "SP",
+		"indicador_ie_tomador": "1",
+	}
+	base.update(kwargs)
+	return IdentificacaoCte(**base)
+
+
+class TestIdentificacaoCteValidar(unittest.TestCase):
+	def test_modal_invalido(self):
+		with self.assertRaises(CteInvalido):
+			_identificacao(modal="99").validar()
+
+	def test_tipo_servico_invalido(self):
+		with self.assertRaises(CteInvalido):
+			_identificacao(tipo_servico="9").validar()
+
+	def test_tipo_cte_invalido(self):
+		with self.assertRaises(CteInvalido):
+			_identificacao(tipo_cte="2").validar()
+
+	def test_retira_invalido(self):
+		with self.assertRaises(CteInvalido):
+			_identificacao(retira="9").validar()
+
+	def test_indicador_ie_tomador_invalido(self):
+		with self.assertRaises(CteInvalido):
+			_identificacao(indicador_ie_tomador="0").validar()
+
+	def test_valores_validos_nao_levantam(self):
+		_identificacao().validar()
+
+
+class TestMontarIde(unittest.TestCase):
+	def test_campos_basicos(self):
+		grupo = montar_ide(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO))
+
+		self.assertEqual(grupo["cUF"], "35")
+		self.assertEqual(grupo["CFOP"], "5352")
+		self.assertEqual(grupo["mod"], "57")
+		self.assertEqual(grupo["modal"], MODAL_RODOVIARIO)
+
+	def test_cct_preenchido_com_zeros_a_esquerda(self):
+		grupo = montar_ide(_identificacao(codigo_numerico="7"), montar_toma3(TOMADOR_DESTINATARIO))
+
+		self.assertEqual(grupo["cCT"], "00000007")
+
+	def test_indieToma_vem_antes_do_grupo_do_tomador(self):
+		grupo = montar_ide(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO))
+		chaves = list(grupo.keys())
+
+		self.assertLess(chaves.index("indIEToma"), chaves.index("toma3"))
+
+	def test_aceita_toma3(self):
+		grupo = montar_ide(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO))
+
+		self.assertIn("toma3", grupo)
+		self.assertNotIn("toma4", grupo)
+
+	def test_aceita_toma4(self):
+		tomador = TomadorOutros(
+			nome="Outros Ltda",
+			cnpj_cpf="11222333000181",
+			endereco={"xLgr": "Rua X", "xMun": "São Paulo", "UF": "SP"},
+		)
+		grupo = montar_ide(_identificacao(), montar_toma4(tomador))
+
+		self.assertIn("toma4", grupo)
+		self.assertNotIn("toma3", grupo)
+
+	def test_xdetretira_so_aparece_quando_preenchido(self):
+		sem_detalhe = montar_ide(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO))
+		com_detalhe = montar_ide(
+			_identificacao(detalhes_retira="Retirar na filial 2"), montar_toma3(TOMADOR_DESTINATARIO)
+		)
+
+		self.assertNotIn("xDetRetira", sem_detalhe)
+		self.assertEqual(com_detalhe["xDetRetira"], "Retirar na filial 2")
+
+	def test_identificacao_invalida_propaga_erro(self):
+		with self.assertRaises(CteInvalido):
+			montar_ide(_identificacao(modal="99"), montar_toma3(TOMADOR_DESTINATARIO))
+
+
+class TestMontarCte(unittest.TestCase):
+	def test_envolve_infcte_com_namespace_e_id(self):
+		infcte = montar_ide(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO))
+		chave = _chave_cte()
+
+		cte = montar_cte(infcte, chave)
+
+		self.assertEqual(cte["CTe"]["@xmlns"], NAMESPACE_CTE)
+		self.assertEqual(cte["CTe"]["infCte"]["@Id"], f"CTe{chave}")
+
+	def test_infcte_preservado(self):
+		infcte = montar_ide(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO))
+		chave = _chave_cte()
+
+		cte = montar_cte(infcte, chave)
+
+		for k, v in infcte.items():
+			self.assertEqual(cte["CTe"]["infCte"][k], v)
+
+	def test_serializa_e_pode_ser_assinado(self):
+		"""Ponta a ponta: montar_ide -> montar_cte -> assinar_cte, mesma costura de
+		fiscal.documento.nfe, provando que as peças soltas do CT-e realmente se encaixam."""
+		infcte = montar_ide(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO))
+		chave = _chave_cte()
+		cte = montar_cte(infcte, chave)
+
+		xml = para_xml(cte)
+		self.assertIn("<infCte", xml)
+
+		assinador = AssinadorFalso()
+		assinado = assinar_cte(cte, assinador)
+
+		self.assertIn("Signature", assinado["CTe"])
 
 
 class AssinadorFalso:

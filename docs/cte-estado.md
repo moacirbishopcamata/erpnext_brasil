@@ -128,14 +128,25 @@ tomador é uma das partes já citadas no CT-e, só valida o código) e `montar_t
 "Outros", cadastro completo — CNPJ/CPF exclusivo como no destinatário da NF-e, `enderToma`
 obrigatório, ordem de campos estrita do `xs:sequence`).
 
+**Orquestração fechada em seguida** (ver `docs/cte-orquestracao.md`): `montar_ide`/`montar_cte`
+amarram tudo — os 30 campos de `ide` verificados e ordenados contra o XSD, composição com
+`toma3`/`toma4` já prontos, `Id`/chave derivados como na NF-e. Prova de ponta a ponta
+(`montar_ide` → `montar_cte` → `para_xml` → `assinar_cte`) confirma que as peças implementadas
+em incrementos separados realmente se encaixam.
+
 ## Implementado até agora
 
 `fiscal/cte.py`: `montar_icms_uf_fim` (grupo `ICMSUFFim`, ver `docs/cte-icms-uf-fim.md`),
 `montar_infnfe` (grupo `infDoc/infNFe`, ver `docs/cte-infnfe.md`), `assinar_cte` (assinatura
-digital, ver `docs/cte-assinatura.md`, reuso total de `assinatura.py`) e `montar_toma3`/
-`montar_toma4` (tomador do serviço, ver `docs/cte-toma.md`). `fiscal/cfop_transporte.py`: CFOP
-de prestação de serviço de transporte (ver `docs/cfop-transporte.md`). `fiscal/cte_rodoviario.py`:
-modal rodoviário — `RNTRC`/`occ` (ver `docs/cte-modal-rodoviario.md`). O que falta para uma
-prestação de CT-e completa: autorizador por UF, transmissão, e um `montar_ide`/`montar_cte`
-orquestrador que amarre todas essas peças (hoje soltas em módulos separados) num único
-documento — mesmo papel que `fiscal/documento/nfe.py::montar_nfe` cumpre para a NF-e.
+digital, ver `docs/cte-assinatura.md`, reuso total de `assinatura.py`), `montar_toma3`/
+`montar_toma4` (tomador do serviço, ver `docs/cte-toma.md`) e `montar_ide`/`montar_cte`
+(orquestração completa, ver `docs/cte-orquestracao.md`). `fiscal/cfop_transporte.py`: CFOP de
+prestação de serviço de transporte (ver `docs/cfop-transporte.md`). `fiscal/cte_rodoviario.py`:
+modal rodoviário — `RNTRC`/`occ` (ver `docs/cte-modal-rodoviario.md`).
+
+O CT-e rodoviário básico está funcionalmente completo do lado puro (Python, sem Frappe): dá para
+montar, assinar e serializar um CT-e de ponta a ponta. O que falta é o que nenhum módulo puro
+resolve sozinho: autorizador/webservice por UF (não investigado — provavelmente segue o mesmo
+SVRS/SVSP já mapeado para NF-e, mas não verificado), transmissão de verdade, e a integração com
+Frappe (`integracao/`, doctypes) para gerar `IdentificacaoCte`/`TomadorOutros` a partir de um
+documento de transporte real do ERPNext.

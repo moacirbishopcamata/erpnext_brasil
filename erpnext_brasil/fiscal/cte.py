@@ -67,9 +67,18 @@ tomador do serviço. `toma3` é deliberadamente trivial — o layout só pede um
 mesmo documento; não há nada para validar além do próprio código. `toma4` ("Outros") é o caso
 que precisa de dados completos, e reusa `validar_cpf_cnpj` — a mesma validação que `montar_dest`
 já usa para NF-e — porque o XSD modela CNPJ/CPF como escolha exclusiva, igual ao destinatário.
+
+`montar_ide`/`montar_cte` orquestram — o papel que `fiscal.documento.nfe.montar_ide`/
+`montar_nfe` cumprem para a NF-e. Todos os 30 campos do `ide` foram lidos e ordenados por leitura
+direta do XSD (`cteTiposBasico_v4.00.xsd`, linhas 2700–3145), não por analogia com a NF-e — o
+`ide` do CT-e tem campos que a NF-e não tem (`modal`, `tpServ`, `cMunIni`/`cMunFim`, `retira`) e
+não tem alguns que a NF-e tem (`cMunFG` vira `cMunEnv`, sem `idDest`/`tpNF`). `montar_ide` recebe
+o grupo do tomador (`toma3`/`toma4`) já pronto de `montar_toma3`/`montar_toma4` — composição, não
+acoplamento: `IdentificacaoCte` não sabe montar tomador, só onde ele entra na sequência.
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from decimal import Decimal
 
 from erpnext_brasil.fiscal.documento.assinatura import Assinador, montar_signature
@@ -79,19 +88,80 @@ from erpnext_brasil.fiscal.impostos.icms import calcular_difal
 from erpnext_brasil.fiscal.validators import limpar, validar_cpf_cnpj
 
 __all__ = [
+	"MODAL_AEREO",
+	"MODAL_AQUAVIARIO",
+	"MODAL_DUTOVIARIO",
+	"MODAL_FERROVIARIO",
+	"MODAL_MULTIMODAL",
+	"MODAL_RODOVIARIO",
+	"NAMESPACE_CTE",
+	"RETIRA_NAO",
+	"RETIRA_SIM",
+	"TIPO_CTE_COMPLEMENTO",
+	"TIPO_CTE_NORMAL",
+	"TIPO_CTE_SUBSTITUICAO",
+	"TIPO_SERVICO_NORMAL",
+	"TIPO_SERVICO_REDESPACHO",
+	"TIPO_SERVICO_REDESPACHO_INTERMEDIARIO",
+	"TIPO_SERVICO_SUBCONTRATACAO",
+	"TIPO_SERVICO_VINCULADO_MULTIMODAL",
 	"TOMADOR_DESTINATARIO",
 	"TOMADOR_EXPEDIDOR",
 	"TOMADOR_OUTROS",
 	"TOMADOR_RECEBEDOR",
 	"TOMADOR_REMETENTE",
 	"CteInvalido",
+	"IdentificacaoCte",
 	"TomadorOutros",
 	"assinar_cte",
+	"montar_cte",
 	"montar_icms_uf_fim",
+	"montar_ide",
 	"montar_infnfe",
 	"montar_toma3",
 	"montar_toma4",
 ]
+
+NAMESPACE_CTE = "http://www.portalfiscal.inf.br/cte"
+
+# `modal` — confirmado em `ide/modal` (linha 2885).
+MODAL_RODOVIARIO = "01"
+MODAL_AEREO = "02"
+MODAL_AQUAVIARIO = "03"
+MODAL_FERROVIARIO = "04"
+MODAL_DUTOVIARIO = "05"
+MODAL_MULTIMODAL = "06"
+
+# `tpServ` — confirmado em `ide/tpServ` (linha 2892).
+TIPO_SERVICO_NORMAL = "0"
+TIPO_SERVICO_SUBCONTRATACAO = "1"
+TIPO_SERVICO_REDESPACHO = "2"
+TIPO_SERVICO_REDESPACHO_INTERMEDIARIO = "3"
+TIPO_SERVICO_VINCULADO_MULTIMODAL = "4"
+
+# `tpCTe` — confirmado em `ide/tpCTe` (linha 2821). Não existe "2" nesta tabela — CT-e de
+# Anulação de Valores é modelado de outro jeito, fora do escopo verificado aqui.
+TIPO_CTE_NORMAL = "0"
+TIPO_CTE_COMPLEMENTO = "1"
+TIPO_CTE_SUBSTITUICAO = "3"
+
+# `retira` — confirmado em `ide/retira` (linha 2961).
+RETIRA_SIM = "0"
+RETIRA_NAO = "1"
+
+_MODAIS_VALIDOS = {
+	MODAL_RODOVIARIO, MODAL_AEREO, MODAL_AQUAVIARIO,
+	MODAL_FERROVIARIO, MODAL_DUTOVIARIO, MODAL_MULTIMODAL,
+}
+_TIPOS_SERVICO_VALIDOS = {
+	TIPO_SERVICO_NORMAL, TIPO_SERVICO_SUBCONTRATACAO, TIPO_SERVICO_REDESPACHO,
+	TIPO_SERVICO_REDESPACHO_INTERMEDIARIO, TIPO_SERVICO_VINCULADO_MULTIMODAL,
+}
+_TIPOS_CTE_VALIDOS = {TIPO_CTE_NORMAL, TIPO_CTE_COMPLEMENTO, TIPO_CTE_SUBSTITUICAO}
+_RETIRA_VALIDOS = {RETIRA_SIM, RETIRA_NAO}
+# `indIEToma` — confirmado em `ide/indIEToma` (linha 2985): 1-contribuinte, 2-isento, 9-não
+# contribuinte. Mesma enumeração usada em `nfe.Destinatario.indicador_ie`.
+_INDICADORES_IE_TOMADOR_VALIDOS = {"1", "2", "9"}
 
 # `toma` dentro de `toma3` — o tomador é uma das partes já identificadas no CT-e.
 TOMADOR_REMETENTE = "0"
@@ -110,6 +180,155 @@ class CteInvalido(ValueError):
 	def __init__(self, mensagem: str, campo: str = ""):
 		super().__init__(mensagem)
 		self.campo = campo
+
+
+@dataclass(frozen=True)
+class IdentificacaoCte:
+	"""Dados que identificam o documento — origem do grupo `ide`.
+
+	Campos confirmados por leitura direta do XSD (`cteTiposBasico_v4.00.xsd`, linhas
+	2700–3145), na ordem exata do `xs:sequence`. Alguns campos genéricos (`cUF`,
+	`codigo_numerico`, `serie`, `numero`, `emissao`) espelham `fiscal.documento.nfe.
+	Identificacao` de propósito — são o mesmo conceito com o mesmo nome no domínio, e o
+	XSD confirma que carregam o mesmo formato; os campos específicos de transporte
+	(`modal`, `tipo_servico`, município de início/fim) não têm equivalente na NF-e.
+	"""
+
+	uf: str
+	"""`cUF` — código IBGE, não a sigla."""
+	cfop: str
+	natureza_operacao: str
+	serie: str
+	numero: str
+	codigo_numerico: str
+	emissao: datetime
+	modal: str
+	tipo_servico: str
+	municipio_inicio: str
+	"""`cMunIni` — código IBGE. `9999999` para operações com o exterior."""
+	municipio_inicio_nome: str
+	uf_inicio: str
+	municipio_fim: str
+	municipio_fim_nome: str
+	uf_fim: str
+	municipio_envio: str
+	"""`cMunEnv` — município do emitente, não da prestação."""
+	municipio_envio_nome: str
+	uf_envio: str
+	indicador_ie_tomador: str
+	"""`indIEToma` — 1 = contribuinte ICMS, 2 = isento de inscrição, 9 = não contribuinte.
+	Aplica-se ao tomador indicado em `toma3`/`toma4`, por isso não tem valor-padrão: quem
+	monta `ide` precisa saber o papel do tomador antes de montar este campo."""
+	retira: str = RETIRA_NAO
+	detalhes_retira: str = ""
+	tipo_cte: str = TIPO_CTE_NORMAL
+	processo_emissao: str = "0"
+	versao_processo: str = "1.0.0"
+	tipo_impressao: str = "1"
+	tipo_emissao: str = "1"
+	ambiente: str = "2"
+	"""1 = produção, 2 = homologação — mesmo padrão-seguro de `nfe.Identificacao`."""
+	globalizado: bool = False
+
+	def validar(self) -> None:
+		if self.modal not in _MODAIS_VALIDOS:
+			raise CteInvalido(
+				f"modal deve ser um de {sorted(_MODAIS_VALIDOS)}, recebido {self.modal!r}", "modal"
+			)
+
+		if self.tipo_servico not in _TIPOS_SERVICO_VALIDOS:
+			raise CteInvalido(
+				f"tipo_servico deve ser um de {sorted(_TIPOS_SERVICO_VALIDOS)}, "
+				f"recebido {self.tipo_servico!r}",
+				"tipo_servico",
+			)
+
+		if self.tipo_cte not in _TIPOS_CTE_VALIDOS:
+			raise CteInvalido(
+				f"tipo_cte deve ser um de {sorted(_TIPOS_CTE_VALIDOS)}, recebido {self.tipo_cte!r}",
+				"tipo_cte",
+			)
+
+		if self.retira not in _RETIRA_VALIDOS:
+			raise CteInvalido(
+				f"retira deve ser um de {sorted(_RETIRA_VALIDOS)}, recebido {self.retira!r}", "retira"
+			)
+
+		if self.indicador_ie_tomador not in _INDICADORES_IE_TOMADOR_VALIDOS:
+			raise CteInvalido(
+				f"indicador_ie_tomador deve ser um de {sorted(_INDICADORES_IE_TOMADOR_VALIDOS)}, "
+				f"recebido {self.indicador_ie_tomador!r}",
+				"indicador_ie_tomador",
+			)
+
+
+def montar_ide(identificacao: IdentificacaoCte, tomador: dict) -> dict:
+	"""Monta o grupo `ide`, na ordem exata do XSD.
+
+	Recebe `tomador` já pronto de `montar_toma3`/`montar_toma4` — este módulo só sabe
+	onde ele entra na sequência (depois de `indIEToma`, antes de `dhCont`/`xJust`), não
+	como montá-lo.
+	"""
+	identificacao.validar()
+
+	grupo = {
+		"cUF": identificacao.uf,
+		"cCT": str(identificacao.codigo_numerico).rjust(8, "0"),
+		"CFOP": identificacao.cfop,
+		"natOp": identificacao.natureza_operacao,
+		"mod": "57",
+		"serie": str(identificacao.serie).lstrip("0") or "0",
+		"nCT": str(identificacao.numero).lstrip("0") or "0",
+		"dhEmi": identificacao.emissao.isoformat(),
+		"tpImp": identificacao.tipo_impressao,
+		"tpEmis": identificacao.tipo_emissao,
+		"tpAmb": identificacao.ambiente,
+		"tpCTe": identificacao.tipo_cte,
+		"procEmi": identificacao.processo_emissao,
+		"verProc": identificacao.versao_processo,
+	}
+
+	if identificacao.globalizado:
+		grupo["indGlobalizado"] = "1"
+
+	grupo.update(
+		{
+			"cMunEnv": identificacao.municipio_envio,
+			"xMunEnv": identificacao.municipio_envio_nome,
+			"UFEnv": identificacao.uf_envio,
+			"modal": identificacao.modal,
+			"tpServ": identificacao.tipo_servico,
+			"cMunIni": identificacao.municipio_inicio,
+			"xMunIni": identificacao.municipio_inicio_nome,
+			"UFIni": identificacao.uf_inicio,
+			"cMunFim": identificacao.municipio_fim,
+			"xMunFim": identificacao.municipio_fim_nome,
+			"UFFim": identificacao.uf_fim,
+			"retira": identificacao.retira,
+		}
+	)
+
+	if identificacao.detalhes_retira.strip():
+		grupo["xDetRetira"] = identificacao.detalhes_retira.strip()
+
+	grupo["indIEToma"] = identificacao.indicador_ie_tomador
+	grupo.update(tomador)
+
+	return grupo
+
+
+def montar_cte(infcte: dict, chave: str) -> dict:
+	"""Envolve `infCte` na raiz `CTe`, com o namespace do leiaute e o `Id` derivado.
+
+	Mesma disciplina de `fiscal.documento.nfe.montar_nfe`: o `Id` é `"CTe" + chave`,
+	nunca informado em paralelo — não há como divergir do que a chave realmente é.
+	"""
+	return {
+		"CTe": {
+			"@xmlns": NAMESPACE_CTE,
+			"infCte": {**infcte, "@Id": f"CTe{chave}"},
+		}
+	}
 
 
 def montar_icms_uf_fim(
