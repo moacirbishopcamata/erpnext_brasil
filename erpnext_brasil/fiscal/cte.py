@@ -59,16 +59,57 @@ era se o **perfil** de assinatura do CT-e é mesmo o mesmo da NF-e — não é s
   segue a NF-e por "fazerem parte da mesma família" — o mesmo tipo de suposição que já se provou
   falsa uma vez neste projeto (eSocial usa SHA-256, não SHA-1, apesar de também ser um
   documento fiscal eletrônico brasileiro — ver `docs/rh-esocial-assinatura.md`).
+
+`montar_toma3`/`montar_toma4` fecham o último ponto do levantamento de `docs/cte-estado.md` que
+tinha estrutura mapeada mas nenhuma função de montagem: o `xs:choice` de `ide` que identifica o
+tomador do serviço. `toma3` é deliberadamente trivial — o layout só pede um código (0-remetente/
+1-expedidor/2-recebedor/3-destinatário), reaproveitando dados já informados noutro grupo do
+mesmo documento; não há nada para validar além do próprio código. `toma4` ("Outros") é o caso
+que precisa de dados completos, e reusa `validar_cpf_cnpj` — a mesma validação que `montar_dest`
+já usa para NF-e — porque o XSD modela CNPJ/CPF como escolha exclusiva, igual ao destinatário.
 """
 
+from dataclasses import dataclass, field
 from decimal import Decimal
 
 from erpnext_brasil.fiscal.documento.assinatura import Assinador, montar_signature
 from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, ler_chave
 from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.impostos.icms import calcular_difal
+from erpnext_brasil.fiscal.validators import limpar, validar_cpf_cnpj
 
-__all__ = ["assinar_cte", "montar_icms_uf_fim", "montar_infnfe"]
+__all__ = [
+	"TOMADOR_DESTINATARIO",
+	"TOMADOR_EXPEDIDOR",
+	"TOMADOR_OUTROS",
+	"TOMADOR_RECEBEDOR",
+	"TOMADOR_REMETENTE",
+	"CteInvalido",
+	"TomadorOutros",
+	"assinar_cte",
+	"montar_icms_uf_fim",
+	"montar_infnfe",
+	"montar_toma3",
+	"montar_toma4",
+]
+
+# `toma` dentro de `toma3` — o tomador é uma das partes já identificadas no CT-e.
+TOMADOR_REMETENTE = "0"
+TOMADOR_EXPEDIDOR = "1"
+TOMADOR_RECEBEDOR = "2"
+TOMADOR_DESTINATARIO = "3"
+# `toma` dentro de `toma4` — sempre "4", mas nomeado para não espalhar o literal.
+TOMADOR_OUTROS = "4"
+
+_PAPEIS_TOMA3 = {TOMADOR_REMETENTE, TOMADOR_EXPEDIDOR, TOMADOR_RECEBEDOR, TOMADOR_DESTINATARIO}
+
+
+class CteInvalido(ValueError):
+	"""Dado que impediria a autorização do CT-e."""
+
+	def __init__(self, mensagem: str, campo: str = ""):
+		super().__init__(mensagem)
+		self.campo = campo
 
 
 def montar_icms_uf_fim(
@@ -131,6 +172,75 @@ def montar_infnfe(chaves_nfe: list[str]) -> list[dict]:
 		grupo.append({"chave": decomposta.valor})
 
 	return grupo
+
+
+@dataclass(frozen=True)
+class TomadorOutros:
+	"""Dados do tomador para `toma4` — o layout exige cadastro completo, não um código."""
+
+	nome: str
+	cnpj_cpf: str
+	inscricao_estadual: str = ""
+	nome_fantasia: str = ""
+	fone: str = ""
+	endereco: dict = field(default_factory=dict)
+	email: str = ""
+
+
+def montar_toma3(papel: str) -> dict:
+	"""Monta `toma3` — o tomador é uma das partes já identificadas no CT-e.
+
+	`papel` é um dos `TOMADOR_REMETENTE`/`TOMADOR_EXPEDIDOR`/`TOMADOR_RECEBEDOR`/
+	`TOMADOR_DESTINATARIO`. Não há mais nada a montar: o XSD reusa os dados do grupo
+	correspondente (`rem`/`exped`/`receb`/`dest`), evitando duplicar cadastro.
+	"""
+	if papel not in _PAPEIS_TOMA3:
+		raise CteInvalido(
+			f"papel de toma3 deve ser um de {sorted(_PAPEIS_TOMA3)}, recebido {papel!r}", "papel"
+		)
+
+	return {"toma3": {"toma": papel}}
+
+
+def montar_toma4(tomador: TomadorOutros) -> dict:
+	"""Monta `toma4` — tomador "Outros", com dados cadastrais completos.
+
+	CNPJ e CPF são escolha exclusiva no XSD, igual ao destinatário da NF-e — reusa
+	`validar_cpf_cnpj`, a mesma validação de `fiscal.documento.nfe.montar_dest`.
+	"""
+	if not limpar(tomador.nome):
+		raise CteInvalido("Tomador (toma4) precisa de nome", "nome")
+
+	try:
+		documento = validar_cpf_cnpj(tomador.cnpj_cpf)
+	except ValueError as e:
+		raise CteInvalido(f"CPF/CNPJ do tomador inválido: {e}", "cnpj_cpf") from e
+
+	# Ordem do XSD: toma, CNPJ|CPF, IE, xNome, xFant, fone, enderToma, email — não é livre,
+	# é `xs:sequence` (ver `docs/cte-toma.md`).
+	grupo: dict = {"toma": TOMADOR_OUTROS}
+	grupo["CNPJ" if len(documento) == 14 else "CPF"] = documento
+
+	if tomador.inscricao_estadual.strip():
+		grupo["IE"] = tomador.inscricao_estadual.strip()
+
+	grupo["xNome"] = tomador.nome.strip()
+
+	if tomador.nome_fantasia.strip():
+		grupo["xFant"] = tomador.nome_fantasia.strip()
+
+	if tomador.fone.strip():
+		grupo["fone"] = tomador.fone.strip()
+
+	if not tomador.endereco:
+		raise CteInvalido("Tomador (toma4) precisa de endereço (enderToma é obrigatório no XSD)", "endereco")
+
+	grupo["enderToma"] = dict(tomador.endereco)
+
+	if tomador.email.strip():
+		grupo["email"] = tomador.email.strip()
+
+	return {"toma4": grupo}
 
 
 def assinar_cte(cte: dict, assinador: Assinador) -> dict:

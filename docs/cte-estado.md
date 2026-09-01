@@ -123,13 +123,19 @@ reaproveitado **sem nenhuma alteração** — já era genérico o bastante.
   `docs/transporte-nativo-sefaz.md` para NF-e, mas CT-e pode ter ambiente próprio — não verificado.
 - `infNF` (NF em papel) — deliberadamente não implementado; caso legado, prioridade baixa.
 
+**`toma3`/`toma4` implementados em seguida** (ver `docs/cte-toma.md`): `montar_toma3` (o
+tomador é uma das partes já citadas no CT-e, só valida o código) e `montar_toma4` (tomador
+"Outros", cadastro completo — CNPJ/CPF exclusivo como no destinatário da NF-e, `enderToma`
+obrigatório, ordem de campos estrita do `xs:sequence`).
+
 ## Implementado até agora
 
 `fiscal/cte.py`: `montar_icms_uf_fim` (grupo `ICMSUFFim`, ver `docs/cte-icms-uf-fim.md`),
-`montar_infnfe` (grupo `infDoc/infNFe`, ver `docs/cte-infnfe.md`) e `assinar_cte` (assinatura
-digital, ver `docs/cte-assinatura.md`, reuso total de `assinatura.py`).
-`fiscal/cfop_transporte.py`: CFOP de prestação de serviço de transporte (ver
-`docs/cfop-transporte.md`). `fiscal/cte_rodoviario.py`: modal rodoviário — `RNTRC`/`occ` (ver
-`docs/cte-modal-rodoviario.md`). O que falta para uma prestação de CT-e completa: `toma3`/`toma4`
-montado em XML (a estrutura já está mapeada acima, falta a função de montagem), autorizador por
-UF, transmissão.
+`montar_infnfe` (grupo `infDoc/infNFe`, ver `docs/cte-infnfe.md`), `assinar_cte` (assinatura
+digital, ver `docs/cte-assinatura.md`, reuso total de `assinatura.py`) e `montar_toma3`/
+`montar_toma4` (tomador do serviço, ver `docs/cte-toma.md`). `fiscal/cfop_transporte.py`: CFOP
+de prestação de serviço de transporte (ver `docs/cfop-transporte.md`). `fiscal/cte_rodoviario.py`:
+modal rodoviário — `RNTRC`/`occ` (ver `docs/cte-modal-rodoviario.md`). O que falta para uma
+prestação de CT-e completa: autorizador por UF, transmissão, e um `montar_ide`/`montar_cte`
+orquestrador que amarre todas essas peças (hoje soltas em módulos separados) num único
+documento — mesmo papel que `fiscal/documento/nfe.py::montar_nfe` cumpre para a NF-e.

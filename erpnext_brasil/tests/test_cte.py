@@ -6,7 +6,17 @@
 import unittest
 from decimal import Decimal
 
-from erpnext_brasil.fiscal.cte import assinar_cte, montar_icms_uf_fim, montar_infnfe
+from erpnext_brasil.fiscal.cte import (
+	TOMADOR_DESTINATARIO,
+	TOMADOR_OUTROS,
+	CteInvalido,
+	TomadorOutros,
+	assinar_cte,
+	montar_icms_uf_fim,
+	montar_infnfe,
+	montar_toma3,
+	montar_toma4,
+)
 from erpnext_brasil.fiscal.documento.assinatura import MaterialAssinatura
 from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, montar_chave
 from erpnext_brasil.fiscal.documento.serializacao import para_xml
@@ -134,6 +144,80 @@ class TestMontarInfnfe(unittest.TestCase):
 		CT-e (modelo 57) tem que falhar aqui, não só na rejeição da SEFAZ."""
 		with self.assertRaises(ChaveInvalida):
 			montar_infnfe([_chave_cte()])
+
+
+class TestMontarToma3(unittest.TestCase):
+	def test_papel_valido(self):
+		self.assertEqual(montar_toma3(TOMADOR_DESTINATARIO), {"toma3": {"toma": TOMADOR_DESTINATARIO}})
+
+	def test_papel_invalido_levanta_erro(self):
+		with self.assertRaises(CteInvalido):
+			montar_toma3("9")
+
+	def test_nao_aceita_o_codigo_de_toma4(self):
+		"""'4' (Outros) pertence a toma4, não a toma3 — são grupos mutuamente exclusivos
+		no XSD, cada um com seu próprio conjunto de valores válidos para `toma`."""
+		with self.assertRaises(CteInvalido):
+			montar_toma3(TOMADOR_OUTROS)
+
+
+def _tomador_outros(**kwargs) -> TomadorOutros:
+	base = {
+		"nome": "Transportes Além Ltda",
+		"cnpj_cpf": "11222333000181",
+		"endereco": {"xLgr": "Rua Teste", "nro": "100", "xMun": "São Paulo", "UF": "SP"},
+	}
+	base.update(kwargs)
+	return TomadorOutros(**base)
+
+
+class TestMontarToma4(unittest.TestCase):
+	def test_campos_obrigatorios(self):
+		grupo = montar_toma4(_tomador_outros())["toma4"]
+
+		self.assertEqual(grupo["toma"], TOMADOR_OUTROS)
+		self.assertEqual(grupo["xNome"], "Transportes Além Ltda")
+		self.assertIn("CNPJ", grupo)
+		self.assertIn("enderToma", grupo)
+
+	def test_ordem_dos_campos_segue_o_xsd(self):
+		"""toma, CNPJ/CPF, IE, xNome, xFant, fone, enderToma, email — xs:sequence não é
+		ordem livre; embaralhar produziria XML que o schema rejeita."""
+		grupo = montar_toma4(
+			_tomador_outros(inscricao_estadual="123456789", nome_fantasia="Além", fone="11999999999")
+		)["toma4"]
+
+		self.assertEqual(
+			list(grupo.keys()),
+			["toma", "CNPJ", "IE", "xNome", "xFant", "fone", "enderToma"],
+		)
+
+	def test_cpf_quando_documento_tem_11_digitos(self):
+		grupo = montar_toma4(_tomador_outros(cnpj_cpf="11144477735"))["toma4"]
+
+		self.assertIn("CPF", grupo)
+		self.assertNotIn("CNPJ", grupo)
+
+	def test_documento_invalido_levanta_erro(self):
+		with self.assertRaises(CteInvalido):
+			montar_toma4(_tomador_outros(cnpj_cpf="123"))
+
+	def test_nome_vazio_levanta_erro(self):
+		with self.assertRaises(CteInvalido):
+			montar_toma4(_tomador_outros(nome=""))
+
+	def test_sem_endereco_levanta_erro(self):
+		"""enderToma é obrigatório no XSD (sem minOccurs=0) — diferente de xFant/fone/
+		email, que são opcionais."""
+		with self.assertRaises(CteInvalido):
+			montar_toma4(_tomador_outros(endereco={}))
+
+	def test_email_e_opcional(self):
+		sem_email = montar_toma4(_tomador_outros())["toma4"]
+		com_email = montar_toma4(_tomador_outros(email="contato@alem.com.br"))["toma4"]
+
+		self.assertNotIn("email", sem_email)
+		self.assertEqual(com_email["email"], "contato@alem.com.br")
 
 
 class AssinadorFalso:
