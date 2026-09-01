@@ -262,14 +262,38 @@ class IdentificacaoCte:
 			)
 
 
-def montar_ide(identificacao: IdentificacaoCte, tomador: dict) -> dict:
+def montar_ide(identificacao: IdentificacaoCte, tomador: dict, chave: str) -> dict:
 	"""Monta o grupo `ide`, na ordem exata do XSD.
 
 	Recebe `tomador` já pronto de `montar_toma3`/`montar_toma4` — este módulo só sabe
 	onde ele entra na sequência (depois de `indIEToma`, antes de `dhCont`/`xJust`), não
 	como montá-lo.
+
+	Recebe também `chave` — não para repeti-la, só para extrair `cDV` (dígito
+	verificador), campo obrigatório do `ide` (confirmado no XSD, `ide/cDV`, sem
+	`minOccurs="0"` — corrigido aqui depois de um primeiro incremento tê-lo esquecido).
+	Mesma disciplina de `fiscal.documento.nfe.montar_ide`: o `cDV` publicado no `ide` é
+	sempre o da chave que acompanha o documento, nunca informado em paralelo — não há
+	como divergirem. `montar_cte` recebe a mesma `chave` para montar o `Id`.
+
+	Pré-condição (Design by Contract), não só formato: `chave` é decomposta com
+	`ler_chave` — que já valida layout e dígito verificador — e o `modelo` decomposto
+	precisa ser `"57"`. Sem essa checagem, uma chave de NF-e ou de MDF-e passada por
+	engano aqui produziria um `ide` de CT-e com `cDV` tecnicamente correto mas de outro
+	documento — um erro silencioso que só apareceria na rejeição da SEFAZ. É a mesma
+	categoria de defesa em profundidade já aplicada em `montar_infnfe` (recusa de chave
+	de modelo errado).
 	"""
 	identificacao.validar()
+
+	chave_decomposta = ler_chave(chave)
+
+	if chave_decomposta.modelo != "57":
+		raise CteInvalido(
+			f"ide/cDV precisa de uma chave de CT-e (modelo 57), recebida chave de modelo "
+			f"{chave_decomposta.modelo} ({chave_decomposta.documento})",
+			"chave",
+		)
 
 	grupo = {
 		"cUF": identificacao.uf,
@@ -282,6 +306,7 @@ def montar_ide(identificacao: IdentificacaoCte, tomador: dict) -> dict:
 		"dhEmi": identificacao.emissao.isoformat(),
 		"tpImp": identificacao.tipo_impressao,
 		"tpEmis": identificacao.tipo_emissao,
+		"cDV": chave_decomposta.dv,
 		"tpAmb": identificacao.ambiente,
 		"tpCTe": identificacao.tipo_cte,
 		"procEmi": identificacao.processo_emissao,

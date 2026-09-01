@@ -56,6 +56,13 @@ def _chave_cte(numero: str = "000000001") -> str:
 	)
 
 
+def _montar_ide_padrao(identificacao: IdentificacaoCte, tomador: dict, chave: str | None = None) -> dict:
+	"""Wrapper de teste: monta `ide` com uma chave de CT-e válida por padrão — ponto único
+	para os testes que não estão testando a própria chave, evitando repetir `_chave_cte()`
+	em cada chamada de `montar_ide`."""
+	return montar_ide(identificacao, tomador, chave if chave is not None else _chave_cte())
+
+
 class TestMontarIcmsUfFim(unittest.TestCase):
 	def test_delega_para_calcular_difal(self):
 		"""O grupo não reimplementa a partilha — os valores batem exatamente com uma
@@ -280,7 +287,7 @@ class TestIdentificacaoCteValidar(unittest.TestCase):
 
 class TestMontarIde(unittest.TestCase):
 	def test_campos_basicos(self):
-		grupo = montar_ide(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO))
+		grupo = _montar_ide_padrao(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO))
 
 		self.assertEqual(grupo["cUF"], "35")
 		self.assertEqual(grupo["CFOP"], "5352")
@@ -288,18 +295,18 @@ class TestMontarIde(unittest.TestCase):
 		self.assertEqual(grupo["modal"], MODAL_RODOVIARIO)
 
 	def test_cct_preenchido_com_zeros_a_esquerda(self):
-		grupo = montar_ide(_identificacao(codigo_numerico="7"), montar_toma3(TOMADOR_DESTINATARIO))
+		grupo = _montar_ide_padrao(_identificacao(codigo_numerico="7"), montar_toma3(TOMADOR_DESTINATARIO))
 
 		self.assertEqual(grupo["cCT"], "00000007")
 
 	def test_indieToma_vem_antes_do_grupo_do_tomador(self):
-		grupo = montar_ide(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO))
+		grupo = _montar_ide_padrao(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO))
 		chaves = list(grupo.keys())
 
 		self.assertLess(chaves.index("indIEToma"), chaves.index("toma3"))
 
 	def test_aceita_toma3(self):
-		grupo = montar_ide(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO))
+		grupo = _montar_ide_padrao(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO))
 
 		self.assertIn("toma3", grupo)
 		self.assertNotIn("toma4", grupo)
@@ -310,14 +317,14 @@ class TestMontarIde(unittest.TestCase):
 			cnpj_cpf="11222333000181",
 			endereco={"xLgr": "Rua X", "xMun": "São Paulo", "UF": "SP"},
 		)
-		grupo = montar_ide(_identificacao(), montar_toma4(tomador))
+		grupo = _montar_ide_padrao(_identificacao(), montar_toma4(tomador))
 
 		self.assertIn("toma4", grupo)
 		self.assertNotIn("toma3", grupo)
 
 	def test_xdetretira_so_aparece_quando_preenchido(self):
-		sem_detalhe = montar_ide(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO))
-		com_detalhe = montar_ide(
+		sem_detalhe = _montar_ide_padrao(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO))
+		com_detalhe = _montar_ide_padrao(
 			_identificacao(detalhes_retira="Retirar na filial 2"), montar_toma3(TOMADOR_DESTINATARIO)
 		)
 
@@ -326,13 +333,29 @@ class TestMontarIde(unittest.TestCase):
 
 	def test_identificacao_invalida_propaga_erro(self):
 		with self.assertRaises(CteInvalido):
-			montar_ide(_identificacao(modal="99"), montar_toma3(TOMADOR_DESTINATARIO))
+			_montar_ide_padrao(_identificacao(modal="99"), montar_toma3(TOMADOR_DESTINATARIO))
+
+	def test_cdv_e_o_digito_verificador_da_chave(self):
+		"""cDV nunca é informado à parte -- é sempre extraído da própria chave, mesma
+		disciplina de fiscal.documento.nfe.montar_ide (nunca duas fontes divergentes)."""
+		chave = _chave_cte()
+
+		grupo = montar_ide(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO), chave)
+
+		self.assertEqual(grupo["cDV"], chave[-1])
+
+	def test_chave_de_outro_modelo_levanta_erro(self):
+		"""Pré-condição de Design by Contract: ide/cDV só aceita chave de CT-e (modelo
+		57) -- uma chave de NF-e passada por engano tem que falhar aqui, não só na
+		rejeição da SEFAZ."""
+		with self.assertRaises(CteInvalido):
+			montar_ide(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO), _chave_nfe())
 
 
 class TestMontarCte(unittest.TestCase):
 	def test_envolve_infcte_com_namespace_e_id(self):
-		infcte = montar_ide(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO))
 		chave = _chave_cte()
+		infcte = _montar_ide_padrao(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO), chave)
 
 		cte = montar_cte(infcte, chave)
 
@@ -340,8 +363,8 @@ class TestMontarCte(unittest.TestCase):
 		self.assertEqual(cte["CTe"]["infCte"]["@Id"], f"CTe{chave}")
 
 	def test_infcte_preservado(self):
-		infcte = montar_ide(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO))
 		chave = _chave_cte()
+		infcte = _montar_ide_padrao(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO), chave)
 
 		cte = montar_cte(infcte, chave)
 
@@ -351,8 +374,8 @@ class TestMontarCte(unittest.TestCase):
 	def test_serializa_e_pode_ser_assinado(self):
 		"""Ponta a ponta: montar_ide -> montar_cte -> assinar_cte, mesma costura de
 		fiscal.documento.nfe, provando que as peças soltas do CT-e realmente se encaixam."""
-		infcte = montar_ide(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO))
 		chave = _chave_cte()
+		infcte = _montar_ide_padrao(_identificacao(), montar_toma3(TOMADOR_DESTINATARIO), chave)
 		cte = montar_cte(infcte, chave)
 
 		xml = para_xml(cte)

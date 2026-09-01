@@ -38,6 +38,19 @@ diz que ela monta, e a composição acontece na chamada, não dentro da implemen
   (frete internacional consolidado) fora do escopo verificado até agora; o campo existe na
   dataclass mas nada mais foi investigado sobre ele.
 
+## Correção: `cDV` estava ausente (bug real, pego depois, não pelo teste original)
+
+O incremento original desta orquestração esqueceu `ide/cDV` — campo obrigatório no XSD (sem
+`minOccurs="0"`), o dígito verificador da chave, ecoado no `ide` (mesmo padrão de
+`fiscal.documento.nfe.montar_ide`, que já recebia `chave` só para isso). Nenhum teste do
+incremento original cobria a presença desse campo, então passou despercebido até ser notado ao
+revisar o código sob a lente de Design by Contract. Corrigido: `montar_ide` agora recebe `chave`
+como terceiro parâmetro obrigatório (antes só `montar_cte` recebia), extrai `cDV` dela via
+`ler_chave` (não `chave[-1]` cru) e valida como **pré-condição** que a chave é mesmo de CT-e
+(`modelo == "57"`) — sem essa checagem, uma chave de NF-e ou MDF-e passada por engano produziria
+um `ide` com `cDV` "correto" mas de outro documento, erro que só apareceria na rejeição da SEFAZ.
+Testado (`test_cdv_e_o_digito_verificador_da_chave`, `test_chave_de_outro_modelo_levanta_erro`).
+
 ## Prova de ponta a ponta
 
 `test_serializa_e_pode_ser_assinado`: `montar_ide` → `montar_cte` → `para_xml` → `assinar_cte`,
