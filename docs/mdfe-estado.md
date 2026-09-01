@@ -108,12 +108,13 @@ física, não o CT-e (que é só o contrato de uma prestação).
   posterior — mencionados nos arquivos `ev*MDFe_v3.00.xsd` do repositório, não abertos ainda).
 - `emit`, `seg`, `tot`, `lacres` — grupos vistos na listagem de `infMDFe` mas não lidos a fundo.
 
-## Nada implementado ainda
+## Implementado até agora
 
-Este documento é só levantamento. O próximo incremento natural, seguindo o padrão do CT-e, é a
-peça mais barata e já quase pronta: `montar_infdoc` do MDF-e (reusando `ler_chave` de
-`fiscal/documento/chave_acesso.py`, como `montar_infnfe` do CT-e já faz) e o modal rodoviário
-(reusando `TRNTRC`/`validar_rntrc` de `fiscal/cte_rodoviario.py` para o `RNTRC` de `infANTT`).
+`fiscal/mdfe.py::montar_infdoc` (ver `docs/mdfe-infdoc.md`) e `fiscal/mdfe_rodoviario.py`
+(veículo/motorista, ver `docs/mdfe-modal-rodoviario.md`, reusando `validar_rntrc`/`RntrcInvalido`
+do CT-e). Ainda falta: chave de acesso/assinatura (hipótese, não corroborada), autorizador por
+UF, eventos, `emit`/`seg`/`tot`/`lacres`, e um orquestrador `montar_ide`/`montar_mdfe` que amarre
+tudo — mesmo papel que `fiscal/cte.py::montar_ide`/`montar_cte` cumprem para o CT-e.
 
 ## Fontes
 
