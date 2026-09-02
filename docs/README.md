@@ -61,6 +61,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [mdfe-assinatura.md](mdfe-assinatura.md) | Assinatura digital do MDF-e: reuso total de `assinatura.py`, confirmado por código de produção (`signMDFe`/`sped-mdfe`), verificado de novo apesar do CT-e já ter sido verificado — família diverge às vezes |
 | [mdfe-orquestracao.md](mdfe-orquestracao.md) | `montar_ide`/`montar_mdfe`: os 21 campos verificados, lição do `cDV` do CT-e aplicada desde o início (não corrigida depois), confirmação de que não há `CFOP`/`natOp` |
 | [mdfe-tot-lacres.md](mdfe-tot-lacres.md) | `tot` (totalizadores da carga) e `lacres` (lista simples de números de lacre) do MDF-e |
+| [mdfe-emit-seg-prodpred.md](mdfe-emit-seg-prodpred.md) | `emit` (aceita CNPJ ou CPF, diferente da NF-e), `seg` (seguro da carga) e `prodPred` (12 categorias da Resolução ANTT 5.849/2019) do MDF-e |
 
 ## Convenções que valem em todo o código
 

@@ -55,6 +55,19 @@ três, então nenhum é exigido aqui (quem monta decide o que informar, coerente
 poder vincular só CT-e, só NF-e, ou os dois). `lacres` é uma lista simples e opcional de números
 de lacre — sem estrutura interna além do próprio número, por isso vira uma lista de strings, não
 uma dataclass.
+
+`montar_emit`/`montar_seg`/`montar_prod_pred` fecham os três últimos grupos de `infMDFe`
+verificados neste levantamento (`emit` linhas 233–293, `seg` linhas 760–862, `prodPred` linhas
+863–938). Achado real: `emit`, diferente do emitente da NF-e (sempre CNPJ, pessoa jurídica),
+aceita **CNPJ ou CPF** — o próprio XSD documenta que a série 920-969 é reservada para "emitente
+pessoa física com inscrição estadual", cobrindo o transportador autônomo. `montar_emit` reusa
+`validar_cpf_cnpj`, mesma escolha exclusiva de `fiscal.cte.montar_toma4`. `seg` (seguro da
+carga) é opcional e repetível — cada item tem `respSeg` (1-emitente/2-contratante, com CNPJ/CPF
+só quando é o contratante), dados da seguradora e apólice/averbações, todos opcionais dentro do
+grupo. `prodPred` classifica o produto predominante por `tpCarga` (12 categorias da Resolução
+ANTT 5.849/2019, incluindo variantes "perigosa" de granel/frigorificada/conteinerizada/geral) —
+`infLotacao` (carga lotação com localização de carregamento) não foi implementado, estrutura
+aninhada mais rara, fora de escopo deste incremento.
 """
 
 from dataclasses import dataclass, field
@@ -64,6 +77,7 @@ from decimal import Decimal
 from erpnext_brasil.fiscal.documento.assinatura import Assinador, montar_signature
 from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, ler_chave
 from erpnext_brasil.fiscal.documento.serializacao import para_xml
+from erpnext_brasil.fiscal.validators import validar_cnpj, validar_cpf_cnpj
 
 __all__ = [
 	"AMBIENTE_HOMOLOGACAO",
@@ -81,18 +95,37 @@ __all__ = [
 	"TRANSPORTADOR_CTC",
 	"TRANSPORTADOR_ETC",
 	"TRANSPORTADOR_TAC",
+	"RESPONSAVEL_SEGURO_CONTRATANTE",
+	"RESPONSAVEL_SEGURO_EMITENTE",
+	"TIPO_CARGA_CONTEINERIZADA",
+	"TIPO_CARGA_FRIGORIFICADA",
+	"TIPO_CARGA_GERAL",
+	"TIPO_CARGA_GRANEL_LIQUIDO",
+	"TIPO_CARGA_GRANEL_PRESSURIZADA",
+	"TIPO_CARGA_GRANEL_SOLIDO",
+	"TIPO_CARGA_NEOGRANEL",
+	"TIPO_CARGA_PERIGOSA_CARGA_GERAL",
+	"TIPO_CARGA_PERIGOSA_CONTEINERIZADA",
+	"TIPO_CARGA_PERIGOSA_FRIGORIFICADA",
+	"TIPO_CARGA_PERIGOSA_GRANEL_LIQUIDO",
+	"TIPO_CARGA_PERIGOSA_GRANEL_SOLIDO",
 	"UNIDADE_PESO_KG",
 	"UNIDADE_PESO_TON",
+	"Emitente",
 	"IdentificacaoMdfe",
 	"MdfeInvalido",
 	"MunicipioCarrega",
 	"MunicipioDescarga",
+	"Seguro",
 	"assinar_mdfe",
+	"montar_emit",
 	"montar_ide",
 	"montar_infdoc",
 	"montar_lacres",
-	"montar_tot",
 	"montar_mdfe",
+	"montar_prod_pred",
+	"montar_seg",
+	"montar_tot",
 ]
 
 NAMESPACE_MDFE = "http://www.portalfiscal.inf.br/mdfe"
@@ -130,6 +163,35 @@ UNIDADE_PESO_KG = "01"
 UNIDADE_PESO_TON = "02"
 
 _UNIDADES_PESO_VALIDAS = {UNIDADE_PESO_KG, UNIDADE_PESO_TON}
+
+# `respSeg` de `seg/infResp` — confirmado em `seg/infResp/respSeg` (linha 772).
+RESPONSAVEL_SEGURO_EMITENTE = "1"
+RESPONSAVEL_SEGURO_CONTRATANTE = "2"
+
+_RESPONSAVEIS_SEGURO_VALIDOS = {RESPONSAVEL_SEGURO_EMITENTE, RESPONSAVEL_SEGURO_CONTRATANTE}
+
+# `tpCarga` de `prodPred` — confirmado em `prodPred/tpCarga` (linha 870), Resolução ANTT
+# nº 5.849/2019.
+TIPO_CARGA_GRANEL_SOLIDO = "01"
+TIPO_CARGA_GRANEL_LIQUIDO = "02"
+TIPO_CARGA_FRIGORIFICADA = "03"
+TIPO_CARGA_CONTEINERIZADA = "04"
+TIPO_CARGA_GERAL = "05"
+TIPO_CARGA_NEOGRANEL = "06"
+TIPO_CARGA_PERIGOSA_GRANEL_SOLIDO = "07"
+TIPO_CARGA_PERIGOSA_GRANEL_LIQUIDO = "08"
+TIPO_CARGA_PERIGOSA_FRIGORIFICADA = "09"
+TIPO_CARGA_PERIGOSA_CONTEINERIZADA = "10"
+TIPO_CARGA_PERIGOSA_CARGA_GERAL = "11"
+TIPO_CARGA_GRANEL_PRESSURIZADA = "12"
+
+_TIPOS_CARGA_VALIDOS = {
+	TIPO_CARGA_GRANEL_SOLIDO, TIPO_CARGA_GRANEL_LIQUIDO, TIPO_CARGA_FRIGORIFICADA,
+	TIPO_CARGA_CONTEINERIZADA, TIPO_CARGA_GERAL, TIPO_CARGA_NEOGRANEL,
+	TIPO_CARGA_PERIGOSA_GRANEL_SOLIDO, TIPO_CARGA_PERIGOSA_GRANEL_LIQUIDO,
+	TIPO_CARGA_PERIGOSA_FRIGORIFICADA, TIPO_CARGA_PERIGOSA_CONTEINERIZADA,
+	TIPO_CARGA_PERIGOSA_CARGA_GERAL, TIPO_CARGA_GRANEL_PRESSURIZADA,
+}
 
 _EMITENTES_VALIDOS = {
 	EMITENTE_PRESTADOR_SERVICO, EMITENTE_TRANSPORTADOR_CARGA_PROPRIA, EMITENTE_PRESTADOR_CTE_GLOBALIZADO,
@@ -434,3 +496,137 @@ def assinar_mdfe(mdfe: dict, assinador: Assinador) -> dict:
 	signature = montar_signature(id_elemento, material)
 
 	return {"MDFe": {**mdfe["MDFe"], **signature}}
+
+
+@dataclass(frozen=True)
+class Emitente:
+	"""Quem emite o MDF-e — CNPJ **ou** CPF, diferente da NF-e (sempre CNPJ)."""
+
+	cnpj_cpf: str
+	nome: str
+	endereco: dict
+	inscricao_estadual: str = ""
+	nome_fantasia: str = ""
+
+
+def montar_emit(emitente: Emitente) -> dict:
+	"""Monta o grupo `emit`.
+
+	CNPJ/CPF são escolha exclusiva no XSD (mesma validação de
+	`fiscal.cte.montar_toma4`) — o emitente pode ser pessoa jurídica ou o transportador
+	autônomo pessoa física (série 920-969, confirmado na documentação do próprio campo).
+	`enderEmit` é obrigatório (sem `minOccurs="0"` no XSD).
+	"""
+	try:
+		documento = validar_cpf_cnpj(emitente.cnpj_cpf)
+	except ValueError as e:
+		raise MdfeInvalido(f"CPF/CNPJ do emitente inválido: {e}", "cnpj_cpf") from e
+
+	if not emitente.nome.strip():
+		raise MdfeInvalido("Emitente precisa de nome", "nome")
+
+	if not emitente.endereco:
+		raise MdfeInvalido("Emitente precisa de endereço (enderEmit é obrigatório no XSD)", "endereco")
+
+	grupo: dict = {}
+	grupo["CNPJ" if len(documento) == 14 else "CPF"] = documento
+
+	if emitente.inscricao_estadual.strip():
+		grupo["IE"] = emitente.inscricao_estadual.strip()
+
+	grupo["xNome"] = emitente.nome.strip()
+
+	if emitente.nome_fantasia.strip():
+		grupo["xFant"] = emitente.nome_fantasia.strip()
+
+	grupo["enderEmit"] = dict(emitente.endereco)
+
+	return {"emit": grupo}
+
+
+@dataclass(frozen=True)
+class Seguro:
+	"""Um item de `seg` — seguro da carga transportada, tudo opcional dentro do grupo."""
+
+	responsavel: str
+	cnpj_cpf_responsavel: str = ""
+	"""Só se aplica quando `responsavel == RESPONSAVEL_SEGURO_CONTRATANTE` (o XSD marca
+	CNPJ/CPF como obrigatório só nesse caso; aqui fica opcional e o chamador decide)."""
+	seguradora_nome: str = ""
+	seguradora_cnpj: str = ""
+	numero_apolice: str = ""
+	numeros_averbacao: list[str] = field(default_factory=list)
+
+
+def montar_seg(seguros: list[Seguro]) -> dict:
+	"""Monta `seg` — lista opcional e repetível de seguros da carga. Devolve `{}` quando
+	vazia, nunca um grupo `seg` vazio no documento (`minOccurs="0"`)."""
+	if not seguros:
+		return {}
+
+	itens = []
+
+	for seguro in seguros:
+		if seguro.responsavel not in _RESPONSAVEIS_SEGURO_VALIDOS:
+			raise MdfeInvalido(
+				f"responsavel deve ser um de {sorted(_RESPONSAVEIS_SEGURO_VALIDOS)}, "
+				f"recebido {seguro.responsavel!r}",
+				"responsavel",
+			)
+
+		inf_resp: dict = {"respSeg": seguro.responsavel}
+
+		if seguro.cnpj_cpf_responsavel:
+			try:
+				documento = validar_cpf_cnpj(seguro.cnpj_cpf_responsavel)
+			except ValueError as e:
+				raise MdfeInvalido(f"CPF/CNPJ do responsável pelo seguro inválido: {e}") from e
+
+			inf_resp["CNPJ" if len(documento) == 14 else "CPF"] = documento
+
+		item: dict = {"infResp": inf_resp}
+
+		if seguro.seguradora_nome.strip():
+			inf_seg: dict = {"xSeg": seguro.seguradora_nome.strip()}
+
+			if seguro.seguradora_cnpj:
+				try:
+					inf_seg["CNPJ"] = validar_cnpj(seguro.seguradora_cnpj)
+				except ValueError as e:
+					raise MdfeInvalido(f"CNPJ da seguradora inválido: {e}") from e
+
+			item["infSeg"] = inf_seg
+
+		if seguro.numero_apolice.strip():
+			item["nApol"] = seguro.numero_apolice.strip()
+
+		if seguro.numeros_averbacao:
+			item["nAver"] = list(seguro.numeros_averbacao)
+
+		itens.append(item)
+
+	return {"seg": itens}
+
+
+def montar_prod_pred(tipo_carga: str, descricao: str, ean: str = "", ncm: str = "") -> dict:
+	"""Monta `prodPred` — produto predominante, pelo item de maior valor financeiro
+	(Resolução ANTT 5.849/2019). `infLotacao` (carga lotação com localização de
+	carregamento) não é implementado — estrutura aninhada mais rara, fora de escopo."""
+	if tipo_carga not in _TIPOS_CARGA_VALIDOS:
+		raise MdfeInvalido(
+			f"tipo_carga deve ser um de {sorted(_TIPOS_CARGA_VALIDOS)}, recebido {tipo_carga!r}",
+			"tipo_carga",
+		)
+
+	if not descricao.strip():
+		raise MdfeInvalido("prodPred precisa de xProd (descrição do produto)", "descricao")
+
+	grupo: dict = {"tpCarga": tipo_carga, "xProd": descricao.strip()}
+
+	if ean.strip():
+		grupo["cEAN"] = ean.strip()
+
+	if ncm.strip():
+		grupo["NCM"] = ncm.strip()
+
+	return {"prodPred": grupo}

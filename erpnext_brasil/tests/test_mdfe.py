@@ -14,16 +14,24 @@ from erpnext_brasil.fiscal.mdfe import (
 	EMITENTE_TRANSPORTADOR_CARGA_PROPRIA,
 	MODAL_RODOVIARIO,
 	NAMESPACE_MDFE,
+	RESPONSAVEL_SEGURO_CONTRATANTE,
+	RESPONSAVEL_SEGURO_EMITENTE,
+	TIPO_CARGA_GERAL,
 	UNIDADE_PESO_KG,
+	Emitente,
 	IdentificacaoMdfe,
 	MdfeInvalido,
 	MunicipioCarrega,
 	MunicipioDescarga,
+	Seguro,
 	assinar_mdfe,
+	montar_emit,
 	montar_ide,
 	montar_infdoc,
 	montar_lacres,
 	montar_mdfe,
+	montar_prod_pred,
+	montar_seg,
 	montar_tot,
 )
 
@@ -318,6 +326,104 @@ class TestMontarLacres(unittest.TestCase):
 	def test_lista_vazia_devolve_dict_vazio(self):
 		"""lacres tem minOccurs=0 no XSD -- sem grupo vazio no documento."""
 		self.assertEqual(montar_lacres([]), {})
+
+
+_CNPJ_VALIDO = "11222333000181"
+_CPF_VALIDO = "11144477735"
+
+
+def _emitente(**kwargs) -> Emitente:
+	base = {
+		"cnpj_cpf": _CNPJ_VALIDO,
+		"nome": "Transportes Além Ltda",
+		"endereco": {"xLgr": "Rua Teste", "nro": "100", "xMun": "São Paulo", "UF": "SP"},
+	}
+	base.update(kwargs)
+	return Emitente(**base)
+
+
+class TestMontarEmit(unittest.TestCase):
+	def test_campos_obrigatorios(self):
+		grupo = montar_emit(_emitente())["emit"]
+
+		self.assertEqual(grupo["CNPJ"], _CNPJ_VALIDO)
+		self.assertEqual(grupo["xNome"], "Transportes Além Ltda")
+		self.assertIn("enderEmit", grupo)
+
+	def test_aceita_cpf_para_emitente_pessoa_fisica(self):
+		"""Diferente da NF-e (sempre CNPJ), o emitente do MDF-e pode ser transportador
+		autônomo pessoa física."""
+		grupo = montar_emit(_emitente(cnpj_cpf=_CPF_VALIDO))["emit"]
+
+		self.assertEqual(grupo["CPF"], _CPF_VALIDO)
+		self.assertNotIn("CNPJ", grupo)
+
+	def test_documento_invalido_levanta_erro(self):
+		with self.assertRaises(MdfeInvalido):
+			montar_emit(_emitente(cnpj_cpf="123"))
+
+	def test_nome_vazio_levanta_erro(self):
+		with self.assertRaises(MdfeInvalido):
+			montar_emit(_emitente(nome=""))
+
+	def test_sem_endereco_levanta_erro(self):
+		with self.assertRaises(MdfeInvalido):
+			montar_emit(_emitente(endereco={}))
+
+
+class TestMontarSeg(unittest.TestCase):
+	def test_lista_vazia_devolve_dict_vazio(self):
+		self.assertEqual(montar_seg([]), {})
+
+	def test_responsavel_emitente_sem_documento(self):
+		grupo = montar_seg([Seguro(responsavel=RESPONSAVEL_SEGURO_EMITENTE)])["seg"]
+
+		self.assertEqual(grupo[0]["infResp"], {"respSeg": RESPONSAVEL_SEGURO_EMITENTE})
+		self.assertNotIn("infSeg", grupo[0])
+
+	def test_responsavel_contratante_com_documento_e_seguradora(self):
+		seguro = Seguro(
+			responsavel=RESPONSAVEL_SEGURO_CONTRATANTE,
+			cnpj_cpf_responsavel=_CNPJ_VALIDO,
+			seguradora_nome="Seguradora XPTO",
+			seguradora_cnpj=_CNPJ_VALIDO,
+			numero_apolice="12345",
+			numeros_averbacao=["AV1", "AV2"],
+		)
+
+		grupo = montar_seg([seguro])["seg"][0]
+
+		self.assertEqual(grupo["infResp"]["CNPJ"], _CNPJ_VALIDO)
+		self.assertEqual(grupo["infSeg"], {"xSeg": "Seguradora XPTO", "CNPJ": _CNPJ_VALIDO})
+		self.assertEqual(grupo["nApol"], "12345")
+		self.assertEqual(grupo["nAver"], ["AV1", "AV2"])
+
+	def test_responsavel_invalido_levanta_erro(self):
+		with self.assertRaises(MdfeInvalido):
+			montar_seg([Seguro(responsavel="9")])
+
+
+class TestMontarProdPred(unittest.TestCase):
+	def test_campos_obrigatorios(self):
+		grupo = montar_prod_pred(TIPO_CARGA_GERAL, "Eletrônicos diversos")["prodPred"]
+
+		self.assertEqual(grupo, {"tpCarga": TIPO_CARGA_GERAL, "xProd": "Eletrônicos diversos"})
+
+	def test_ean_e_ncm_opcionais(self):
+		grupo = montar_prod_pred(TIPO_CARGA_GERAL, "Eletrônicos", ean="7891234567895", ncm="85171231")[
+			"prodPred"
+		]
+
+		self.assertEqual(grupo["cEAN"], "7891234567895")
+		self.assertEqual(grupo["NCM"], "85171231")
+
+	def test_tipo_carga_invalido_levanta_erro(self):
+		with self.assertRaises(MdfeInvalido):
+			montar_prod_pred("99", "Algo")
+
+	def test_descricao_vazia_levanta_erro(self):
+		with self.assertRaises(MdfeInvalido):
+			montar_prod_pred(TIPO_CARGA_GERAL, "")
 
 
 if __name__ == "__main__":

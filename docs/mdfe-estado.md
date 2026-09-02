@@ -116,8 +116,11 @@ do CT-e), `fiscal/mdfe.py::assinar_mdfe` (assinatura digital, ver `docs/mdfe-ass
 reuso total de `assinatura.py`, confirmado por código de produção — não presumido só por CT-e já
 ter sido confirmado) e `fiscal/mdfe.py::montar_ide`/`montar_mdfe` (orquestração dos 21 campos de
 `ide`, ver `docs/mdfe-orquestracao.md` — lição do `cDV` do CT-e aplicada desde o início desta
-vez) e `montar_tot`/`montar_lacres` (ver `docs/mdfe-tot-lacres.md`). Ainda falta: autorizador
-por UF, eventos, `emit`/`seg`/`prodPred`.
+vez), `montar_tot`/`montar_lacres` (ver `docs/mdfe-tot-lacres.md`) e `montar_emit`/`montar_seg`/
+`montar_prod_pred` (ver `docs/mdfe-emit-seg-prodpred.md`). Todos os grupos de conteúdo de
+`infMDFe` mapeados neste levantamento estão implementados. Ainda falta: autorizador por UF,
+eventos, `infLotacao` (dentro de `prodPred`), e um orquestrador de nível mais alto que junte
+`ide`+`emit`+`infModal`+`infDoc`+`seg`+`prodPred`+`tot`+`lacres` num `infMDFe` completo.
 
 ## Fontes
 
