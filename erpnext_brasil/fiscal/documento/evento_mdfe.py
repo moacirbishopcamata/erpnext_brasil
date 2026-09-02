@@ -2,8 +2,8 @@
 # License: MIT. See license.txt
 
 """Eventos do MDF-e: cancelamento (`tpEvento` 110111, `evCancMDFe`), encerramento
-(`tpEvento` 110112, `evEncMDFe`) e inclusão de condutor (`tpEvento` 110114,
-`evIncCondutorMDFe`).
+(`tpEvento` 110112, `evEncMDFe`), inclusão de condutor (`tpEvento` 110114,
+`evIncCondutorMDFe`) e inclusão de DF-e (`tpEvento` 110115, `evIncDFeMDFe`).
 
 Por que existe
 --------------
@@ -81,6 +81,25 @@ forma de `condutor` já modelada em `fiscal.mdfe_rodoviario.Condutor`/`montar_co
 (usada dentro de `veicTracao`) — reaproveitados diretamente aqui, sem duplicar a
 validação de CPF.
 
+Inclusão de DF-e (`tpEvento` 110115) — nome do arquivo diverge do nome do elemento
+------------------------------------------------------------------------------------------
+Verificado em `evInclusaoDFeMDFe_v3.00.xsd` (81 linhas, lido inteiro). **Achado real**: o
+arquivo se chama `evInclusaoDFeMDFe_v3.00.xsd`, mas o elemento raiz que ele declara é
+`evIncDFeMDFe` — nome do arquivo e nome do elemento **não coincidem** (mesma classe de
+achado já vista antes neste projeto, ex. `cteTiposBasico_v4.00.xsd` do CT-e, onde o nome
+do arquivo também não refletia seu conteúdo). Permite acrescentar uma NF-e ao manifesto
+depois de já autorizado — `descEvento` tem as duas grafias já vistas em outros eventos
+(`"Inclusão DF-e"`/`"Inclusao DF-e"`); `cMunCarrega`/`xMunCarrega` (município de
+carregamento, um só, fora da lista); `infDoc` (lista, `maxOccurs="unbounded"`) — cada item
+tem `cMunDescarga`/`xMunDescarga` (um município de descarregamento) e **um único**
+`chNFe` (tipo `TChNFe`, não uma lista de chaves nem um grupo `infCTe`/`infNFe` como o
+`infDoc` da orquestração principal do MDF-e, `fiscal.mdfe.montar_infdoc`) — **achado
+real**: este evento só permite incluir NF-e, nunca CT-e, diferente do `infDoc` do
+MDF-e completo (que aceita os dois). `chNFe` é validado com `ler_chave`, recusando
+qualquer chave que não seja modelo 55 — mesma defesa em profundidade já aplicada em
+outros pontos do projeto (`fiscal.cte.montar_infnfe`, `_montar_inf_entrega_nfe` do
+CT-e).
+
 Reuso: `EventoInvalido`/`assinar_evento` de `evento.py`, sem alteração
 ------------------------------------------------------------------------------
 Ambos já eram genéricos (não hardcodam `NAMESPACE_NFE`, só leem o que o dicionário
@@ -88,6 +107,8 @@ Ambos já eram genéricos (não hardcodam `NAMESPACE_NFE`, só leem o que o dici
 
 Funções puras: nenhuma dependência do Frappe.
 """
+
+from dataclasses import dataclass
 
 import re
 
@@ -104,7 +125,9 @@ __all__ = [
 	"TIPO_EVENTO_CANCELAMENTO_MDFE",
 	"TIPO_EVENTO_ENCERRAMENTO_MDFE",
 	"TIPO_EVENTO_INCLUSAO_CONDUTOR_MDFE",
+	"TIPO_EVENTO_INCLUSAO_DFE_MDFE",
 	"Condutor",
+	"DocumentoIncluido",
 	"EventoInvalido",
 	"assinar_evento",
 	"montar_condutor",
@@ -112,11 +135,13 @@ __all__ = [
 	"montar_evento_cancelamento_mdfe",
 	"montar_evento_encerramento_mdfe",
 	"montar_evento_inclusao_condutor_mdfe",
+	"montar_evento_inclusao_dfe_mdfe",
 ]
 
 TIPO_EVENTO_CANCELAMENTO_MDFE = "110111"
 TIPO_EVENTO_ENCERRAMENTO_MDFE = "110112"
 TIPO_EVENTO_INCLUSAO_CONDUTOR_MDFE = "110114"
+TIPO_EVENTO_INCLUSAO_DFE_MDFE = "110115"
 _VERSAO_LEIAUTE_MDFE = "3.00"
 
 # `TJust` do MDF-e — numericamente igual ao do CT-e, mas verificado à parte (tipo
@@ -327,6 +352,108 @@ def montar_evento_inclusao_condutor_mdfe(
 			"@versaoEvento": _VERSAO_LEIAUTE_MDFE,
 			"descEvento": "Inclusao Condutor",
 			"condutor": grupo_condutor,
+		},
+	}
+
+	return {"evento": {"@xmlns": NAMESPACE_MDFE, "@versao": _VERSAO_LEIAUTE_MDFE, "infEvento": inf_evento}}
+
+
+@dataclass(frozen=True)
+class DocumentoIncluido:
+	"""Um item de `infDoc` do evento — um único município de descarregamento e uma
+	única NF-e (nunca CT-e, ver docstring do módulo)."""
+
+	codigo_municipio_descarga: str
+	nome_municipio_descarga: str
+	chave_nfe: str
+
+	def __post_init__(self):
+		if not (2 <= len(self.nome_municipio_descarga) <= 60):
+			raise EventoInvalido(
+				f"xMunDescarga deve ter de 2 a 60 caracteres, recebido "
+				f"{self.nome_municipio_descarga!r}",
+				"nome_municipio_descarga",
+			)
+
+
+def _montar_doc_incluido(documento: DocumentoIncluido) -> dict:
+	decomposta = ler_chave(documento.chave_nfe)
+
+	if decomposta.modelo != "55":
+		raise EventoInvalido(
+			f"infDoc só aceita chave de NF-e (modelo 55), recebida chave de modelo "
+			f"{decomposta.modelo} ({decomposta.documento})",
+			"chave_nfe",
+		)
+
+	return {
+		"cMunDescarga": documento.codigo_municipio_descarga,
+		"xMunDescarga": documento.nome_municipio_descarga,
+		"chNFe": decomposta.valor,
+	}
+
+
+def montar_evento_inclusao_dfe_mdfe(
+	chave_acesso: str,
+	protocolo: str,
+	codigo_municipio_carrega: str,
+	nome_municipio_carrega: str,
+	documentos: list[DocumentoIncluido],
+	cnpj_autor: str,
+	data_evento: str,
+	numero_sequencia: int = 1,
+	ambiente: str = "2",
+) -> dict:
+	"""Monta o elemento `evento` (grupo `TEvento`) da inclusão de DF-e do MDF-e —
+	acrescenta NF-e ao manifesto já autorizado.
+
+	`documentos` é a lista de `infDoc` — cada item referencia uma única NF-e (nunca
+	CT-e, ver docstring do módulo), validada via `ler_chave` e recusada se não for
+	modelo 55, mesma defesa em profundidade já aplicada em outros pontos do projeto.
+	"""
+	chave = validar_chave(chave_acesso)
+	lida = ler_chave(chave)
+
+	protocolo_limpo = (protocolo or "").strip()
+
+	if not protocolo_limpo:
+		raise EventoInvalido("O protocolo da autorização é obrigatório", "protocolo")
+
+	if not (2 <= len(nome_municipio_carrega or "") <= 60):
+		raise EventoInvalido(
+			f"xMunCarrega deve ter de 2 a 60 caracteres, recebido {nome_municipio_carrega!r}",
+			"nome_municipio_carrega",
+		)
+
+	if not documentos:
+		raise EventoInvalido("infDoc precisa de ao menos um documento", "documentos")
+
+	if not (1 <= numero_sequencia <= 20):
+		raise EventoInvalido(
+			f"nSeqEvento deve estar entre 1 e 20, recebido {numero_sequencia}", "numero_sequencia"
+		)
+
+	try:
+		cnpj = validar_cnpj(cnpj_autor)
+	except ValueError as e:
+		raise EventoInvalido(f"CNPJ do autor do evento inválido: {e}", "cnpj_autor") from e
+
+	inf_evento = {
+		"@Id": _formatar_id_mdfe(chave, TIPO_EVENTO_INCLUSAO_DFE_MDFE, numero_sequencia),
+		"cOrgao": lida.uf,
+		"tpAmb": ambiente,
+		"CNPJ": cnpj,
+		"chMDFe": chave,
+		"dhEvento": data_evento,
+		"tpEvento": TIPO_EVENTO_INCLUSAO_DFE_MDFE,
+		"nSeqEvento": str(numero_sequencia),
+		"detEvento": {
+			"@versaoEvento": _VERSAO_LEIAUTE_MDFE,
+			"descEvento": "Inclusão DF-e",
+			"nProt": protocolo_limpo,
+			"cMunCarrega": codigo_municipio_carrega,
+			"xMunCarrega": nome_municipio_carrega,
+			"infDoc": [_montar_doc_incluido(d) for d in documentos],
 		},
 	}
 

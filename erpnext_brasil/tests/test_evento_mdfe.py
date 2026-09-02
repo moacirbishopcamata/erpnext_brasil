@@ -14,13 +14,16 @@ from erpnext_brasil.fiscal.documento.evento_mdfe import (
 	TIPO_EVENTO_CANCELAMENTO_MDFE,
 	TIPO_EVENTO_ENCERRAMENTO_MDFE,
 	TIPO_EVENTO_INCLUSAO_CONDUTOR_MDFE,
+	TIPO_EVENTO_INCLUSAO_DFE_MDFE,
 	Condutor,
+	DocumentoIncluido,
 	EventoInvalido,
 	assinar_evento,
 	montar_env_evento_mdfe,
 	montar_evento_cancelamento_mdfe,
 	montar_evento_encerramento_mdfe,
 	montar_evento_inclusao_condutor_mdfe,
+	montar_evento_inclusao_dfe_mdfe,
 )
 from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.mdfe import NAMESPACE_MDFE
@@ -31,6 +34,13 @@ _CNPJ_VALIDO = "11222333000181"
 def _chave_mdfe() -> str:
 	return montar_chave(
 		uf="35", ano_mes="2609", cnpj=_CNPJ_VALIDO, modelo="58", serie="001",
+		numero="000000001", tipo_emissao="1", codigo_numerico="12345678",
+	)
+
+
+def _chave_nfe() -> str:
+	return montar_chave(
+		uf="35", ano_mes="2609", cnpj=_CNPJ_VALIDO, modelo="55", serie="001",
 		numero="000000001", tipo_emissao="1", codigo_numerico="12345678",
 	)
 
@@ -314,6 +324,93 @@ class TestMontarEventoInclusaoCondutorMdfe(unittest.TestCase):
 		xml = para_xml(assinado)
 
 		self.assertIn("<condutor>", xml)
+		self.assertIn("<chMDFe>", xml)
+
+
+class TestMontarEventoInclusaoDfeMdfe(unittest.TestCase):
+	def setUp(self):
+		self.chave = _chave_mdfe()
+		self.chave_nfe = _chave_nfe()
+		self.evento = montar_evento_inclusao_dfe_mdfe(
+			chave_acesso=self.chave,
+			protocolo="935260000000001",
+			codigo_municipio_carrega="3550308",
+			nome_municipio_carrega="São Paulo",
+			documentos=[
+				DocumentoIncluido(
+					codigo_municipio_descarga="3304557",
+					nome_municipio_descarga="Rio de Janeiro",
+					chave_nfe=self.chave_nfe,
+				)
+			],
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-09-03T09:00:00-03:00",
+		)
+
+	def test_tp_evento_e_110115(self):
+		self.assertEqual(
+			self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_INCLUSAO_DFE_MDFE
+		)
+		self.assertEqual(TIPO_EVENTO_INCLUSAO_DFE_MDFE, "110115")
+
+	def test_campos_de_carregamento(self):
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+
+		self.assertEqual(det_evento["descEvento"], "Inclusão DF-e")
+		self.assertEqual(det_evento["cMunCarrega"], "3550308")
+		self.assertEqual(det_evento["xMunCarrega"], "São Paulo")
+
+	def test_infdoc_com_uma_nfe(self):
+		inf_doc = self.evento["evento"]["infEvento"]["detEvento"]["infDoc"]
+
+		self.assertEqual(len(inf_doc), 1)
+		self.assertEqual(inf_doc[0]["cMunDescarga"], "3304557")
+		self.assertEqual(inf_doc[0]["xMunDescarga"], "Rio de Janeiro")
+		self.assertEqual(inf_doc[0]["chNFe"], self.chave_nfe)
+
+	def test_infdoc_recusa_chave_que_nao_e_nfe(self):
+		"""Achado real: este evento só aceita NF-e, nunca CT-e -- diferente do infDoc
+		da orquestração principal do MDF-e, que aceita os dois."""
+		with self.assertRaises(EventoInvalido):
+			montar_evento_inclusao_dfe_mdfe(
+				chave_acesso=self.chave,
+				protocolo="935260000000001",
+				codigo_municipio_carrega="3550308",
+				nome_municipio_carrega="São Paulo",
+				documentos=[
+					DocumentoIncluido(
+						codigo_municipio_descarga="3304557",
+						nome_municipio_descarga="Rio de Janeiro",
+						chave_nfe=self.chave,
+					)
+				],
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-03T09:00:00-03:00",
+			)
+
+	def test_sem_documentos_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_inclusao_dfe_mdfe(
+				chave_acesso=self.chave,
+				protocolo="935260000000001",
+				codigo_municipio_carrega="3550308",
+				nome_municipio_carrega="São Paulo",
+				documentos=[],
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-03T09:00:00-03:00",
+			)
+
+	def test_nome_municipio_descarga_curto_demais_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			DocumentoIncluido(
+				codigo_municipio_descarga="3304557", nome_municipio_descarga="R", chave_nfe=self.chave_nfe
+			)
+
+	def test_documento_assinado_serializa(self):
+		assinado = assinar_evento(self.evento, AssinadorFalso())
+		xml = para_xml(assinado)
+
+		self.assertIn("<infDoc>", xml)
 		self.assertIn("<chMDFe>", xml)
 
 

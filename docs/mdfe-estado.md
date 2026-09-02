@@ -156,7 +156,14 @@ modelada em `fiscal.mdfe_rodoviario.Condutor`/`montar_condutor` (usada dentro de
 grafia possível, sem acento ("Inclusao Condutor") — diferente de outros eventos desta
 frente que aceitam variante acentuada.
 
-**Pendente**: inclusão de DF-e, confirmação do serviço, pagamento
+**Inclusão de DF-e implementada em seguida** (ver `docs/mdfe-evento-inclusao-dfe.md`):
+`tpEvento` `"110115"`. Achado real: o arquivo `evInclusaoDFeMDFe_v3.00.xsd` declara o
+elemento `evIncDFeMDFe` — nome do arquivo diverge do elemento raiz, mesma classe de
+achado já vista no CT-e. Achado real 2: o `infDoc` deste evento só aceita `chNFe`
+(nunca CT-e) — diferente do `infDoc` da orquestração principal do MDF-e, que agrupa
+`infCTe`/`infNFe`.
+
+**Pendente**: confirmação do serviço, pagamento
 da operação, alteração de pagamento do serviço — nenhum investigado
 ainda.
 
