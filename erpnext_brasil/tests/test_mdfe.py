@@ -5,6 +5,7 @@
 
 import unittest
 from datetime import datetime
+from decimal import Decimal
 
 from erpnext_brasil.fiscal.documento.assinatura import MaterialAssinatura
 from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, montar_chave
@@ -13,6 +14,7 @@ from erpnext_brasil.fiscal.mdfe import (
 	EMITENTE_TRANSPORTADOR_CARGA_PROPRIA,
 	MODAL_RODOVIARIO,
 	NAMESPACE_MDFE,
+	UNIDADE_PESO_KG,
 	IdentificacaoMdfe,
 	MdfeInvalido,
 	MunicipioCarrega,
@@ -20,7 +22,9 @@ from erpnext_brasil.fiscal.mdfe import (
 	assinar_mdfe,
 	montar_ide,
 	montar_infdoc,
+	montar_lacres,
 	montar_mdfe,
+	montar_tot,
 )
 
 
@@ -274,6 +278,46 @@ class TestMontarMdfe(unittest.TestCase):
 		assinado = assinar_mdfe(mdfe, AssinadorFalso())
 
 		self.assertIn("Signature", assinado["MDFe"])
+
+
+class TestMontarTot(unittest.TestCase):
+	def test_campos_obrigatorios(self):
+		grupo = montar_tot(Decimal("15000.00"), UNIDADE_PESO_KG, Decimal("8500.5000"))["tot"]
+
+		self.assertEqual(grupo["vCarga"], "15000.00")
+		self.assertEqual(grupo["cUnid"], UNIDADE_PESO_KG)
+		self.assertEqual(grupo["qCarga"], "8500.5000")
+		self.assertNotIn("qCTe", grupo)
+		self.assertNotIn("qNFe", grupo)
+		self.assertNotIn("qMDFe", grupo)
+
+	def test_quantidades_opcionais(self):
+		grupo = montar_tot(
+			Decimal("15000.00"),
+			UNIDADE_PESO_KG,
+			Decimal("8500.5000"),
+			quantidade_cte=2,
+			quantidade_nfe=5,
+		)["tot"]
+
+		self.assertEqual(grupo["qCTe"], "2")
+		self.assertEqual(grupo["qNFe"], "5")
+		self.assertNotIn("qMDFe", grupo)
+
+	def test_unidade_peso_invalida_levanta_erro(self):
+		with self.assertRaises(MdfeInvalido):
+			montar_tot(Decimal("100.00"), "03", Decimal("10.0000"))
+
+
+class TestMontarLacres(unittest.TestCase):
+	def test_lista_de_lacres(self):
+		grupo = montar_lacres(["ABC123", "DEF456"])
+
+		self.assertEqual(grupo, {"lacres": [{"nLacre": "ABC123"}, {"nLacre": "DEF456"}]})
+
+	def test_lista_vazia_devolve_dict_vazio(self):
+		"""lacres tem minOccurs=0 no XSD -- sem grupo vazio no documento."""
+		self.assertEqual(montar_lacres([]), {})
 
 
 if __name__ == "__main__":

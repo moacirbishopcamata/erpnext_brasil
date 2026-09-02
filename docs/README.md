@@ -60,6 +60,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [mdfe-modal-rodoviario.md](mdfe-modal-rodoviario.md) | Modal rodoviário do MDF-e: veículo/motorista (espelho invertido do CT-e), `RNTRC` reaproveitado, `tara` sem zero à esquerda |
 | [mdfe-assinatura.md](mdfe-assinatura.md) | Assinatura digital do MDF-e: reuso total de `assinatura.py`, confirmado por código de produção (`signMDFe`/`sped-mdfe`), verificado de novo apesar do CT-e já ter sido verificado — família diverge às vezes |
 | [mdfe-orquestracao.md](mdfe-orquestracao.md) | `montar_ide`/`montar_mdfe`: os 21 campos verificados, lição do `cDV` do CT-e aplicada desde o início (não corrigida depois), confirmação de que não há `CFOP`/`natOp` |
+| [mdfe-tot-lacres.md](mdfe-tot-lacres.md) | `tot` (totalizadores da carga) e `lacres` (lista simples de números de lacre) do MDF-e |
 
 ## Convenções que valem em todo o código
 

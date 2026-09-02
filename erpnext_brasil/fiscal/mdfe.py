@@ -46,10 +46,20 @@ despercebido (ver `docs/cte-orquestracao.md`, seção "Correção: `cDV` estava 
 Os 21 campos de `ide` foram lidos e ordenados por leitura direta do XSD
 (`mdfeTiposBasico_v3.00.xsd`, linhas 17–232, ver `docs/mdfe-estado.md`), não por analogia com o
 CT-e — `modal`/`procEmi` já divergiram entre os dois documentos nesta mesma investigação.
+
+`montar_tot`/`montar_lacres` fecham os dois grupos restantes mais simples de `infMDFe` (linhas
+1017–1099). `tot` é o totalizador da carga: `vCarga` (valor), `cUnid` (`"01"` KG / `"02"` TON —
+só duas opções, confirmadas) e `qCarga` (peso bruto) são obrigatórios; `qCTe`/`qNFe`/`qMDFe`
+(quantidade de cada tipo de documento vinculado) são opcionais — o XSD não obriga nenhum dos
+três, então nenhum é exigido aqui (quem monta decide o que informar, coerente com o documento
+poder vincular só CT-e, só NF-e, ou os dois). `lacres` é uma lista simples e opcional de números
+de lacre — sem estrutura interna além do próprio número, por isso vira uma lista de strings, não
+uma dataclass.
 """
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal
 
 from erpnext_brasil.fiscal.documento.assinatura import Assinador, montar_signature
 from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, ler_chave
@@ -71,6 +81,8 @@ __all__ = [
 	"TRANSPORTADOR_CTC",
 	"TRANSPORTADOR_ETC",
 	"TRANSPORTADOR_TAC",
+	"UNIDADE_PESO_KG",
+	"UNIDADE_PESO_TON",
 	"IdentificacaoMdfe",
 	"MdfeInvalido",
 	"MunicipioCarrega",
@@ -78,6 +90,8 @@ __all__ = [
 	"assinar_mdfe",
 	"montar_ide",
 	"montar_infdoc",
+	"montar_lacres",
+	"montar_tot",
 	"montar_mdfe",
 ]
 
@@ -109,6 +123,13 @@ PROCESSO_EMISSAO_PAA = "4"
 
 AMBIENTE_PRODUCAO = "1"
 AMBIENTE_HOMOLOGACAO = "2"
+
+# `cUnid` de `tot` — confirmado em `tot/cUnid` (linha 1059): só duas opções, peso Bruto da
+# carga em quilos ou toneladas.
+UNIDADE_PESO_KG = "01"
+UNIDADE_PESO_TON = "02"
+
+_UNIDADES_PESO_VALIDAS = {UNIDADE_PESO_KG, UNIDADE_PESO_TON}
 
 _EMITENTES_VALIDOS = {
 	EMITENTE_PRESTADOR_SERVICO, EMITENTE_TRANSPORTADOR_CARGA_PROPRIA, EMITENTE_PRESTADOR_CTE_GLOBALIZADO,
@@ -347,6 +368,55 @@ def montar_mdfe(infmdfe: dict, chave: str) -> dict:
 			"infMDFe": {**infmdfe, "@Id": f"MDFe{chave}"},
 		}
 	}
+
+
+def montar_tot(
+	valor_carga: Decimal,
+	unidade_peso: str,
+	peso_carga: Decimal,
+	quantidade_cte: int | None = None,
+	quantidade_nfe: int | None = None,
+	quantidade_mdfe: int | None = None,
+) -> dict:
+	"""Monta o grupo `tot` — totalizadores da carga transportada.
+
+	`valor_carga`, `unidade_peso` e `peso_carga` são obrigatórios no XSD; as três
+	quantidades (`qCTe`/`qNFe`/`qMDFe`) são opcionais — o layout não exige nenhuma
+	delas, coerente com um MDF-e poder vincular só CT-e, só NF-e, ou os dois.
+	"""
+	if unidade_peso not in _UNIDADES_PESO_VALIDAS:
+		raise MdfeInvalido(
+			f"unidade_peso deve ser um de {sorted(_UNIDADES_PESO_VALIDAS)}, "
+			f"recebido {unidade_peso!r}",
+			"unidade_peso",
+		)
+
+	grupo: dict = {}
+
+	if quantidade_cte is not None:
+		grupo["qCTe"] = str(quantidade_cte)
+
+	if quantidade_nfe is not None:
+		grupo["qNFe"] = str(quantidade_nfe)
+
+	if quantidade_mdfe is not None:
+		grupo["qMDFe"] = str(quantidade_mdfe)
+
+	grupo["vCarga"] = str(valor_carga)
+	grupo["cUnid"] = unidade_peso
+	grupo["qCarga"] = str(peso_carga)
+
+	return {"tot": grupo}
+
+
+def montar_lacres(numeros: list[str]) -> dict:
+	"""Monta `lacres` — lista opcional de números de lacre, sem estrutura interna além
+	do próprio número (por isso uma lista de strings, não uma dataclass). Devolve `{}`
+	quando vazia — `lacres` tem `minOccurs="0"` no XSD, sem grupo vazio no documento."""
+	if not numeros:
+		return {}
+
+	return {"lacres": [{"nLacre": n} for n in numeros]}
 
 
 def assinar_mdfe(mdfe: dict, assinador: Assinador) -> dict:

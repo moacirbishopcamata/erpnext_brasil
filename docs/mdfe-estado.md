@@ -116,7 +116,8 @@ do CT-e), `fiscal/mdfe.py::assinar_mdfe` (assinatura digital, ver `docs/mdfe-ass
 reuso total de `assinatura.py`, confirmado por código de produção — não presumido só por CT-e já
 ter sido confirmado) e `fiscal/mdfe.py::montar_ide`/`montar_mdfe` (orquestração dos 21 campos de
 `ide`, ver `docs/mdfe-orquestracao.md` — lição do `cDV` do CT-e aplicada desde o início desta
-vez). Ainda falta: autorizador por UF, eventos, `emit`/`seg`/`tot`/`lacres`.
+vez) e `montar_tot`/`montar_lacres` (ver `docs/mdfe-tot-lacres.md`). Ainda falta: autorizador
+por UF, eventos, `emit`/`seg`/`prodPred`.
 
 ## Fontes
 
