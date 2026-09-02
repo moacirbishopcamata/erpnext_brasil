@@ -121,8 +121,11 @@ vez), `montar_tot`/`montar_lacres` (ver `docs/mdfe-tot-lacres.md`) e `montar_emi
 (orquestrador de nível mais alto, ver `docs/mdfe-infmdfe.md`). Todos os grupos de conteúdo de
 `infMDFe` mapeados neste levantamento estão implementados e compostos num `infMDFe` completo,
 com prova de ponta a ponta (`montar_infmdfe` → `montar_mdfe` → `assinar_mdfe`). Ainda falta:
-autorizador por UF, `infLotacao` (dentro de `prodPred`), modais aéreo/aquaviário/
-ferroviário (só o rodoviário está implementado).
+`infLotacao` (dentro de `prodPred`), modais aéreo/aquaviário/ferroviário (só o rodoviário
+está implementado). ~~Autorizador por UF~~ — **fechado**, ver
+`docs/cte-mdfe-autorizadores.md`: achado real, o MDF-e tem um único autorizador nacional
+(diferente do CT-e, que tem 4 grupos, e da NF-e, que tem 12) — todas as 27 UFs mapeiam
+para a mesma infraestrutura, hospedada em `svrs.rs.gov.br`.
 
 ## Eventos do MDF-e — frente aberta em seguida à conclusão dos onze eventos do CT-e
 
@@ -190,10 +193,11 @@ são compartilhadas entre os dois eventos, só faltando `infViagens` neste.
 `evConfirmaServMDFe`, `evAlteracaoPagtoServMDFe` — todos modelados, testados e
 serializáveis em `fiscal/documento/evento_mdfe.py`. Combinado com os onze eventos do
 CT-e já concluídos (`docs/cte-estado.md`), a frente de eventos dos dois documentos de
-transporte está fechada. Pendente fora do conteúdo de eventos: autorizador/webservice
-por UF (MDF-e e CT-e), transmissão de verdade, e a camada `integracao/` que liga tudo a
-doctypes reais do ERPNext.
-ainda.
+transporte está fechada. Pendente fora do conteúdo de eventos (à época): autorizador/
+webservice por UF (MDF-e e CT-e) e a camada `integracao/` que liga tudo a doctypes reais
+do ERPNext — os dois fechados em seguida (ver `docs/cte-mdfe-autorizadores.md` e
+`docs/integracao-cte-frete.md`). Só falta mesmo a transmissão de verdade, bloqueada por
+falta de certificado A1/ambiente de homologação testável nesta investigação.
 
 ## Fontes
 

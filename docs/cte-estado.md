@@ -119,8 +119,9 @@ reaproveitado **sem nenhuma alteração** — já era genérico o bastante.
 
 ## O que ainda falta investigar antes de implementar
 
-- Autorizador/webservice por UF — provavelmente segue o mesmo SVRS/SVSP/próprio já mapeado em
-  `docs/transporte-nativo-sefaz.md` para NF-e, mas CT-e pode ter ambiente próprio — não verificado.
+- ~~Autorizador/webservice por UF~~ — **fechado**, ver `docs/cte-mdfe-autorizadores.md`:
+  achado real, o mapa do CT-e **diverge** do da NF-e (só 4 grupos, não 12; `AM`/`BA`/`GO`/`PE`
+  têm webservice próprio na NF-e mas caem no autorizador compartilhado no CT-e).
 - `infNF` (NF em papel) — deliberadamente não implementado; caso legado, prioridade baixa.
 - Nenhum — os onze eventos de `schemes/PL_CTe_400` no `nfephp-org/sped-cte` estão todos
   implementados (ver seção "Marco atingido" abaixo).
@@ -203,9 +204,11 @@ registro multimodal. Cada um foi verificado individualmente contra o XSD corresp
 (nunca suposto por analogia entre eventos irmãos) — a frente descobriu divergências reais
 em quase todos: limites de texto livre diferentes (255/256/1000), campos que existem num
 evento e não no "gêmeo" aparente, `tpEvento` fora do padrão esperado (`610xxx`), e grafias
-múltiplas aceitas pelo próprio XSD (`descEvento`). Pendente fora do conteúdo de eventos:
-autorizador/webservice por UF do CT-e (não investigado), transmissão de verdade, e eventos
-do MDF-e (nunca investigados).
+múltiplas aceitas pelo próprio XSD (`descEvento`). Pendente fora do conteúdo de eventos
+(à época): autorizador/webservice por UF do CT-e, transmissão de verdade, e eventos do
+MDF-e — os dois primeiros fechados em seguida (ver `docs/cte-mdfe-autorizadores.md` e
+`docs/mdfe-estado.md`), só falta mesmo a transmissão real (bloqueada por falta de
+certificado A1/homologação testável nesta investigação).
 
 **`toma3`/`toma4` implementados em seguida** (ver `docs/cte-toma.md`): `montar_toma3` (o
 tomador é uma das partes já citadas no CT-e, só valida o código) e `montar_toma4` (tomador
