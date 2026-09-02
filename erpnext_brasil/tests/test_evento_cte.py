@@ -1,23 +1,28 @@
 # Copyright (c) 2026, ERPNext Brasil contributors
 # License: MIT. See license.txt
 
-"""Testes de `fiscal/documento/evento_cte.py` — eventos de cancelamento e carta de
-correção do CT-e."""
+"""Testes de `fiscal/documento/evento_cte.py` — eventos de cancelamento, carta de
+correção e comprovante de entrega do CT-e."""
 
+import base64
+import hashlib
 import unittest
 
 from erpnext_brasil.fiscal.cte import NAMESPACE_CTE
 from erpnext_brasil.fiscal.documento.assinatura import MaterialAssinatura
-from erpnext_brasil.fiscal.documento.chave_acesso import montar_chave
+from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, montar_chave
 from erpnext_brasil.fiscal.documento.evento_cte import (
 	JUSTIFICATIVA_MAXIMA_CTE,
 	JUSTIFICATIVA_MINIMA_CTE,
 	TIPO_EVENTO_CANCELAMENTO_CTE,
+	TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE,
 	TIPO_EVENTO_CORRECAO_CTE,
 	CorrecaoCte,
 	EventoInvalido,
 	assinar_evento,
+	calcular_hash_entrega,
 	montar_env_evento_cte,
+	montar_evento_comprovante_entrega_cte,
 	montar_evento_cancelamento_cte,
 	montar_evento_correcao_cte,
 )
@@ -301,6 +306,160 @@ def _montar_inf_correcao_publica(correcao: CorrecaoCte) -> dict:
 		data_evento="2026-08-31T10:00:00-03:00",
 	)
 	return evento["evento"]["infEvento"]["detEvento"]["infCorrecao"][0]
+
+
+def _chave_nfe() -> str:
+	return montar_chave(
+		uf="35", ano_mes="2608", cnpj=_CNPJ_VALIDO, modelo="55", serie="001",
+		numero="000000001", tipo_emissao="1", codigo_numerico="12345678",
+	)
+
+
+class TestCalcularHashEntrega(unittest.TestCase):
+	def test_bate_com_calculo_de_referencia(self):
+		"""Prova o cálculo real: SHA-1 de chave+imagem, recodificado em Base64 -- não
+		um valor arbitrário."""
+		chave = _chave_cte()
+		imagem = "aW1hZ2VtLWZha2U="
+
+		esperado = base64.b64encode(hashlib.sha1((chave + imagem).encode("utf-8")).digest()).decode(
+			"ascii"
+		)
+
+		self.assertEqual(calcular_hash_entrega(chave, imagem), esperado)
+
+	def test_digest_sha1_tem_20_bytes_decodificados(self):
+		"""Confirmado no XSD: base64Binary de comprimento 20 -- o tamanho exato de um
+		digest SHA-1."""
+		hash_calculado = calcular_hash_entrega(_chave_cte(), "qualquer-imagem")
+
+		self.assertEqual(len(base64.b64decode(hash_calculado)), 20)
+
+	def test_chave_invalida_levanta_erro(self):
+		with self.assertRaises(ChaveInvalida):
+			calcular_hash_entrega("chave-invalida", "imagem")
+
+
+class TestMontarEventoComprovanteEntregaCte(unittest.TestCase):
+	def setUp(self):
+		self.chave = _chave_cte()
+		self.evento = montar_evento_comprovante_entrega_cte(
+			chave_acesso=self.chave,
+			protocolo="135260000000001",
+			data_entrega="2026-08-31T15:00:00-03:00",
+			numero_documento_recebedor="123456789",
+			nome_recebedor="João da Silva",
+			imagem_base64="aW1hZ2VtLWZha2U=",
+			data_hash="2026-08-31T15:00:01-03:00",
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-08-31T15:00:02-03:00",
+		)
+
+	def test_tp_evento_e_codigo_proprio_sem_equivalente_na_nfe(self):
+		self.assertEqual(
+			self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE
+		)
+		self.assertEqual(TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE, "110180")
+
+	def test_campos_basicos(self):
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+
+		self.assertEqual(det_evento["descEvento"], "Comprovante de Entrega do CT-e")
+		self.assertEqual(det_evento["nDoc"], "123456789")
+		self.assertEqual(det_evento["xNome"], "João da Silva")
+		self.assertIn("hashEntrega", det_evento)
+		self.assertNotIn("latitude", det_evento)
+		self.assertNotIn("infEntrega", det_evento)
+
+	def test_coordenadas_opcionais_formatadas_com_6_casas(self):
+		evento = montar_evento_comprovante_entrega_cte(
+			chave_acesso=self.chave,
+			protocolo="135260000000001",
+			data_entrega="2026-08-31T15:00:00-03:00",
+			numero_documento_recebedor="123456789",
+			nome_recebedor="João da Silva",
+			imagem_base64="aW1hZ2VtLWZha2U=",
+			data_hash="2026-08-31T15:00:01-03:00",
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-08-31T15:00:02-03:00",
+			latitude=-23.5,
+			longitude=-46.63,
+		)
+
+		det_evento = evento["evento"]["infEvento"]["detEvento"]
+		self.assertEqual(det_evento["latitude"], "-23.500000")
+		self.assertEqual(det_evento["longitude"], "-46.630000")
+
+	def test_latitude_fora_do_intervalo_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_comprovante_entrega_cte(
+				chave_acesso=self.chave,
+				protocolo="135260000000001",
+				data_entrega="2026-08-31T15:00:00-03:00",
+				numero_documento_recebedor="123456789",
+				nome_recebedor="João da Silva",
+				imagem_base64="aW1hZ2VtLWZha2U=",
+				data_hash="2026-08-31T15:00:01-03:00",
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-08-31T15:00:02-03:00",
+				latitude=95.0,
+			)
+
+	def test_infentrega_com_chaves_de_nfe(self):
+		chave_nfe = _chave_nfe()
+
+		evento = montar_evento_comprovante_entrega_cte(
+			chave_acesso=self.chave,
+			protocolo="135260000000001",
+			data_entrega="2026-08-31T15:00:00-03:00",
+			numero_documento_recebedor="123456789",
+			nome_recebedor="João da Silva",
+			imagem_base64="aW1hZ2VtLWZha2U=",
+			data_hash="2026-08-31T15:00:01-03:00",
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-08-31T15:00:02-03:00",
+			chaves_nfe_entregues=[chave_nfe],
+		)
+
+		self.assertEqual(
+			evento["evento"]["infEvento"]["detEvento"]["infEntrega"], [{"chNFe": chave_nfe}]
+		)
+
+	def test_infentrega_recusa_chave_que_nao_e_de_nfe(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_comprovante_entrega_cte(
+				chave_acesso=self.chave,
+				protocolo="135260000000001",
+				data_entrega="2026-08-31T15:00:00-03:00",
+				numero_documento_recebedor="123456789",
+				nome_recebedor="João da Silva",
+				imagem_base64="aW1hZ2VtLWZha2U=",
+				data_hash="2026-08-31T15:00:01-03:00",
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-08-31T15:00:02-03:00",
+				chaves_nfe_entregues=[self.chave],
+			)
+
+	def test_nome_recebedor_curto_demais_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_comprovante_entrega_cte(
+				chave_acesso=self.chave,
+				protocolo="135260000000001",
+				data_entrega="2026-08-31T15:00:00-03:00",
+				numero_documento_recebedor="123456789",
+				nome_recebedor="J",
+				imagem_base64="aW1hZ2VtLWZha2U=",
+				data_hash="2026-08-31T15:00:01-03:00",
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-08-31T15:00:02-03:00",
+			)
+
+	def test_documento_assinado_serializa(self):
+		assinado = assinar_evento(self.evento, AssinadorFalso())
+		xml = para_xml(assinado)
+
+		self.assertIn("<hashEntrega", xml)
+		self.assertIn("<chCTe>", xml)
 
 
 if __name__ == "__main__":

@@ -122,8 +122,8 @@ reaproveitado **sem nenhuma alteração** — já era genérico o bastante.
 - Autorizador/webservice por UF — provavelmente segue o mesmo SVRS/SVSP/próprio já mapeado em
   `docs/transporte-nativo-sefaz.md` para NF-e, mas CT-e pode ter ambiente próprio — não verificado.
 - `infNF` (NF em papel) — deliberadamente não implementado; caso legado, prioridade baixa.
-- Outros eventos sem equivalente na NF-e (encerramento, registro de passagem, prestação em
-  desacordo, EPEC) — não investigados.
+- Outros eventos sem equivalente na NF-e (registro de passagem/GTV, prestação em desacordo,
+  EPEC, insucesso de entrega) — não investigados.
 
 **Evento de cancelamento implementado** (ver `docs/cte-evento-cancelamento.md`): `tpEvento`
 110111 e o corpo de `detEvento` são idênticos à NF-e, mas dois pontos divergem de verdade —
@@ -136,6 +136,12 @@ estruturada de correções campo a campo (`grupoAlterado`/`campoAlterado`/`valor
 `nroItemAlterado`). `xCondUso` cita uma base legal diferente (Art. 58-B do Convênio SINIEF
 06/89, não o Art. 7º do Convênio S/N usado pela NF-e). `tpEvento` (`"110110"`) é o mesmo
 número da NF-e, mesmo o corpo divergindo por completo.
+
+**Comprovante de entrega implementado em seguida** (ver
+`docs/cte-evento-comprovante-entrega.md`): `tpEvento` `"110180"`, código próprio sem
+equivalente na NF-e. `hashEntrega` é um cálculo real (SHA-1 de chave+imagem, recodificado em
+Base64), não um campo de texto livre — confirmado pelo tipo `base64Binary` de 20 bytes no
+XSD, o tamanho exato de um digest SHA-1.
 
 **`toma3`/`toma4` implementados em seguida** (ver `docs/cte-toma.md`): `montar_toma3` (o
 tomador é uma das partes já citadas no CT-e, só valida o código) e `montar_toma4` (tomador

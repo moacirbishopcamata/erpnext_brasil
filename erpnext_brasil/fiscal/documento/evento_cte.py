@@ -1,8 +1,8 @@
 # Copyright (c) 2026, ERPNext Brasil contributors
 # License: MIT. See license.txt
 
-"""Eventos do CT-e: cancelamento (`tpEvento` 110111, `evCancCTe`) e carta de correção
-(`tpEvento` 110110, `evCCeCTe`).
+"""Eventos do CT-e: cancelamento (`tpEvento` 110111, `evCancCTe`), carta de correção
+(`tpEvento` 110110, `evCCeCTe`) e comprovante de entrega (`tpEvento` 110180, `evCECTe`).
 
 Por que existe
 --------------
@@ -61,9 +61,31 @@ Reuso: `assinar_evento` e `EventoInvalido` de `evento.py`, sem alteração
 `evento` já tem) — reaproveitada direto. `EventoInvalido` também: mensagem + campo, nenhuma
 lógica específica de NF-e embutida.
 
+Comprovante de entrega (`tpEvento` 110180) — código próprio, sem equivalente na NF-e
+------------------------------------------------------------------------------------------
+Verificado em `evCECTe_v4.00.xsd` (108 linhas, lido inteiro): quem recebeu a carga confirma
+o recebimento — `nProt` (protocolo do CT-e), `dhEntrega`, `nDoc`/`xNome` (documento e nome de
+quem recebeu), `latitude`/`longitude` opcionais (coordenadas do ponto de entrega, confirmadas
+como string de 6 casas decimais, não decimal puro — `TLatitude`/`TLongitude`), `hashEntrega`
+(obrigatório) e `dhHashEntrega`. `infEntrega` (opcional, até 2000) referencia as NF-e
+efetivamente entregues — mesma chave de acesso já validada em `fiscal.cte.montar_infnfe`,
+reaproveitada aqui via `ler_chave`.
+
+`hashEntrega` é um cálculo real, não um campo de texto livre
+------------------------------------------------------------------------------
+Confirmado no XSD: `base64Binary` de comprimento **20 bytes** — exatamente o tamanho de um
+digest SHA-1 (não coincidência: a documentação do campo descreve o hash como "SHA1 no formato
+Base64 resultante da concatenação: Chave de acesso do CT-e + Base64 da imagem capturada da
+entrega"). `calcular_hash_entrega` implementa esse cálculo de verdade — `hashlib.sha1` sobre
+`chave + imagem_base64` (concatenação de texto, não de bytes brutos: a "imagem capturada" já
+entra como sua própria representação Base64, string), devolvendo o digest de 20 bytes
+recodificado em Base64 (28 caracteres com padding).
+
 Funções puras: nenhuma dependência do Frappe.
 """
 
+import base64
+import hashlib
 from dataclasses import dataclass
 
 from erpnext_brasil.fiscal.cte import NAMESPACE_CTE
@@ -75,18 +97,22 @@ __all__ = [
 	"JUSTIFICATIVA_MAXIMA_CTE",
 	"JUSTIFICATIVA_MINIMA_CTE",
 	"TIPO_EVENTO_CANCELAMENTO_CTE",
+	"TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE",
 	"TIPO_EVENTO_CORRECAO_CTE",
 	"XCONDUSO_CCE_CTE",
 	"CorrecaoCte",
 	"EventoInvalido",
 	"assinar_evento",
+	"calcular_hash_entrega",
 	"montar_env_evento_cte",
 	"montar_evento_cancelamento_cte",
+	"montar_evento_comprovante_entrega_cte",
 	"montar_evento_correcao_cte",
 ]
 
 TIPO_EVENTO_CANCELAMENTO_CTE = "110111"
 TIPO_EVENTO_CORRECAO_CTE = "110110"
+TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE = "110180"
 _VERSAO_LEIAUTE_CTE = "4.00"
 
 # `TJust` do CT-e — diverge do máximo de 256 da NF-e (`estado.JUSTIFICATIVA_MAXIMA`).
@@ -275,6 +301,141 @@ def montar_evento_correcao_cte(
 			"infCorrecao": [_montar_inf_correcao(c) for c in correcoes],
 			"xCondUso": XCONDUSO_CCE_CTE,
 		},
+	}
+
+	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+
+
+def calcular_hash_entrega(chave_acesso: str, imagem_base64: str) -> str:
+	"""Calcula `hashEntrega`: SHA-1 de `chave + imagem_base64` (concatenação de texto),
+	recodificado em Base64 — confirmado no XSD (`base64Binary` de 20 bytes, o tamanho
+	exato de um digest SHA-1).
+
+	`imagem_base64` é a imagem já capturada (assinatura eletrônica, foto) na sua
+	própria representação Base64 — este módulo não decide como ela foi capturada nem
+	codificada, só concatena a string com a chave e aplica o hash.
+	"""
+	chave = validar_chave(chave_acesso)
+	digest = hashlib.sha1((chave + imagem_base64).encode("utf-8")).digest()
+
+	return base64.b64encode(digest).decode("ascii")
+
+
+def _validar_coordenada(valor: float, minimo: float, maximo: float, campo: str) -> str:
+	if not (minimo <= valor <= maximo):
+		raise EventoInvalido(f"{campo} deve estar entre {minimo} e {maximo}, recebido {valor}", campo)
+
+	return f"{valor:.6f}"
+
+
+def montar_evento_comprovante_entrega_cte(
+	chave_acesso: str,
+	protocolo: str,
+	data_entrega: str,
+	numero_documento_recebedor: str,
+	nome_recebedor: str,
+	imagem_base64: str,
+	data_hash: str,
+	cnpj_autor: str,
+	data_evento: str,
+	latitude: float | None = None,
+	longitude: float | None = None,
+	chaves_nfe_entregues: list[str] | None = None,
+	numero_sequencia: int = 1,
+	ambiente: str = "2",
+) -> dict:
+	"""Monta o elemento `evento` (grupo `TEvento`) do comprovante de entrega do CT-e.
+
+	`hashEntrega` é calculado aqui, não recebido pronto — `calcular_hash_entrega` é
+	chamada internamente com a mesma `chave_acesso` e `imagem_base64`, para não haver
+	risco de o hash informado divergir da chave que o evento realmente referencia
+	(mesma disciplina de `nfe.montar_ide` derivar `cDV` da chave, nunca aceitá-lo em
+	paralelo).
+
+	`chaves_nfe_entregues` alimenta `infEntrega` — só faz sentido para CT-e com tipo
+	de serviço Normal (confirmado na documentação do próprio campo); este módulo não
+	verifica isso, é responsabilidade de quem chama saber se o CT-e é desse tipo.
+	"""
+	chave = validar_chave(chave_acesso)
+	lida = ler_chave(chave)
+
+	protocolo_limpo = (protocolo or "").strip()
+
+	if not protocolo_limpo:
+		raise EventoInvalido("O protocolo da autorização é obrigatório", "protocolo")
+
+	if not (2 <= len(numero_documento_recebedor) <= 20):
+		raise EventoInvalido(
+			f"nDoc deve ter de 2 a 20 caracteres, recebido {numero_documento_recebedor!r}",
+			"numero_documento_recebedor",
+		)
+
+	if not (2 <= len(nome_recebedor) <= 60):
+		raise EventoInvalido(
+			f"xNome deve ter de 2 a 60 caracteres, recebido {nome_recebedor!r}", "nome_recebedor"
+		)
+
+	if not (1 <= numero_sequencia <= 20):
+		raise EventoInvalido(
+			f"nSeqEvento deve estar entre 1 e 20, recebido {numero_sequencia}", "numero_sequencia"
+		)
+
+	try:
+		cnpj = validar_cnpj(cnpj_autor)
+	except ValueError as e:
+		raise EventoInvalido(f"CNPJ do autor do evento inválido: {e}", "cnpj_autor") from e
+
+	det_evento: dict = {
+		"@versaoEvento": _VERSAO_LEIAUTE_CTE,
+		"descEvento": "Comprovante de Entrega do CT-e",
+		"nProt": protocolo_limpo,
+		"dhEntrega": data_entrega,
+		"nDoc": numero_documento_recebedor,
+		"xNome": nome_recebedor,
+	}
+
+	if latitude is not None:
+		det_evento["latitude"] = _validar_coordenada(latitude, -90.0, 90.0, "latitude")
+
+	if longitude is not None:
+		det_evento["longitude"] = _validar_coordenada(longitude, -180.0, 180.0, "longitude")
+
+	det_evento["hashEntrega"] = calcular_hash_entrega(chave, imagem_base64)
+	det_evento["dhHashEntrega"] = data_hash
+
+	if chaves_nfe_entregues:
+		if len(chaves_nfe_entregues) > 2000:
+			raise EventoInvalido(
+				f"infEntrega admite no máximo 2000 NF-e, recebidas {len(chaves_nfe_entregues)}",
+				"chaves_nfe_entregues",
+			)
+
+		infs = []
+
+		for chave_nfe in chaves_nfe_entregues:
+			decomposta = ler_chave(chave_nfe)
+
+			if decomposta.modelo != "55":
+				raise EventoInvalido(
+					f"infEntrega só aceita chave de NF-e (modelo 55), recebida chave de modelo "
+					f"{decomposta.modelo} ({decomposta.documento})",
+					"chaves_nfe_entregues",
+				)
+
+			infs.append({"chNFe": decomposta.valor})
+
+		det_evento["infEntrega"] = infs
+
+	inf_evento = {
+		"@Id": _formatar_id_cte(chave, TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE, numero_sequencia),
+		"cOrgao": lida.uf,
+		"tpAmb": ambiente,
+		"CNPJ": cnpj,
+		"chCTe": chave,
+		"dhEvento": data_evento,
+		"tpEvento": TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE,
+		"nSeqEvento": str(numero_sequencia),
+		"detEvento": det_evento,
 	}
 
 	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
