@@ -41,7 +41,11 @@ resultado alimente `montar_infdoc` sem nenhuma tradução a mais.
 3. **Fechado em seguida** — ver `docs/integracao-cte-extracao.md`: `integracao/
    cte_extracao.py::referencias_do_shipment` percorre `Shipment` → `Shipment Delivery Note` →
    `Delivery Note` → `br_chave_acesso` e produz a lista de `ReferenciaDocumentoFiscal`.
-4. Wiring simétrico do lado do CT-e (`Purchase Invoice`/documento de frete → chave de CT-e).
+4. **Fechado em seguida** — ver `docs/integracao-cte-frete.md`: `integracao/
+   cte_extracao.py::referencia_cte_do_documento_frete` extrai e valida (modelo 57) a chave de
+   CT-e de um `Purchase Invoice` de frete já identificado — achado real: `Shipment` não tem
+   link nenhum para `Purchase Invoice`, inventar um seria supor estrutura que o ERPNext não
+   tem.
 
 ## Arquivos
 

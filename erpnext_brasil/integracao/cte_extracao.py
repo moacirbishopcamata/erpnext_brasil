@@ -28,18 +28,33 @@ descartar a referência em silêncio — perder um documento fiscal do `infDoc` 
 de bug que só apareceria na rejeição da SEFAZ (mesma disciplina de "falhar alto" já aplicada a
 `fiscal.mdfe.montar_infdoc`/`montar_ide` em todo o projeto).
 
-Ainda não é a extração inteira
-------------------------------------------------
-Só cobre `Delivery Note` (modelo `"55"`, NF-e) — nenhuma fonte de chave de CT-e (modelo `"57"`)
-existe ainda no lado de quem contrata o transporte (ver item (4), ainda pendente, de
-`docs/integracao-cte-mapeamento.md`).
+Item (4) fechado em seguida: `referencia_cte_do_documento_frete`
+------------------------------------------------------------------------------
+Fecha o item (4) pendente de `docs/integracao-cte-mapeamento.md` — o lado de quem
+**contrata** o transporte (a empresa recebe um CT-e da transportadora, não emite um).
+**Achado real, verificado antes de implementar**: `Shipment` (core do ERPNext,
+`erpnext/stock/doctype/shipment/shipment.json`, lido diretamente) **não tem** nenhum
+campo que vincule um `Purchase Invoice` de frete — `carrier` é texto livre (nome do
+transportador para APIs de courier externas), `pickup_supplier`/`delivery_supplier` não
+amarram fatura nenhuma. Diferente de `referencias_do_shipment` (que tem de onde partir,
+`Shipment Delivery Note`), não existe uma relação de doctype pronta para percorrer do
+lado do CT-e — inventar uma seria supor uma estrutura de dados que o ERPNext não tem.
+
+Por isso `referencia_cte_do_documento_frete` opera sobre um `Purchase Invoice` já
+identificado como fatura de frete (decisão de quem chama, não deste módulo) e faz a
+parte que é responsabilidade de uma extração: ler `br_chave_acesso`, decompor via
+`ler_chave` e **recusar** se a chave não for modelo `"57"` — mesma defesa em
+profundidade já aplicada em `infEntrega`/`infDoc` em todo o projeto (um `Purchase
+Invoice` de frete com uma chave de NF-e colada por engano é exatamente o tipo de erro
+que essa checagem existe para pegar).
 """
 
 import frappe
 
+from erpnext_brasil.fiscal.documento.chave_acesso import ler_chave
 from erpnext_brasil.integracao.mapeamento_cte import ReferenciaDocumentoFiscal
 
-__all__ = ["CteExtracaoInvalida", "referencias_do_shipment"]
+__all__ = ["CteExtracaoInvalida", "referencia_cte_do_documento_frete", "referencias_do_shipment"]
 
 
 class CteExtracaoInvalida(ValueError):
@@ -84,3 +99,36 @@ def referencias_do_shipment(shipment) -> list[ReferenciaDocumentoFiscal]:
 		ReferenciaDocumentoFiscal(chave=chave, modelo="55", municipio_codigo=codigo, municipio_nome=nome)
 		for chave in chaves
 	]
+
+
+def referencia_cte_do_documento_frete(
+	purchase_invoice, municipio_codigo: str, municipio_nome: str
+) -> ReferenciaDocumentoFiscal | None:
+	"""Extrai a referência de CT-e de um `Purchase Invoice` já identificado como
+	fatura de frete (decisão de quem chama — este módulo não descobre isso sozinho,
+	ver docstring do módulo).
+
+	Devolve `None` quando `br_chave_acesso` está vazio — não é erro, é o estado
+	normal antes de a fatura de frete ter a chave preenchida (mesma disciplina de
+	`referencias_do_shipment` devolver lista vazia). `municipio_codigo`/
+	`municipio_nome` não são derivados daqui — o `Purchase Invoice` sozinho não
+	amarra a viagem/`Shipment` a que o frete se refere (achado real, ver docstring do
+	módulo); é responsabilidade de quem chama sabê-los.
+	"""
+	chave = purchase_invoice.get("br_chave_acesso")
+
+	if not chave:
+		return None
+
+	decomposta = ler_chave(chave)
+
+	if decomposta.modelo != "57":
+		raise CteExtracaoInvalida(
+			f"Purchase Invoice {purchase_invoice.name} tem br_chave_acesso de modelo "
+			f"{decomposta.modelo} ({decomposta.documento}), mas uma fatura de frete "
+			f"referencia um CT-e (modelo 57)."
+		)
+
+	return ReferenciaDocumentoFiscal(
+		chave=decomposta.valor, modelo="57", municipio_codigo=municipio_codigo, municipio_nome=municipio_nome
+	)
