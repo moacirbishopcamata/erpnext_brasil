@@ -14,6 +14,9 @@ from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, montar_c
 from erpnext_brasil.fiscal.documento.evento_cte import (
 	JUSTIFICATIVA_MAXIMA_CTE,
 	JUSTIFICATIVA_MINIMA_CTE,
+	DESC_EVENTO_GTV,
+	ESPECIE_GTV_CHEQUE,
+	ESPECIE_GTV_NUMERARIO,
 	MOTIVO_INSUCESSO_ENDERECO_INEXISTENTE,
 	MOTIVO_INSUCESSO_OUTROS,
 	MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO,
@@ -23,12 +26,16 @@ from erpnext_brasil.fiscal.documento.evento_cte import (
 	TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE,
 	TIPO_EVENTO_CORRECAO_CTE,
 	TIPO_EVENTO_EPEC_CTE,
+	TIPO_EVENTO_GTV_CTE,
 	TIPO_EVENTO_INSUCESSO_ENTREGA_CTE,
 	TOMADOR_EPEC_DESTINATARIO,
 	TOMADOR_EPEC_OUTROS,
 	TOMADOR_EPEC_REMETENTE,
 	CorrecaoCte,
+	EspecieGtv,
 	EventoInvalido,
+	InfGtv,
+	ParteGtv,
 	TomadorEpec,
 	assinar_evento,
 	calcular_hash_entrega,
@@ -39,7 +46,9 @@ from erpnext_brasil.fiscal.documento.evento_cte import (
 	montar_evento_cancelamento_cte,
 	montar_evento_correcao_cte,
 	montar_evento_epec_cte,
+	montar_evento_gtv_cte,
 	montar_evento_insucesso_entrega_cte,
+	montar_parte_gtv,
 	montar_tomador_epec,
 )
 from erpnext_brasil.fiscal.documento.serializacao import para_xml
@@ -930,6 +939,188 @@ class TestMontarEventoCancelamentoInsucessoEntregaCte(unittest.TestCase):
 		xml = para_xml(assinado)
 
 		self.assertIn("<nProtIE>", xml)
+		self.assertIn("<chCTe>", xml)
+
+
+def _parte_gtv_padrao(nome: str = "Empresa de Valores Ltda") -> ParteGtv:
+	return ParteGtv(cnpj_cpf=_CNPJ_VALIDO, uf="SP", nome=nome)
+
+
+def _inf_gtv_padrao() -> InfGtv:
+	return InfGtv(
+		numero_documento="12345",
+		identificador="AIDF-001",
+		data_emissao="2026-09-02",
+		digito_verificador="7",
+		quantidade_carga="10",
+		especies=[EspecieGtv(tipo_especie=ESPECIE_GTV_NUMERARIO, valor_especie="50000.00")],
+		remetente=_parte_gtv_padrao("Remetente de Valores Ltda"),
+		destinatario=_parte_gtv_padrao("Destinatário de Valores Ltda"),
+	)
+
+
+class TestEspecieGtv(unittest.TestCase):
+	def test_tipo_valido(self):
+		especie = EspecieGtv(tipo_especie=ESPECIE_GTV_NUMERARIO)
+		self.assertEqual(especie.tipo_especie, ESPECIE_GTV_NUMERARIO)
+
+	def test_tipo_invalido_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			EspecieGtv(tipo_especie="9")
+
+
+class TestMontarParteGtv(unittest.TestCase):
+	def test_cnpj_valido(self):
+		grupo = montar_parte_gtv(_parte_gtv_padrao())
+
+		self.assertEqual(grupo["CNPJ"], _CNPJ_VALIDO)
+		self.assertNotIn("CPF", grupo)
+		self.assertEqual(grupo["UF"], "SP")
+		self.assertEqual(grupo["xNome"], "Empresa de Valores Ltda")
+
+	def test_cpf_valido(self):
+		grupo = montar_parte_gtv(ParteGtv(cnpj_cpf="11144477735", uf="SP", nome="Fulano de Tal"))
+
+		self.assertEqual(grupo["CPF"], "11144477735")
+		self.assertNotIn("CNPJ", grupo)
+
+	def test_ie_opcional(self):
+		grupo = montar_parte_gtv(
+			ParteGtv(cnpj_cpf=_CNPJ_VALIDO, uf="SP", nome="Empresa Ltda", inscricao_estadual="123")
+		)
+		self.assertEqual(grupo["IE"], "123")
+
+	def test_nome_curto_demais_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_parte_gtv(ParteGtv(cnpj_cpf=_CNPJ_VALIDO, uf="SP", nome="A"))
+
+	def test_documento_invalido_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_parte_gtv(ParteGtv(cnpj_cpf="0", uf="SP", nome="Empresa Ltda"))
+
+
+class TestInfGtv(unittest.TestCase):
+	def test_sem_especie_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			InfGtv(
+				numero_documento="12345",
+				identificador="AIDF-001",
+				data_emissao="2026-09-02",
+				digito_verificador="7",
+				quantidade_carga="10",
+				especies=[],
+				remetente=_parte_gtv_padrao(),
+				destinatario=_parte_gtv_padrao(),
+			)
+
+	def test_ndv_com_mais_de_1_caractere_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			InfGtv(
+				numero_documento="12345",
+				identificador="AIDF-001",
+				data_emissao="2026-09-02",
+				digito_verificador="77",
+				quantidade_carga="10",
+				especies=[EspecieGtv(tipo_especie=ESPECIE_GTV_NUMERARIO)],
+				remetente=_parte_gtv_padrao(),
+				destinatario=_parte_gtv_padrao(),
+			)
+
+
+class TestMontarEventoGtvCte(unittest.TestCase):
+	def setUp(self):
+		self.chave = _chave_cte()
+		self.evento = montar_evento_gtv_cte(
+			chave_acesso=self.chave,
+			guias=[_inf_gtv_padrao()],
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-09-02T17:00:00-03:00",
+		)
+
+	def test_tp_evento_e_110170(self):
+		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_GTV_CTE)
+		self.assertEqual(TIPO_EVENTO_GTV_CTE, "110170")
+
+	def test_desc_evento_usa_forma_acentuada(self):
+		"""Achado real: o XSD aceita as duas grafias ('Informações'/'Informacoes') --
+		este projeto sempre grava a acentuada."""
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		self.assertEqual(det_evento["descEvento"], "Informações da GTV")
+		self.assertEqual(DESC_EVENTO_GTV, "Informações da GTV")
+
+	def test_infgtv_e_uma_lista(self):
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		self.assertEqual(len(det_evento["infGTV"]), 1)
+
+		inf_gtv = det_evento["infGTV"][0]
+		self.assertEqual(inf_gtv["nDoc"], "12345")
+		self.assertEqual(inf_gtv["id"], "AIDF-001")
+		self.assertEqual(inf_gtv["nDV"], "7")
+		self.assertNotIn("serie", inf_gtv)
+
+	def test_multiplas_guias_no_mesmo_evento(self):
+		outra = InfGtv(
+			numero_documento="99999",
+			identificador="AIDF-002",
+			data_emissao="2026-09-02",
+			digito_verificador="3",
+			quantidade_carga="5",
+			especies=[EspecieGtv(tipo_especie=ESPECIE_GTV_CHEQUE, valor_especie="1000.00")],
+			remetente=_parte_gtv_padrao(),
+			destinatario=_parte_gtv_padrao(),
+			serie="1",
+			placa="ABC1234",
+			rntrc="12345678",
+		)
+
+		evento = montar_evento_gtv_cte(
+			chave_acesso=self.chave,
+			guias=[_inf_gtv_padrao(), outra],
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-09-02T17:00:00-03:00",
+		)
+
+		inf_gtv_list = evento["evento"]["infEvento"]["detEvento"]["infGTV"]
+		self.assertEqual(len(inf_gtv_list), 2)
+		self.assertEqual(inf_gtv_list[1]["serie"], "1")
+		self.assertEqual(inf_gtv_list[1]["placa"], "ABC1234")
+		self.assertEqual(inf_gtv_list[1]["RNTRC"], "12345678")
+
+	def test_rntrc_reaproveita_validar_rntrc(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_gtv_cte(
+				chave_acesso=self.chave,
+				guias=[
+					InfGtv(
+						numero_documento="12345",
+						identificador="AIDF-001",
+						data_emissao="2026-09-02",
+						digito_verificador="7",
+						quantidade_carga="10",
+						especies=[EspecieGtv(tipo_especie=ESPECIE_GTV_NUMERARIO)],
+						remetente=_parte_gtv_padrao(),
+						destinatario=_parte_gtv_padrao(),
+						rntrc="123",
+					)
+				],
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T17:00:00-03:00",
+			)
+
+	def test_sem_guias_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_gtv_cte(
+				chave_acesso=self.chave,
+				guias=[],
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T17:00:00-03:00",
+			)
+
+	def test_documento_assinado_serializa(self):
+		assinado = assinar_evento(self.evento, AssinadorFalso())
+		xml = para_xml(assinado)
+
+		self.assertIn("<infGTV>", xml)
 		self.assertIn("<chCTe>", xml)
 
 

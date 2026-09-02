@@ -4,8 +4,9 @@
 """Eventos do CT-e: cancelamento (`tpEvento` 110111, `evCancCTe`), carta de correção
 (`tpEvento` 110110, `evCCeCTe`), comprovante de entrega (`tpEvento` 110180, `evCECTe`),
 EPEC (`tpEvento` 110113, `evEPECCTe`), cancelamento do comprovante de entrega (`tpEvento`
-110181, `evCancCECTe`), insucesso na entrega (`tpEvento` 110190, `evIECTe`) e cancelamento
-do insucesso na entrega (`tpEvento` 110191, `evCancIECTe`).
+110181, `evCancCECTe`), insucesso na entrega (`tpEvento` 110190, `evIECTe`), cancelamento
+do insucesso na entrega (`tpEvento` 110191, `evCancIECTe`) e informações da GTV (`tpEvento`
+110170, `evGTV`).
 
 Por que existe
 --------------
@@ -148,6 +149,36 @@ malsucedida pode não ter conseguido capturar imagem nenhuma do local. O cálcul
 informado, é o mesmo SHA-1+Base64 de `calcular_hash_entrega` — reaproveitado sem alteração
 (o nome do campo muda, o algoritmo não).
 
+Informações da GTV (`tpEvento` 110170, `evGTV`) — para o CT-e de transporte de valores
+------------------------------------------------------------------------------------------
+Verificado em `evGTV_v4.00.xsd` (255 linhas, lido inteiro): registra os documentos GTV
+(Guia de Transporte de Valores, o documento que acoberta o transporte de numerário/cheque/
+moeda para o setor de valores) efetivamente transportados por um CT-e. `infGTV` é uma lista
+(`maxOccurs="unbounded"`) — um único evento pode reportar várias GTV. Cada item tem `nDoc`
+(número, 1-20 caracteres), `id` (identificador para diferenciar GTV de mesmo número — AIDF
+ou identificador interno), `serie`/`subserie` (opcionais, 1-3), `dEmi`, `nDV` (dígito
+verificador, exatamente 1 caractere), `qCarga` (quantidade de volumes/malotes),
+`infEspecie` (lista, ao menos uma — tipo de espécie 1-Numerário/2-Cheque/3-Moeda/4-Outros,
+com `vEspecie` opcional), `rem`/`dest` (remetente/destinatário — mesma forma exata:
+CNPJ/CPF, IE opcional, UF, `xNome`), `placa`/`UF`(do veículo)/`RNTRC` (todos opcionais).
+
+**Achado real**: `descEvento` tem **duas** enumerações válidas no XSD — `"Informações da
+GTV"` (com acento) e `"Informacoes da GTV"` (sem acento) — não é erro de digitação deste
+projeto, é o próprio schema aceitando as duas grafias. Este módulo sempre **grava** a forma
+acentuada (`"Informações da GTV"`), consistente com o restante do projeto, mas documenta a
+divergência para quem for validar contra um XML de terceiro que use a grafia sem acento.
+
+**Reuso**: `validar_rntrc`/`RntrcInvalido` de `fiscal.cte_rodoviario` (mesmo `RNTRC`,
+mesmo padrão `[0-9]{8}|ISENTO`, sem inventar validação nova). `rem`/`dest` compartilham a
+mesma forma exata no XSD — modelados com um único tipo, `ParteGtv`, montado por uma única
+função, em vez de duas classes idênticas com nomes diferentes.
+
+**Fora de escopo, documentado**: `CNPJ` de `rem`/`dest` é `TCnpjOpc`, que aceita
+`"00000000000000"` para remetente/destinatário não estabelecido no Brasil — `validar_cnpj`
+deste projeto rejeita ativamente CNPJ com todos os dígitos iguais (incluindo zeros), por
+desenho (ver `fiscal/validators.py`). Este evento não abre uma exceção para esse caso —
+GTV de remetente/destinatário estrangeiro não é suportado por enquanto.
+
 Funções puras: nenhuma dependência do Frappe.
 """
 
@@ -165,11 +196,17 @@ from erpnext_brasil.fiscal.cte import (
 	NAMESPACE_CTE,
 	TIPO_CTE_NORMAL,
 )
+from erpnext_brasil.fiscal.cte_rodoviario import RntrcInvalido, validar_rntrc
 from erpnext_brasil.fiscal.documento.chave_acesso import ler_chave, validar_chave
 from erpnext_brasil.fiscal.documento.evento import EventoInvalido, assinar_evento
 from erpnext_brasil.fiscal.validators import validar_cnpj, validar_cpf_cnpj
 
 __all__ = [
+	"DESC_EVENTO_GTV",
+	"ESPECIE_GTV_CHEQUE",
+	"ESPECIE_GTV_MOEDA",
+	"ESPECIE_GTV_NUMERARIO",
+	"ESPECIE_GTV_OUTROS",
 	"JUSTIFICATIVA_MAXIMA_CTE",
 	"JUSTIFICATIVA_MINIMA_CTE",
 	"MOTIVO_INSUCESSO_ENDERECO_INEXISTENTE",
@@ -182,6 +219,7 @@ __all__ = [
 	"TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE",
 	"TIPO_EVENTO_CORRECAO_CTE",
 	"TIPO_EVENTO_EPEC_CTE",
+	"TIPO_EVENTO_GTV_CTE",
 	"TIPO_EVENTO_INSUCESSO_ENTREGA_CTE",
 	"TOMADOR_EPEC_DESTINATARIO",
 	"TOMADOR_EPEC_EXPEDIDOR",
@@ -192,7 +230,10 @@ __all__ = [
 	"XJUSTMOTIVO_MAXIMO_IE_CTE",
 	"XJUSTMOTIVO_MINIMO_IE_CTE",
 	"CorrecaoCte",
+	"EspecieGtv",
 	"EventoInvalido",
+	"InfGtv",
+	"ParteGtv",
 	"TomadorEpec",
 	"assinar_evento",
 	"calcular_hash_entrega",
@@ -203,7 +244,9 @@ __all__ = [
 	"montar_evento_comprovante_entrega_cte",
 	"montar_evento_correcao_cte",
 	"montar_evento_epec_cte",
+	"montar_evento_gtv_cte",
 	"montar_evento_insucesso_entrega_cte",
+	"montar_parte_gtv",
 	"montar_tomador_epec",
 ]
 
@@ -214,6 +257,20 @@ TIPO_EVENTO_EPEC_CTE = "110113"
 TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE = "110181"
 TIPO_EVENTO_INSUCESSO_ENTREGA_CTE = "110190"
 TIPO_EVENTO_CANCELAMENTO_INSUCESSO_ENTREGA_CTE = "110191"
+TIPO_EVENTO_GTV_CTE = "110170"
+
+# Achado real: o XSD aceita as duas grafias ("Informações"/"Informacoes") -- ver docstring
+# do módulo. Este projeto sempre grava a forma acentuada.
+DESC_EVENTO_GTV = "Informações da GTV"
+
+ESPECIE_GTV_NUMERARIO = "1"
+ESPECIE_GTV_CHEQUE = "2"
+ESPECIE_GTV_MOEDA = "3"
+ESPECIE_GTV_OUTROS = "4"
+
+_ESPECIES_GTV_VALIDAS = {
+	ESPECIE_GTV_NUMERARIO, ESPECIE_GTV_CHEQUE, ESPECIE_GTV_MOEDA, ESPECIE_GTV_OUTROS,
+}
 
 MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO = "1"
 MOTIVO_INSUCESSO_RECUSA_RECEBEDOR = "2"
@@ -944,6 +1001,207 @@ def montar_evento_insucesso_entrega_cte(
 		"tpEvento": TIPO_EVENTO_INSUCESSO_ENTREGA_CTE,
 		"nSeqEvento": str(numero_sequencia),
 		"detEvento": det_evento,
+	}
+
+	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+
+
+@dataclass(frozen=True)
+class EspecieGtv:
+	"""Um item de `infEspecie` — tipo de espécie transportada (numerário/cheque/moeda/
+	outros) e, opcionalmente, o valor transportado naquela espécie."""
+
+	tipo_especie: str
+	valor_especie: str | None = None
+
+	def __post_init__(self):
+		if self.tipo_especie not in _ESPECIES_GTV_VALIDAS:
+			raise EventoInvalido(
+				f"tpEspecie deve ser um de {sorted(_ESPECIES_GTV_VALIDAS)}, "
+				f"recebido {self.tipo_especie!r}",
+				"tipo_especie",
+			)
+
+
+@dataclass(frozen=True)
+class ParteGtv:
+	"""`rem`/`dest` da GTV compartilham exatamente a mesma forma no XSD — um único tipo,
+	não duas classes idênticas com nomes diferentes."""
+
+	cnpj_cpf: str
+	uf: str
+	nome: str
+	inscricao_estadual: str = ""
+
+
+@dataclass(frozen=True)
+class InfGtv:
+	"""Um item de `infGTV` — uma Guia de Transporte de Valores transportada pelo CT-e."""
+
+	numero_documento: str
+	identificador: str
+	data_emissao: str
+	digito_verificador: str
+	quantidade_carga: str
+	especies: list[EspecieGtv]
+	remetente: ParteGtv
+	destinatario: ParteGtv
+	serie: str | None = None
+	subserie: str | None = None
+	placa: str | None = None
+	uf_veiculo: str | None = None
+	rntrc: str | None = None
+
+	def __post_init__(self):
+		if not (1 <= len(self.numero_documento) <= 20):
+			raise EventoInvalido(
+				f"nDoc deve ter de 1 a 20 caracteres, recebido {self.numero_documento!r}",
+				"numero_documento",
+			)
+
+		if not (1 <= len(self.identificador) <= 20):
+			raise EventoInvalido(
+				f"id deve ter de 1 a 20 caracteres, recebido {self.identificador!r}", "identificador"
+			)
+
+		if len(self.digito_verificador) != 1:
+			raise EventoInvalido(
+				f"nDV deve ter exatamente 1 caractere, recebido {self.digito_verificador!r}",
+				"digito_verificador",
+			)
+
+		if not self.especies:
+			raise EventoInvalido("infEspecie precisa de ao menos uma espécie", "especies")
+
+		if self.serie is not None and not (1 <= len(self.serie) <= 3):
+			raise EventoInvalido(f"serie deve ter de 1 a 3 caracteres, recebido {self.serie!r}", "serie")
+
+		if self.subserie is not None and not (1 <= len(self.subserie) <= 3):
+			raise EventoInvalido(
+				f"subserie deve ter de 1 a 3 caracteres, recebido {self.subserie!r}", "subserie"
+			)
+
+
+def montar_parte_gtv(parte: ParteGtv) -> dict:
+	"""Monta `rem`/`dest` da GTV — CNPJ/CPF exclusivo, ordem exata do `xs:sequence`
+	(CNPJ|CPF, IE opcional, UF, xNome).
+
+	Fora de escopo, documentado: `TCnpjOpc` aceita `"00000000000000"` para
+	remetente/destinatário não estabelecido no Brasil — `validar_cnpj` deste projeto
+	rejeita ativamente CNPJ com todos os dígitos iguais, por desenho. Remetente/
+	destinatário estrangeiro não é suportado por este módulo.
+	"""
+	try:
+		documento = validar_cpf_cnpj(parte.cnpj_cpf)
+	except ValueError as e:
+		raise EventoInvalido(f"CPF/CNPJ da GTV inválido: {e}", "cnpj_cpf") from e
+
+	if not (2 <= len(parte.nome) <= 60):
+		raise EventoInvalido(f"xNome deve ter de 2 a 60 caracteres, recebido {parte.nome!r}", "nome")
+
+	grupo: dict = {}
+	grupo["CNPJ" if len(documento) == 14 else "CPF"] = documento
+
+	if parte.inscricao_estadual.strip():
+		grupo["IE"] = parte.inscricao_estadual.strip()
+
+	grupo["UF"] = parte.uf
+	grupo["xNome"] = parte.nome
+
+	return grupo
+
+
+def _montar_inf_gtv(inf: InfGtv) -> dict:
+	grupo: dict = {"nDoc": inf.numero_documento, "id": inf.identificador}
+
+	if inf.serie is not None:
+		grupo["serie"] = inf.serie
+
+	if inf.subserie is not None:
+		grupo["subserie"] = inf.subserie
+
+	grupo["dEmi"] = inf.data_emissao
+	grupo["nDV"] = inf.digito_verificador
+	grupo["qCarga"] = str(inf.quantidade_carga)
+
+	infs_especie = []
+
+	for especie in inf.especies:
+		item: dict = {"tpEspecie": especie.tipo_especie}
+
+		if especie.valor_especie is not None:
+			item["vEspecie"] = str(especie.valor_especie)
+
+		infs_especie.append(item)
+
+	grupo["infEspecie"] = infs_especie
+	grupo["rem"] = montar_parte_gtv(inf.remetente)
+	grupo["dest"] = montar_parte_gtv(inf.destinatario)
+
+	if inf.placa is not None:
+		placa_limpa = inf.placa.strip().upper()
+
+		if not placa_limpa:
+			raise EventoInvalido("placa não pode ser vazia quando informada", "placa")
+
+		grupo["placa"] = placa_limpa
+
+	if inf.uf_veiculo is not None:
+		grupo["UF"] = inf.uf_veiculo
+
+	if inf.rntrc is not None:
+		try:
+			grupo["RNTRC"] = validar_rntrc(inf.rntrc)
+		except RntrcInvalido as e:
+			raise EventoInvalido(str(e), "rntrc") from e
+
+	return grupo
+
+
+def montar_evento_gtv_cte(
+	chave_acesso: str,
+	guias: list[InfGtv],
+	cnpj_autor: str,
+	data_evento: str,
+	numero_sequencia: int = 1,
+	ambiente: str = "2",
+) -> dict:
+	"""Monta o elemento `evento` (grupo `TEvento`) das informações da GTV do CT-e.
+
+	`guias` é a lista de `infGTV` — um único evento pode reportar várias Guias de
+	Transporte de Valores transportadas pelo mesmo CT-e (`maxOccurs="unbounded"` no
+	XSD, sem limite declarado).
+	"""
+	chave = validar_chave(chave_acesso)
+	lida = ler_chave(chave)
+
+	if not guias:
+		raise EventoInvalido("O evento de GTV precisa de ao menos uma guia", "guias")
+
+	if not (1 <= numero_sequencia <= 20):
+		raise EventoInvalido(
+			f"nSeqEvento deve estar entre 1 e 20, recebido {numero_sequencia}", "numero_sequencia"
+		)
+
+	try:
+		cnpj = validar_cnpj(cnpj_autor)
+	except ValueError as e:
+		raise EventoInvalido(f"CNPJ do autor do evento inválido: {e}", "cnpj_autor") from e
+
+	inf_evento = {
+		"@Id": _formatar_id_cte(chave, TIPO_EVENTO_GTV_CTE, numero_sequencia),
+		"cOrgao": lida.uf,
+		"tpAmb": ambiente,
+		"CNPJ": cnpj,
+		"chCTe": chave,
+		"dhEvento": data_evento,
+		"tpEvento": TIPO_EVENTO_GTV_CTE,
+		"nSeqEvento": str(numero_sequencia),
+		"detEvento": {
+			"@versaoEvento": _VERSAO_LEIAUTE_CTE,
+			"descEvento": DESC_EVENTO_GTV,
+			"infGTV": [_montar_inf_gtv(g) for g in guias],
+		},
 	}
 
 	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}

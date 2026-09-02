@@ -122,9 +122,9 @@ reaproveitado **sem nenhuma alteração** — já era genérico o bastante.
 - Autorizador/webservice por UF — provavelmente segue o mesmo SVRS/SVSP/próprio já mapeado em
   `docs/transporte-nativo-sefaz.md` para NF-e, mas CT-e pode ter ambiente próprio — não verificado.
 - `infNF` (NF em papel) — deliberadamente não implementado; caso legado, prioridade baixa.
-- Outros eventos sem equivalente na NF-e (registro de passagem/GTV, prestação em desacordo/
-  cancelamento de prestação em desacordo, registro multimodal) — não investigados. São os
-  últimos três dos onze eventos de `schemes/PL_CTe_400` no `nfephp-org/sped-cte`.
+- Outros eventos sem equivalente na NF-e (prestação em desacordo/cancelamento de prestação em
+  desacordo, registro multimodal) — não investigados. São os últimos dois dos onze eventos de
+  `schemes/PL_CTe_400` no `nfephp-org/sped-cte`.
 
 **Evento de cancelamento implementado** (ver `docs/cte-evento-cancelamento.md`): `tpEvento`
 110111 e o corpo de `detEvento` são idênticos à NF-e, mas dois pontos divergem de verdade —
@@ -170,6 +170,14 @@ estruturalmente idêntico ao cancelamento do comprovante de entrega — só o no
 segundo protocolo (`nProtIE`, não `nProtCE`) e o texto de `descEvento` mudam. Reuso real (não
 especulativo, é a segunda instância confirmada da mesma forma):
 `_montar_evento_cancelamento_protocolo`, função privada comum às duas.
+
+**Informações da GTV implementadas em seguida** (ver `docs/cte-evento-gtv.md`): `tpEvento`
+`"110170"`, registra as Guias de Transporte de Valores transportadas — sem equivalente na
+NF-e. Achado real: `descEvento` aceita duas grafias válidas no próprio XSD (`"Informações"`/
+`"Informacoes"`) — este projeto sempre grava a acentuada. Reuso: `validar_rntrc` de
+`cte_rodoviario` (mesmo RNTRC), `ParteGtv`/`montar_parte_gtv` únicos para `rem`/`dest` (mesma
+forma exata). Fora de escopo documentado: remetente/destinatário estrangeiro (`TCnpjOpc` com
+CNPJ de zeros), que `validar_cnpj` deste projeto rejeita por desenho.
 
 **`toma3`/`toma4` implementados em seguida** (ver `docs/cte-toma.md`): `montar_toma3` (o
 tomador é uma das partes já citadas no CT-e, só valida o código) e `montar_toma4` (tomador
