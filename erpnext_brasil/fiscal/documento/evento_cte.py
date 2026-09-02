@@ -5,8 +5,9 @@
 (`tpEvento` 110110, `evCCeCTe`), comprovante de entrega (`tpEvento` 110180, `evCECTe`),
 EPEC (`tpEvento` 110113, `evEPECCTe`), cancelamento do comprovante de entrega (`tpEvento`
 110181, `evCancCECTe`), insucesso na entrega (`tpEvento` 110190, `evIECTe`), cancelamento
-do insucesso na entrega (`tpEvento` 110191, `evCancIECTe`) e informações da GTV (`tpEvento`
-110170, `evGTV`).
+do insucesso na entrega (`tpEvento` 110191, `evCancIECTe`), informações da GTV (`tpEvento`
+110170, `evGTV`), prestação do serviço em desacordo (`tpEvento` 610110, `evPrestDesacordo`)
+e seu cancelamento (`tpEvento` 610111, `evCancPrestDesacordo`).
 
 Por que existe
 --------------
@@ -179,6 +180,31 @@ deste projeto rejeita ativamente CNPJ com todos os dígitos iguais (incluindo ze
 desenho (ver `fiscal/validators.py`). Este evento não abre uma exceção para esse caso —
 GTV de remetente/destinatário estrangeiro não é suportado por enquanto.
 
+Prestação em desacordo (`tpEvento` 610110) e seu cancelamento (`tpEvento` 610111) —
+achado real: primeiro `tpEvento` fora da família `110xxx`
+------------------------------------------------------------------------------------------
+Verificado em `evPrestDesacordo_v4.00.xsd` (49 linhas, lido inteiro) e
+`evCancPrestDesacordo_v4.00.xsd` (32 linhas, lido inteiro). **Achado real, confirmado, não
+suposto**: todos os oito eventos anteriores desta frente têm `tpEvento` no padrão `110xxx`
+(cancelamento, CC-e, comprovante de entrega, EPEC, cancelamento do comprovante de entrega,
+insucesso na entrega, cancelamento do insucesso na entrega, GTV). Este é o primeiro no
+padrão **`610xxx`** — `"610110"` e `"610111"`. O prefixo diferente não muda nada na
+composição do `@Id` (ainda 6 dígitos de `tpEvento`), mas é um lembrete de que não dá para
+supor a faixa de código de um evento pelo padrão dos anteriores — cada tipo de evento do
+CT-e tem seu próprio código, sem relação sequencial garantida com os demais.
+
+`evPrestDesacordo` (o tomador reporta desacordo com a prestação): `indDesacordoOper` é uma
+enumeração de **um único valor** (`"1"`) — campo aparentemente supérfluo (só existe um valor
+possível), mantido porque é assim que o XSD define. `xObs` (observações do tomador,
+15-255 caracteres) segue o mesmo padrão de "duas grafias" já visto em `evGTV` para
+`descEvento` (`"Prestação"`/`"Prestacao"`) — este módulo grava a forma acentuada.
+
+`evCancPrestDesacordo` **diverge da forma dos cancelamentos anteriores**: `evCancCECTe`/
+`evCancIECTe` carregam dois protocolos (`nProt` do CT-e + o protocolo do evento cancelado).
+Este cancelamento carrega **só um**, `nProtEvPrestDes` (o protocolo do `evPrestDesacordo`
+sendo cancelado) — sem `nProt` do CT-e. Por isso **não** reaproveita
+`_montar_evento_cancelamento_protocolo` (que exige os dois protocolos); é uma função própria.
+
 Funções puras: nenhuma dependência do Frappe.
 """
 
@@ -207,6 +233,7 @@ __all__ = [
 	"ESPECIE_GTV_MOEDA",
 	"ESPECIE_GTV_NUMERARIO",
 	"ESPECIE_GTV_OUTROS",
+	"INDICADOR_DESACORDO_OPERACAO",
 	"JUSTIFICATIVA_MAXIMA_CTE",
 	"JUSTIFICATIVA_MINIMA_CTE",
 	"MOTIVO_INSUCESSO_ENDERECO_INEXISTENTE",
@@ -216,11 +243,13 @@ __all__ = [
 	"TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE",
 	"TIPO_EVENTO_CANCELAMENTO_CTE",
 	"TIPO_EVENTO_CANCELAMENTO_INSUCESSO_ENTREGA_CTE",
+	"TIPO_EVENTO_CANCELAMENTO_PRESTACAO_DESACORDO_CTE",
 	"TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE",
 	"TIPO_EVENTO_CORRECAO_CTE",
 	"TIPO_EVENTO_EPEC_CTE",
 	"TIPO_EVENTO_GTV_CTE",
 	"TIPO_EVENTO_INSUCESSO_ENTREGA_CTE",
+	"TIPO_EVENTO_PRESTACAO_DESACORDO_CTE",
 	"TOMADOR_EPEC_DESTINATARIO",
 	"TOMADOR_EPEC_EXPEDIDOR",
 	"TOMADOR_EPEC_OUTROS",
@@ -229,6 +258,8 @@ __all__ = [
 	"XCONDUSO_CCE_CTE",
 	"XJUSTMOTIVO_MAXIMO_IE_CTE",
 	"XJUSTMOTIVO_MINIMO_IE_CTE",
+	"XOBS_MAXIMO_DESACORDO_CTE",
+	"XOBS_MINIMO_DESACORDO_CTE",
 	"CorrecaoCte",
 	"EspecieGtv",
 	"EventoInvalido",
@@ -241,11 +272,13 @@ __all__ = [
 	"montar_evento_cancelamento_comprovante_entrega_cte",
 	"montar_evento_cancelamento_cte",
 	"montar_evento_cancelamento_insucesso_entrega_cte",
+	"montar_evento_cancelamento_prestacao_desacordo_cte",
 	"montar_evento_comprovante_entrega_cte",
 	"montar_evento_correcao_cte",
 	"montar_evento_epec_cte",
 	"montar_evento_gtv_cte",
 	"montar_evento_insucesso_entrega_cte",
+	"montar_evento_prestacao_desacordo_cte",
 	"montar_parte_gtv",
 	"montar_tomador_epec",
 ]
@@ -271,6 +304,17 @@ ESPECIE_GTV_OUTROS = "4"
 _ESPECIES_GTV_VALIDAS = {
 	ESPECIE_GTV_NUMERARIO, ESPECIE_GTV_CHEQUE, ESPECIE_GTV_MOEDA, ESPECIE_GTV_OUTROS,
 }
+
+# Achado real: primeiro tpEvento fora da família "110xxx" desta frente -- ver docstring.
+TIPO_EVENTO_PRESTACAO_DESACORDO_CTE = "610110"
+TIPO_EVENTO_CANCELAMENTO_PRESTACAO_DESACORDO_CTE = "610111"
+
+# indDesacordoOper é uma enumeração de um único valor no XSD -- mantido por fidelidade ao
+# schema, não porque faça sentido sozinho.
+INDICADOR_DESACORDO_OPERACAO = "1"
+
+XOBS_MINIMO_DESACORDO_CTE = 15
+XOBS_MAXIMO_DESACORDO_CTE = 255
 
 MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO = "1"
 MOTIVO_INSUCESSO_RECUSA_RECEBEDOR = "2"
@@ -1201,6 +1245,122 @@ def montar_evento_gtv_cte(
 			"@versaoEvento": _VERSAO_LEIAUTE_CTE,
 			"descEvento": DESC_EVENTO_GTV,
 			"infGTV": [_montar_inf_gtv(g) for g in guias],
+		},
+	}
+
+	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+
+
+def montar_evento_prestacao_desacordo_cte(
+	chave_acesso: str,
+	observacao: str,
+	cnpj_autor: str,
+	data_evento: str,
+	numero_sequencia: int = 1,
+	ambiente: str = "2",
+) -> dict:
+	"""Monta o elemento `evento` (grupo `TEvento`) da prestação do serviço em
+	desacordo (`tpEvento` 610110) — o tomador reporta desacordo com a prestação.
+
+	`indDesacordoOper` sempre grava `INDICADOR_DESACORDO_OPERACAO` ("1"), o único
+	valor que o XSD permite — não é parâmetro da função, mesma disciplina de `tpCTe`
+	no EPEC (sempre fixado, não deixado para o chamador acertar por conta própria).
+	"""
+	chave = validar_chave(chave_acesso)
+	lida = ler_chave(chave)
+
+	texto_observacao = (observacao or "").strip()
+
+	if not (XOBS_MINIMO_DESACORDO_CTE <= len(texto_observacao) <= XOBS_MAXIMO_DESACORDO_CTE):
+		raise EventoInvalido(
+			f"xObs deve ter de {XOBS_MINIMO_DESACORDO_CTE} a {XOBS_MAXIMO_DESACORDO_CTE} "
+			f"caracteres, recebidos {len(texto_observacao)}",
+			"observacao",
+		)
+
+	if not (1 <= numero_sequencia <= 20):
+		raise EventoInvalido(
+			f"nSeqEvento deve estar entre 1 e 20, recebido {numero_sequencia}", "numero_sequencia"
+		)
+
+	try:
+		cnpj = validar_cnpj(cnpj_autor)
+	except ValueError as e:
+		raise EventoInvalido(f"CNPJ do autor do evento inválido: {e}", "cnpj_autor") from e
+
+	inf_evento = {
+		"@Id": _formatar_id_cte(chave, TIPO_EVENTO_PRESTACAO_DESACORDO_CTE, numero_sequencia),
+		"cOrgao": lida.uf,
+		"tpAmb": ambiente,
+		"CNPJ": cnpj,
+		"chCTe": chave,
+		"dhEvento": data_evento,
+		"tpEvento": TIPO_EVENTO_PRESTACAO_DESACORDO_CTE,
+		"nSeqEvento": str(numero_sequencia),
+		"detEvento": {
+			"@versaoEvento": _VERSAO_LEIAUTE_CTE,
+			"descEvento": "Prestação do Serviço em Desacordo",
+			"indDesacordoOper": INDICADOR_DESACORDO_OPERACAO,
+			"xObs": texto_observacao,
+		},
+	}
+
+	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+
+
+def montar_evento_cancelamento_prestacao_desacordo_cte(
+	chave_acesso: str,
+	protocolo_prestacao_desacordo: str,
+	cnpj_autor: str,
+	data_evento: str,
+	numero_sequencia: int = 1,
+	ambiente: str = "2",
+) -> dict:
+	"""Monta o elemento `evento` (grupo `TEvento`) do cancelamento da prestação em
+	desacordo (`tpEvento` 610111).
+
+	Achado real: diferente de `evCancCECTe`/`evCancIECTe` (que carregam `nProt` do
+	CT-e **e** o protocolo do evento cancelado), este cancelamento carrega **só**
+	`nProtEvPrestDes` — sem `nProt` do CT-e. Por isso não reaproveita
+	`_montar_evento_cancelamento_protocolo` (que exige os dois protocolos); é uma
+	função própria.
+	"""
+	chave = validar_chave(chave_acesso)
+	lida = ler_chave(chave)
+
+	protocolo_limpo = (protocolo_prestacao_desacordo or "").strip()
+
+	if not protocolo_limpo:
+		raise EventoInvalido(
+			"O protocolo do evento de prestação em desacordo a cancelar é obrigatório",
+			"protocolo_prestacao_desacordo",
+		)
+
+	if not (1 <= numero_sequencia <= 20):
+		raise EventoInvalido(
+			f"nSeqEvento deve estar entre 1 e 20, recebido {numero_sequencia}", "numero_sequencia"
+		)
+
+	try:
+		cnpj = validar_cnpj(cnpj_autor)
+	except ValueError as e:
+		raise EventoInvalido(f"CNPJ do autor do evento inválido: {e}", "cnpj_autor") from e
+
+	inf_evento = {
+		"@Id": _formatar_id_cte(
+			chave, TIPO_EVENTO_CANCELAMENTO_PRESTACAO_DESACORDO_CTE, numero_sequencia
+		),
+		"cOrgao": lida.uf,
+		"tpAmb": ambiente,
+		"CNPJ": cnpj,
+		"chCTe": chave,
+		"dhEvento": data_evento,
+		"tpEvento": TIPO_EVENTO_CANCELAMENTO_PRESTACAO_DESACORDO_CTE,
+		"nSeqEvento": str(numero_sequencia),
+		"detEvento": {
+			"@versaoEvento": _VERSAO_LEIAUTE_CTE,
+			"descEvento": "Cancelamento Prestação do Serviço em Desacordo",
+			"nProtEvPrestDes": protocolo_limpo,
 		},
 	}
 

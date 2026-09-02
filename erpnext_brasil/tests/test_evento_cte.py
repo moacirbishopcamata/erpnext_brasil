@@ -17,17 +17,20 @@ from erpnext_brasil.fiscal.documento.evento_cte import (
 	DESC_EVENTO_GTV,
 	ESPECIE_GTV_CHEQUE,
 	ESPECIE_GTV_NUMERARIO,
+	INDICADOR_DESACORDO_OPERACAO,
 	MOTIVO_INSUCESSO_ENDERECO_INEXISTENTE,
 	MOTIVO_INSUCESSO_OUTROS,
 	MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO,
 	TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE,
 	TIPO_EVENTO_CANCELAMENTO_CTE,
 	TIPO_EVENTO_CANCELAMENTO_INSUCESSO_ENTREGA_CTE,
+	TIPO_EVENTO_CANCELAMENTO_PRESTACAO_DESACORDO_CTE,
 	TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE,
 	TIPO_EVENTO_CORRECAO_CTE,
 	TIPO_EVENTO_EPEC_CTE,
 	TIPO_EVENTO_GTV_CTE,
 	TIPO_EVENTO_INSUCESSO_ENTREGA_CTE,
+	TIPO_EVENTO_PRESTACAO_DESACORDO_CTE,
 	TOMADOR_EPEC_DESTINATARIO,
 	TOMADOR_EPEC_OUTROS,
 	TOMADOR_EPEC_REMETENTE,
@@ -42,12 +45,14 @@ from erpnext_brasil.fiscal.documento.evento_cte import (
 	montar_env_evento_cte,
 	montar_evento_cancelamento_comprovante_entrega_cte,
 	montar_evento_cancelamento_insucesso_entrega_cte,
+	montar_evento_cancelamento_prestacao_desacordo_cte,
 	montar_evento_comprovante_entrega_cte,
 	montar_evento_cancelamento_cte,
 	montar_evento_correcao_cte,
 	montar_evento_epec_cte,
 	montar_evento_gtv_cte,
 	montar_evento_insucesso_entrega_cte,
+	montar_evento_prestacao_desacordo_cte,
 	montar_parte_gtv,
 	montar_tomador_epec,
 )
@@ -1121,6 +1126,101 @@ class TestMontarEventoGtvCte(unittest.TestCase):
 		xml = para_xml(assinado)
 
 		self.assertIn("<infGTV>", xml)
+		self.assertIn("<chCTe>", xml)
+
+
+class TestMontarEventoPrestacaoDesacordoCte(unittest.TestCase):
+	def setUp(self):
+		self.chave = _chave_cte()
+		self.evento = montar_evento_prestacao_desacordo_cte(
+			chave_acesso=self.chave,
+			observacao="Mercadoria entregue fora do prazo combinado com o tomador.",
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-09-02T18:00:00-03:00",
+		)
+
+	def test_tp_evento_e_610110_fora_da_familia_110xxx(self):
+		"""Achado real: primeiro tpEvento fora do padrão 110xxx desta frente."""
+		self.assertEqual(
+			self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_PRESTACAO_DESACORDO_CTE
+		)
+		self.assertEqual(TIPO_EVENTO_PRESTACAO_DESACORDO_CTE, "610110")
+		self.assertFalse(TIPO_EVENTO_PRESTACAO_DESACORDO_CTE.startswith("110"))
+
+	def test_ind_desacordo_oper_sempre_1(self):
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		self.assertEqual(det_evento["indDesacordoOper"], INDICADOR_DESACORDO_OPERACAO)
+		self.assertEqual(INDICADOR_DESACORDO_OPERACAO, "1")
+
+	def test_desc_evento_usa_forma_acentuada(self):
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		self.assertEqual(det_evento["descEvento"], "Prestação do Serviço em Desacordo")
+
+	def test_observacao_curta_demais_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_prestacao_desacordo_cte(
+				chave_acesso=self.chave,
+				observacao="curta",
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T18:00:00-03:00",
+			)
+
+	def test_observacao_longa_demais_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_prestacao_desacordo_cte(
+				chave_acesso=self.chave,
+				observacao="a" * 256,
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T18:00:00-03:00",
+			)
+
+	def test_documento_assinado_serializa(self):
+		assinado = assinar_evento(self.evento, AssinadorFalso())
+		xml = para_xml(assinado)
+
+		self.assertIn("<indDesacordoOper>", xml)
+		self.assertIn("<chCTe>", xml)
+
+
+class TestMontarEventoCancelamentoPrestacaoDesacordoCte(unittest.TestCase):
+	def setUp(self):
+		self.chave = _chave_cte()
+		self.evento = montar_evento_cancelamento_prestacao_desacordo_cte(
+			chave_acesso=self.chave,
+			protocolo_prestacao_desacordo="135260000000004",
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-09-02T19:00:00-03:00",
+		)
+
+	def test_tp_evento_e_610111(self):
+		self.assertEqual(
+			self.evento["evento"]["infEvento"]["tpEvento"],
+			TIPO_EVENTO_CANCELAMENTO_PRESTACAO_DESACORDO_CTE,
+		)
+		self.assertEqual(TIPO_EVENTO_CANCELAMENTO_PRESTACAO_DESACORDO_CTE, "610111")
+
+	def test_so_tem_nprotevprestdes_sem_nprot_do_cte(self):
+		"""Achado real: diferente de evCancCECTe/evCancIECTe, este cancelamento não
+		carrega nProt do CT-e -- só o protocolo do evento cancelado."""
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+
+		self.assertEqual(det_evento["nProtEvPrestDes"], "135260000000004")
+		self.assertNotIn("nProt", det_evento)
+
+	def test_sem_protocolo_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_cancelamento_prestacao_desacordo_cte(
+				chave_acesso=self.chave,
+				protocolo_prestacao_desacordo="",
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T19:00:00-03:00",
+			)
+
+	def test_documento_assinado_serializa(self):
+		assinado = assinar_evento(self.evento, AssinadorFalso())
+		xml = para_xml(assinado)
+
+		self.assertIn("<nProtEvPrestDes>", xml)
 		self.assertIn("<chCTe>", xml)
 
 
