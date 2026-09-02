@@ -31,13 +31,16 @@ resultado alimente `montar_infdoc` sem nenhuma tradução a mais.
 
 ## O que falta para uma integração de verdade
 
-1. Campo(s) que guardem a chave de acesso da NF-e emitida (`Delivery Note` ou `Sales Invoice`,
-   a decidir) — pré-requisito de tudo o resto.
+1. **Fechado em seguida** — ver `docs/integracao-chave-acesso.md`: `br_chave_acesso`/
+   `br_protocolo_autorizacao` adicionados aos quatro documentos com apuração fiscal, validados
+   contra o layout de 44 posições.
 2. Wiring da transmissão de NF-e a um `doc_event` que grave a chave/protocolo depois da
-   autorização — hoje `transporte_sefaz.py` existe mas não é chamado por nenhum hook.
-3. Uma função de extração real (`Shipment` → `Shipment Delivery Note` → `Delivery Note` → a
-   chave, quando existir) que produza a lista de `ReferenciaDocumentoFiscal` que este módulo
-   consome.
+   autorização — hoje `transporte_sefaz.py` existe mas não é chamado por nenhum hook (não
+   fechado: exigiria gerenciar certificado A1 e ambiente de homologação, sem como testar de
+   ponta a ponta nesta investigação).
+3. Uma função de extração real (`Shipment` → `Shipment Delivery Note` → `Delivery Note` →
+   `br_chave_acesso`, agora que o campo existe) que produza a lista de
+   `ReferenciaDocumentoFiscal` que este módulo consome.
 4. Wiring simétrico do lado do CT-e (`Purchase Invoice`/documento de frete → chave de CT-e).
 
 ## Arquivos

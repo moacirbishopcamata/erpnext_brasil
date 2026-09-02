@@ -68,6 +68,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [mdfe-orquestracao.md](mdfe-orquestracao.md) | `montar_ide`/`montar_mdfe`: os 21 campos verificados, lição do `cDV` do CT-e aplicada desde o início (não corrigida depois), confirmação de que não há `CFOP`/`natOp` |
 | [mdfe-tot-lacres.md](mdfe-tot-lacres.md) | `tot` (totalizadores da carga) e `lacres` (lista simples de números de lacre) do MDF-e |
 | [mdfe-emit-seg-prodpred.md](mdfe-emit-seg-prodpred.md) | `emit` (aceita CNPJ ou CPF, diferente da NF-e), `seg` (seguro da carga) e `prodPred` (12 categorias da Resolução ANTT 5.849/2019) do MDF-e |
+| [integracao-chave-acesso.md](integracao-chave-acesso.md) | Campo `br_chave_acesso`/`br_protocolo_autorizacao`: fecha o gap identificado no mapeamento CT-e/MDF-e, validado mas sem transmissão real ligada ainda |
 | [integracao-cte-mapeamento.md](integracao-cte-mapeamento.md) | Primeiro passo de integração do CT-e/MDF-e: agrupamento de referências por município, achado de que falta um campo básico (chave de acesso persistida) antes de ir além |
 | [mdfe-infmdfe.md](mdfe-infmdfe.md) | Orquestrador de nível mais alto do MDF-e: `infModal` é um ponto de extensão `xs:any`, `montar_infmdfe` compõe todos os grupos na ordem do XSD, prova de ponta a ponta completa |
 

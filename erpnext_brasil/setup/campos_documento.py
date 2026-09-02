@@ -256,6 +256,33 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"insert_after": "br_ano_competencia",
 				"description": "RE 574.706. Desmarcar recolhe a maior.",
 			},
+			{
+				"fieldname": "br_secao_chave_acesso",
+				"label": "Documento fiscal eletrônico",
+				"fieldtype": "Section Break",
+				"insert_after": "br_excluir_icms_pis_cofins",
+				"collapsible": 1,
+			},
+			{
+				"fieldname": "br_chave_acesso",
+				"label": "Chave de acesso",
+				"fieldtype": "Data",
+				"insert_after": "br_secao_chave_acesso",
+				"no_copy": 1,
+				"length": 44,
+				"description": (
+					"NF-e emitida (Sales Invoice/Delivery Note) ou recebida de terceiro "
+					"(Purchase Invoice/Purchase Receipt). Preenchimento manual até a "
+					"transmissão automática existir — ver docs/integracao-cte-mapeamento.md."
+				),
+			},
+			{
+				"fieldname": "br_protocolo_autorizacao",
+				"label": "Protocolo de autorização",
+				"fieldtype": "Data",
+				"insert_after": "br_chave_acesso",
+				"no_copy": 1,
+			},
 		]
 
 	for doctype in TABELAS_DE_IMPOSTO:

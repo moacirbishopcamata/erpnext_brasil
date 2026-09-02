@@ -71,6 +71,7 @@ for _doctype in (
 			"erpnext_brasil.integracao.validacao_fiscal.validar_classificacao_dos_itens",
 			"erpnext_brasil.integracao.documento.apurar_impostos",
 			"erpnext_brasil.integracao.cfop_sugestao.sugerir_cfop_compra_venda",
+			"erpnext_brasil.integracao.chave_acesso_documento.validar_chave_acesso",
 		]
 	}
 
