@@ -25,6 +25,8 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [efd-contribuicoes.md](efd-contribuicoes.md) | EFD-Contribuições: registros M200/M210 (PIS) e M600/M610 (Cofins) — mesmo layout confirmado entre os dois, fórmulas citadas literalmente |
 | [reinf-r2099.md](reinf-r2099.md) | R-2099 (Fechamento do EFD-Reinf): segundo gatilho da DCTFWeb, achado real de que não tem `transDCTFWeb` (diferente do S-1299), `ideEvento` genuinamente diferente do R-4020 |
 | [reinf-r4020.md](reinf-r4020.md) | EFD-Reinf R-4020: retenções de IRRF/CSLL/Cofins/PIS-Pasep sobre pagamento a PJ, irmão do eSocial mas com `procEmi` de domínio diferente |
+| [ecf-estado.md](ecf-estado.md) | Levantamento da ECF: dimensão confirmada (Leiaute 12, blocos 0/C/E/J/K/L/M/N/P/T/U/X/Y/S), a fatia mais barata (Bloco J, importado direto da ECD) |
+| [ecf-bloco-j.md](ecf-bloco-j.md) | Bloco J da ECF: `J050` é `I050` da ECD com o `REG` trocado, achado de que `COD_NAT` tem mais opções sem invalidar o reuso |
 | [ecd.md](ecd.md) | ECD (SPED Contábil): registros I050/I051/I200/I250/I150/I155, numeração-padrão de contas, a pegadinha do `COD_NAT` do Patrimônio Líquido |
 | [sped-texto.md](sped-texto.md) | Serialização de linha pipe-delimited do SPED, comum a EFD e ECD; a correção do formato de data (`DDMMAAAA`, sem separador) |
 | [rh-estado-hrms.md](rh-estado-hrms.md) | Bloco RH: estado do `frappe/hrms`, confirmação de que o Brasil não existe nem lá nem no ERPNext, e o hook `regional_overrides` que permite tropicalizar sem fork |
