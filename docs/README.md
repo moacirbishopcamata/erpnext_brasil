@@ -83,6 +83,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [integracao-cte-mapeamento.md](integracao-cte-mapeamento.md) | Primeiro passo de integração do CT-e/MDF-e: agrupamento de referências por município, achado de que falta um campo básico (chave de acesso persistida) antes de ir além |
 | [mdfe-infmdfe.md](mdfe-infmdfe.md) | Orquestrador de nível mais alto do MDF-e: `infModal` é um ponto de extensão `xs:any`, `montar_infmdfe` compõe todos os grupos na ordem do XSD, prova de ponta a ponta completa |
 | [mdfe-evento-cancelamento.md](mdfe-evento-cancelamento.md) | Evento de cancelamento do MDF-e: converge com a forma do CT-e (não da NF-e), mesmo `tpEvento` 110111 dos três documentos, achado do `@Id` com duas larguras toleradas |
+| [mdfe-evento-encerramento.md](mdfe-evento-encerramento.md) | Evento de encerramento do MDF-e: achado real de que `cUF` aceita `"99"` para Exterior (`TCodUfIBGE_EX`, não a tabela normal de 27 UFs) |
 
 ## Convenções que valem em todo o código
 

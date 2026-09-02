@@ -141,8 +141,15 @@ dígitos) — diferente do CT-e, que só aceita 3 — decorrência de `TChMDFe` 
 suporte ao CNPJ alfanumérico dentro do próprio layout da chave. `TJust` do MDF-e é
 numericamente igual ao do CT-e (15-255), mas verificado à parte, não presumido igual.
 
-**Pendente**: encerramento, inclusão de condutor, inclusão de DF-e, confirmação do
-serviço, pagamento da operação, alteração de pagamento do serviço — nenhum investigado
+**Encerramento implementado em seguida** (ver `docs/mdfe-evento-encerramento.md`):
+`tpEvento` `"110112"` — fecha a viagem. Achado real: `cUF` usa `TCodUfIBGE_EX`, que
+aceita `"99"` para Exterior (27 UFs brasileiras + Exterior), não a tabela comum de 27
+UFs — faz sentido para uma viagem que termina fora do Brasil (ex. Mercosul).
+`indEncPorTerceiro` só é gravado quando quem encerra é transportador terceiro, diferente
+do emitente do MDF-e.
+
+**Pendente**: inclusão de condutor, inclusão de DF-e, confirmação do serviço, pagamento
+da operação, alteração de pagamento do serviço — nenhum investigado
 ainda.
 
 ## Fontes

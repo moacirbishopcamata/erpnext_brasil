@@ -8,13 +8,16 @@ import unittest
 from erpnext_brasil.fiscal.documento.assinatura import MaterialAssinatura
 from erpnext_brasil.fiscal.documento.chave_acesso import montar_chave
 from erpnext_brasil.fiscal.documento.evento_mdfe import (
+	INDICADOR_ENCERRAMENTO_POR_TERCEIRO,
 	JUSTIFICATIVA_MAXIMA_MDFE,
 	JUSTIFICATIVA_MINIMA_MDFE,
 	TIPO_EVENTO_CANCELAMENTO_MDFE,
+	TIPO_EVENTO_ENCERRAMENTO_MDFE,
 	EventoInvalido,
 	assinar_evento,
 	montar_env_evento_mdfe,
 	montar_evento_cancelamento_mdfe,
+	montar_evento_encerramento_mdfe,
 )
 from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.mdfe import NAMESPACE_MDFE
@@ -164,6 +167,106 @@ class TestMontarEnvEventoMdfe(unittest.TestCase):
 
 		with self.assertRaises(EventoInvalido):
 			montar_env_evento_mdfe([evento] * 21, "1")
+
+
+class TestMontarEventoEncerramentoMdfe(unittest.TestCase):
+	def setUp(self):
+		self.chave = _chave_mdfe()
+		self.evento = montar_evento_encerramento_mdfe(
+			chave_acesso=self.chave,
+			protocolo="935260000000001",
+			data_encerramento="2026-09-02",
+			codigo_uf="35",
+			codigo_municipio="3550308",
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-09-02T22:00:00-03:00",
+		)
+
+	def test_tp_evento_e_110112(self):
+		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_ENCERRAMENTO_MDFE)
+		self.assertEqual(TIPO_EVENTO_ENCERRAMENTO_MDFE, "110112")
+
+	def test_campos_basicos(self):
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+
+		self.assertEqual(det_evento["descEvento"], "Encerramento")
+		self.assertEqual(det_evento["dtEnc"], "2026-09-02")
+		self.assertEqual(det_evento["cUF"], "35")
+		self.assertEqual(det_evento["cMun"], "3550308")
+		self.assertNotIn("indEncPorTerceiro", det_evento)
+
+	def test_uf_99_exterior_e_aceita(self):
+		"""Achado real: cUF usa TCodUfIBGE_EX, que aceita '99' para Exterior -- não a
+		tabela normal de 27 UFs."""
+		evento = montar_evento_encerramento_mdfe(
+			chave_acesso=self.chave,
+			protocolo="935260000000001",
+			data_encerramento="2026-09-02",
+			codigo_uf="99",
+			codigo_municipio="3550308",
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-09-02T22:00:00-03:00",
+		)
+		self.assertEqual(evento["evento"]["infEvento"]["detEvento"]["cUF"], "99")
+
+	def test_uf_invalida_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_encerramento_mdfe(
+				chave_acesso=self.chave,
+				protocolo="935260000000001",
+				data_encerramento="2026-09-02",
+				codigo_uf="00",
+				codigo_municipio="3550308",
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T22:00:00-03:00",
+			)
+
+	def test_municipio_com_menos_de_7_digitos_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_encerramento_mdfe(
+				chave_acesso=self.chave,
+				protocolo="935260000000001",
+				data_encerramento="2026-09-02",
+				codigo_uf="35",
+				codigo_municipio="12345",
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T22:00:00-03:00",
+			)
+
+	def test_encerrado_por_terceiro_grava_indicador(self):
+		evento = montar_evento_encerramento_mdfe(
+			chave_acesso=self.chave,
+			protocolo="935260000000001",
+			data_encerramento="2026-09-02",
+			codigo_uf="35",
+			codigo_municipio="3550308",
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-09-02T22:00:00-03:00",
+			encerrado_por_terceiro=True,
+		)
+		self.assertEqual(
+			evento["evento"]["infEvento"]["detEvento"]["indEncPorTerceiro"],
+			INDICADOR_ENCERRAMENTO_POR_TERCEIRO,
+		)
+
+	def test_sem_protocolo_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_encerramento_mdfe(
+				chave_acesso=self.chave,
+				protocolo="",
+				data_encerramento="2026-09-02",
+				codigo_uf="35",
+				codigo_municipio="3550308",
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T22:00:00-03:00",
+			)
+
+	def test_documento_assinado_serializa(self):
+		assinado = assinar_evento(self.evento, AssinadorFalso())
+		xml = para_xml(assinado)
+
+		self.assertIn("<dtEnc>", xml)
+		self.assertIn("<chMDFe>", xml)
 
 
 if __name__ == "__main__":
