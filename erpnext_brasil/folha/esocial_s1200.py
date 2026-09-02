@@ -69,6 +69,7 @@ __all__ = [
 	"ItemRemuneracao",
 	"RemunPerApur",
 	"linhas_de_inss_irrf",
+	"validar_digito_unico",
 ]
 
 AMBIENTE_PRODUCAO = 1
@@ -85,7 +86,9 @@ def _arredondar(valor: Decimal) -> Decimal:
 	return valor.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
-def _validar_digito_unico(valor: int, campo: str) -> None:
+def validar_digito_unico(valor: int, campo: str) -> None:
+	"""Pública desde que ganhou uma segunda chamadora real (`esocial_s1299.py`) — mesmo
+	motivo generalizar de `integracao/party.uf_da_parte`, não suposição de uso futuro."""
 	if not (0 <= valor <= 9):
 		raise EsocialInvalido(f"{campo} deve ser um dígito único (0-9), recebido {valor}")
 
@@ -160,7 +163,7 @@ class IdeEvento:
 		if self.tp_amb not in (AMBIENTE_PRODUCAO, AMBIENTE_PRODUCAO_RESTRITA):
 			raise EsocialInvalido(f"tpAmb deve ser 1 (Produção) ou 2 (Produção Restrita), recebido {self.tp_amb}")
 
-		_validar_digito_unico(self.proc_emi, "procEmi")
+		validar_digito_unico(self.proc_emi, "procEmi")
 
 		if not (1 <= len(self.ver_proc) <= 20):
 			raise EsocialInvalido(f"verProc deve ter entre 1 e 20 caracteres, recebido {self.ver_proc!r}")
@@ -184,7 +187,7 @@ class IdeEmpregador:
 	nr_insc: str
 
 	def __post_init__(self):
-		_validar_digito_unico(self.tp_insc, "tpInsc")
+		validar_digito_unico(self.tp_insc, "tpInsc")
 		_validar_nr_insc(self.nr_insc)
 
 
@@ -250,7 +253,7 @@ class InfoComplem:
 			raise EsocialInvalido(f"codCBO deve ter entre 4 e 6 dígitos numéricos, recebido {self.cod_cbo!r}")
 
 		if self.nat_atividade is not None:
-			_validar_digito_unico(self.nat_atividade, "natAtividade")
+			validar_digito_unico(self.nat_atividade, "natAtividade")
 
 		if self.qtd_dias_trab is not None and not (0 <= self.qtd_dias_trab <= 99):
 			raise EsocialInvalido(f"qtdDiasTrab deve ter 1 ou 2 dígitos, recebido {self.qtd_dias_trab}")
@@ -301,7 +304,7 @@ class RemunPerApur:
 			raise EsocialInvalido(f"matricula deve ter entre 1 e 30 caracteres, recebido {self.matricula!r}")
 
 		if self.ind_simples is not None:
-			_validar_digito_unico(self.ind_simples, "indSimples")
+			validar_digito_unico(self.ind_simples, "indSimples")
 
 
 @dataclass(frozen=True)
@@ -318,7 +321,7 @@ class IdeEstabLot:
 	qtd_dias_av: int | None = None
 
 	def __post_init__(self):
-		_validar_digito_unico(self.tp_insc, "tpInsc")
+		validar_digito_unico(self.tp_insc, "tpInsc")
 		_validar_nr_insc(self.nr_insc)
 
 		if not (1 <= len(self.cod_lotacao) <= 30):
