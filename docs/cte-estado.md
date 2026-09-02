@@ -122,9 +122,8 @@ reaproveitado **sem nenhuma alteração** — já era genérico o bastante.
 - Autorizador/webservice por UF — provavelmente segue o mesmo SVRS/SVSP/próprio já mapeado em
   `docs/transporte-nativo-sefaz.md` para NF-e, mas CT-e pode ter ambiente próprio — não verificado.
 - `infNF` (NF em papel) — deliberadamente não implementado; caso legado, prioridade baixa.
-- Outros eventos sem equivalente na NF-e (registro de passagem/GTV, insucesso na entrega,
-  prestação em desacordo/cancelamento de prestação em desacordo, registro multimodal) — não
-  investigados.
+- Outros eventos sem equivalente na NF-e (registro de passagem/GTV, prestação em desacordo/
+  cancelamento de prestação em desacordo, registro multimodal) — não investigados.
 
 **Evento de cancelamento implementado** (ver `docs/cte-evento-cancelamento.md`): `tpEvento`
 110111 e o corpo de `detEvento` são idênticos à NF-e, mas dois pontos divergem de verdade —
@@ -155,6 +154,14 @@ Normal), diferente do `ide/tpCTe` que aceita `0`/`1`/`3` — não é parâmetro 
 contra o nome do arquivo (`evCancCECTe`): "CE" é Comprovante de Entrega, não Carta de Correção
 — confirmado pelo texto do próprio XSD, não suposto por analogia com `evCCeCTe`. Corpo simples:
 `nProt` (protocolo do CT-e) e `nProtCE` (protocolo do evento de entrega cancelado).
+
+**Insucesso na entrega implementado em seguida** (ver `docs/cte-evento-insucesso-entrega.md`):
+`tpEvento` `"110190"`, quase gêmeo do comprovante de entrega. Dois achados reais: `xJustMotivo`
+usa `TString` (15-256), não `TJust` (15-255) como o cancelamento/EPEC do mesmo documento — 256
+é válido aqui, diferente do resto do CT-e; e o hash (`hashTentativaEntrega`) é **opcional**
+(diferente de `hashEntrega`, obrigatório no comprovante de entrega) — calculado só quando há
+imagem. `_montar_inf_entrega_nfe` extraído e reaproveitado entre os dois eventos (mesma regra
+de `infEntrega`, antes duplicada inline).
 
 **`toma3`/`toma4` implementados em seguida** (ver `docs/cte-toma.md`): `montar_toma3` (o
 tomador é uma das partes já citadas no CT-e, só valida o código) e `montar_toma4` (tomador

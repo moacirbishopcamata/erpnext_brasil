@@ -65,6 +65,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [cte-evento-cancelamento.md](cte-evento-cancelamento.md) | Evento de cancelamento do CT-e: achados de que a justificativa vai até 255 (não 256) e o `@Id` tem 53 dígitos (não 52) |
 | [cte-evento-epec.md](cte-evento-epec.md) | EPEC do CT-e: achado real de que o `toma4` não é o `toma4` real da `ide` (aceita qualquer papel, sem `xNome`/`enderToma`), e `tpCTe` fixo em `"0"` |
 | [cte-evento-cancelamento-comprovante-entrega.md](cte-evento-cancelamento-comprovante-entrega.md) | Cancelamento do comprovante de entrega do CT-e: achado real de que "CE" no nome do arquivo é Comprovante de Entrega, não Carta de Correção |
+| [cte-evento-insucesso-entrega.md](cte-evento-insucesso-entrega.md) | Insucesso na entrega do CT-e: achados de que `xJustMotivo` usa limite 256 (não 255 como o resto do CT-e) e o hash é opcional (não obrigatório como no comprovante de entrega) |
 | [cte-orquestracao.md](cte-orquestracao.md) | `montar_ide`/`montar_cte`: os 30 campos de `ide` verificados e ordenados contra o XSD, composição com tomador/CFOP/assinatura já prontos, prova de ponta a ponta |
 | [mdfe-estado.md](mdfe-estado.md) | Levantamento do MDF-e: `ide` bem mais simples que o do CT-e, achado de que `modal`/`procEmi` divergem entre os dois documentos, veículo/motorista mora no MDF-e (não no CT-e) |
 | [mdfe-infdoc.md](mdfe-infdoc.md) | `infDoc` do MDF-e: referências a CT-e/NF-e agrupadas por município de descarga (não lista plana como no CT-e), `chave_acesso.MODELOS` ganha `"57"`/`"58"` |

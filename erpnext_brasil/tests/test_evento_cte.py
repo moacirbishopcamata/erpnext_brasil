@@ -14,11 +14,15 @@ from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, montar_c
 from erpnext_brasil.fiscal.documento.evento_cte import (
 	JUSTIFICATIVA_MAXIMA_CTE,
 	JUSTIFICATIVA_MINIMA_CTE,
+	MOTIVO_INSUCESSO_ENDERECO_INEXISTENTE,
+	MOTIVO_INSUCESSO_OUTROS,
+	MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO,
 	TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE,
 	TIPO_EVENTO_CANCELAMENTO_CTE,
 	TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE,
 	TIPO_EVENTO_CORRECAO_CTE,
 	TIPO_EVENTO_EPEC_CTE,
+	TIPO_EVENTO_INSUCESSO_ENTREGA_CTE,
 	TOMADOR_EPEC_DESTINATARIO,
 	TOMADOR_EPEC_OUTROS,
 	TOMADOR_EPEC_REMETENTE,
@@ -33,6 +37,7 @@ from erpnext_brasil.fiscal.documento.evento_cte import (
 	montar_evento_cancelamento_cte,
 	montar_evento_correcao_cte,
 	montar_evento_epec_cte,
+	montar_evento_insucesso_entrega_cte,
 	montar_tomador_epec,
 )
 from erpnext_brasil.fiscal.documento.serializacao import para_xml
@@ -725,6 +730,156 @@ class TestMontarEventoCancelamentoComprovanteEntregaCte(unittest.TestCase):
 		xml = para_xml(assinado)
 
 		self.assertIn("<nProtCE>", xml)
+		self.assertIn("<chCTe>", xml)
+
+
+class TestMontarEventoInsucessoEntregaCte(unittest.TestCase):
+	def setUp(self):
+		self.chave = _chave_cte()
+		self.evento = montar_evento_insucesso_entrega_cte(
+			chave_acesso=self.chave,
+			protocolo="135260000000001",
+			data_tentativa_entrega="2026-09-02T15:00:00-03:00",
+			tipo_motivo=MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO,
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-09-02T15:00:01-03:00",
+		)
+
+	def test_tp_evento_e_110190(self):
+		self.assertEqual(
+			self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_INSUCESSO_ENTREGA_CTE
+		)
+		self.assertEqual(TIPO_EVENTO_INSUCESSO_ENTREGA_CTE, "110190")
+
+	def test_desc_evento_e_campos_basicos(self):
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+
+		self.assertEqual(det_evento["descEvento"], "Insucesso na Entrega do CT-e")
+		self.assertEqual(det_evento["tpMotivo"], MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO)
+		self.assertNotIn("xJustMotivo", det_evento)
+		self.assertNotIn("hashTentativaEntrega", det_evento)
+		self.assertNotIn("nTentativa", det_evento)
+
+	def test_motivo_outros_exige_justificativa(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_insucesso_entrega_cte(
+				chave_acesso=self.chave,
+				protocolo="135260000000001",
+				data_tentativa_entrega="2026-09-02T15:00:00-03:00",
+				tipo_motivo=MOTIVO_INSUCESSO_OUTROS,
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T15:00:01-03:00",
+			)
+
+	def test_motivo_outros_com_justificativa_valida(self):
+		evento = montar_evento_insucesso_entrega_cte(
+			chave_acesso=self.chave,
+			protocolo="135260000000001",
+			data_tentativa_entrega="2026-09-02T15:00:00-03:00",
+			tipo_motivo=MOTIVO_INSUCESSO_OUTROS,
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-09-02T15:00:01-03:00",
+			justificativa_motivo="a" * 256,
+		)
+
+		self.assertEqual(len(evento["evento"]["infEvento"]["detEvento"]["xJustMotivo"]), 256)
+
+	def test_xjustmotivo_aceita_256_diferente_de_tjust_255(self):
+		"""Achado real: xJustMotivo usa TString (15-256), não TJust (15-255) -- 256
+		caracteres é válido aqui, diferente do cancelamento/EPEC."""
+		evento = montar_evento_insucesso_entrega_cte(
+			chave_acesso=self.chave,
+			protocolo="135260000000001",
+			data_tentativa_entrega="2026-09-02T15:00:00-03:00",
+			tipo_motivo=MOTIVO_INSUCESSO_OUTROS,
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-09-02T15:00:01-03:00",
+			justificativa_motivo="a" * 256,
+		)
+		self.assertEqual(len(evento["evento"]["infEvento"]["detEvento"]["xJustMotivo"]), 256)
+
+	def test_justificativa_com_257_caracteres_e_invalida(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_insucesso_entrega_cte(
+				chave_acesso=self.chave,
+				protocolo="135260000000001",
+				data_tentativa_entrega="2026-09-02T15:00:00-03:00",
+				tipo_motivo=MOTIVO_INSUCESSO_OUTROS,
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T15:00:01-03:00",
+				justificativa_motivo="a" * 257,
+			)
+
+	def test_justificativa_proibida_fora_do_motivo_outros(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_insucesso_entrega_cte(
+				chave_acesso=self.chave,
+				protocolo="135260000000001",
+				data_tentativa_entrega="2026-09-02T15:00:00-03:00",
+				tipo_motivo=MOTIVO_INSUCESSO_ENDERECO_INEXISTENTE,
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T15:00:01-03:00",
+				justificativa_motivo="Justificativa válida com mais de quinze caracteres.",
+			)
+
+	def test_motivo_invalido_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_insucesso_entrega_cte(
+				chave_acesso=self.chave,
+				protocolo="135260000000001",
+				data_tentativa_entrega="2026-09-02T15:00:00-03:00",
+				tipo_motivo="9",
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T15:00:01-03:00",
+			)
+
+	def test_hash_opcional_quando_imagem_informada(self):
+		"""Achado real: diferente do comprovante de entrega, o hash aqui é opcional --
+		calculado só quando a imagem é informada."""
+		evento = montar_evento_insucesso_entrega_cte(
+			chave_acesso=self.chave,
+			protocolo="135260000000001",
+			data_tentativa_entrega="2026-09-02T15:00:00-03:00",
+			tipo_motivo=MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO,
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-09-02T15:00:01-03:00",
+			imagem_base64="aW1hZ2VtLWZha2U=",
+			data_hash="2026-09-02T15:00:02-03:00",
+		)
+
+		esperado = calcular_hash_entrega(self.chave, "aW1hZ2VtLWZha2U=")
+		self.assertEqual(evento["evento"]["infEvento"]["detEvento"]["hashTentativaEntrega"], esperado)
+
+	def test_numero_tentativa_formatado_com_3_digitos(self):
+		evento = montar_evento_insucesso_entrega_cte(
+			chave_acesso=self.chave,
+			protocolo="135260000000001",
+			data_tentativa_entrega="2026-09-02T15:00:00-03:00",
+			tipo_motivo=MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO,
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-09-02T15:00:01-03:00",
+			numero_tentativa=2,
+		)
+
+		self.assertEqual(evento["evento"]["infEvento"]["detEvento"]["nTentativa"], "002")
+
+	def test_infentrega_reusa_mesma_validacao_do_comprovante(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_insucesso_entrega_cte(
+				chave_acesso=self.chave,
+				protocolo="135260000000001",
+				data_tentativa_entrega="2026-09-02T15:00:00-03:00",
+				tipo_motivo=MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO,
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T15:00:01-03:00",
+				chaves_nfe_nao_entregues=[self.chave],
+			)
+
+	def test_documento_assinado_serializa(self):
+		assinado = assinar_evento(self.evento, AssinadorFalso())
+		xml = para_xml(assinado)
+
+		self.assertIn("<dhTentativaEntrega>", xml)
 		self.assertIn("<chCTe>", xml)
 
 

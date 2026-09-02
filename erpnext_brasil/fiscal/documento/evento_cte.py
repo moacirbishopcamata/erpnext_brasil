@@ -3,8 +3,8 @@
 
 """Eventos do CT-e: cancelamento (`tpEvento` 110111, `evCancCTe`), carta de correção
 (`tpEvento` 110110, `evCCeCTe`), comprovante de entrega (`tpEvento` 110180, `evCECTe`),
-EPEC (`tpEvento` 110113, `evEPECCTe`) e cancelamento do comprovante de entrega (`tpEvento`
-110181, `evCancCECTe`).
+EPEC (`tpEvento` 110113, `evEPECCTe`), cancelamento do comprovante de entrega (`tpEvento`
+110181, `evCancCECTe`) e insucesso na entrega (`tpEvento` 110190, `evIECTe`).
 
 Por que existe
 --------------
@@ -114,6 +114,31 @@ confirma que não é isso. Corpo simples: `descEvento` fixo ("Cancelamento do Co
 Entrega do CT-e"), `nProt` (protocolo do próprio CT-e) e `nProtCE` (protocolo do evento de
 comprovante de entrega que está sendo cancelado) — os dois do tipo `TProt`.
 
+Insucesso na entrega (`tpEvento` 110190, `evIECTe`) — quase gêmeo do comprovante de entrega,
+com duas divergências reais
+------------------------------------------------------------------------------------------
+Verificado em `evIECTe_v4.00.xsd` (126 linhas, lido inteiro): estrutura muito parecida com
+`evCECTe` (comprovante de entrega) — `nProt`, `latitude`/`longitude` opcionais, hash
+opcional (`hashTentativaEntrega`)/`dhHashTentativaEntrega`, `infEntrega` (mesma forma,
+reaproveitada via `_montar_inf_entrega_nfe`). Campos próprios: `dhTentativaEntrega`
+(obrigatório), `nTentativa` (opcional, `[0-9]{3}`), `tpMotivo` (enum "1"-"4": recebedor não
+encontrado / recusa do recebedor / endereço inexistente / outros) e `xJustMotivo`
+(obrigatório **só** quando `tpMotivo="4"`, regra de negócio do próprio texto do XSD, não do
+`minOccurs` sozinho).
+
+**Achado real**: `xJustMotivo` usa o tipo `TString` (`minLength=15, maxLength=256`), **não**
+`TJust` (`minLength=15, maxLength=255`, usado no cancelamento e no EPEC deste mesmo
+documento) — o limite aqui é **256**, igual ao da NF-e, não 255 como os outros textos livres
+do CT-e. Reaproveitar `JUSTIFICATIVA_MAXIMA_CTE` (255) teria rejeitado um texto de 256
+caracteres que o XSD aceita — por isso este evento valida com seu próprio limite
+(`XJUSTMOTIVO_MAXIMO_IE_CTE = 256`), não a constante do cancelamento.
+
+**Achado real 2**: diferente de `evCECTe`, onde `hashEntrega` é **obrigatório**, aqui
+`hashTentativaEntrega` é **opcional** (`minOccurs="0"`) — faz sentido: uma tentativa
+malsucedida pode não ter conseguido capturar imagem nenhuma do local. O cálculo, quando
+informado, é o mesmo SHA-1+Base64 de `calcular_hash_entrega` — reaproveitado sem alteração
+(o nome do campo muda, o algoritmo não).
+
 Funções puras: nenhuma dependência do Frappe.
 """
 
@@ -138,17 +163,24 @@ from erpnext_brasil.fiscal.validators import validar_cnpj, validar_cpf_cnpj
 __all__ = [
 	"JUSTIFICATIVA_MAXIMA_CTE",
 	"JUSTIFICATIVA_MINIMA_CTE",
+	"MOTIVO_INSUCESSO_ENDERECO_INEXISTENTE",
+	"MOTIVO_INSUCESSO_OUTROS",
+	"MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO",
+	"MOTIVO_INSUCESSO_RECUSA_RECEBEDOR",
 	"TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE",
 	"TIPO_EVENTO_CANCELAMENTO_CTE",
 	"TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE",
 	"TIPO_EVENTO_CORRECAO_CTE",
 	"TIPO_EVENTO_EPEC_CTE",
+	"TIPO_EVENTO_INSUCESSO_ENTREGA_CTE",
 	"TOMADOR_EPEC_DESTINATARIO",
 	"TOMADOR_EPEC_EXPEDIDOR",
 	"TOMADOR_EPEC_OUTROS",
 	"TOMADOR_EPEC_RECEBEDOR",
 	"TOMADOR_EPEC_REMETENTE",
 	"XCONDUSO_CCE_CTE",
+	"XJUSTMOTIVO_MAXIMO_IE_CTE",
+	"XJUSTMOTIVO_MINIMO_IE_CTE",
 	"CorrecaoCte",
 	"EventoInvalido",
 	"TomadorEpec",
@@ -160,6 +192,7 @@ __all__ = [
 	"montar_evento_comprovante_entrega_cte",
 	"montar_evento_correcao_cte",
 	"montar_evento_epec_cte",
+	"montar_evento_insucesso_entrega_cte",
 	"montar_tomador_epec",
 ]
 
@@ -168,6 +201,22 @@ TIPO_EVENTO_CORRECAO_CTE = "110110"
 TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE = "110180"
 TIPO_EVENTO_EPEC_CTE = "110113"
 TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE = "110181"
+TIPO_EVENTO_INSUCESSO_ENTREGA_CTE = "110190"
+
+MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO = "1"
+MOTIVO_INSUCESSO_RECUSA_RECEBEDOR = "2"
+MOTIVO_INSUCESSO_ENDERECO_INEXISTENTE = "3"
+MOTIVO_INSUCESSO_OUTROS = "4"
+
+_MOTIVOS_INSUCESSO_VALIDOS = {
+	MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO, MOTIVO_INSUCESSO_RECUSA_RECEBEDOR,
+	MOTIVO_INSUCESSO_ENDERECO_INEXISTENTE, MOTIVO_INSUCESSO_OUTROS,
+}
+
+# `xJustMotivo` do evIECTe usa TString (15-256), não TJust (15-255, usada em cancelamento/
+# EPEC) -- achado real, ver docstring do módulo.
+XJUSTMOTIVO_MINIMO_IE_CTE = 15
+XJUSTMOTIVO_MAXIMO_IE_CTE = 256
 
 # `toma` do `toma4` do EPEC — aceita os 5 papéis, diferente do `toma4` real do `ide`
 # (que só serve para "4"-Outros). Ver docstring do módulo.
@@ -404,6 +453,33 @@ def _validar_coordenada(valor: float, minimo: float, maximo: float, campo: str) 
 	return f"{valor:.6f}"
 
 
+def _montar_inf_entrega_nfe(chaves_nfe: list[str]) -> list[dict]:
+	"""Monta `infEntrega` (lista de `chNFe`) — mesma forma/mesmas regras em `evCECTe`
+	(comprovante de entrega) e `evIECTe` (insucesso na entrega): até 2000 chaves, só
+	NF-e (modelo 55), só faz sentido para CT-e de tipo de serviço Normal (regra de
+	negócio que este módulo não verifica — quem chama sabe o tipo do CT-e)."""
+	if len(chaves_nfe) > 2000:
+		raise EventoInvalido(
+			f"infEntrega admite no máximo 2000 NF-e, recebidas {len(chaves_nfe)}", "chaves_nfe_entregues"
+		)
+
+	infs = []
+
+	for chave_nfe in chaves_nfe:
+		decomposta = ler_chave(chave_nfe)
+
+		if decomposta.modelo != "55":
+			raise EventoInvalido(
+				f"infEntrega só aceita chave de NF-e (modelo 55), recebida chave de modelo "
+				f"{decomposta.modelo} ({decomposta.documento})",
+				"chaves_nfe_entregues",
+			)
+
+		infs.append({"chNFe": decomposta.valor})
+
+	return infs
+
+
 def montar_evento_comprovante_entrega_cte(
 	chave_acesso: str,
 	protocolo: str,
@@ -480,27 +556,7 @@ def montar_evento_comprovante_entrega_cte(
 	det_evento["dhHashEntrega"] = data_hash
 
 	if chaves_nfe_entregues:
-		if len(chaves_nfe_entregues) > 2000:
-			raise EventoInvalido(
-				f"infEntrega admite no máximo 2000 NF-e, recebidas {len(chaves_nfe_entregues)}",
-				"chaves_nfe_entregues",
-			)
-
-		infs = []
-
-		for chave_nfe in chaves_nfe_entregues:
-			decomposta = ler_chave(chave_nfe)
-
-			if decomposta.modelo != "55":
-				raise EventoInvalido(
-					f"infEntrega só aceita chave de NF-e (modelo 55), recebida chave de modelo "
-					f"{decomposta.modelo} ({decomposta.documento})",
-					"chaves_nfe_entregues",
-				)
-
-			infs.append({"chNFe": decomposta.valor})
-
-		det_evento["infEntrega"] = infs
+		det_evento["infEntrega"] = _montar_inf_entrega_nfe(chaves_nfe_entregues)
 
 	inf_evento = {
 		"@Id": _formatar_id_cte(chave, TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE, numero_sequencia),
@@ -701,6 +757,121 @@ def montar_evento_cancelamento_comprovante_entrega_cte(
 			"nProt": protocolo_limpo,
 			"nProtCE": protocolo_ce_limpo,
 		},
+	}
+
+	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+
+
+def montar_evento_insucesso_entrega_cte(
+	chave_acesso: str,
+	protocolo: str,
+	data_tentativa_entrega: str,
+	tipo_motivo: str,
+	cnpj_autor: str,
+	data_evento: str,
+	numero_tentativa: int | None = None,
+	justificativa_motivo: str | None = None,
+	imagem_base64: str | None = None,
+	data_hash: str | None = None,
+	latitude: float | None = None,
+	longitude: float | None = None,
+	chaves_nfe_nao_entregues: list[str] | None = None,
+	numero_sequencia: int = 1,
+	ambiente: str = "2",
+) -> dict:
+	"""Monta o elemento `evento` (grupo `TEvento`) do insucesso na entrega do CT-e.
+
+	`justificativa_motivo` é obrigatória quando `tipo_motivo` é
+	`MOTIVO_INSUCESSO_OUTROS` ("4") e proibida nos demais motivos — regra de negócio do
+	próprio texto do XSD ("informar apenas para tpMotivo = 4"), não decorrente do
+	`minOccurs` sozinho (que é opcional para qualquer motivo).
+
+	`hashTentativaEntrega` é opcional aqui (diferente de `hashEntrega` no comprovante de
+	entrega, que é obrigatório) — só é calculado quando `imagem_base64` é informada, via
+	`calcular_hash_entrega` (mesmo algoritmo, nome de campo diferente).
+	"""
+	chave = validar_chave(chave_acesso)
+	lida = ler_chave(chave)
+
+	protocolo_limpo = (protocolo or "").strip()
+
+	if not protocolo_limpo:
+		raise EventoInvalido("O protocolo da autorização é obrigatório", "protocolo")
+
+	if tipo_motivo not in _MOTIVOS_INSUCESSO_VALIDOS:
+		raise EventoInvalido(
+			f"tpMotivo deve ser um de {sorted(_MOTIVOS_INSUCESSO_VALIDOS)}, recebido {tipo_motivo!r}",
+			"tipo_motivo",
+		)
+
+	texto_justificativa = (justificativa_motivo or "").strip()
+
+	if tipo_motivo == MOTIVO_INSUCESSO_OUTROS:
+		if not (XJUSTMOTIVO_MINIMO_IE_CTE <= len(texto_justificativa) <= XJUSTMOTIVO_MAXIMO_IE_CTE):
+			raise EventoInvalido(
+				f"xJustMotivo é obrigatório para tpMotivo=4 e deve ter de "
+				f"{XJUSTMOTIVO_MINIMO_IE_CTE} a {XJUSTMOTIVO_MAXIMO_IE_CTE} caracteres, "
+				f"recebidos {len(texto_justificativa)}",
+				"justificativa_motivo",
+			)
+	elif texto_justificativa:
+		raise EventoInvalido(
+			"xJustMotivo só é aceito quando tpMotivo=4 (Outros)", "justificativa_motivo"
+		)
+
+	if not (1 <= numero_sequencia <= 20):
+		raise EventoInvalido(
+			f"nSeqEvento deve estar entre 1 e 20, recebido {numero_sequencia}", "numero_sequencia"
+		)
+
+	try:
+		cnpj = validar_cnpj(cnpj_autor)
+	except ValueError as e:
+		raise EventoInvalido(f"CNPJ do autor do evento inválido: {e}", "cnpj_autor") from e
+
+	det_evento: dict = {
+		"@versaoEvento": _VERSAO_LEIAUTE_CTE,
+		"descEvento": "Insucesso na Entrega do CT-e",
+		"nProt": protocolo_limpo,
+		"dhTentativaEntrega": data_tentativa_entrega,
+	}
+
+	if numero_tentativa is not None:
+		if not (1 <= numero_tentativa <= 999):
+			raise EventoInvalido(
+				f"nTentativa deve estar entre 1 e 999, recebido {numero_tentativa}", "numero_tentativa"
+			)
+
+		det_evento["nTentativa"] = f"{numero_tentativa:03d}"
+
+	det_evento["tpMotivo"] = tipo_motivo
+
+	if texto_justificativa:
+		det_evento["xJustMotivo"] = texto_justificativa
+
+	if latitude is not None:
+		det_evento["latitude"] = _validar_coordenada(latitude, -90.0, 90.0, "latitude")
+
+	if longitude is not None:
+		det_evento["longitude"] = _validar_coordenada(longitude, -180.0, 180.0, "longitude")
+
+	if imagem_base64 is not None:
+		det_evento["hashTentativaEntrega"] = calcular_hash_entrega(chave, imagem_base64)
+		det_evento["dhHashTentativaEntrega"] = data_hash
+
+	if chaves_nfe_nao_entregues:
+		det_evento["infEntrega"] = _montar_inf_entrega_nfe(chaves_nfe_nao_entregues)
+
+	inf_evento = {
+		"@Id": _formatar_id_cte(chave, TIPO_EVENTO_INSUCESSO_ENTREGA_CTE, numero_sequencia),
+		"cOrgao": lida.uf,
+		"tpAmb": ambiente,
+		"CNPJ": cnpj,
+		"chCTe": chave,
+		"dhEvento": data_evento,
+		"tpEvento": TIPO_EVENTO_INSUCESSO_ENTREGA_CTE,
+		"nSeqEvento": str(numero_sequencia),
+		"detEvento": det_evento,
 	}
 
 	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
