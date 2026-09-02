@@ -28,6 +28,8 @@ from erpnext_brasil.fiscal.mdfe import (
 	montar_emit,
 	montar_ide,
 	montar_infdoc,
+	montar_infmdfe,
+	montar_infmodal,
 	montar_lacres,
 	montar_mdfe,
 	montar_prod_pred,
@@ -424,6 +426,77 @@ class TestMontarProdPred(unittest.TestCase):
 	def test_descricao_vazia_levanta_erro(self):
 		with self.assertRaises(MdfeInvalido):
 			montar_prod_pred(TIPO_CARGA_GERAL, "")
+
+
+class TestMontarInfmodal(unittest.TestCase):
+	def test_conteudo_e_versao(self):
+		grupo = montar_infmodal("3.00", {"rodo": {"RNTRC": "12345678"}})["infModal"]
+
+		self.assertEqual(grupo["@versaoModal"], "3.00")
+		self.assertEqual(grupo["rodo"], {"RNTRC": "12345678"})
+
+	def test_versao_fora_do_padrao_levanta_erro(self):
+		with self.assertRaises(MdfeInvalido):
+			montar_infmodal("4.00", {"rodo": {}})
+
+	def test_sem_conteudo_levanta_erro(self):
+		with self.assertRaises(MdfeInvalido):
+			montar_infmodal("3.00", {})
+
+
+class TestMontarInfmdfe(unittest.TestCase):
+	def setUp(self):
+		self.chave = _chave_mdfe()
+		self.ide = montar_ide(_identificacao(), self.chave)
+		self.emit = montar_emit(_emitente())
+		self.infmodal = montar_infmodal("3.00", {"rodo": {"RNTRC": "12345678"}})
+		self.infdoc = montar_infdoc(
+			[MunicipioDescarga(codigo="3304557", nome="Rio de Janeiro", chaves_nfe=[_chave("55")])]
+		)
+		self.tot = montar_tot(Decimal("1000.00"), UNIDADE_PESO_KG, Decimal("500.0000"))
+
+	def test_grupos_obrigatorios_na_ordem_do_xsd(self):
+		infmdfe = montar_infmdfe(self.ide, self.emit, self.infmodal, self.infdoc, self.tot)
+
+		self.assertEqual(
+			list(infmdfe.keys()), ["ide", "emit", "infModal", "infDoc", "tot"]
+		)
+
+	def test_grupos_opcionais_entram_na_posicao_certa(self):
+		seg = montar_seg([Seguro(responsavel=RESPONSAVEL_SEGURO_EMITENTE)])
+		prod_pred = montar_prod_pred(TIPO_CARGA_GERAL, "Eletrônicos")
+		lacres = montar_lacres(["ABC123"])
+
+		infmdfe = montar_infmdfe(
+			self.ide, self.emit, self.infmodal, self.infdoc, self.tot,
+			seg=seg, prod_pred=prod_pred, lacres=lacres,
+		)
+
+		self.assertEqual(
+			list(infmdfe.keys()),
+			["ide", "emit", "infModal", "infDoc", "seg", "prodPred", "tot", "lacres"],
+		)
+
+	def test_opcionais_ausentes_quando_nao_informados(self):
+		infmdfe = montar_infmdfe(self.ide, self.emit, self.infmodal, self.infdoc, self.tot)
+
+		self.assertNotIn("seg", infmdfe)
+		self.assertNotIn("prodPred", infmdfe)
+		self.assertNotIn("lacres", infmdfe)
+
+	def test_serializa_e_pode_ser_assinado(self):
+		"""Ponta a ponta completo: montar_ide + montar_emit + montar_infmodal +
+		montar_infdoc + montar_tot -> montar_infmdfe -> montar_mdfe -> assinar_mdfe."""
+		infmdfe = montar_infmdfe(self.ide, self.emit, self.infmodal, self.infdoc, self.tot)
+		mdfe = montar_mdfe(infmdfe, self.chave)
+
+		xml = para_xml(mdfe)
+		self.assertIn("<infMDFe", xml)
+		self.assertIn("<rodo>", xml)
+
+		assinado = assinar_mdfe(mdfe, AssinadorFalso())
+
+		self.assertIn("Signature", assinado["MDFe"])
 
 
 if __name__ == "__main__":

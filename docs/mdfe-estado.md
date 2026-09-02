@@ -117,10 +117,12 @@ reuso total de `assinatura.py`, confirmado por código de produção — não pr
 ter sido confirmado) e `fiscal/mdfe.py::montar_ide`/`montar_mdfe` (orquestração dos 21 campos de
 `ide`, ver `docs/mdfe-orquestracao.md` — lição do `cDV` do CT-e aplicada desde o início desta
 vez), `montar_tot`/`montar_lacres` (ver `docs/mdfe-tot-lacres.md`) e `montar_emit`/`montar_seg`/
-`montar_prod_pred` (ver `docs/mdfe-emit-seg-prodpred.md`). Todos os grupos de conteúdo de
-`infMDFe` mapeados neste levantamento estão implementados. Ainda falta: autorizador por UF,
-eventos, `infLotacao` (dentro de `prodPred`), e um orquestrador de nível mais alto que junte
-`ide`+`emit`+`infModal`+`infDoc`+`seg`+`prodPred`+`tot`+`lacres` num `infMDFe` completo.
+`montar_prod_pred` (ver `docs/mdfe-emit-seg-prodpred.md`) e `montar_infmodal`/`montar_infmdfe`
+(orquestrador de nível mais alto, ver `docs/mdfe-infmdfe.md`). Todos os grupos de conteúdo de
+`infMDFe` mapeados neste levantamento estão implementados e compostos num `infMDFe` completo,
+com prova de ponta a ponta (`montar_infmdfe` → `montar_mdfe` → `assinar_mdfe`). Ainda falta:
+autorizador por UF, eventos, `infLotacao` (dentro de `prodPred`), modais aéreo/aquaviário/
+ferroviário (só o rodoviário está implementado).
 
 ## Fontes
 

@@ -68,8 +68,19 @@ grupo. `prodPred` classifica o produto predominante por `tpCarga` (12 categorias
 ANTT 5.849/2019, incluindo variantes "perigosa" de granel/frigorificada/conteinerizada/geral) —
 `infLotacao` (carga lotação com localização de carregamento) não foi implementado, estrutura
 aninhada mais rara, fora de escopo deste incremento.
+
+`montar_infmodal`/`montar_infmdfe` fecham o orquestrador de nível mais alto: até este ponto,
+cada grupo de `infMDFe` (`ide`, `emit`, `infDoc`, `seg`, `prodPred`, `tot`, `lacres`) era montado
+separadamente, sem nada que os juntasse num único `infMDFe`. Achado real sobre `infModal`
+(linhas 294–325): é um ponto de extensão `xs:any` — o schema não descreve o conteúdo do modal
+diretamente, delega a um dos arquivos `mdfeModal*_v3.00.xsd` (só o rodoviário está implementado,
+`fiscal.mdfe_rodoviario.montar_rodo`), e exige o atributo `versaoModal` (padrão "3.NN", ex.
+`"3.00"`). `montar_infmodal` recebe o conteúdo do modal já pronto (`{"rodo":
+...}`) e só valida/anexa a versão — não sabe montar nenhum modal específico, mesma composição de
+`montar_ide` recebendo o tomador pronto no CT-e.
 """
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
@@ -78,6 +89,8 @@ from erpnext_brasil.fiscal.documento.assinatura import Assinador, montar_signatu
 from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, ler_chave
 from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.validators import validar_cnpj, validar_cpf_cnpj
+
+_PADRAO_VERSAO_MODAL = re.compile(r"^3\.(0[0-9]|[1-9][0-9])$")
 
 __all__ = [
 	"AMBIENTE_HOMOLOGACAO",
@@ -121,6 +134,8 @@ __all__ = [
 	"montar_emit",
 	"montar_ide",
 	"montar_infdoc",
+	"montar_infmdfe",
+	"montar_infmodal",
 	"montar_lacres",
 	"montar_mdfe",
 	"montar_prod_pred",
@@ -630,3 +645,55 @@ def montar_prod_pred(tipo_carga: str, descricao: str, ean: str = "", ncm: str = 
 		grupo["NCM"] = ncm.strip()
 
 	return {"prodPred": grupo}
+
+
+def montar_infmodal(versao: str, conteudo_modal: dict) -> dict:
+	"""Monta `infModal` — um `xs:any` com atributo `versaoModal` obrigatório.
+
+	`conteudo_modal` já vem pronto (ex.: `{"rodo": montar_rodo(...)}` de
+	`fiscal.mdfe_rodoviario`) — esta função só valida a versão e anexa, não sabe montar
+	nenhum modal específico (só o rodoviário está implementado no projeto até agora).
+	"""
+	if not _PADRAO_VERSAO_MODAL.match(versao):
+		raise MdfeInvalido(
+			f"versaoModal deve seguir o padrão 3.NN (ex. '3.00'), recebido {versao!r}", "versao"
+		)
+
+	if not conteudo_modal:
+		raise MdfeInvalido("infModal precisa do conteúdo de um modal (ex. rodo)", "conteudo_modal")
+
+	return {"infModal": {"@versaoModal": versao, **conteudo_modal}}
+
+
+def montar_infmdfe(
+	ide: dict,
+	emit: dict,
+	infmodal: dict,
+	infdoc: dict,
+	tot: dict,
+	seg: dict | None = None,
+	prod_pred: dict | None = None,
+	lacres: dict | None = None,
+) -> dict:
+	"""Compõe `infMDFe` a partir dos grupos já montados, na ordem exata do XSD
+	(`ide`, `emit`, `infModal`, `infDoc`, `seg`, `prodPred`, `tot`, `lacres`).
+
+	Recebe cada grupo pronto — de `montar_ide`, `montar_emit`, `montar_infmodal`,
+	`montar_infdoc`, `montar_seg`, `montar_prod_pred`, `montar_tot`, `montar_lacres` —
+	e só sabe a ordem em que eles entram, não como cada um é montado. `seg`/`prod_pred`/
+	`lacres` são opcionais no XSD; passar `None` ou `{}` os omite do documento.
+	"""
+	infmdfe: dict = {"ide": ide, **emit, **infmodal, **infdoc}
+
+	if seg:
+		infmdfe.update(seg)
+
+	if prod_pred:
+		infmdfe.update(prod_pred)
+
+	infmdfe.update(tot)
+
+	if lacres:
+		infmdfe.update(lacres)
+
+	return infmdfe
