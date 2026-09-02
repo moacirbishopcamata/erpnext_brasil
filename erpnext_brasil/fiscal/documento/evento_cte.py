@@ -4,7 +4,8 @@
 """Eventos do CT-e: cancelamento (`tpEvento` 110111, `evCancCTe`), carta de correção
 (`tpEvento` 110110, `evCCeCTe`), comprovante de entrega (`tpEvento` 110180, `evCECTe`),
 EPEC (`tpEvento` 110113, `evEPECCTe`), cancelamento do comprovante de entrega (`tpEvento`
-110181, `evCancCECTe`) e insucesso na entrega (`tpEvento` 110190, `evIECTe`).
+110181, `evCancCECTe`), insucesso na entrega (`tpEvento` 110190, `evIECTe`) e cancelamento
+do insucesso na entrega (`tpEvento` 110191, `evCancIECTe`).
 
 Por que existe
 --------------
@@ -101,8 +102,8 @@ CNPJ/CPF e `IE` opcional. Reaproveitar `fiscal.cte.TomadorOutros`/`montar_toma4`
 ou inventar dados que o EPEC não pede, ou aceitar `papel` fixo em `"4"` quando o XSD permite
 qualquer um — por isso `TomadorEpec`/`montar_tomador_epec` são um tipo à parte.
 
-Cancelamento do comprovante de entrega (`tpEvento` 110181) — "CE" é Comprovante de Entrega,
-não Carta de Correção
+Cancelamento do comprovante de entrega (`tpEvento` 110181) e cancelamento do insucesso na
+entrega (`tpEvento` 110191) — "CE" é Comprovante de Entrega, não Carta de Correção
 ------------------------------------------------------------------------------------------
 **Achado real, não suposto pelo nome do arquivo**: `evCancCECTe_v4.00.xsd` (36 linhas, lido
 inteiro) descreve, no seu próprio texto (`xs:documentation`), o "cancelamento do comprovante
@@ -113,6 +114,14 @@ que tem sua própria sigla `CCe`, diferente). O nome do arquivo, por analogia so
 confirma que não é isso. Corpo simples: `descEvento` fixo ("Cancelamento do Comprovante de
 Entrega do CT-e"), `nProt` (protocolo do próprio CT-e) e `nProtCE` (protocolo do evento de
 comprovante de entrega que está sendo cancelado) — os dois do tipo `TProt`.
+
+`evCancIECTe_v4.00.xsd` (36 linhas, lido inteiro) é **estruturalmente idêntico**, confirmado
+campo a campo: mesmo `descEvento` fixo (texto diferente, "Cancelamento do Insucesso de
+Entrega do CT-e"), mesmo `nProt`, e `nProtIE` no lugar de `nProtCE` (protocolo do evento de
+insucesso na entrega cancelado). Por ser uma segunda instância real (não hipotética) do mesmo
+formato — cancelar um evento de entrega informando o protocolo do CT-e e o protocolo do
+evento cancelado —, os dois reaproveitam `_montar_evento_cancelamento_protocolo`, uma função
+privada só deste módulo, em vez de duplicar a mesma validação duas vezes.
 
 Insucesso na entrega (`tpEvento` 110190, `evIECTe`) — quase gêmeo do comprovante de entrega,
 com duas divergências reais
@@ -169,6 +178,7 @@ __all__ = [
 	"MOTIVO_INSUCESSO_RECUSA_RECEBEDOR",
 	"TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE",
 	"TIPO_EVENTO_CANCELAMENTO_CTE",
+	"TIPO_EVENTO_CANCELAMENTO_INSUCESSO_ENTREGA_CTE",
 	"TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE",
 	"TIPO_EVENTO_CORRECAO_CTE",
 	"TIPO_EVENTO_EPEC_CTE",
@@ -189,6 +199,7 @@ __all__ = [
 	"montar_env_evento_cte",
 	"montar_evento_cancelamento_comprovante_entrega_cte",
 	"montar_evento_cancelamento_cte",
+	"montar_evento_cancelamento_insucesso_entrega_cte",
 	"montar_evento_comprovante_entrega_cte",
 	"montar_evento_correcao_cte",
 	"montar_evento_epec_cte",
@@ -202,6 +213,7 @@ TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE = "110180"
 TIPO_EVENTO_EPEC_CTE = "110113"
 TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE = "110181"
 TIPO_EVENTO_INSUCESSO_ENTREGA_CTE = "110190"
+TIPO_EVENTO_CANCELAMENTO_INSUCESSO_ENTREGA_CTE = "110191"
 
 MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO = "1"
 MOTIVO_INSUCESSO_RECUSA_RECEBEDOR = "2"
@@ -694,6 +706,68 @@ def montar_evento_epec_cte(
 	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
 
 
+def _montar_evento_cancelamento_protocolo(
+	chave_acesso: str,
+	protocolo: str,
+	protocolo_evento_cancelado: str,
+	campo_protocolo_evento: str,
+	desc_evento: str,
+	tipo_evento: str,
+	cnpj_autor: str,
+	data_evento: str,
+	numero_sequencia: int,
+	ambiente: str,
+) -> dict:
+	"""Forma comum a `evCancCECTe` e `evCancIECTe` — cancela um evento de entrega
+	(comprovante ou insucesso) informando o protocolo do CT-e e o protocolo do evento
+	que está sendo cancelado. Confirmado estruturalmente idêntico entre os dois XSDs
+	(só o nome do campo do segundo protocolo e o texto de `descEvento` mudam) — reuso
+	real, não especulativo."""
+	chave = validar_chave(chave_acesso)
+	lida = ler_chave(chave)
+
+	protocolo_limpo = (protocolo or "").strip()
+
+	if not protocolo_limpo:
+		raise EventoInvalido("O protocolo da autorização do CT-e é obrigatório", "protocolo")
+
+	protocolo_evento_limpo = (protocolo_evento_cancelado or "").strip()
+
+	if not protocolo_evento_limpo:
+		raise EventoInvalido(
+			"O protocolo do evento a cancelar é obrigatório", "protocolo_evento_cancelado"
+		)
+
+	if not (1 <= numero_sequencia <= 20):
+		raise EventoInvalido(
+			f"nSeqEvento deve estar entre 1 e 20, recebido {numero_sequencia}", "numero_sequencia"
+		)
+
+	try:
+		cnpj = validar_cnpj(cnpj_autor)
+	except ValueError as e:
+		raise EventoInvalido(f"CNPJ do autor do evento inválido: {e}", "cnpj_autor") from e
+
+	inf_evento = {
+		"@Id": _formatar_id_cte(chave, tipo_evento, numero_sequencia),
+		"cOrgao": lida.uf,
+		"tpAmb": ambiente,
+		"CNPJ": cnpj,
+		"chCTe": chave,
+		"dhEvento": data_evento,
+		"tpEvento": tipo_evento,
+		"nSeqEvento": str(numero_sequencia),
+		"detEvento": {
+			"@versaoEvento": _VERSAO_LEIAUTE_CTE,
+			"descEvento": desc_evento,
+			"nProt": protocolo_limpo,
+			campo_protocolo_evento: protocolo_evento_limpo,
+		},
+	}
+
+	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+
+
 def montar_evento_cancelamento_comprovante_entrega_cte(
 	chave_acesso: str,
 	protocolo: str,
@@ -714,52 +788,50 @@ def montar_evento_cancelamento_comprovante_entrega_cte(
 	evento de comprovante de entrega que está sendo cancelado — dois protocolos
 	distintos, não o mesmo valor repetido.
 	"""
-	chave = validar_chave(chave_acesso)
-	lida = ler_chave(chave)
+	return _montar_evento_cancelamento_protocolo(
+		chave_acesso=chave_acesso,
+		protocolo=protocolo,
+		protocolo_evento_cancelado=protocolo_comprovante_entrega,
+		campo_protocolo_evento="nProtCE",
+		desc_evento="Cancelamento do Comprovante de Entrega do CT-e",
+		tipo_evento=TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE,
+		cnpj_autor=cnpj_autor,
+		data_evento=data_evento,
+		numero_sequencia=numero_sequencia,
+		ambiente=ambiente,
+	)
 
-	protocolo_limpo = (protocolo or "").strip()
 
-	if not protocolo_limpo:
-		raise EventoInvalido("O protocolo da autorização do CT-e é obrigatório", "protocolo")
+def montar_evento_cancelamento_insucesso_entrega_cte(
+	chave_acesso: str,
+	protocolo: str,
+	protocolo_insucesso_entrega: str,
+	cnpj_autor: str,
+	data_evento: str,
+	numero_sequencia: int = 1,
+	ambiente: str = "2",
+) -> dict:
+	"""Monta o elemento `evento` (grupo `TEvento`) do cancelamento do insucesso na
+	entrega do CT-e (`tpEvento` 110191).
 
-	protocolo_ce_limpo = (protocolo_comprovante_entrega or "").strip()
-
-	if not protocolo_ce_limpo:
-		raise EventoInvalido(
-			"O protocolo do comprovante de entrega a cancelar é obrigatório",
-			"protocolo_comprovante_entrega",
-		)
-
-	if not (1 <= numero_sequencia <= 20):
-		raise EventoInvalido(
-			f"nSeqEvento deve estar entre 1 e 20, recebido {numero_sequencia}", "numero_sequencia"
-		)
-
-	try:
-		cnpj = validar_cnpj(cnpj_autor)
-	except ValueError as e:
-		raise EventoInvalido(f"CNPJ do autor do evento inválido: {e}", "cnpj_autor") from e
-
-	inf_evento = {
-		"@Id": _formatar_id_cte(
-			chave, TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE, numero_sequencia
-		),
-		"cOrgao": lida.uf,
-		"tpAmb": ambiente,
-		"CNPJ": cnpj,
-		"chCTe": chave,
-		"dhEvento": data_evento,
-		"tpEvento": TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE,
-		"nSeqEvento": str(numero_sequencia),
-		"detEvento": {
-			"@versaoEvento": _VERSAO_LEIAUTE_CTE,
-			"descEvento": "Cancelamento do Comprovante de Entrega do CT-e",
-			"nProt": protocolo_limpo,
-			"nProtCE": protocolo_ce_limpo,
-		},
-	}
-
-	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+	Confirmado estruturalmente idêntico a `montar_evento_cancelamento_comprovante_
+	entrega_cte` (`evCancIECTe_v4.00.xsd`, 36 linhas, lido inteiro) — só o nome do
+	campo do segundo protocolo (`nProtIE`, não `nProtCE`) e o texto de `descEvento`
+	mudam. `protocolo_insucesso_entrega` é o protocolo do evento de insucesso na
+	entrega (`evIECTe`) que está sendo cancelado.
+	"""
+	return _montar_evento_cancelamento_protocolo(
+		chave_acesso=chave_acesso,
+		protocolo=protocolo,
+		protocolo_evento_cancelado=protocolo_insucesso_entrega,
+		campo_protocolo_evento="nProtIE",
+		desc_evento="Cancelamento do Insucesso de Entrega do CT-e",
+		tipo_evento=TIPO_EVENTO_CANCELAMENTO_INSUCESSO_ENTREGA_CTE,
+		cnpj_autor=cnpj_autor,
+		data_evento=data_evento,
+		numero_sequencia=numero_sequencia,
+		ambiente=ambiente,
+	)
 
 
 def montar_evento_insucesso_entrega_cte(

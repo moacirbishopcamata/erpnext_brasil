@@ -123,7 +123,8 @@ reaproveitado **sem nenhuma alteração** — já era genérico o bastante.
   `docs/transporte-nativo-sefaz.md` para NF-e, mas CT-e pode ter ambiente próprio — não verificado.
 - `infNF` (NF em papel) — deliberadamente não implementado; caso legado, prioridade baixa.
 - Outros eventos sem equivalente na NF-e (registro de passagem/GTV, prestação em desacordo/
-  cancelamento de prestação em desacordo, registro multimodal) — não investigados.
+  cancelamento de prestação em desacordo, registro multimodal) — não investigados. São os
+  últimos três dos onze eventos de `schemes/PL_CTe_400` no `nfephp-org/sped-cte`.
 
 **Evento de cancelamento implementado** (ver `docs/cte-evento-cancelamento.md`): `tpEvento`
 110111 e o corpo de `detEvento` são idênticos à NF-e, mas dois pontos divergem de verdade —
@@ -162,6 +163,13 @@ usa `TString` (15-256), não `TJust` (15-255) como o cancelamento/EPEC do mesmo 
 (diferente de `hashEntrega`, obrigatório no comprovante de entrega) — calculado só quando há
 imagem. `_montar_inf_entrega_nfe` extraído e reaproveitado entre os dois eventos (mesma regra
 de `infEntrega`, antes duplicada inline).
+
+**Cancelamento do insucesso na entrega implementado em seguida** (ver
+`docs/cte-evento-cancelamento-insucesso-entrega.md`): `tpEvento` `"110191"`. Confirmado
+estruturalmente idêntico ao cancelamento do comprovante de entrega — só o nome do campo do
+segundo protocolo (`nProtIE`, não `nProtCE`) e o texto de `descEvento` mudam. Reuso real (não
+especulativo, é a segunda instância confirmada da mesma forma):
+`_montar_evento_cancelamento_protocolo`, função privada comum às duas.
 
 **`toma3`/`toma4` implementados em seguida** (ver `docs/cte-toma.md`): `montar_toma3` (o
 tomador é uma das partes já citadas no CT-e, só valida o código) e `montar_toma4` (tomador

@@ -19,6 +19,7 @@ from erpnext_brasil.fiscal.documento.evento_cte import (
 	MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO,
 	TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE,
 	TIPO_EVENTO_CANCELAMENTO_CTE,
+	TIPO_EVENTO_CANCELAMENTO_INSUCESSO_ENTREGA_CTE,
 	TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE,
 	TIPO_EVENTO_CORRECAO_CTE,
 	TIPO_EVENTO_EPEC_CTE,
@@ -33,6 +34,7 @@ from erpnext_brasil.fiscal.documento.evento_cte import (
 	calcular_hash_entrega,
 	montar_env_evento_cte,
 	montar_evento_cancelamento_comprovante_entrega_cte,
+	montar_evento_cancelamento_insucesso_entrega_cte,
 	montar_evento_comprovante_entrega_cte,
 	montar_evento_cancelamento_cte,
 	montar_evento_correcao_cte,
@@ -880,6 +882,54 @@ class TestMontarEventoInsucessoEntregaCte(unittest.TestCase):
 		xml = para_xml(assinado)
 
 		self.assertIn("<dhTentativaEntrega>", xml)
+		self.assertIn("<chCTe>", xml)
+
+
+class TestMontarEventoCancelamentoInsucessoEntregaCte(unittest.TestCase):
+	def setUp(self):
+		self.chave = _chave_cte()
+		self.evento = montar_evento_cancelamento_insucesso_entrega_cte(
+			chave_acesso=self.chave,
+			protocolo="135260000000001",
+			protocolo_insucesso_entrega="135260000000003",
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-09-02T16:00:00-03:00",
+		)
+
+	def test_tp_evento_e_110191(self):
+		self.assertEqual(
+			self.evento["evento"]["infEvento"]["tpEvento"],
+			TIPO_EVENTO_CANCELAMENTO_INSUCESSO_ENTREGA_CTE,
+		)
+		self.assertEqual(TIPO_EVENTO_CANCELAMENTO_INSUCESSO_ENTREGA_CTE, "110191")
+
+	def test_usa_nprotie_nao_nprotce(self):
+		"""Achado real: mesma forma do evCancCECTe, mas o campo do segundo protocolo
+		é nProtIE, não nProtCE -- confirmado idêntico caso contrário."""
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+
+		self.assertEqual(det_evento["nProtIE"], "135260000000003")
+		self.assertNotIn("nProtCE", det_evento)
+
+	def test_desc_evento_fixo(self):
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		self.assertEqual(det_evento["descEvento"], "Cancelamento do Insucesso de Entrega do CT-e")
+
+	def test_sem_protocolo_do_insucesso_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_cancelamento_insucesso_entrega_cte(
+				chave_acesso=self.chave,
+				protocolo="135260000000001",
+				protocolo_insucesso_entrega="",
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T16:00:00-03:00",
+			)
+
+	def test_documento_assinado_serializa(self):
+		assinado = assinar_evento(self.evento, AssinadorFalso())
+		xml = para_xml(assinado)
+
+		self.assertIn("<nProtIE>", xml)
 		self.assertIn("<chCTe>", xml)
 
 
