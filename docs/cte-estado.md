@@ -122,8 +122,8 @@ reaproveitado **sem nenhuma alteração** — já era genérico o bastante.
 - Autorizador/webservice por UF — provavelmente segue o mesmo SVRS/SVSP/próprio já mapeado em
   `docs/transporte-nativo-sefaz.md` para NF-e, mas CT-e pode ter ambiente próprio — não verificado.
 - `infNF` (NF em papel) — deliberadamente não implementado; caso legado, prioridade baixa.
-- `evRegMultimodal` (registro multimodal) — não investigado. É o último dos onze eventos de
-  `schemes/PL_CTe_400` no `nfephp-org/sped-cte`.
+- Nenhum — os onze eventos de `schemes/PL_CTe_400` no `nfephp-org/sped-cte` estão todos
+  implementados (ver seção "Marco atingido" abaixo).
 
 **Evento de cancelamento implementado** (ver `docs/cte-evento-cancelamento.md`): `tpEvento`
 110111 e o corpo de `detEvento` são idênticos à NF-e, mas dois pontos divergem de verdade —
@@ -185,6 +185,27 @@ seguiam essa família) — não dá para supor a faixa de código de um evento p
 demais. Achado real 2: o cancelamento (`evCancPrestDesacordo`) diverge da forma dos
 cancelamentos anteriores — carrega só `nProtEvPrestDes`, sem `nProt` do CT-e — por isso não
 reaproveita `_montar_evento_cancelamento_protocolo`.
+
+**Registro multimodal implementado em seguida — o último dos onze eventos do CT-e v4.00**
+(ver `docs/cte-evento-registro-multimodal.md`): `tpEvento` `"110160"`, de volta ao padrão
+`110xxx` (não segue a exceção `610xxx` do evento anterior). Achado real: `nDoc` (1-44
+dígitos) tem o mesmo comprimento de uma chave de acesso, mas o XSD tipa como `[0-9]{1,44}`
+solto, não `TChDFe` — este módulo não valida `nDoc` como chave (sem dígito verificador),
+fiel ao que o schema realmente pede. `xRegistro` vai até 1000 caracteres, o maior limite de
+texto livre entre os eventos do CT-e desta frente.
+
+**Marco atingido: todos os onze eventos do CT-e v4.00 implementados.** Os onze eventos
+listados em `schemes/PL_CTe_400` do `nfephp-org/sped-cte` estão modelados, testados e
+serializáveis: cancelamento, carta de correção, comprovante de entrega, EPEC, cancelamento
+do comprovante de entrega, insucesso na entrega, cancelamento do insucesso na entrega,
+informações da GTV, prestação em desacordo, cancelamento da prestação em desacordo e
+registro multimodal. Cada um foi verificado individualmente contra o XSD correspondente
+(nunca suposto por analogia entre eventos irmãos) — a frente descobriu divergências reais
+em quase todos: limites de texto livre diferentes (255/256/1000), campos que existem num
+evento e não no "gêmeo" aparente, `tpEvento` fora do padrão esperado (`610xxx`), e grafias
+múltiplas aceitas pelo próprio XSD (`descEvento`). Pendente fora do conteúdo de eventos:
+autorizador/webservice por UF do CT-e (não investigado), transmissão de verdade, e eventos
+do MDF-e (nunca investigados).
 
 **`toma3`/`toma4` implementados em seguida** (ver `docs/cte-toma.md`): `montar_toma3` (o
 tomador é uma das partes já citadas no CT-e, só valida o código) e `montar_toma4` (tomador

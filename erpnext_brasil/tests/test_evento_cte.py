@@ -31,6 +31,7 @@ from erpnext_brasil.fiscal.documento.evento_cte import (
 	TIPO_EVENTO_GTV_CTE,
 	TIPO_EVENTO_INSUCESSO_ENTREGA_CTE,
 	TIPO_EVENTO_PRESTACAO_DESACORDO_CTE,
+	TIPO_EVENTO_REGISTRO_MULTIMODAL_CTE,
 	TOMADOR_EPEC_DESTINATARIO,
 	TOMADOR_EPEC_OUTROS,
 	TOMADOR_EPEC_REMETENTE,
@@ -53,6 +54,7 @@ from erpnext_brasil.fiscal.documento.evento_cte import (
 	montar_evento_gtv_cte,
 	montar_evento_insucesso_entrega_cte,
 	montar_evento_prestacao_desacordo_cte,
+	montar_evento_registro_multimodal_cte,
 	montar_parte_gtv,
 	montar_tomador_epec,
 )
@@ -1221,6 +1223,92 @@ class TestMontarEventoCancelamentoPrestacaoDesacordoCte(unittest.TestCase):
 		xml = para_xml(assinado)
 
 		self.assertIn("<nProtEvPrestDes>", xml)
+		self.assertIn("<chCTe>", xml)
+
+
+class TestMontarEventoRegistroMultimodalCte(unittest.TestCase):
+	def setUp(self):
+		self.chave = _chave_cte()
+		self.evento = montar_evento_registro_multimodal_cte(
+			chave_acesso=self.chave,
+			registro="Documento de transporte multimodal MTD-2026-001 emitido pelo OTM.",
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-09-02T20:00:00-03:00",
+		)
+
+	def test_tp_evento_e_110160_de_volta_ao_padrao_110xxx(self):
+		"""Achado real: volta ao padrão 110xxx -- não segue a exceção 610xxx do
+		evento anterior (prestação em desacordo)."""
+		self.assertEqual(
+			self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_REGISTRO_MULTIMODAL_CTE
+		)
+		self.assertEqual(TIPO_EVENTO_REGISTRO_MULTIMODAL_CTE, "110160")
+
+	def test_desc_evento_tem_uma_unica_grafia(self):
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		self.assertEqual(det_evento["descEvento"], "Registro Multimodal")
+
+	def test_ndoc_ausente_por_padrao(self):
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		self.assertNotIn("nDoc", det_evento)
+
+	def test_ndoc_numerico_aceito(self):
+		evento = montar_evento_registro_multimodal_cte(
+			chave_acesso=self.chave,
+			registro="Documento de transporte multimodal MTD-2026-001 emitido pelo OTM.",
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-09-02T20:00:00-03:00",
+			numero_documento="12345678901234",
+		)
+		det_evento = evento["evento"]["infEvento"]["detEvento"]
+		self.assertEqual(det_evento["nDoc"], "12345678901234")
+
+	def test_ndoc_nao_numerico_levanta_erro(self):
+		"""Achado real: nDoc não é validado como chave de acesso (sem dígito
+		verificador) -- só string numérica de até 44 dígitos."""
+		with self.assertRaises(EventoInvalido):
+			montar_evento_registro_multimodal_cte(
+				chave_acesso=self.chave,
+				registro="Documento de transporte multimodal MTD-2026-001 emitido pelo OTM.",
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T20:00:00-03:00",
+				numero_documento="ABC123",
+			)
+
+	def test_registro_curto_demais_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_registro_multimodal_cte(
+				chave_acesso=self.chave,
+				registro="curto",
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T20:00:00-03:00",
+			)
+
+	def test_registro_ate_1000_caracteres_valido(self):
+		"""Achado real: xRegistro vai até 1000 -- o maior limite de texto livre entre
+		os eventos do CT-e nesta frente."""
+		evento = montar_evento_registro_multimodal_cte(
+			chave_acesso=self.chave,
+			registro="a" * 1000,
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-09-02T20:00:00-03:00",
+		)
+		self.assertEqual(len(evento["evento"]["infEvento"]["detEvento"]["xRegistro"]), 1000)
+
+	def test_registro_com_1001_caracteres_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_registro_multimodal_cte(
+				chave_acesso=self.chave,
+				registro="a" * 1001,
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T20:00:00-03:00",
+			)
+
+	def test_documento_assinado_serializa(self):
+		assinado = assinar_evento(self.evento, AssinadorFalso())
+		xml = para_xml(assinado)
+
+		self.assertIn("<xRegistro>", xml)
 		self.assertIn("<chCTe>", xml)
 
 

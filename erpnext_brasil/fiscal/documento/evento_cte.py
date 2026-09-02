@@ -6,8 +6,9 @@
 EPEC (`tpEvento` 110113, `evEPECCTe`), cancelamento do comprovante de entrega (`tpEvento`
 110181, `evCancCECTe`), insucesso na entrega (`tpEvento` 110190, `evIECTe`), cancelamento
 do insucesso na entrega (`tpEvento` 110191, `evCancIECTe`), informações da GTV (`tpEvento`
-110170, `evGTV`), prestação do serviço em desacordo (`tpEvento` 610110, `evPrestDesacordo`)
-e seu cancelamento (`tpEvento` 610111, `evCancPrestDesacordo`).
+110170, `evGTV`), prestação do serviço em desacordo (`tpEvento` 610110, `evPrestDesacordo`),
+seu cancelamento (`tpEvento` 610111, `evCancPrestDesacordo`) e registro multimodal
+(`tpEvento` 110160, `evRegMultimodal`) — o último dos onze eventos do CT-e v4.00.
 
 Por que existe
 --------------
@@ -205,6 +206,22 @@ Este cancelamento carrega **só um**, `nProtEvPrestDes` (o protocolo do `evPrest
 sendo cancelado) — sem `nProt` do CT-e. Por isso **não** reaproveita
 `_montar_evento_cancelamento_protocolo` (que exige os dois protocolos); é uma função própria.
 
+Registro multimodal (`tpEvento` 110160, `evRegMultimodal`) — o último dos onze eventos do
+CT-e v4.00
+------------------------------------------------------------------------------------------
+Verificado em `evRegMultimodal_v4.00.xsd` (51 linhas, lido inteiro). Volta ao padrão
+`110xxx` (`"110160"`) — não segue a exceção `610xxx` do evento anterior, confirmando de
+novo que não dá para prever o código de um evento pelo padrão do vizinho. `descEvento` tem
+**uma única** grafia válida ("Registro Multimodal") — diferente de `evGTV`/
+`evPrestDesacordo`, que aceitavam duas. `xRegistro` (texto livre sobre o registro no
+multimodal) vai até **1000** caracteres — o maior limite de texto livre entre os eventos do
+CT-e nesta frente (os demais ficam em 255/256). `nDoc` (opcional) é o "número do documento
+lançado no CT-e Multimodal" — **achado real**: apesar do comprimento (1-44) coincidir com o
+de uma chave de acesso, o XSD tipa como `[0-9]{1,44}` solto, não como `TChDFe` (o tipo usado
+em `chNFe`/`chCTe` em todo lugar que é de fato uma chave) — este módulo não valida `nDoc`
+como chave de acesso (sem dígito verificador, sem decompor UF/CNPJ/modelo), só confere que
+é uma string numérica de até 44 dígitos, fiel ao que o schema realmente pede.
+
 Funções puras: nenhuma dependência do Frappe.
 """
 
@@ -233,6 +250,7 @@ __all__ = [
 	"ESPECIE_GTV_MOEDA",
 	"ESPECIE_GTV_NUMERARIO",
 	"ESPECIE_GTV_OUTROS",
+	"DESC_EVENTO_REGISTRO_MULTIMODAL",
 	"INDICADOR_DESACORDO_OPERACAO",
 	"JUSTIFICATIVA_MAXIMA_CTE",
 	"JUSTIFICATIVA_MINIMA_CTE",
@@ -250,6 +268,7 @@ __all__ = [
 	"TIPO_EVENTO_GTV_CTE",
 	"TIPO_EVENTO_INSUCESSO_ENTREGA_CTE",
 	"TIPO_EVENTO_PRESTACAO_DESACORDO_CTE",
+	"TIPO_EVENTO_REGISTRO_MULTIMODAL_CTE",
 	"TOMADOR_EPEC_DESTINATARIO",
 	"TOMADOR_EPEC_EXPEDIDOR",
 	"TOMADOR_EPEC_OUTROS",
@@ -260,6 +279,8 @@ __all__ = [
 	"XJUSTMOTIVO_MINIMO_IE_CTE",
 	"XOBS_MAXIMO_DESACORDO_CTE",
 	"XOBS_MINIMO_DESACORDO_CTE",
+	"XREGISTRO_MAXIMO_MULTIMODAL_CTE",
+	"XREGISTRO_MINIMO_MULTIMODAL_CTE",
 	"CorrecaoCte",
 	"EspecieGtv",
 	"EventoInvalido",
@@ -279,6 +300,7 @@ __all__ = [
 	"montar_evento_gtv_cte",
 	"montar_evento_insucesso_entrega_cte",
 	"montar_evento_prestacao_desacordo_cte",
+	"montar_evento_registro_multimodal_cte",
 	"montar_parte_gtv",
 	"montar_tomador_epec",
 ]
@@ -315,6 +337,14 @@ INDICADOR_DESACORDO_OPERACAO = "1"
 
 XOBS_MINIMO_DESACORDO_CTE = 15
 XOBS_MAXIMO_DESACORDO_CTE = 255
+
+TIPO_EVENTO_REGISTRO_MULTIMODAL_CTE = "110160"
+DESC_EVENTO_REGISTRO_MULTIMODAL = "Registro Multimodal"
+
+# xRegistro é o texto livre de maior limite entre os eventos do CT-e nesta frente (1000,
+# não 255/256) -- ver docstring do módulo.
+XREGISTRO_MINIMO_MULTIMODAL_CTE = 15
+XREGISTRO_MAXIMO_MULTIMODAL_CTE = 1000
 
 MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO = "1"
 MOTIVO_INSUCESSO_RECUSA_RECEBEDOR = "2"
@@ -1362,6 +1392,77 @@ def montar_evento_cancelamento_prestacao_desacordo_cte(
 			"descEvento": "Cancelamento Prestação do Serviço em Desacordo",
 			"nProtEvPrestDes": protocolo_limpo,
 		},
+	}
+
+	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+
+
+def montar_evento_registro_multimodal_cte(
+	chave_acesso: str,
+	registro: str,
+	cnpj_autor: str,
+	data_evento: str,
+	numero_documento: str | None = None,
+	numero_sequencia: int = 1,
+	ambiente: str = "2",
+) -> dict:
+	"""Monta o elemento `evento` (grupo `TEvento`) do registro multimodal (`tpEvento`
+	110160) — o último dos onze eventos do CT-e v4.00.
+
+	`numero_documento` (`nDoc`) é opcional e, apesar do comprimento (1-44) coincidir
+	com o de uma chave de acesso, **não é validado como uma** — o XSD tipa como
+	`[0-9]{1,44}` solto, não `TChDFe`. Este módulo só confere que é uma string
+	numérica de até 44 dígitos, fiel ao que o schema realmente pede (achado real, ver
+	docstring do módulo).
+	"""
+	chave = validar_chave(chave_acesso)
+	lida = ler_chave(chave)
+
+	texto_registro = (registro or "").strip()
+
+	if not (
+		XREGISTRO_MINIMO_MULTIMODAL_CTE <= len(texto_registro) <= XREGISTRO_MAXIMO_MULTIMODAL_CTE
+	):
+		raise EventoInvalido(
+			f"xRegistro deve ter de {XREGISTRO_MINIMO_MULTIMODAL_CTE} a "
+			f"{XREGISTRO_MAXIMO_MULTIMODAL_CTE} caracteres, recebidos {len(texto_registro)}",
+			"registro",
+		)
+
+	if not (1 <= numero_sequencia <= 20):
+		raise EventoInvalido(
+			f"nSeqEvento deve estar entre 1 e 20, recebido {numero_sequencia}", "numero_sequencia"
+		)
+
+	try:
+		cnpj = validar_cnpj(cnpj_autor)
+	except ValueError as e:
+		raise EventoInvalido(f"CNPJ do autor do evento inválido: {e}", "cnpj_autor") from e
+
+	det_evento: dict = {
+		"@versaoEvento": _VERSAO_LEIAUTE_CTE,
+		"descEvento": DESC_EVENTO_REGISTRO_MULTIMODAL,
+		"xRegistro": texto_registro,
+	}
+
+	if numero_documento is not None:
+		if not (1 <= len(numero_documento) <= 44 and numero_documento.isdigit()):
+			raise EventoInvalido(
+				f"nDoc deve ter de 1 a 44 dígitos, recebido {numero_documento!r}", "numero_documento"
+			)
+
+		det_evento["nDoc"] = numero_documento
+
+	inf_evento = {
+		"@Id": _formatar_id_cte(chave, TIPO_EVENTO_REGISTRO_MULTIMODAL_CTE, numero_sequencia),
+		"cOrgao": lida.uf,
+		"tpAmb": ambiente,
+		"CNPJ": cnpj,
+		"chCTe": chave,
+		"dhEvento": data_evento,
+		"tpEvento": TIPO_EVENTO_REGISTRO_MULTIMODAL_CTE,
+		"nSeqEvento": str(numero_sequencia),
+		"detEvento": det_evento,
 	}
 
 	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
