@@ -122,6 +122,14 @@ reaproveitado **sem nenhuma alteração** — já era genérico o bastante.
 - Autorizador/webservice por UF — provavelmente segue o mesmo SVRS/SVSP/próprio já mapeado em
   `docs/transporte-nativo-sefaz.md` para NF-e, mas CT-e pode ter ambiente próprio — não verificado.
 - `infNF` (NF em papel) — deliberadamente não implementado; caso legado, prioridade baixa.
+- Carta de correção do CT-e (`evCCeCTe`) e outros eventos sem equivalente na NF-e
+  (encerramento, registro de passagem, prestação em desacordo, EPEC) — só o cancelamento foi
+  investigado e implementado (ver `docs/cte-evento-cancelamento.md`).
+
+**Evento de cancelamento implementado** (ver `docs/cte-evento-cancelamento.md`): `tpEvento`
+110111 e o corpo de `detEvento` são idênticos à NF-e, mas dois pontos divergem de verdade —
+justificativa vai até 255 caracteres (não 256), e o `@Id` tem 53 dígitos (`nSeqEvento` com 3
+dígitos no Id, não 2). `assinar_evento`/`EventoInvalido` da NF-e reaproveitados sem alteração.
 
 **`toma3`/`toma4` implementados em seguida** (ver `docs/cte-toma.md`): `montar_toma3` (o
 tomador é uma das partes já citadas no CT-e, só valida o código) e `montar_toma4` (tomador
