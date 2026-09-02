@@ -122,14 +122,20 @@ reaproveitado **sem nenhuma alteração** — já era genérico o bastante.
 - Autorizador/webservice por UF — provavelmente segue o mesmo SVRS/SVSP/próprio já mapeado em
   `docs/transporte-nativo-sefaz.md` para NF-e, mas CT-e pode ter ambiente próprio — não verificado.
 - `infNF` (NF em papel) — deliberadamente não implementado; caso legado, prioridade baixa.
-- Carta de correção do CT-e (`evCCeCTe`) e outros eventos sem equivalente na NF-e
-  (encerramento, registro de passagem, prestação em desacordo, EPEC) — só o cancelamento foi
-  investigado e implementado (ver `docs/cte-evento-cancelamento.md`).
+- Outros eventos sem equivalente na NF-e (encerramento, registro de passagem, prestação em
+  desacordo, EPEC) — não investigados.
 
 **Evento de cancelamento implementado** (ver `docs/cte-evento-cancelamento.md`): `tpEvento`
 110111 e o corpo de `detEvento` são idênticos à NF-e, mas dois pontos divergem de verdade —
 justificativa vai até 255 caracteres (não 256), e o `@Id` tem 53 dígitos (`nSeqEvento` com 3
 dígitos no Id, não 2). `assinar_evento`/`EventoInvalido` da NF-e reaproveitados sem alteração.
+
+**Carta de correção implementada em seguida** (ver `docs/cte-evento-correcao.md`): achado real
+e grande — a CC-e do CT-e **não é texto livre** como a da NF-e, é `infCorrecao`, uma lista
+estruturada de correções campo a campo (`grupoAlterado`/`campoAlterado`/`valorAlterado`/
+`nroItemAlterado`). `xCondUso` cita uma base legal diferente (Art. 58-B do Convênio SINIEF
+06/89, não o Art. 7º do Convênio S/N usado pela NF-e). `tpEvento` (`"110110"`) é o mesmo
+número da NF-e, mesmo o corpo divergindo por completo.
 
 **`toma3`/`toma4` implementados em seguida** (ver `docs/cte-toma.md`): `montar_toma3` (o
 tomador é uma das partes já citadas no CT-e, só valida o código) e `montar_toma4` (tomador
