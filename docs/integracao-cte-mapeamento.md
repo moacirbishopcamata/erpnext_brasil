@@ -38,9 +38,9 @@ resultado alimente `montar_infdoc` sem nenhuma tradução a mais.
    autorização — hoje `transporte_sefaz.py` existe mas não é chamado por nenhum hook (não
    fechado: exigiria gerenciar certificado A1 e ambiente de homologação, sem como testar de
    ponta a ponta nesta investigação).
-3. Uma função de extração real (`Shipment` → `Shipment Delivery Note` → `Delivery Note` →
-   `br_chave_acesso`, agora que o campo existe) que produza a lista de
-   `ReferenciaDocumentoFiscal` que este módulo consome.
+3. **Fechado em seguida** — ver `docs/integracao-cte-extracao.md`: `integracao/
+   cte_extracao.py::referencias_do_shipment` percorre `Shipment` → `Shipment Delivery Note` →
+   `Delivery Note` → `br_chave_acesso` e produz a lista de `ReferenciaDocumentoFiscal`.
 4. Wiring simétrico do lado do CT-e (`Purchase Invoice`/documento de frete → chave de CT-e).
 
 ## Arquivos
