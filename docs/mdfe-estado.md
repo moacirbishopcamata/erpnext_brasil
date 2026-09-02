@@ -163,8 +163,36 @@ achado já vista no CT-e. Achado real 2: o `infDoc` deste evento só aceita `chN
 (nunca CT-e) — diferente do `infDoc` da orquestração principal do MDF-e, que agrupa
 `infCTe`/`infNFe`.
 
-**Pendente**: confirmação do serviço, pagamento
-da operação, alteração de pagamento do serviço — nenhum investigado
+**Confirmação do serviço implementada em seguida** (ver
+`docs/mdfe-evento-confirmacao-servico.md`): `tpEvento` `"110117"`, o mais simples desta
+frente — só `nProt`. Achado real: a numeração dos eventos não é contígua nem segue a
+ordem alfabética dos arquivos (`"110117"` vem depois de `"110116"`, que pertence ao
+pagamento da operação, alfabeticamente posterior).
+
+**Pagamento da operação implementado em seguida** (ver
+`docs/mdfe-evento-pagamento-operacao.md`): `tpEvento` `"110116"`, o evento mais complexo
+do MDF-e — `infViagens` + `infPag` (lista, com componentes do frete, três formas de
+identificar o responsável — CPF/CNPJ/estrangeiro —, pagamento à vista/a prazo com
+parcelas, e três formas de receber o pagamento — banco+agência/CNPJIPEF/PIX). Achado
+real: `idEstrangeiro` tem uma inconsistência no próprio XSD entre `minLength`/`maxLength`
+declarados e o `xs:pattern` (que na prática só aceita vazio ou 5-20 caracteres, nunca
+2-4) — validado pelos limites declarados, não pelo padrão degenerado.
+
+**Alteração do pagamento implementada em seguida — sétimo e último evento do MDF-e** (ver
+`docs/mdfe-evento-alteracao-pagamento.md`): `tpEvento` `"110118"`. Achado real de reuso
+confirmado (não especulativo): o `infPag` é estruturalmente idêntico ao do pagamento da
+operação — `ComponentePagamento`/`InfoBancaria`/`InfoPagamento` e as funções de montagem
+são compartilhadas entre os dois eventos, só faltando `infViagens` neste.
+
+## Marco atingido: todos os sete eventos do MDF-e v3.00 implementados
+
+`evCancMDFe`, `evEncMDFe`, `evIncCondutorMDFe`, `evIncDFeMDFe`, `evPagtoOperMDFe`,
+`evConfirmaServMDFe`, `evAlteracaoPagtoServMDFe` — todos modelados, testados e
+serializáveis em `fiscal/documento/evento_mdfe.py`. Combinado com os onze eventos do
+CT-e já concluídos (`docs/cte-estado.md`), a frente de eventos dos dois documentos de
+transporte está fechada. Pendente fora do conteúdo de eventos: autorizador/webservice
+por UF (MDF-e e CT-e), transmissão de verdade, e a camada `integracao/` que liga tudo a
+doctypes reais do ERPNext.
 ainda.
 
 ## Fontes

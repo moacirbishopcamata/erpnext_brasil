@@ -86,6 +86,9 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [mdfe-evento-encerramento.md](mdfe-evento-encerramento.md) | Evento de encerramento do MDF-e: achado real de que `cUF` aceita `"99"` para Exterior (`TCodUfIBGE_EX`, não a tabela normal de 27 UFs) |
 | [mdfe-evento-inclusao-condutor.md](mdfe-evento-inclusao-condutor.md) | Evento de inclusão de condutor do MDF-e: reuso direto de `fiscal.mdfe_rodoviario.Condutor`, achado de grafia sem acento única |
 | [mdfe-evento-inclusao-dfe.md](mdfe-evento-inclusao-dfe.md) | Evento de inclusão de DF-e do MDF-e: nome do arquivo diverge do elemento raiz, e o evento só aceita NF-e (nunca CT-e) — diferente do `infDoc` da orquestração principal |
+| [mdfe-evento-confirmacao-servico.md](mdfe-evento-confirmacao-servico.md) | Evento de confirmação do serviço do MDF-e: o mais simples da frente, achado de numeração não contígua/não alfabética |
+| [mdfe-evento-pagamento-operacao.md](mdfe-evento-pagamento-operacao.md) | Evento de pagamento da operação do MDF-e: o mais complexo da frente, três formas de identificar o responsável (CPF/CNPJ/estrangeiro), achado de inconsistência no XSD do `idEstrangeiro` |
+| [mdfe-evento-alteracao-pagamento.md](mdfe-evento-alteracao-pagamento.md) | Evento de alteração do pagamento do MDF-e: reuso direto e confirmado do `infPag` do pagamento da operação, sem `infViagens` |
 
 ## Convenções que valem em todo o código
 

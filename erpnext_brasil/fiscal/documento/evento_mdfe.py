@@ -3,7 +3,8 @@
 
 """Eventos do MDF-e: cancelamento (`tpEvento` 110111, `evCancMDFe`), encerramento
 (`tpEvento` 110112, `evEncMDFe`), inclusão de condutor (`tpEvento` 110114,
-`evIncCondutorMDFe`) e inclusão de DF-e (`tpEvento` 110115, `evIncDFeMDFe`).
+`evIncCondutorMDFe`), inclusão de DF-e (`tpEvento` 110115, `evIncDFeMDFe`) e confirmação
+do serviço de transporte (`tpEvento` 110117, `evConfirmaServMDFe`).
 
 Por que existe
 --------------
@@ -100,6 +101,52 @@ qualquer chave que não seja modelo 55 — mesma defesa em profundidade já apli
 outros pontos do projeto (`fiscal.cte.montar_infnfe`, `_montar_inf_entrega_nfe` do
 CT-e).
 
+Confirmação do serviço de transporte (`tpEvento` 110117) — o mais simples até agora
+------------------------------------------------------------------------------------------
+Verificado em `evConfirmaServMDFe_v3.00.xsd` (34 linhas, lido inteiro): `descEvento` (as
+duas grafias já vistas em outros eventos) e só `nProt` — nenhum outro campo. `tpEvento` é
+`"110117"`, não `"110116"` (esse número pertence ao pagamento da operação, ver abaixo) —
+a ordem alfabética dos arquivos não reflete a ordem numérica dos códigos (`evConfirmaServ`
+vem antes de `evPagtoOper` no alfabeto, mas `110117` é maior que `110116`) — mais um
+lembrete de não presumir sequência a partir de nomes de arquivo.
+
+Pagamento da operação de transporte (`tpEvento` 110116, `evPagtoOperMDFe`) — o evento mais
+complexo do MDF-e
+------------------------------------------------------------------------------------------
+Verificado em `evPagtoOperMDFe_v3.00.xsd` (289 linhas, lido inteiro). `infViagens`
+(quantidade e número da viagem, ambos `[0-9]{5}`) e `infPag` (lista, um item por
+responsável pelo pagamento): `xNome` opcional, `(CPF|CNPJ|idEstrangeiro)` — três formas de
+identificar o responsável, não duas como o resto do projeto; `Comp` (lista de componentes
+do frete: `01` Vale Pedágio, `02` Impostos, `03` Despesas, `04` Frete, `99` Outros, cada um
+com `vComp` e `xComp` opcional); `vContrato`; `indPag` (`0` à vista / `1` a prazo);
+`vAdiant` opcional (documentado "usar apenas em pagamento à Prazo" — regra de negócio
+aplicada aqui, não só decorativa); `indAntecipaAdiant` opcional (enumeração de um valor
+só); `infPrazo` opcional (lista de parcelas: `nParcela`, `dVenc`, `vParcela`, "informar
+somente se indPag for à Prazo" — mesma regra aplicada); `tpAntecip` opcional (`0` não
+permite / `1` permite / `2` permite mediante confirmação); e `infBanc`, um `xs:choice`
+entre três formas de receber o pagamento: banco+agência, CNPJ de instituição de pagamento
+eletrônico do frete (`CNPJIPEF`), ou chave PIX.
+
+**Achado real**: `idEstrangeiro` tem uma restrição inconsistente no próprio XSD —
+`minLength=2`/`maxLength=20` combinados com um `xs:pattern`
+(`([!-ÿ]{0}|[!-ÿ]{5,20})?`) que na prática aceita string **vazia** ou de 5 a 20
+caracteres — nunca de 2 a 4, apesar do `minLength` declarado dizer "2". Este módulo valida
+pelo `minLength`/`maxLength` documentados (2-20), não pelo padrão degenerado, e registra a
+inconsistência aqui em vez de reproduzi-la silenciosamente.
+
+Alteração do pagamento do serviço (`tpEvento` 110118, `evAlteracaoPagtoServMDFe`) — reuso
+direto do `infPag` do pagamento da operação
+------------------------------------------------------------------------------------------
+Verificado em `evAlteracaoPagtoServMDFe_v3.00.xsd` (257 linhas, lido inteiro). **Achado
+real de reuso, confirmado, não especulativo**: o `infPag` deste evento é
+**estruturalmente idêntico**, campo a campo, ao `infPag` do pagamento da operação — a
+única diferença de forma entre os dois eventos é que este **não tem** `infViagens` (faz
+sentido: alterar o pagamento de uma operação já registrada não precisa repetir a
+contagem de viagens). Por isso `ComponentePagamento`/`InfoBancaria`/`InfoPagamento` e as
+funções `montar_componente_pagamento`/`montar_inf_banc`/`montar_inf_pag` são
+compartilhadas entre os dois eventos — só a montagem do `evento` em si (com/sem
+`infViagens`, `tpEvento`/`descEvento` diferentes) muda.
+
 Reuso: `EventoInvalido`/`assinar_evento` de `evento.py`, sem alteração
 ------------------------------------------------------------------------------
 Ambos já eram genéricos (não hardcodam `NAMESPACE_NFE`, só leem o que o dicionário
@@ -108,7 +155,7 @@ Ambos já eram genéricos (não hardcodam `NAMESPACE_NFE`, só leem o que o dici
 Funções puras: nenhuma dependência do Frappe.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import re
 
@@ -116,32 +163,83 @@ from erpnext_brasil.fiscal.documento.chave_acesso import ler_chave, validar_chav
 from erpnext_brasil.fiscal.documento.evento import EventoInvalido, assinar_evento
 from erpnext_brasil.fiscal.mdfe import NAMESPACE_MDFE
 from erpnext_brasil.fiscal.mdfe_rodoviario import Condutor, MdfeRodoviarioInvalido, montar_condutor
-from erpnext_brasil.fiscal.validators import validar_cnpj
+from erpnext_brasil.fiscal.validators import validar_cnpj, validar_cpf
 
 __all__ = [
+	"INDICADOR_ANTECIPA_ADIANTAMENTO",
 	"INDICADOR_ENCERRAMENTO_POR_TERCEIRO",
+	"INDICADOR_PAGAMENTO_A_PRAZO",
+	"INDICADOR_PAGAMENTO_A_VISTA",
 	"JUSTIFICATIVA_MAXIMA_MDFE",
 	"JUSTIFICATIVA_MINIMA_MDFE",
+	"TIPO_ANTECIPACAO_NAO_PERMITE",
+	"TIPO_ANTECIPACAO_PERMITE",
+	"TIPO_ANTECIPACAO_PERMITE_COM_CONFIRMACAO",
+	"TIPO_COMPONENTE_DESPESAS",
+	"TIPO_COMPONENTE_FRETE",
+	"TIPO_COMPONENTE_IMPOSTOS",
+	"TIPO_COMPONENTE_OUTROS",
+	"TIPO_COMPONENTE_VALE_PEDAGIO",
+	"TIPO_EVENTO_ALTERACAO_PAGAMENTO_SERVICO_MDFE",
 	"TIPO_EVENTO_CANCELAMENTO_MDFE",
+	"TIPO_EVENTO_CONFIRMACAO_SERVICO_MDFE",
 	"TIPO_EVENTO_ENCERRAMENTO_MDFE",
 	"TIPO_EVENTO_INCLUSAO_CONDUTOR_MDFE",
 	"TIPO_EVENTO_INCLUSAO_DFE_MDFE",
+	"TIPO_EVENTO_PAGAMENTO_OPERACAO_MDFE",
+	"ComponentePagamento",
 	"Condutor",
 	"DocumentoIncluido",
 	"EventoInvalido",
+	"InfoBancaria",
+	"InfoPagamento",
+	"ParcelaPagamento",
 	"assinar_evento",
+	"montar_componente_pagamento",
 	"montar_condutor",
 	"montar_env_evento_mdfe",
+	"montar_evento_alteracao_pagamento_servico_mdfe",
 	"montar_evento_cancelamento_mdfe",
+	"montar_evento_confirmacao_servico_mdfe",
 	"montar_evento_encerramento_mdfe",
 	"montar_evento_inclusao_condutor_mdfe",
 	"montar_evento_inclusao_dfe_mdfe",
+	"montar_evento_pagamento_operacao_mdfe",
+	"montar_inf_banc",
+	"montar_inf_pag",
 ]
 
 TIPO_EVENTO_CANCELAMENTO_MDFE = "110111"
 TIPO_EVENTO_ENCERRAMENTO_MDFE = "110112"
 TIPO_EVENTO_INCLUSAO_CONDUTOR_MDFE = "110114"
 TIPO_EVENTO_INCLUSAO_DFE_MDFE = "110115"
+TIPO_EVENTO_PAGAMENTO_OPERACAO_MDFE = "110116"
+TIPO_EVENTO_CONFIRMACAO_SERVICO_MDFE = "110117"
+TIPO_EVENTO_ALTERACAO_PAGAMENTO_SERVICO_MDFE = "110118"
+
+TIPO_COMPONENTE_VALE_PEDAGIO = "01"
+TIPO_COMPONENTE_IMPOSTOS = "02"
+TIPO_COMPONENTE_DESPESAS = "03"
+TIPO_COMPONENTE_FRETE = "04"
+TIPO_COMPONENTE_OUTROS = "99"
+
+_COMPONENTES_PAGAMENTO_VALIDOS = {
+	TIPO_COMPONENTE_VALE_PEDAGIO, TIPO_COMPONENTE_IMPOSTOS, TIPO_COMPONENTE_DESPESAS,
+	TIPO_COMPONENTE_FRETE, TIPO_COMPONENTE_OUTROS,
+}
+
+INDICADOR_PAGAMENTO_A_VISTA = "0"
+INDICADOR_PAGAMENTO_A_PRAZO = "1"
+_INDICADORES_PAGAMENTO_VALIDOS = {INDICADOR_PAGAMENTO_A_VISTA, INDICADOR_PAGAMENTO_A_PRAZO}
+
+INDICADOR_ANTECIPA_ADIANTAMENTO = "1"
+
+TIPO_ANTECIPACAO_NAO_PERMITE = "0"
+TIPO_ANTECIPACAO_PERMITE = "1"
+TIPO_ANTECIPACAO_PERMITE_COM_CONFIRMACAO = "2"
+_TIPOS_ANTECIPACAO_VALIDOS = {
+	TIPO_ANTECIPACAO_NAO_PERMITE, TIPO_ANTECIPACAO_PERMITE, TIPO_ANTECIPACAO_PERMITE_COM_CONFIRMACAO,
+}
 _VERSAO_LEIAUTE_MDFE = "3.00"
 
 # `TJust` do MDF-e — numericamente igual ao do CT-e, mas verificado à parte (tipo
@@ -454,6 +552,403 @@ def montar_evento_inclusao_dfe_mdfe(
 			"cMunCarrega": codigo_municipio_carrega,
 			"xMunCarrega": nome_municipio_carrega,
 			"infDoc": [_montar_doc_incluido(d) for d in documentos],
+		},
+	}
+
+	return {"evento": {"@xmlns": NAMESPACE_MDFE, "@versao": _VERSAO_LEIAUTE_MDFE, "infEvento": inf_evento}}
+
+
+def montar_evento_confirmacao_servico_mdfe(
+	chave_acesso: str,
+	protocolo: str,
+	cnpj_autor: str,
+	data_evento: str,
+	numero_sequencia: int = 1,
+	ambiente: str = "2",
+) -> dict:
+	"""Monta o elemento `evento` (grupo `TEvento`) da confirmação do serviço de
+	transporte do MDF-e — o mais simples da frente até agora, só `nProt`."""
+	chave = validar_chave(chave_acesso)
+	lida = ler_chave(chave)
+
+	protocolo_limpo = (protocolo or "").strip()
+
+	if not protocolo_limpo:
+		raise EventoInvalido("O protocolo da autorização é obrigatório", "protocolo")
+
+	if not (1 <= numero_sequencia <= 20):
+		raise EventoInvalido(
+			f"nSeqEvento deve estar entre 1 e 20, recebido {numero_sequencia}", "numero_sequencia"
+		)
+
+	try:
+		cnpj = validar_cnpj(cnpj_autor)
+	except ValueError as e:
+		raise EventoInvalido(f"CNPJ do autor do evento inválido: {e}", "cnpj_autor") from e
+
+	inf_evento = {
+		"@Id": _formatar_id_mdfe(chave, TIPO_EVENTO_CONFIRMACAO_SERVICO_MDFE, numero_sequencia),
+		"cOrgao": lida.uf,
+		"tpAmb": ambiente,
+		"CNPJ": cnpj,
+		"chMDFe": chave,
+		"dhEvento": data_evento,
+		"tpEvento": TIPO_EVENTO_CONFIRMACAO_SERVICO_MDFE,
+		"nSeqEvento": str(numero_sequencia),
+		"detEvento": {
+			"@versaoEvento": _VERSAO_LEIAUTE_MDFE,
+			"descEvento": "Confirmação Serviço Transporte",
+			"nProt": protocolo_limpo,
+		},
+	}
+
+	return {"evento": {"@xmlns": NAMESPACE_MDFE, "@versao": _VERSAO_LEIAUTE_MDFE, "infEvento": inf_evento}}
+
+
+@dataclass(frozen=True)
+class ComponentePagamento:
+	"""Um item de `Comp` — um componente do frete (vale-pedágio, impostos, despesas,
+	frete, outros). `descricao` (`xComp`) é opcional no XSD mesmo para `tipo="99"`
+	(Outros) — este módulo não inventa uma exigência que o schema não faz."""
+
+	tipo: str
+	valor: str
+	descricao: str | None = None
+
+	def __post_init__(self):
+		if self.tipo not in _COMPONENTES_PAGAMENTO_VALIDOS:
+			raise EventoInvalido(
+				f"tpComp deve ser um de {sorted(_COMPONENTES_PAGAMENTO_VALIDOS)}, "
+				f"recebido {self.tipo!r}",
+				"tipo",
+			)
+
+
+def montar_componente_pagamento(componente: ComponentePagamento) -> dict:
+	item: dict = {"tpComp": componente.tipo, "vComp": str(componente.valor)}
+
+	if componente.descricao is not None:
+		item["xComp"] = componente.descricao
+
+	return item
+
+
+@dataclass(frozen=True)
+class ParcelaPagamento:
+	"""Um item de `infPrazo` — só informado quando o pagamento é a prazo (ver
+	`InfoPagamento.__post_init__`)."""
+
+	numero: int
+	data_vencimento: str
+	valor: str
+
+	def __post_init__(self):
+		if not (1 <= self.numero <= 999):
+			raise EventoInvalido(
+				f"nParcela deve estar entre 1 e 999, recebido {self.numero}", "numero"
+			)
+
+
+def montar_parcela_pagamento(parcela: ParcelaPagamento) -> dict:
+	return {
+		"nParcela": f"{parcela.numero:03d}",
+		"dVenc": parcela.data_vencimento,
+		"vParcela": str(parcela.valor),
+	}
+
+
+@dataclass(frozen=True)
+class InfoBancaria:
+	"""`infBanc` — `xs:choice` entre três formas de receber o pagamento: banco+agência,
+	CNPJ de instituição de pagamento eletrônico do frete (`CNPJIPEF`), ou chave PIX.
+	Exatamente uma das três deve ser informada."""
+
+	codigo_banco: str | None = None
+	codigo_agencia: str | None = None
+	cnpj_ipef: str | None = None
+	chave_pix: str | None = None
+
+	def __post_init__(self):
+		variantes = [
+			bool(self.codigo_banco or self.codigo_agencia),
+			bool(self.cnpj_ipef),
+			bool(self.chave_pix),
+		]
+
+		if sum(variantes) != 1:
+			raise EventoInvalido(
+				"infBanc exige exatamente uma forma: banco+agência, CNPJIPEF ou PIX",
+				"informacao_bancaria",
+			)
+
+		if bool(self.codigo_banco) != bool(self.codigo_agencia):
+			raise EventoInvalido(
+				"codigo_banco e codigo_agencia devem ser informados juntos", "informacao_bancaria"
+			)
+
+
+def montar_inf_banc(info: InfoBancaria) -> dict:
+	if info.codigo_banco:
+		if not (3 <= len(info.codigo_banco) <= 5):
+			raise EventoInvalido(
+				f"codBanco deve ter de 3 a 5 caracteres, recebido {info.codigo_banco!r}",
+				"codigo_banco",
+			)
+
+		if not (1 <= len(info.codigo_agencia) <= 10):
+			raise EventoInvalido(
+				f"codAgencia deve ter de 1 a 10 caracteres, recebido {info.codigo_agencia!r}",
+				"codigo_agencia",
+			)
+
+		return {"infBanc": {"codBanco": info.codigo_banco, "codAgencia": info.codigo_agencia}}
+
+	if info.cnpj_ipef:
+		try:
+			cnpj = validar_cnpj(info.cnpj_ipef)
+		except ValueError as e:
+			raise EventoInvalido(f"CNPJIPEF inválido: {e}", "cnpj_ipef") from e
+
+		return {"infBanc": {"CNPJIPEF": cnpj}}
+
+	if not (2 <= len(info.chave_pix) <= 60):
+		raise EventoInvalido(
+			f"PIX deve ter de 2 a 60 caracteres, recebido {info.chave_pix!r}", "chave_pix"
+		)
+
+	return {"infBanc": {"PIX": info.chave_pix}}
+
+
+@dataclass(frozen=True)
+class InfoPagamento:
+	"""Um item de `infPag` — quem paga o frete e como. `(cpf|cnpj|id_estrangeiro)` é um
+	`xs:choice`: exatamente um dos três identifica o responsável (achado real: o MDF-e
+	aceita responsável estrangeiro, diferente da maioria dos grupos deste projeto, que
+	só alternam entre CPF e CNPJ).
+	"""
+
+	componentes: list[ComponentePagamento]
+	valor_contrato: str
+	indicador_pagamento: str
+	informacao_bancaria: InfoBancaria
+	nome: str | None = None
+	cpf: str | None = None
+	cnpj: str | None = None
+	id_estrangeiro: str | None = None
+	valor_adiantamento: str | None = None
+	antecipa_adiantamento: bool = False
+	parcelas: list[ParcelaPagamento] = field(default_factory=list)
+	tipo_antecipacao: str | None = None
+
+	def __post_init__(self):
+		if not self.componentes:
+			raise EventoInvalido("Comp precisa de ao menos um componente", "componentes")
+
+		if self.indicador_pagamento not in _INDICADORES_PAGAMENTO_VALIDOS:
+			raise EventoInvalido(
+				f"indPag deve ser um de {sorted(_INDICADORES_PAGAMENTO_VALIDOS)}, "
+				f"recebido {self.indicador_pagamento!r}",
+				"indicador_pagamento",
+			)
+
+		identificadores = [bool(self.cpf), bool(self.cnpj), bool(self.id_estrangeiro)]
+
+		if sum(identificadores) != 1:
+			raise EventoInvalido(
+				"informe exatamente um entre cpf, cnpj e id_estrangeiro", "cpf"
+			)
+
+		a_prazo = self.indicador_pagamento == INDICADOR_PAGAMENTO_A_PRAZO
+
+		if self.valor_adiantamento is not None and not a_prazo:
+			raise EventoInvalido(
+				"vAdiant só é usado em pagamento à Prazo (indPag=1)", "valor_adiantamento"
+			)
+
+		if self.parcelas and not a_prazo:
+			raise EventoInvalido(
+				"infPrazo só é informado em pagamento à Prazo (indPag=1)", "parcelas"
+			)
+
+		if self.tipo_antecipacao is not None and self.tipo_antecipacao not in _TIPOS_ANTECIPACAO_VALIDOS:
+			raise EventoInvalido(
+				f"tpAntecip deve ser um de {sorted(_TIPOS_ANTECIPACAO_VALIDOS)}, "
+				f"recebido {self.tipo_antecipacao!r}",
+				"tipo_antecipacao",
+			)
+
+		if self.id_estrangeiro is not None and not (2 <= len(self.id_estrangeiro) <= 20):
+			raise EventoInvalido(
+				f"idEstrangeiro deve ter de 2 a 20 caracteres, recebido {self.id_estrangeiro!r}",
+				"id_estrangeiro",
+			)
+
+
+def montar_inf_pag(pagamento: InfoPagamento) -> dict:
+	grupo: dict = {}
+
+	if pagamento.nome is not None:
+		if not (2 <= len(pagamento.nome) <= 60):
+			raise EventoInvalido(
+				f"xNome deve ter de 2 a 60 caracteres, recebido {pagamento.nome!r}", "nome"
+			)
+
+		grupo["xNome"] = pagamento.nome
+
+	if pagamento.cpf is not None:
+		try:
+			grupo["CPF"] = validar_cpf(pagamento.cpf)
+		except ValueError as e:
+			raise EventoInvalido(f"CPF do responsável pelo pagamento inválido: {e}", "cpf") from e
+	elif pagamento.cnpj is not None:
+		try:
+			grupo["CNPJ"] = validar_cnpj(pagamento.cnpj)
+		except ValueError as e:
+			raise EventoInvalido(f"CNPJ do responsável pelo pagamento inválido: {e}", "cnpj") from e
+	else:
+		grupo["idEstrangeiro"] = pagamento.id_estrangeiro
+
+	grupo["Comp"] = [montar_componente_pagamento(c) for c in pagamento.componentes]
+	grupo["vContrato"] = str(pagamento.valor_contrato)
+	grupo["indPag"] = pagamento.indicador_pagamento
+
+	if pagamento.valor_adiantamento is not None:
+		grupo["vAdiant"] = str(pagamento.valor_adiantamento)
+
+	if pagamento.antecipa_adiantamento:
+		grupo["indAntecipaAdiant"] = INDICADOR_ANTECIPA_ADIANTAMENTO
+
+	if pagamento.parcelas:
+		grupo["infPrazo"] = [montar_parcela_pagamento(p) for p in pagamento.parcelas]
+
+	if pagamento.tipo_antecipacao is not None:
+		grupo["tpAntecip"] = pagamento.tipo_antecipacao
+
+	grupo.update(montar_inf_banc(pagamento.informacao_bancaria))
+
+	return grupo
+
+
+def montar_evento_pagamento_operacao_mdfe(
+	chave_acesso: str,
+	protocolo: str,
+	quantidade_viagens: str,
+	numero_viagem: str,
+	pagamentos: list[InfoPagamento],
+	cnpj_autor: str,
+	data_evento: str,
+	numero_sequencia: int = 1,
+	ambiente: str = "2",
+) -> dict:
+	"""Monta o elemento `evento` (grupo `TEvento`) do pagamento da operação de
+	transporte do MDF-e — o evento mais complexo desta frente (ver docstring do
+	módulo)."""
+	chave = validar_chave(chave_acesso)
+	lida = ler_chave(chave)
+
+	protocolo_limpo = (protocolo or "").strip()
+
+	if not protocolo_limpo:
+		raise EventoInvalido("O protocolo da autorização é obrigatório", "protocolo")
+
+	if not re.match(r"^[0-9]{5}$", quantidade_viagens or ""):
+		raise EventoInvalido(
+			f"qtdViagens deve ter 5 dígitos, recebido {quantidade_viagens!r}", "quantidade_viagens"
+		)
+
+	if not re.match(r"^[0-9]{5}$", numero_viagem or ""):
+		raise EventoInvalido(
+			f"nroViagem deve ter 5 dígitos, recebido {numero_viagem!r}", "numero_viagem"
+		)
+
+	if not pagamentos:
+		raise EventoInvalido("infPag precisa de ao menos um pagamento", "pagamentos")
+
+	if not (1 <= numero_sequencia <= 20):
+		raise EventoInvalido(
+			f"nSeqEvento deve estar entre 1 e 20, recebido {numero_sequencia}", "numero_sequencia"
+		)
+
+	try:
+		cnpj = validar_cnpj(cnpj_autor)
+	except ValueError as e:
+		raise EventoInvalido(f"CNPJ do autor do evento inválido: {e}", "cnpj_autor") from e
+
+	inf_evento = {
+		"@Id": _formatar_id_mdfe(chave, TIPO_EVENTO_PAGAMENTO_OPERACAO_MDFE, numero_sequencia),
+		"cOrgao": lida.uf,
+		"tpAmb": ambiente,
+		"CNPJ": cnpj,
+		"chMDFe": chave,
+		"dhEvento": data_evento,
+		"tpEvento": TIPO_EVENTO_PAGAMENTO_OPERACAO_MDFE,
+		"nSeqEvento": str(numero_sequencia),
+		"detEvento": {
+			"@versaoEvento": _VERSAO_LEIAUTE_MDFE,
+			"descEvento": "Pagamento Operação MDF-e",
+			"nProt": protocolo_limpo,
+			"infViagens": {"qtdViagens": quantidade_viagens, "nroViagem": numero_viagem},
+			"infPag": [montar_inf_pag(p) for p in pagamentos],
+		},
+	}
+
+	return {"evento": {"@xmlns": NAMESPACE_MDFE, "@versao": _VERSAO_LEIAUTE_MDFE, "infEvento": inf_evento}}
+
+
+def montar_evento_alteracao_pagamento_servico_mdfe(
+	chave_acesso: str,
+	protocolo: str,
+	pagamentos: list[InfoPagamento],
+	cnpj_autor: str,
+	data_evento: str,
+	numero_sequencia: int = 1,
+	ambiente: str = "2",
+) -> dict:
+	"""Monta o elemento `evento` (grupo `TEvento`) da alteração do pagamento do
+	serviço do MDF-e.
+
+	`infPag` reaproveita exatamente a mesma forma/validação do pagamento da operação
+	(`InfoPagamento`/`montar_inf_pag`) — achado real confirmado por leitura do XSD, não
+	suposição (ver docstring do módulo). A única diferença é que este evento **não**
+	tem `infViagens`.
+	"""
+	chave = validar_chave(chave_acesso)
+	lida = ler_chave(chave)
+
+	protocolo_limpo = (protocolo or "").strip()
+
+	if not protocolo_limpo:
+		raise EventoInvalido("O protocolo da autorização é obrigatório", "protocolo")
+
+	if not pagamentos:
+		raise EventoInvalido("infPag precisa de ao menos um pagamento", "pagamentos")
+
+	if not (1 <= numero_sequencia <= 20):
+		raise EventoInvalido(
+			f"nSeqEvento deve estar entre 1 e 20, recebido {numero_sequencia}", "numero_sequencia"
+		)
+
+	try:
+		cnpj = validar_cnpj(cnpj_autor)
+	except ValueError as e:
+		raise EventoInvalido(f"CNPJ do autor do evento inválido: {e}", "cnpj_autor") from e
+
+	inf_evento = {
+		"@Id": _formatar_id_mdfe(
+			chave, TIPO_EVENTO_ALTERACAO_PAGAMENTO_SERVICO_MDFE, numero_sequencia
+		),
+		"cOrgao": lida.uf,
+		"tpAmb": ambiente,
+		"CNPJ": cnpj,
+		"chMDFe": chave,
+		"dhEvento": data_evento,
+		"tpEvento": TIPO_EVENTO_ALTERACAO_PAGAMENTO_SERVICO_MDFE,
+		"nSeqEvento": str(numero_sequencia),
+		"detEvento": {
+			"@versaoEvento": _VERSAO_LEIAUTE_MDFE,
+			"descEvento": "Alteração Pagamento Serviço MDFe",
+			"nProt": protocolo_limpo,
+			"infPag": [montar_inf_pag(p) for p in pagamentos],
 		},
 	}
 
