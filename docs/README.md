@@ -46,6 +46,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [rh-esocial-s2299.md](rh-esocial-s2299.md) | S-2299 (Desligamento): reaproveita de verdade o `DmDev` do S-1200, três variações de `procEmi` confirmadas, `mtvDeslig`/Tabela 19 genuinamente não localizada |
 | [boleto.md](boleto.md) | Código de barras/linha digitável FEBRABAN (validado contra exemplo real) e leitura do CNAB 400 de retorno para conciliação |
 | [cnab240-retorno.md](cnab240-retorno.md) | Sucessor do CNAB 400: Segmentos T/U do retorno, posições confirmadas contra dois bancos independentes, `codigo_movimento` como hipótese de trabalho |
+| [destda.md](destda.md) | DeSTDA: retomada de frente bloqueada com fonte nova (documentação de ERP comercial), nível de confiança declarado, registros `0000`/`G605`/`G615`/`G625`/encerramento |
 | [pix.md](pix.md) | Payload Pix (BR Code/"Copia e Cola"): TLV + CRC16 verificado contra vetor padrão universal, gap real no app `payments`, PDV ainda sem fio puxado |
 | [cte-estado.md](cte-estado.md) | Levantamento do CT-e: estrutura de `TCTe` verificada por grep local (não resumo de ferramenta, que alucinou 3x), `imp` como `xs:choice` de 7 CSTs, `ICMSUFFim` como equivalente do DIFAL da NF-e |
 | [cte-icms-uf-fim.md](cte-icms-uf-fim.md) | Primeiro código de CT-e: grupo `ICMSUFFim`, reuso direto de `calcular_difal`, por que o CFOP de transporte ficou de fora |
