@@ -1,8 +1,9 @@
 # Copyright (c) 2026, ERPNext Brasil contributors
 # License: MIT. See license.txt
 
-"""Eventos do MDF-e: cancelamento (`tpEvento` 110111, `evCancMDFe`) e encerramento
-(`tpEvento` 110112, `evEncMDFe`).
+"""Eventos do MDF-e: cancelamento (`tpEvento` 110111, `evCancMDFe`), encerramento
+(`tpEvento` 110112, `evEncMDFe`) e inclusão de condutor (`tpEvento` 110114,
+`evIncCondutorMDFe`).
 
 Por que existe
 --------------
@@ -69,6 +70,17 @@ sentido para encerramento: uma viagem pode terminar fora do Brasil (ex. Mercosul
 módulo valida `codigo_uf` contra essa lista estendida (`_UFS_VALIDAS_ENCERRAMENTO_MDFE`,
 28 valores), não contra uma tabela de 27 UFs só.
 
+Inclusão de condutor (`tpEvento` 110114, `evIncCondutorMDFe`) — reuso direto de
+`fiscal.mdfe_rodoviario.Condutor`
+------------------------------------------------------------------------------------------
+Verificado em `evIncCondutorMDFe_v3.00.xsd` (49 linhas, lido inteiro): `descEvento` fixo
+(**única grafia**, sem acento — `"Inclusao Condutor"`, diferente de outros eventos desta
+frente que oferecem variante acentuada) e um único grupo `condutor` (não lista — só
+`xNome`, 2-60 caracteres, e `CPF`). **Achado real de reuso**: essa é exatamente a mesma
+forma de `condutor` já modelada em `fiscal.mdfe_rodoviario.Condutor`/`montar_condutor`
+(usada dentro de `veicTracao`) — reaproveitados diretamente aqui, sem duplicar a
+validação de CPF.
+
 Reuso: `EventoInvalido`/`assinar_evento` de `evento.py`, sem alteração
 ------------------------------------------------------------------------------
 Ambos já eram genéricos (não hardcodam `NAMESPACE_NFE`, só leem o que o dicionário
@@ -82,6 +94,7 @@ import re
 from erpnext_brasil.fiscal.documento.chave_acesso import ler_chave, validar_chave
 from erpnext_brasil.fiscal.documento.evento import EventoInvalido, assinar_evento
 from erpnext_brasil.fiscal.mdfe import NAMESPACE_MDFE
+from erpnext_brasil.fiscal.mdfe_rodoviario import Condutor, MdfeRodoviarioInvalido, montar_condutor
 from erpnext_brasil.fiscal.validators import validar_cnpj
 
 __all__ = [
@@ -90,15 +103,20 @@ __all__ = [
 	"JUSTIFICATIVA_MINIMA_MDFE",
 	"TIPO_EVENTO_CANCELAMENTO_MDFE",
 	"TIPO_EVENTO_ENCERRAMENTO_MDFE",
+	"TIPO_EVENTO_INCLUSAO_CONDUTOR_MDFE",
+	"Condutor",
 	"EventoInvalido",
 	"assinar_evento",
+	"montar_condutor",
 	"montar_env_evento_mdfe",
 	"montar_evento_cancelamento_mdfe",
 	"montar_evento_encerramento_mdfe",
+	"montar_evento_inclusao_condutor_mdfe",
 ]
 
 TIPO_EVENTO_CANCELAMENTO_MDFE = "110111"
 TIPO_EVENTO_ENCERRAMENTO_MDFE = "110112"
+TIPO_EVENTO_INCLUSAO_CONDUTOR_MDFE = "110114"
 _VERSAO_LEIAUTE_MDFE = "3.00"
 
 # `TJust` do MDF-e — numericamente igual ao do CT-e, mas verificado à parte (tipo
@@ -258,6 +276,58 @@ def montar_evento_encerramento_mdfe(
 		"tpEvento": TIPO_EVENTO_ENCERRAMENTO_MDFE,
 		"nSeqEvento": str(numero_sequencia),
 		"detEvento": det_evento,
+	}
+
+	return {"evento": {"@xmlns": NAMESPACE_MDFE, "@versao": _VERSAO_LEIAUTE_MDFE, "infEvento": inf_evento}}
+
+
+def montar_evento_inclusao_condutor_mdfe(
+	chave_acesso: str,
+	condutor: Condutor,
+	cnpj_autor: str,
+	data_evento: str,
+	numero_sequencia: int = 1,
+	ambiente: str = "2",
+) -> dict:
+	"""Monta o elemento `evento` (grupo `TEvento`) da inclusão de condutor do MDF-e.
+
+	`condutor` reaproveita `fiscal.mdfe_rodoviario.Condutor`/`montar_condutor` — mesma
+	forma exata (`xNome`/`CPF`) já usada dentro de `veicTracao` (ver docstring do
+	módulo). O XSD só aceita **um** condutor por evento (não uma lista) — para incluir
+	mais de um, é preciso um evento por condutor.
+	"""
+	chave = validar_chave(chave_acesso)
+	lida = ler_chave(chave)
+
+	if not (1 <= numero_sequencia <= 20):
+		raise EventoInvalido(
+			f"nSeqEvento deve estar entre 1 e 20, recebido {numero_sequencia}", "numero_sequencia"
+		)
+
+	try:
+		cnpj = validar_cnpj(cnpj_autor)
+	except ValueError as e:
+		raise EventoInvalido(f"CNPJ do autor do evento inválido: {e}", "cnpj_autor") from e
+
+	try:
+		grupo_condutor = montar_condutor(condutor)
+	except MdfeRodoviarioInvalido as e:
+		raise EventoInvalido(str(e), "condutor") from e
+
+	inf_evento = {
+		"@Id": _formatar_id_mdfe(chave, TIPO_EVENTO_INCLUSAO_CONDUTOR_MDFE, numero_sequencia),
+		"cOrgao": lida.uf,
+		"tpAmb": ambiente,
+		"CNPJ": cnpj,
+		"chMDFe": chave,
+		"dhEvento": data_evento,
+		"tpEvento": TIPO_EVENTO_INCLUSAO_CONDUTOR_MDFE,
+		"nSeqEvento": str(numero_sequencia),
+		"detEvento": {
+			"@versaoEvento": _VERSAO_LEIAUTE_MDFE,
+			"descEvento": "Inclusao Condutor",
+			"condutor": grupo_condutor,
+		},
 	}
 
 	return {"evento": {"@xmlns": NAMESPACE_MDFE, "@versao": _VERSAO_LEIAUTE_MDFE, "infEvento": inf_evento}}

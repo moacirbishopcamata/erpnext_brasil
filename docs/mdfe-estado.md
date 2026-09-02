@@ -148,7 +148,15 @@ UFs — faz sentido para uma viagem que termina fora do Brasil (ex. Mercosul).
 `indEncPorTerceiro` só é gravado quando quem encerra é transportador terceiro, diferente
 do emitente do MDF-e.
 
-**Pendente**: inclusão de condutor, inclusão de DF-e, confirmação do serviço, pagamento
+**Inclusão de condutor implementada em seguida** (ver
+`docs/mdfe-evento-inclusao-condutor.md`): `tpEvento` `"110114"`. Achado real de reuso: o
+grupo `condutor` (`xNome`/`CPF`, um único, não lista) é exatamente a mesma forma já
+modelada em `fiscal.mdfe_rodoviario.Condutor`/`montar_condutor` (usada dentro de
+`veicTracao`) — reaproveitados diretamente. Achado real 2: `descEvento` tem uma única
+grafia possível, sem acento ("Inclusao Condutor") — diferente de outros eventos desta
+frente que aceitam variante acentuada.
+
+**Pendente**: inclusão de DF-e, confirmação do serviço, pagamento
 da operação, alteração de pagamento do serviço — nenhum investigado
 ainda.
 

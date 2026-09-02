@@ -84,6 +84,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [mdfe-infmdfe.md](mdfe-infmdfe.md) | Orquestrador de nível mais alto do MDF-e: `infModal` é um ponto de extensão `xs:any`, `montar_infmdfe` compõe todos os grupos na ordem do XSD, prova de ponta a ponta completa |
 | [mdfe-evento-cancelamento.md](mdfe-evento-cancelamento.md) | Evento de cancelamento do MDF-e: converge com a forma do CT-e (não da NF-e), mesmo `tpEvento` 110111 dos três documentos, achado do `@Id` com duas larguras toleradas |
 | [mdfe-evento-encerramento.md](mdfe-evento-encerramento.md) | Evento de encerramento do MDF-e: achado real de que `cUF` aceita `"99"` para Exterior (`TCodUfIBGE_EX`, não a tabela normal de 27 UFs) |
+| [mdfe-evento-inclusao-condutor.md](mdfe-evento-inclusao-condutor.md) | Evento de inclusão de condutor do MDF-e: reuso direto de `fiscal.mdfe_rodoviario.Condutor`, achado de grafia sem acento única |
 
 ## Convenções que valem em todo o código
 

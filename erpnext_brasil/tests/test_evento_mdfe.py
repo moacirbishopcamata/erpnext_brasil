@@ -13,11 +13,14 @@ from erpnext_brasil.fiscal.documento.evento_mdfe import (
 	JUSTIFICATIVA_MINIMA_MDFE,
 	TIPO_EVENTO_CANCELAMENTO_MDFE,
 	TIPO_EVENTO_ENCERRAMENTO_MDFE,
+	TIPO_EVENTO_INCLUSAO_CONDUTOR_MDFE,
+	Condutor,
 	EventoInvalido,
 	assinar_evento,
 	montar_env_evento_mdfe,
 	montar_evento_cancelamento_mdfe,
 	montar_evento_encerramento_mdfe,
+	montar_evento_inclusao_condutor_mdfe,
 )
 from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.mdfe import NAMESPACE_MDFE
@@ -266,6 +269,51 @@ class TestMontarEventoEncerramentoMdfe(unittest.TestCase):
 		xml = para_xml(assinado)
 
 		self.assertIn("<dtEnc>", xml)
+		self.assertIn("<chMDFe>", xml)
+
+
+class TestMontarEventoInclusaoCondutorMdfe(unittest.TestCase):
+	def setUp(self):
+		self.chave = _chave_mdfe()
+		self.evento = montar_evento_inclusao_condutor_mdfe(
+			chave_acesso=self.chave,
+			condutor=Condutor(nome="José da Silva", cpf="11144477735"),
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-09-02T23:00:00-03:00",
+		)
+
+	def test_tp_evento_e_110114(self):
+		self.assertEqual(
+			self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_INCLUSAO_CONDUTOR_MDFE
+		)
+		self.assertEqual(TIPO_EVENTO_INCLUSAO_CONDUTOR_MDFE, "110114")
+
+	def test_desc_evento_sem_acento(self):
+		"""Achado real: única grafia possível, sem acento -- diferente de outros
+		eventos desta frente que oferecem variante acentuada."""
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		self.assertEqual(det_evento["descEvento"], "Inclusao Condutor")
+
+	def test_condutor_reaproveita_forma_do_veictracao(self):
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+
+		self.assertEqual(det_evento["condutor"]["xNome"], "José da Silva")
+		self.assertEqual(det_evento["condutor"]["CPF"], "11144477735")
+
+	def test_cpf_invalido_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_inclusao_condutor_mdfe(
+				chave_acesso=self.chave,
+				condutor=Condutor(nome="José da Silva", cpf="00000000000"),
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T23:00:00-03:00",
+			)
+
+	def test_documento_assinado_serializa(self):
+		assinado = assinar_evento(self.evento, AssinadorFalso())
+		xml = para_xml(assinado)
+
+		self.assertIn("<condutor>", xml)
 		self.assertIn("<chMDFe>", xml)
 
 
