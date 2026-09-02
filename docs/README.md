@@ -82,6 +82,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [integracao-chave-acesso.md](integracao-chave-acesso.md) | Campo `br_chave_acesso`/`br_protocolo_autorizacao`: fecha o gap identificado no mapeamento CT-e/MDF-e, validado mas sem transmissão real ligada ainda |
 | [integracao-cte-mapeamento.md](integracao-cte-mapeamento.md) | Primeiro passo de integração do CT-e/MDF-e: agrupamento de referências por município, achado de que falta um campo básico (chave de acesso persistida) antes de ir além |
 | [mdfe-infmdfe.md](mdfe-infmdfe.md) | Orquestrador de nível mais alto do MDF-e: `infModal` é um ponto de extensão `xs:any`, `montar_infmdfe` compõe todos os grupos na ordem do XSD, prova de ponta a ponta completa |
+| [mdfe-evento-cancelamento.md](mdfe-evento-cancelamento.md) | Evento de cancelamento do MDF-e: converge com a forma do CT-e (não da NF-e), mesmo `tpEvento` 110111 dos três documentos, achado do `@Id` com duas larguras toleradas |
 
 ## Convenções que valem em todo o código
 

@@ -121,8 +121,29 @@ vez), `montar_tot`/`montar_lacres` (ver `docs/mdfe-tot-lacres.md`) e `montar_emi
 (orquestrador de nível mais alto, ver `docs/mdfe-infmdfe.md`). Todos os grupos de conteúdo de
 `infMDFe` mapeados neste levantamento estão implementados e compostos num `infMDFe` completo,
 com prova de ponta a ponta (`montar_infmdfe` → `montar_mdfe` → `assinar_mdfe`). Ainda falta:
-autorizador por UF, eventos, `infLotacao` (dentro de `prodPred`), modais aéreo/aquaviário/
+autorizador por UF, `infLotacao` (dentro de `prodPred`), modais aéreo/aquaviário/
 ferroviário (só o rodoviário está implementado).
+
+## Eventos do MDF-e — frente aberta em seguida à conclusão dos onze eventos do CT-e
+
+Sete eventos confirmados em `schemes/PL_MDFe_300b` do `nfephp-org/sped-mdfe`: `evCancMDFe`
+(cancelamento), `evEncMDFe` (encerramento), `evIncCondutorMDFe` (inclusão de condutor),
+`evInclusaoDFeMDFe` (inclusão de DF-e), `evConfirmaServMDFe` (confirmação do serviço),
+`evPagtoOperMDFe` (pagamento da operação), `evAlteracaoPagtoServMDFe` (alteração de
+pagamento do serviço).
+
+**Cancelamento implementado** (`fiscal/documento/evento_mdfe.py`, ver
+`docs/mdfe-evento-cancelamento.md`): `tpEvento` `"110111"` — o mesmo número usado pelo
+cancelamento da NF-e e do CT-e. `TEvento` do MDF-e converge com a forma do CT-e
+(`@versaoEvento` como atributo de `detEvento`, sem elemento `verEvento`), diferente da
+NF-e. Achado real: o `@Id` do MDF-e tolera **duas** larguras de `nSeqEvento` (2 ou 3
+dígitos) — diferente do CT-e, que só aceita 3 — decorrência de `TChMDFe` já incorporar o
+suporte ao CNPJ alfanumérico dentro do próprio layout da chave. `TJust` do MDF-e é
+numericamente igual ao do CT-e (15-255), mas verificado à parte, não presumido igual.
+
+**Pendente**: encerramento, inclusão de condutor, inclusão de DF-e, confirmação do
+serviço, pagamento da operação, alteração de pagamento do serviço — nenhum investigado
+ainda.
 
 ## Fontes
 
