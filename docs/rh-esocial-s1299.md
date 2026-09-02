@@ -50,7 +50,8 @@ real neste incremento e virou `validar_digito_unico` — mesmo motivo generaliza
 
 ## O que não está neste incremento
 
-- **R-2099** (fechamento do EFD-Reinf, também dispara DCTFWeb) — pendente, próximo natural.
+- **R-2099** (fechamento do EFD-Reinf, também dispara DCTFWeb) — **implementado em seguida**,
+  ver `docs/reinf-r2099.md`.
 - Verificação cruzada de que os indicadores `evt_*` batem com os eventos de fato enviados no
   lote — responsabilidade de quem monta o fechamento com acesso ao lote inteiro, não deste
   grupo isolado.
