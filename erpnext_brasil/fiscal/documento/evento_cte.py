@@ -2,7 +2,8 @@
 # License: MIT. See license.txt
 
 """Eventos do CT-e: cancelamento (`tpEvento` 110111, `evCancCTe`), carta de correção
-(`tpEvento` 110110, `evCCeCTe`) e comprovante de entrega (`tpEvento` 110180, `evCECTe`).
+(`tpEvento` 110110, `evCCeCTe`), comprovante de entrega (`tpEvento` 110180, `evCECTe`) e
+EPEC (`tpEvento` 110113, `evEPECCTe`).
 
 Por que existe
 --------------
@@ -81,6 +82,24 @@ entrega"). `calcular_hash_entrega` implementa esse cálculo de verdade — `hash
 entra como sua própria representação Base64, string), devolvendo o digest de 20 bytes
 recodificado em Base64 (28 caracteres com padding).
 
+EPEC (`tpEvento` 110113) — código próprio, e um `toma4` que não é o `toma4` da `ide`
+------------------------------------------------------------------------------------------
+Verificado em `evEPECCTe_v4.00.xsd` (161 linhas, lido inteiro). EPEC é a prévia enviada em
+contingência (o emitente avisa a existência do CT-e antes de conseguir autorização de verdade)
+— carrega um resumo do documento: `xJust`, `vICMS`/`vICMSST` (opcional)/`vTPrest`/`vCarga`,
+`modal` (mesmas seis opções já usadas em `fiscal.cte.MODAL_*`), `UFIni`/`UFFim`, `tpCTe`
+(**restrito a `"0"` — só CT-e Normal**, diferente do `tpCTe` da `ide`, que aceita `0`/`1`/`3`)
+e `dhEmi`.
+
+**Achado real, não suposto**: o grupo chamado `toma4` aqui **não é** o `toma4` de
+`fiscal.cte.montar_toma4` — tem o mesmo nome, forma parecida, mas `toma` aceita `"0"`-`"4"`
+(qualquer papel: remetente/expedidor/recebedor/destinatário/outros), não fixo em `"4"` como no
+`toma4` real do `ide` (que só serve para "Outros"). É uma versão resumida/genérica do
+tomador para a prévia de contingência, sem `xNome`/`enderToma`/`email` — só `toma`, `UF`,
+CNPJ/CPF e `IE` opcional. Reaproveitar `fiscal.cte.TomadorOutros`/`montar_toma4` aqui exigiria
+ou inventar dados que o EPEC não pede, ou aceitar `papel` fixo em `"4"` quando o XSD permite
+qualquer um — por isso `TomadorEpec`/`montar_tomador_epec` são um tipo à parte.
+
 Funções puras: nenhuma dependência do Frappe.
 """
 
@@ -88,10 +107,19 @@ import base64
 import hashlib
 from dataclasses import dataclass
 
-from erpnext_brasil.fiscal.cte import NAMESPACE_CTE
+from erpnext_brasil.fiscal.cte import (
+	MODAL_AEREO,
+	MODAL_AQUAVIARIO,
+	MODAL_DUTOVIARIO,
+	MODAL_FERROVIARIO,
+	MODAL_MULTIMODAL,
+	MODAL_RODOVIARIO,
+	NAMESPACE_CTE,
+	TIPO_CTE_NORMAL,
+)
 from erpnext_brasil.fiscal.documento.chave_acesso import ler_chave, validar_chave
 from erpnext_brasil.fiscal.documento.evento import EventoInvalido, assinar_evento
-from erpnext_brasil.fiscal.validators import validar_cnpj
+from erpnext_brasil.fiscal.validators import validar_cnpj, validar_cpf_cnpj
 
 __all__ = [
 	"JUSTIFICATIVA_MAXIMA_CTE",
@@ -99,20 +127,51 @@ __all__ = [
 	"TIPO_EVENTO_CANCELAMENTO_CTE",
 	"TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE",
 	"TIPO_EVENTO_CORRECAO_CTE",
+	"TIPO_EVENTO_EPEC_CTE",
+	"TOMADOR_EPEC_DESTINATARIO",
+	"TOMADOR_EPEC_EXPEDIDOR",
+	"TOMADOR_EPEC_OUTROS",
+	"TOMADOR_EPEC_RECEBEDOR",
+	"TOMADOR_EPEC_REMETENTE",
 	"XCONDUSO_CCE_CTE",
 	"CorrecaoCte",
 	"EventoInvalido",
+	"TomadorEpec",
 	"assinar_evento",
 	"calcular_hash_entrega",
 	"montar_env_evento_cte",
 	"montar_evento_cancelamento_cte",
 	"montar_evento_comprovante_entrega_cte",
 	"montar_evento_correcao_cte",
+	"montar_evento_epec_cte",
+	"montar_tomador_epec",
 ]
 
 TIPO_EVENTO_CANCELAMENTO_CTE = "110111"
 TIPO_EVENTO_CORRECAO_CTE = "110110"
 TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE = "110180"
+TIPO_EVENTO_EPEC_CTE = "110113"
+
+# `toma` do `toma4` do EPEC — aceita os 5 papéis, diferente do `toma4` real do `ide`
+# (que só serve para "4"-Outros). Ver docstring do módulo.
+TOMADOR_EPEC_REMETENTE = "0"
+TOMADOR_EPEC_EXPEDIDOR = "1"
+TOMADOR_EPEC_RECEBEDOR = "2"
+TOMADOR_EPEC_DESTINATARIO = "3"
+TOMADOR_EPEC_OUTROS = "4"
+
+_TOMADORES_EPEC_VALIDOS = {
+	TOMADOR_EPEC_REMETENTE, TOMADOR_EPEC_EXPEDIDOR, TOMADOR_EPEC_RECEBEDOR,
+	TOMADOR_EPEC_DESTINATARIO, TOMADOR_EPEC_OUTROS,
+}
+
+# `modal` do EPEC — mesmas seis opções de `fiscal.cte.MODAL_*`, reaproveitadas por valor
+# (não pelo nome do módulo, para este arquivo não depender de um `_MODAIS_VALIDOS`
+# privado de outro módulo).
+_MODAIS_VALIDOS_EPEC = {
+	MODAL_RODOVIARIO, MODAL_AEREO, MODAL_AQUAVIARIO,
+	MODAL_FERROVIARIO, MODAL_DUTOVIARIO, MODAL_MULTIMODAL,
+}
 _VERSAO_LEIAUTE_CTE = "4.00"
 
 # `TJust` do CT-e — diverge do máximo de 256 da NF-e (`estado.JUSTIFICATIVA_MAXIMA`).
@@ -434,6 +493,127 @@ def montar_evento_comprovante_entrega_cte(
 		"chCTe": chave,
 		"dhEvento": data_evento,
 		"tpEvento": TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE,
+		"nSeqEvento": str(numero_sequencia),
+		"detEvento": det_evento,
+	}
+
+	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+
+
+@dataclass(frozen=True)
+class TomadorEpec:
+	"""`toma4` do EPEC — não é `fiscal.cte.TomadorOutros` (ver docstring do módulo):
+	`papel` aceita qualquer um dos 5 valores, e não há `xNome`/`enderToma`/`email`."""
+
+	papel: str
+	uf: str
+	cnpj_cpf: str
+	inscricao_estadual: str = ""
+
+	def __post_init__(self):
+		if self.papel not in _TOMADORES_EPEC_VALIDOS:
+			raise EventoInvalido(
+				f"toma do EPEC deve ser um de {sorted(_TOMADORES_EPEC_VALIDOS)}, "
+				f"recebido {self.papel!r}",
+				"papel",
+			)
+
+
+def montar_tomador_epec(tomador: TomadorEpec) -> dict:
+	"""Monta o `toma4` do EPEC — CNPJ/CPF exclusivo, mesma validação de
+	`fiscal.cte.montar_toma4`, `IE` opcional."""
+	try:
+		documento = validar_cpf_cnpj(tomador.cnpj_cpf)
+	except ValueError as e:
+		raise EventoInvalido(f"CPF/CNPJ do tomador do EPEC inválido: {e}", "cnpj_cpf") from e
+
+	grupo: dict = {"toma": tomador.papel, "UF": tomador.uf}
+	grupo["CNPJ" if len(documento) == 14 else "CPF"] = documento
+
+	if tomador.inscricao_estadual.strip():
+		grupo["IE"] = tomador.inscricao_estadual.strip()
+
+	return {"toma4": grupo}
+
+
+def montar_evento_epec_cte(
+	chave_acesso: str,
+	justificativa: str,
+	valor_icms,
+	valor_total_prestacao,
+	valor_carga,
+	tomador: TomadorEpec,
+	modal: str,
+	uf_inicio: str,
+	uf_fim: str,
+	data_emissao_cte: str,
+	cnpj_autor: str,
+	data_evento: str,
+	valor_icms_st=None,
+	numero_sequencia: int = 1,
+	ambiente: str = "2",
+) -> dict:
+	"""Monta o elemento `evento` (grupo `TEvento`) do EPEC — a prévia enviada em
+	contingência, antes da autorização de verdade do CT-e.
+
+	`tpCTe` não é parâmetro: o XSD só aceita `"0"` (CT-e Normal) neste evento —
+	confirmado (`xs:length value="1"` + uma única `xs:enumeration`), diferente do
+	`tpCTe` da `ide`, que aceita `0`/`1`/`3`.
+	"""
+	chave = validar_chave(chave_acesso)
+	lida = ler_chave(chave)
+
+	texto_justificativa = (justificativa or "").strip()
+
+	if not (JUSTIFICATIVA_MINIMA_CTE <= len(texto_justificativa) <= JUSTIFICATIVA_MAXIMA_CTE):
+		raise EventoInvalido(
+			f"A justificativa deve ter de {JUSTIFICATIVA_MINIMA_CTE} a "
+			f"{JUSTIFICATIVA_MAXIMA_CTE} caracteres, recebidos {len(texto_justificativa)}",
+			"justificativa",
+		)
+
+	if modal not in _MODAIS_VALIDOS_EPEC:
+		raise EventoInvalido(
+			f"modal deve ser um de {sorted(_MODAIS_VALIDOS_EPEC)}, recebido {modal!r}", "modal"
+		)
+
+	if not (1 <= numero_sequencia <= 20):
+		raise EventoInvalido(
+			f"nSeqEvento deve estar entre 1 e 20, recebido {numero_sequencia}", "numero_sequencia"
+		)
+
+	try:
+		cnpj = validar_cnpj(cnpj_autor)
+	except ValueError as e:
+		raise EventoInvalido(f"CNPJ do autor do evento inválido: {e}", "cnpj_autor") from e
+
+	det_evento: dict = {
+		"@versaoEvento": _VERSAO_LEIAUTE_CTE,
+		"descEvento": "EPEC",
+		"xJust": texto_justificativa,
+		"vICMS": str(valor_icms),
+	}
+
+	if valor_icms_st is not None:
+		det_evento["vICMSST"] = str(valor_icms_st)
+
+	det_evento["vTPrest"] = str(valor_total_prestacao)
+	det_evento["vCarga"] = str(valor_carga)
+	det_evento.update(montar_tomador_epec(tomador))
+	det_evento["modal"] = modal
+	det_evento["UFIni"] = uf_inicio
+	det_evento["UFFim"] = uf_fim
+	det_evento["tpCTe"] = TIPO_CTE_NORMAL
+	det_evento["dhEmi"] = data_emissao_cte
+
+	inf_evento = {
+		"@Id": _formatar_id_cte(chave, TIPO_EVENTO_EPEC_CTE, numero_sequencia),
+		"cOrgao": lida.uf,
+		"tpAmb": ambiente,
+		"CNPJ": cnpj,
+		"chCTe": chave,
+		"dhEvento": data_evento,
+		"tpEvento": TIPO_EVENTO_EPEC_CTE,
 		"nSeqEvento": str(numero_sequencia),
 		"detEvento": det_evento,
 	}

@@ -122,8 +122,8 @@ reaproveitado **sem nenhuma alteração** — já era genérico o bastante.
 - Autorizador/webservice por UF — provavelmente segue o mesmo SVRS/SVSP/próprio já mapeado em
   `docs/transporte-nativo-sefaz.md` para NF-e, mas CT-e pode ter ambiente próprio — não verificado.
 - `infNF` (NF em papel) — deliberadamente não implementado; caso legado, prioridade baixa.
-- Outros eventos sem equivalente na NF-e (registro de passagem/GTV, prestação em desacordo,
-  EPEC, insucesso de entrega) — não investigados.
+- Outros eventos sem equivalente na NF-e (registro de passagem/GTV, cancelamento de CC-e,
+  insucesso na entrega, prestação em desacordo, registro multimodal) — não investigados.
 
 **Evento de cancelamento implementado** (ver `docs/cte-evento-cancelamento.md`): `tpEvento`
 110111 e o corpo de `detEvento` são idênticos à NF-e, mas dois pontos divergem de verdade —
@@ -142,6 +142,12 @@ número da NF-e, mesmo o corpo divergindo por completo.
 equivalente na NF-e. `hashEntrega` é um cálculo real (SHA-1 de chave+imagem, recodificado em
 Base64), não um campo de texto livre — confirmado pelo tipo `base64Binary` de 20 bytes no
 XSD, o tamanho exato de um digest SHA-1.
+
+**EPEC implementado em seguida** (ver `docs/cte-evento-epec.md`): `tpEvento` `"110113"`, a
+prévia enviada em contingência. Achado real: o `toma4` do EPEC não é o `toma4` real do `ide` —
+aceita qualquer um dos 5 papéis (não só "Outros"), e é minimalista (sem `xNome`/`enderToma`/
+`email`) — por isso ganhou um tipo à parte (`TomadorEpec`). `tpCTe` é fixo em `"0"` (só CT-e
+Normal), diferente do `ide/tpCTe` que aceita `0`/`1`/`3` — não é parâmetro da função.
 
 **`toma3`/`toma4` implementados em seguida** (ver `docs/cte-toma.md`): `montar_toma3` (o
 tomador é uma das partes já citadas no CT-e, só valida o código) e `montar_toma4` (tomador

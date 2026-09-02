@@ -8,7 +8,7 @@ import base64
 import hashlib
 import unittest
 
-from erpnext_brasil.fiscal.cte import NAMESPACE_CTE
+from erpnext_brasil.fiscal.cte import MODAL_AEREO, MODAL_RODOVIARIO, NAMESPACE_CTE
 from erpnext_brasil.fiscal.documento.assinatura import MaterialAssinatura
 from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, montar_chave
 from erpnext_brasil.fiscal.documento.evento_cte import (
@@ -17,14 +17,21 @@ from erpnext_brasil.fiscal.documento.evento_cte import (
 	TIPO_EVENTO_CANCELAMENTO_CTE,
 	TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE,
 	TIPO_EVENTO_CORRECAO_CTE,
+	TIPO_EVENTO_EPEC_CTE,
+	TOMADOR_EPEC_DESTINATARIO,
+	TOMADOR_EPEC_OUTROS,
+	TOMADOR_EPEC_REMETENTE,
 	CorrecaoCte,
 	EventoInvalido,
+	TomadorEpec,
 	assinar_evento,
 	calcular_hash_entrega,
 	montar_env_evento_cte,
 	montar_evento_comprovante_entrega_cte,
 	montar_evento_cancelamento_cte,
 	montar_evento_correcao_cte,
+	montar_evento_epec_cte,
+	montar_tomador_epec,
 )
 from erpnext_brasil.fiscal.documento.serializacao import para_xml
 
@@ -460,6 +467,204 @@ class TestMontarEventoComprovanteEntregaCte(unittest.TestCase):
 
 		self.assertIn("<hashEntrega", xml)
 		self.assertIn("<chCTe>", xml)
+
+
+class TestTomadorEpec(unittest.TestCase):
+	def test_aceita_qualquer_um_dos_5_papeis(self):
+		"""Achado real: diferente do toma4 real da ide (fixo em '4'), o toma4 do EPEC
+		aceita qualquer papel."""
+		for papel in (TOMADOR_EPEC_REMETENTE, TOMADOR_EPEC_DESTINATARIO, TOMADOR_EPEC_OUTROS):
+			tomador = TomadorEpec(papel=papel, uf="SP", cnpj_cpf=_CNPJ_VALIDO)
+			self.assertEqual(tomador.papel, papel)
+
+	def test_papel_invalido_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			TomadorEpec(papel="9", uf="SP", cnpj_cpf=_CNPJ_VALIDO)
+
+
+class TestMontarTomadorEpec(unittest.TestCase):
+	def test_cnpj_valido_monta_grupo_cnpj(self):
+		grupo = montar_tomador_epec(
+			TomadorEpec(papel=TOMADOR_EPEC_OUTROS, uf="SP", cnpj_cpf=_CNPJ_VALIDO)
+		)["toma4"]
+
+		self.assertEqual(grupo["toma"], TOMADOR_EPEC_OUTROS)
+		self.assertEqual(grupo["CNPJ"], _CNPJ_VALIDO)
+		self.assertNotIn("CPF", grupo)
+		self.assertNotIn("IE", grupo)
+		self.assertNotIn("xNome", grupo)
+
+	def test_cpf_valido_monta_grupo_cpf(self):
+		grupo = montar_tomador_epec(
+			TomadorEpec(papel=TOMADOR_EPEC_REMETENTE, uf="SP", cnpj_cpf="11144477735")
+		)["toma4"]
+
+		self.assertEqual(grupo["CPF"], "11144477735")
+		self.assertNotIn("CNPJ", grupo)
+
+	def test_ie_opcional(self):
+		grupo = montar_tomador_epec(
+			TomadorEpec(
+				papel=TOMADOR_EPEC_OUTROS, uf="SP", cnpj_cpf=_CNPJ_VALIDO,
+				inscricao_estadual="123456789",
+			)
+		)["toma4"]
+
+		self.assertEqual(grupo["IE"], "123456789")
+
+	def test_documento_invalido_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_tomador_epec(TomadorEpec(papel=TOMADOR_EPEC_OUTROS, uf="SP", cnpj_cpf="0"))
+
+
+class TestMontarEventoEpecCte(unittest.TestCase):
+	def setUp(self):
+		self.chave = _chave_cte()
+		self.tomador = TomadorEpec(papel=TOMADOR_EPEC_OUTROS, uf="SP", cnpj_cpf=_CNPJ_VALIDO)
+		self.evento = montar_evento_epec_cte(
+			chave_acesso=self.chave,
+			justificativa="Contingência por indisponibilidade do sistema da SEFAZ.",
+			valor_icms="100.00",
+			valor_total_prestacao="1000.00",
+			valor_carga="5000.00",
+			tomador=self.tomador,
+			modal=MODAL_RODOVIARIO,
+			uf_inicio="SP",
+			uf_fim="RJ",
+			data_emissao_cte="2026-08-31T10:00:00-03:00",
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-08-31T10:00:01-03:00",
+		)
+
+	def test_tp_evento_e_codigo_proprio(self):
+		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_EPEC_CTE)
+		self.assertEqual(TIPO_EVENTO_EPEC_CTE, "110113")
+
+	def test_id_tem_53_digitos_apos_id(self):
+		id_elemento = self.evento["evento"]["infEvento"]["@Id"]
+		self.assertEqual(len(id_elemento), len("ID") + 53)
+
+	def test_tpcte_fixo_em_0_mesmo_nao_sendo_parametro(self):
+		"""Achado real: o tpCTe do EPEC só aceita '0' (CT-e Normal) -- diferente do
+		tpCTe da ide, que aceita 0/1/3. Não é parâmetro da função."""
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		self.assertEqual(det_evento["tpCTe"], "0")
+
+	def test_campos_basicos(self):
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+
+		self.assertEqual(det_evento["descEvento"], "EPEC")
+		self.assertEqual(det_evento["vICMS"], "100.00")
+		self.assertEqual(det_evento["vTPrest"], "1000.00")
+		self.assertEqual(det_evento["vCarga"], "5000.00")
+		self.assertEqual(det_evento["modal"], MODAL_RODOVIARIO)
+		self.assertEqual(det_evento["UFIni"], "SP")
+		self.assertEqual(det_evento["UFFim"], "RJ")
+		self.assertEqual(det_evento["dhEmi"], "2026-08-31T10:00:00-03:00")
+		self.assertNotIn("vICMSST", det_evento)
+
+	def test_toma4_esta_embutido_no_det_evento(self):
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		self.assertEqual(det_evento["toma4"]["toma"], TOMADOR_EPEC_OUTROS)
+		self.assertEqual(det_evento["toma4"]["CNPJ"], _CNPJ_VALIDO)
+
+	def test_vicmsst_opcional_quando_informado(self):
+		evento = montar_evento_epec_cte(
+			chave_acesso=self.chave,
+			justificativa="Contingência por indisponibilidade do sistema da SEFAZ.",
+			valor_icms="100.00",
+			valor_total_prestacao="1000.00",
+			valor_carga="5000.00",
+			tomador=self.tomador,
+			modal=MODAL_RODOVIARIO,
+			uf_inicio="SP",
+			uf_fim="RJ",
+			data_emissao_cte="2026-08-31T10:00:00-03:00",
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-08-31T10:00:01-03:00",
+			valor_icms_st="10.00",
+		)
+
+		self.assertEqual(evento["evento"]["infEvento"]["detEvento"]["vICMSST"], "10.00")
+
+	def test_vtprest_pode_ser_zero_para_cte_complementar(self):
+		"""O XSD permite vTPrest zero para CT-e de complemento de valores."""
+		evento = montar_evento_epec_cte(
+			chave_acesso=self.chave,
+			justificativa="Contingência por indisponibilidade do sistema da SEFAZ.",
+			valor_icms="0.00",
+			valor_total_prestacao="0.00",
+			valor_carga="0.00",
+			tomador=self.tomador,
+			modal=MODAL_RODOVIARIO,
+			uf_inicio="SP",
+			uf_fim="RJ",
+			data_emissao_cte="2026-08-31T10:00:00-03:00",
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-08-31T10:00:01-03:00",
+		)
+
+		self.assertEqual(evento["evento"]["infEvento"]["detEvento"]["vTPrest"], "0.00")
+
+	def test_modal_invalido_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_epec_cte(
+				chave_acesso=self.chave,
+				justificativa="Contingência por indisponibilidade do sistema da SEFAZ.",
+				valor_icms="100.00",
+				valor_total_prestacao="1000.00",
+				valor_carga="5000.00",
+				tomador=self.tomador,
+				modal="9",
+				uf_inicio="SP",
+				uf_fim="RJ",
+				data_emissao_cte="2026-08-31T10:00:00-03:00",
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-08-31T10:00:01-03:00",
+			)
+
+	def test_modal_aereo_tambem_aceito(self):
+		evento = montar_evento_epec_cte(
+			chave_acesso=self.chave,
+			justificativa="Contingência por indisponibilidade do sistema da SEFAZ.",
+			valor_icms="100.00",
+			valor_total_prestacao="1000.00",
+			valor_carga="5000.00",
+			tomador=self.tomador,
+			modal=MODAL_AEREO,
+			uf_inicio="SP",
+			uf_fim="RJ",
+			data_emissao_cte="2026-08-31T10:00:00-03:00",
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-08-31T10:00:01-03:00",
+		)
+
+		self.assertEqual(evento["evento"]["infEvento"]["detEvento"]["modal"], MODAL_AEREO)
+
+	def test_justificativa_com_256_caracteres_e_invalida(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_epec_cte(
+				chave_acesso=self.chave,
+				justificativa="a" * 256,
+				valor_icms="100.00",
+				valor_total_prestacao="1000.00",
+				valor_carga="5000.00",
+				tomador=self.tomador,
+				modal=MODAL_RODOVIARIO,
+				uf_inicio="SP",
+				uf_fim="RJ",
+				data_emissao_cte="2026-08-31T10:00:00-03:00",
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-08-31T10:00:01-03:00",
+			)
+
+	def test_documento_assinado_serializa(self):
+		assinado = assinar_evento(self.evento, AssinadorFalso())
+		xml = para_xml(assinado)
+
+		self.assertIn("<toma4>", xml)
+		self.assertIn("<chCTe>", xml)
+		self.assertIn("<tpCTe>0</tpCTe>", xml)
 
 
 if __name__ == "__main__":
