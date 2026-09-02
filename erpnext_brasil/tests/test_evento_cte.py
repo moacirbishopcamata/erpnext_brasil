@@ -14,6 +14,7 @@ from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, montar_c
 from erpnext_brasil.fiscal.documento.evento_cte import (
 	JUSTIFICATIVA_MAXIMA_CTE,
 	JUSTIFICATIVA_MINIMA_CTE,
+	TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE,
 	TIPO_EVENTO_CANCELAMENTO_CTE,
 	TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE,
 	TIPO_EVENTO_CORRECAO_CTE,
@@ -27,6 +28,7 @@ from erpnext_brasil.fiscal.documento.evento_cte import (
 	assinar_evento,
 	calcular_hash_entrega,
 	montar_env_evento_cte,
+	montar_evento_cancelamento_comprovante_entrega_cte,
 	montar_evento_comprovante_entrega_cte,
 	montar_evento_cancelamento_cte,
 	montar_evento_correcao_cte,
@@ -665,6 +667,65 @@ class TestMontarEventoEpecCte(unittest.TestCase):
 		self.assertIn("<toma4>", xml)
 		self.assertIn("<chCTe>", xml)
 		self.assertIn("<tpCTe>0</tpCTe>", xml)
+
+
+class TestMontarEventoCancelamentoComprovanteEntregaCte(unittest.TestCase):
+	def setUp(self):
+		self.chave = _chave_cte()
+		self.evento = montar_evento_cancelamento_comprovante_entrega_cte(
+			chave_acesso=self.chave,
+			protocolo="135260000000001",
+			protocolo_comprovante_entrega="135260000000002",
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-09-02T10:00:00-03:00",
+		)
+
+	def test_tp_evento_e_110181_nao_o_da_carta_de_correcao(self):
+		"""Achado real: 'CE' aqui é Comprovante de Entrega, não Carta de Correção --
+		tpEvento 110181, diferente de 110110 (CC-e) e 110180 (comprovante de entrega)."""
+		self.assertEqual(
+			self.evento["evento"]["infEvento"]["tpEvento"],
+			TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE,
+		)
+		self.assertEqual(TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE, "110181")
+
+	def test_dois_protocolos_distintos_nao_o_mesmo_repetido(self):
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+
+		self.assertEqual(det_evento["nProt"], "135260000000001")
+		self.assertEqual(det_evento["nProtCE"], "135260000000002")
+		self.assertNotEqual(det_evento["nProt"], det_evento["nProtCE"])
+
+	def test_desc_evento_fixo(self):
+		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		self.assertEqual(det_evento["descEvento"], "Cancelamento do Comprovante de Entrega do CT-e")
+
+	def test_sem_protocolo_do_cte_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_cancelamento_comprovante_entrega_cte(
+				chave_acesso=self.chave,
+				protocolo="",
+				protocolo_comprovante_entrega="135260000000002",
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T10:00:00-03:00",
+			)
+
+	def test_sem_protocolo_do_comprovante_levanta_erro(self):
+		with self.assertRaises(EventoInvalido):
+			montar_evento_cancelamento_comprovante_entrega_cte(
+				chave_acesso=self.chave,
+				protocolo="135260000000001",
+				protocolo_comprovante_entrega="",
+				cnpj_autor=_CNPJ_VALIDO,
+				data_evento="2026-09-02T10:00:00-03:00",
+			)
+
+	def test_documento_assinado_serializa(self):
+		assinado = assinar_evento(self.evento, AssinadorFalso())
+		xml = para_xml(assinado)
+
+		self.assertIn("<nProtCE>", xml)
+		self.assertIn("<chCTe>", xml)
 
 
 if __name__ == "__main__":

@@ -2,8 +2,9 @@
 # License: MIT. See license.txt
 
 """Eventos do CT-e: cancelamento (`tpEvento` 110111, `evCancCTe`), carta de correção
-(`tpEvento` 110110, `evCCeCTe`), comprovante de entrega (`tpEvento` 110180, `evCECTe`) e
-EPEC (`tpEvento` 110113, `evEPECCTe`).
+(`tpEvento` 110110, `evCCeCTe`), comprovante de entrega (`tpEvento` 110180, `evCECTe`),
+EPEC (`tpEvento` 110113, `evEPECCTe`) e cancelamento do comprovante de entrega (`tpEvento`
+110181, `evCancCECTe`).
 
 Por que existe
 --------------
@@ -100,6 +101,19 @@ CNPJ/CPF e `IE` opcional. Reaproveitar `fiscal.cte.TomadorOutros`/`montar_toma4`
 ou inventar dados que o EPEC não pede, ou aceitar `papel` fixo em `"4"` quando o XSD permite
 qualquer um — por isso `TomadorEpec`/`montar_tomador_epec` são um tipo à parte.
 
+Cancelamento do comprovante de entrega (`tpEvento` 110181) — "CE" é Comprovante de Entrega,
+não Carta de Correção
+------------------------------------------------------------------------------------------
+**Achado real, não suposto pelo nome do arquivo**: `evCancCECTe_v4.00.xsd` (36 linhas, lido
+inteiro) descreve, no seu próprio texto (`xs:documentation`), o "cancelamento do comprovante
+de entrega eletrônico do CT-e" — a sigla `CE` aqui é **Comprovante de Entrega** (o evento
+`evCECTe`, `tpEvento` 110180, desta mesma frente), **não** Carta de Correção (`evCCeCTe`,
+que tem sua própria sigla `CCe`, diferente). O nome do arquivo, por analogia solta com
+`evCancCTe`/`evCCeCTe`, sugeriria "cancelamento da carta de correção" — leitura do XSD
+confirma que não é isso. Corpo simples: `descEvento` fixo ("Cancelamento do Comprovante de
+Entrega do CT-e"), `nProt` (protocolo do próprio CT-e) e `nProtCE` (protocolo do evento de
+comprovante de entrega que está sendo cancelado) — os dois do tipo `TProt`.
+
 Funções puras: nenhuma dependência do Frappe.
 """
 
@@ -124,6 +138,7 @@ from erpnext_brasil.fiscal.validators import validar_cnpj, validar_cpf_cnpj
 __all__ = [
 	"JUSTIFICATIVA_MAXIMA_CTE",
 	"JUSTIFICATIVA_MINIMA_CTE",
+	"TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE",
 	"TIPO_EVENTO_CANCELAMENTO_CTE",
 	"TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE",
 	"TIPO_EVENTO_CORRECAO_CTE",
@@ -140,6 +155,7 @@ __all__ = [
 	"assinar_evento",
 	"calcular_hash_entrega",
 	"montar_env_evento_cte",
+	"montar_evento_cancelamento_comprovante_entrega_cte",
 	"montar_evento_cancelamento_cte",
 	"montar_evento_comprovante_entrega_cte",
 	"montar_evento_correcao_cte",
@@ -151,6 +167,7 @@ TIPO_EVENTO_CANCELAMENTO_CTE = "110111"
 TIPO_EVENTO_CORRECAO_CTE = "110110"
 TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE = "110180"
 TIPO_EVENTO_EPEC_CTE = "110113"
+TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE = "110181"
 
 # `toma` do `toma4` do EPEC — aceita os 5 papéis, diferente do `toma4` real do `ide`
 # (que só serve para "4"-Outros). Ver docstring do módulo.
@@ -616,6 +633,74 @@ def montar_evento_epec_cte(
 		"tpEvento": TIPO_EVENTO_EPEC_CTE,
 		"nSeqEvento": str(numero_sequencia),
 		"detEvento": det_evento,
+	}
+
+	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+
+
+def montar_evento_cancelamento_comprovante_entrega_cte(
+	chave_acesso: str,
+	protocolo: str,
+	protocolo_comprovante_entrega: str,
+	cnpj_autor: str,
+	data_evento: str,
+	numero_sequencia: int = 1,
+	ambiente: str = "2",
+) -> dict:
+	"""Monta o elemento `evento` (grupo `TEvento`) do cancelamento do comprovante de
+	entrega do CT-e.
+
+	Achado real, não suposto pelo nome do arquivo (`evCancCECTe`): "CE" aqui é
+	Comprovante de Entrega (o `evCECTe`, `tpEvento` 110180), não Carta de Correção (o
+	`evCCeCTe`, que tem sigla própria `CCe`) — confirmado pelo texto do próprio XSD
+	("cancelamento do comprovante de entrega eletrônico do CT-e"). `protocolo` é o
+	protocolo de autorização do CT-e; `protocolo_comprovante_entrega` é o protocolo do
+	evento de comprovante de entrega que está sendo cancelado — dois protocolos
+	distintos, não o mesmo valor repetido.
+	"""
+	chave = validar_chave(chave_acesso)
+	lida = ler_chave(chave)
+
+	protocolo_limpo = (protocolo or "").strip()
+
+	if not protocolo_limpo:
+		raise EventoInvalido("O protocolo da autorização do CT-e é obrigatório", "protocolo")
+
+	protocolo_ce_limpo = (protocolo_comprovante_entrega or "").strip()
+
+	if not protocolo_ce_limpo:
+		raise EventoInvalido(
+			"O protocolo do comprovante de entrega a cancelar é obrigatório",
+			"protocolo_comprovante_entrega",
+		)
+
+	if not (1 <= numero_sequencia <= 20):
+		raise EventoInvalido(
+			f"nSeqEvento deve estar entre 1 e 20, recebido {numero_sequencia}", "numero_sequencia"
+		)
+
+	try:
+		cnpj = validar_cnpj(cnpj_autor)
+	except ValueError as e:
+		raise EventoInvalido(f"CNPJ do autor do evento inválido: {e}", "cnpj_autor") from e
+
+	inf_evento = {
+		"@Id": _formatar_id_cte(
+			chave, TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE, numero_sequencia
+		),
+		"cOrgao": lida.uf,
+		"tpAmb": ambiente,
+		"CNPJ": cnpj,
+		"chCTe": chave,
+		"dhEvento": data_evento,
+		"tpEvento": TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE,
+		"nSeqEvento": str(numero_sequencia),
+		"detEvento": {
+			"@versaoEvento": _VERSAO_LEIAUTE_CTE,
+			"descEvento": "Cancelamento do Comprovante de Entrega do CT-e",
+			"nProt": protocolo_limpo,
+			"nProtCE": protocolo_ce_limpo,
+		},
 	}
 
 	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
