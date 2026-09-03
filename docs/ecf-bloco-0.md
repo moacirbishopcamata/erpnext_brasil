@@ -41,8 +41,33 @@ de texto livre, sem enumeração — `IdentificacaoEcf.retificadora` tem um padr
 razoável (`"0"`) mas não verificado contra o Manual de Orientação; quem gerar um arquivo
 real precisa confirmar o valor certo antes.
 
+## Wiring com `Company`/`Address` — pedido direto do usuário ("não esqueça das configurações")
+
+`ecf_bloco_0.py` é puro (não toca Frappe) — correto para testar, mas exigiria de quem
+chama digitar CNPJ/nome/CNAE/endereço de novo, mesmo já existindo em `Company`/`Address`.
+`integracao/ecf_dados_empresa.py` fecha essa lacuna, mesmo espírito de
+`integracao/certificado_a1.py`: `montar_identificacao_0000(company, ...)` e
+`montar_dados_cadastrais_0030(company, address)` leem o cadastro e devolvem
+`IdentificacaoEcf`/`DadosCadastrais` prontos — só os campos que são decisão da
+declaração em si (período, situação, tipo de ECF, retificadora) continuam parâmetro
+explícito, não cadastro.
+
+Dois campos novos: `Company.br_natureza_juridica` (não existia; `COD_NAT` do `0030` não
+tinha de onde vir) e **`Address.bairro`** — achado real: o `Address` nativo do ERPNext
+não tem campo de bairro. Não é lacuna nova desta investigação: `xBairro` já era exigido
+pelo endereço da NF-e (`fiscal/documento/elementos_nfe.json`) e nunca tinha campo — o
+`0030` da ECF só expôs de novo uma lacuna pré-existente, corrigida aqui.
+
+Achado real, registrado e não corrigido neste incremento: o `Address` nativo também não
+separa "número" de `address_line1` — `DadosCadastrais.numero` vem vazio até essa segunda
+lacuna ser fechada à parte.
+
+Sem teste dedicado — `integracao/ecf_dados_empresa.py` depende do Frappe.
+
 ## Arquivos
 
 - `erpnext_brasil/contabil/ecf_bloco_0.py` — `IdentificacaoEcf`/`montar_0000`,
   `montar_0001`, `DadosCadastrais`/`montar_0030`, `montar_0990`.
+- `erpnext_brasil/integracao/ecf_dados_empresa.py` — `montar_identificacao_0000`,
+  `montar_dados_cadastrais_0030`.
 - `erpnext_brasil/tests/test_ecf_bloco_0.py` — 6 testes.

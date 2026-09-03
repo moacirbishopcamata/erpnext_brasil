@@ -139,6 +139,16 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"insert_after": "inscricao_municipal",
 			},
 			{
+				"fieldname": "br_natureza_juridica",
+				"label": "Natureza Jurídica",
+				"fieldtype": "Data",
+				"insert_after": "cnae_principal",
+				"description": (
+					"Código da tabela de Natureza Jurídica da Receita Federal (ex.: 206-2 "
+					"para Sociedade Empresária Limitada) — usado no registro 0030 da ECF."
+				),
+			},
+			{
 				"fieldname": "chave_pix",
 				"label": "Chave Pix",
 				"fieldtype": "Data",
@@ -209,6 +219,16 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"fieldtype": "Data",
 				"insert_after": "secao_fiscal_br",
 				"description": "7 dígitos. Obrigatório na NF-e; não é derivável do CEP com segurança.",
+			},
+			{
+				"fieldname": "bairro",
+				"label": "Bairro",
+				"fieldtype": "Data",
+				"insert_after": "codigo_municipio_ibge",
+				"description": (
+					"O `Address` nativo do ERPNext não tem campo de bairro — obrigatório no "
+					"endereço da NF-e (xBairro) e no registro 0030 da ECF."
+				),
 			},
 		],
 		"Item": [
