@@ -87,8 +87,58 @@ def documento(**ajustes):
 		totais=ajustes.get("totais", {"ICMSTot": {}}),
 		transp=ajustes.get("transp", montar_transp("9")["transp"]),
 		pag=ajustes.get("pag", montar_pag([{"forma": "90", "valor": None}])["pag"]),
+		cobr=ajustes.get("cobr"),
 		infadic=ajustes.get("infadic"),
 	)
+
+
+class TestCobrancaNaNfe(unittest.TestCase):
+	"""O grupo `cobr` entra entre `transp` e `pag` — a ordem do `xs:sequence`.
+
+	Ordem errada produz XML que outras ferramentas leem e o validador da SEFAZ
+	rejeita: o pior tipo de erro, porque parece certo até a transmissão.
+	"""
+
+	def _cobr(self):
+		from datetime import date
+		from decimal import Decimal
+
+		from erpnext_brasil.fiscal.documento.cobranca import Duplicata, Fatura, montar_cobr
+
+		return montar_cobr(
+			Fatura(original=Decimal("600.00")),
+			[
+				Duplicata(vencimento=date(2026, 10, 10), valor=Decimal("300.00"), numero="001"),
+				Duplicata(vencimento=date(2026, 11, 10), valor=Decimal("300.00"), numero="002"),
+			],
+		)["cobr"]
+
+	def test_cobr_entra_entre_transp_e_pag(self):
+		campos = list(documento(cobr=self._cobr())["infNFe"])
+
+		self.assertLess(campos.index("transp"), campos.index("cobr"))
+		self.assertLess(campos.index("cobr"), campos.index("pag"))
+
+	def test_venda_a_vista_nao_declara_duplicata(self):
+		"""Sem parcelamento o grupo não aparece — inventar uma duplicata seria
+		declarar um título de crédito que não existe."""
+		self.assertNotIn("cobr", documento()["infNFe"])
+
+	def test_as_duplicatas_chegam_intactas(self):
+		cobr = documento(cobr=self._cobr())["infNFe"]["cobr"]
+
+		self.assertEqual(len(cobr["dup"]), 2)
+		self.assertEqual(cobr["dup"][0]["dVenc"], "2026-10-10")
+
+	def test_a_ordem_sobrevive_a_serializacao(self):
+		"""O que importa de verdade é o XML final, não o dicionário."""
+		from erpnext_brasil.fiscal.documento.nfe import montar_nfe
+		from erpnext_brasil.fiscal.documento.serializacao import para_xml
+
+		xml = para_xml(montar_nfe(documento(cobr=self._cobr())))
+
+		self.assertLess(xml.index("<transp>"), xml.index("<cobr>"))
+		self.assertLess(xml.index("<cobr>"), xml.index("<pag>"))
 
 
 class TestEstrutura(unittest.TestCase):

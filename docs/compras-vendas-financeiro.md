@@ -40,6 +40,19 @@ Quando há fatura e duplicatas, a soma das parcelas **tem** de fechar com o líq
 fatura. Parcelar R$ 1.000 em três de R$ 300 passa no schema e só aparece na conciliação
 do contas a receber, muito depois. `montar_cobr` recusa.
 
+### Onde o grupo entra na NF-e
+
+Confirmado no `leiauteNFe_v4.00.xsd`, a sequência é `total` → `transp` → **`cobr`** →
+`pag` → `infAdic`. `montar_infnfe` passou a aceitar o grupo e o insere nessa posição.
+
+Ordem errada é o pior tipo de erro neste domínio: produz XML que outras ferramentas leem
+sem reclamar e que o validador da SEFAZ rejeita — parece certo até a transmissão. Por
+isso o teste não confere só o dicionário: `test_a_ordem_sobrevive_a_serializacao` monta o
+XML final e verifica a posição de `<cobr>` entre `<transp>` e `<pag>`.
+
+O grupo só aparece quando há parcelamento. Venda à vista não tem duplicata, e incluir uma
+seria declarar um título de crédito que não existe.
+
 ## Contas a receber: o dado já existia, íntegro
 
 O ERPNext modela venda a prazo em `Payment Schedule` (`due_date`, `payment_amount`), que é

@@ -384,6 +384,7 @@ def montar_infnfe(
 	totais: dict,
 	transp: dict | None = None,
 	pag: dict | None = None,
+	cobr: dict | None = None,
 	infadic: dict | None = None,
 	versao: str = "4.00",
 ) -> dict:
@@ -442,12 +443,20 @@ def montar_infnfe(
 		"dest": montar_dest(destinatario),
 		"det": detalhes,
 		"total": dict(totais),
-		# A ordem destas três linhas é a ordem do XSD (`xs:sequence`), não escolha
-		# estética: `infNFe` é serializado depois, e trocar a ordem produziria XML válido
-		# para outras ferramentas mas rejeitado pelo validador da SEFAZ.
+		# A ordem destas linhas é a ordem do XSD (`xs:sequence`), não escolha estética:
+		# `infNFe` é serializado depois, e trocar a ordem produziria XML válido para
+		# outras ferramentas mas rejeitado pelo validador da SEFAZ. Confirmado no
+		# `leiauteNFe_v4.00.xsd`: total → transp → cobr → pag → infAdic.
 		"transp": dict(transp),
-		"pag": dict(pag),
 	}
+
+	# `cobr` (fatura e duplicatas) é opcional no XSD e entra **entre** `transp` e `pag`.
+	# Venda à vista não tem duplicata, e inventar uma seria declarar um título de crédito
+	# que não existe — por isso o grupo só aparece quando há parcelamento de verdade.
+	if cobr:
+		corpo["cobr"] = dict(cobr)
+
+	corpo["pag"] = dict(pag)
 
 	if infadic:
 		corpo["infAdic"] = dict(infadic)
