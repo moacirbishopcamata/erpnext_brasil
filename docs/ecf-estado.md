@@ -67,9 +67,14 @@ não tem cadastro que responda essas perguntas de verdade. `0035`/`0930` também
    detalhe de por que cada um ficou de fora.
 2. **`0010`/`0020`/`0021`/`0035`/`0930`** — os demais registros do Bloco 0, todos
    dependentes de cadastro regulatório que este projeto não tem (ver `docs/ecf-bloco-0.md`).
-3. **Blocos L/M/N** — o núcleo do Lucro Real (e-LALUR/e-LACS, cálculo de IRPJ/CSLL). Não
-   dimensionado — provavelmente o maior bloco sozinho, dependente de regras de ajuste fiscal
-   (adições/exclusões ao lucro líquido) que este projeto não modela ainda.
+3. **Blocos L/M/N** — **dimensionados, núcleo mínimo implementado** (ver
+   `docs/ecf-blocos-l-m-n.md`): `L001`/`L990`, `M001`/`M990`, `N001`/`N990` prontos.
+   Confirmado com detalhe real de campo: dezessete dos vinte e três registros de
+   conteúdo somados dependem de um catálogo de códigos da Receita não verificado
+   (mesmo padrão "código+valor" dos Blocos K/P), e o Bloco M inteiro (treze registros)
+   exige um domínio de controle fiscal — LALUR Parte B, contas com saldo entre
+   períodos — que este projeto não tem em lugar nenhum. É o item que confirma a
+   estimativa antiga ("provavelmente o maior bloco sozinho"), agora com evidência.
 4. **Bloco P** (Lucro Presumido) — **dimensionado, núcleo mínimo implementado** (ver
    `docs/ecf-bloco-p.md`): `P001`/`P990` prontos. Achado real: seis dos dez registros
    (`P130`/`P200`/`P230`/`P300`/`P400`/`P500`) compartilham o formato genérico
