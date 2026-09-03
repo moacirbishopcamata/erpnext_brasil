@@ -40,11 +40,18 @@ A fonte lista `COD_NAT` do `J050` com seis valores (`01`-Ativo, `02`-Passivo, `0
 escopo — achado real, não tem equivalente na ECD (é específico de reorganização
 societária). Ver `docs/ecf-bloco-j.md` para o detalhe completo.
 
+## Bloco K aberto — `K155` implementado
+
+`K155` reaproveita a aritmética de saldo de `ecd_i150.montar_i155` — achado real: os dois
+campos indicadores mudam de nome entre ECD e ECF (`IND_DC_*` → `IND_VL_SLD_*`), mesmo
+valor. Ver `docs/ecf-bloco-k.md`.
+
 ## O que ainda falta investigar/implementar, em ordem de proximidade com o que já existe
 
-1. **Bloco K** (saldos das contas contábeis) — também "importado direto da ECD" segundo a
-   mesma fonte; candidato natural a reuso de `ecd_i200`/`ecd_i250` (lançamentos já modelados),
-   não investigado a fundo ainda.
+1. **`K030`/`K156`/`K355`/`K356`/`K915`/`K935`** — os demais registros do Bloco K (método
+   de apuração de IRPJ/CSLL, mapeamento referencial, saldos de resultado antes do
+   encerramento, justificativa de divergência). Ver `docs/ecf-bloco-k.md` para o
+   detalhe de por que cada um ficou de fora.
 2. **Bloco 0** — abertura/identificação, mesma convenção de `0000`/`0010` já vista em
    DeSTDA/EFD-Reinf; não investigado campo a campo ainda.
 3. **Blocos L/M/N** — o núcleo do Lucro Real (e-LALUR/e-LACS, cálculo de IRPJ/CSLL). Não
