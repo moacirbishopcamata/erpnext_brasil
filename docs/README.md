@@ -17,6 +17,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [transporte-nativo-sefaz.md](transporte-nativo-sefaz.md) | Decisão de falar direto com a SEFAZ; tabela de autorizadores por UF (RO confirmado) |
 | [inutilizacao-nfe.md](inutilizacao-nfe.md) | Inutilização de faixa de numeração: por que é operação à parte, `@Id`, `cUF` × sigla |
 | [ambiente-dev-bench.md](ambiente-dev-bench.md) | Bench Frappe local (Windows 11 + WSL2 + Docker): decisões, obstáculos e como reproduzir; Memurai/MariaDB nativos como alternativa ainda não testada |
+| [integracao-party-bench.md](integracao-party-bench.md) | Testes reais (bench) de `integracao/party.py`: achado de que a Company padrão do site pode mascarar `_pais_e_brasil()`, e um CNPJ com dígitos repetidos que passou na validação |
 | [nfce-qrcode.md](nfce-qrcode.md) | QR Code da NFC-e: algoritmo do hash, `infNFeSupl`, CDATA, o que falta (contingência, tabela de UF) |
 | [plano-de-contas.md](plano-de-contas.md) | Bloco contábil: grupos do balanço/DRE (Lei 6.404/76), amarração aos tributos, obstáculo de integração com o seletor de plano de contas do ERPNext |
 | [lancamentos-contabeis.md](lancamentos-contabeis.md) | Partidas dobradas de uma venda: por que IPI não passa pela receita (DL 1.598/77), tratamento provisório de IBS/CBS e sua fase de teste sem recolhimento real |
