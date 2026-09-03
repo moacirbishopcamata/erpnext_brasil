@@ -50,6 +50,14 @@ como `IND_VL_SLD_INICIAL` (forma por extenso) na fonte consultada para `K156`, d
 de `IND_VL_SLD_INI` (`K155`) — pode ser divergência real ou variação de transcrição,
 registrado para conferência. Ver `docs/ecf-bloco-k.md`.
 
+## Bloco 0 aberto — núcleo mínimo implementado
+
+`0000`/`0001`/`0030`/`0990` implementados (identificação/cadastro). `0010`/`0020`/`0021`
+(mais de 40 indicadores regulatórios: Refis, SCP, operações com o exterior, programas de
+incentivo fiscal) deliberadamente fora — nenhum tem valor padrão seguro, e este projeto
+não tem cadastro que responda essas perguntas de verdade. `0035`/`0930` também fora
+(conceitos — SCP, contador/CRC — que o projeto não modela). Ver `docs/ecf-bloco-0.md`.
+
 ## O que ainda falta investigar/implementar, em ordem de proximidade com o que já existe
 
 1. **`K030`/`K355`/`K356`/`K915`/`K935`** — os demais registros do Bloco K (método
@@ -57,8 +65,8 @@ registrado para conferência. Ver `docs/ecf-bloco-k.md`.
    de divergência — `K915`/`K935` confirmados como preenchimento manual do usuário no
    PVA, não calculáveis por este projeto). Ver `docs/ecf-bloco-k.md` para o
    detalhe de por que cada um ficou de fora.
-2. **Bloco 0** — abertura/identificação, mesma convenção de `0000`/`0010` já vista em
-   DeSTDA/EFD-Reinf; não investigado campo a campo ainda.
+2. **`0010`/`0020`/`0021`/`0035`/`0930`** — os demais registros do Bloco 0, todos
+   dependentes de cadastro regulatório que este projeto não tem (ver `docs/ecf-bloco-0.md`).
 3. **Blocos L/M/N** — o núcleo do Lucro Real (e-LALUR/e-LACS, cálculo de IRPJ/CSLL). Não
    dimensionado — provavelmente o maior bloco sozinho, dependente de regras de ajuste fiscal
    (adições/exclusões ao lucro líquido) que este projeto não modela ainda.

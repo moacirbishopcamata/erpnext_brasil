@@ -28,6 +28,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [ecf-estado.md](ecf-estado.md) | Levantamento da ECF: dimensão confirmada (Leiaute 12, blocos 0/C/E/J/K/L/M/N/P/T/U/X/Y/S), a fatia mais barata (Bloco J, importado direto da ECD) |
 | [ecf-bloco-j.md](ecf-bloco-j.md) | Bloco J da ECF: `J050`/`J051` reaproveitam `I050`/`I051` da ECD com o `REG` trocado, `J100` é tipo novo mínimo, `J053` fora de escopo |
 | [ecf-bloco-k.md](ecf-bloco-k.md) | Bloco K da ECF: `K155`/`K156` reaproveitam a aritmética de `I155` da ECD, achado de indicadores D/C com nomes diferentes (`IND_DC_*`/`IND_VL_SLD_*`/`IND_VL_SLD_INICIAL`), nível de confiança declarado |
+| [ecf-bloco-0.md](ecf-bloco-0.md) | Bloco 0 da ECF: `0000`/`0001`/`0030`/`0990` implementados, `0010`/`0020`/`0021` (40+ indicadores regulatórios) deliberadamente fora — sem valor padrão seguro |
 | [certificado-a1-configuracao.md](certificado-a1-configuracao.md) | Certificado A1 e ambiente SEFAZ configuráveis em `Company`; o que deliberadamente não virou configurável (tabelas de autorizador por UF) |
 | [ecd.md](ecd.md) | ECD (SPED Contábil): registros I050/I051/I200/I250/I150/I155, numeração-padrão de contas, a pegadinha do `COD_NAT` do Patrimônio Líquido |
 | [sped-texto.md](sped-texto.md) | Serialização de linha pipe-delimited do SPED, comum a EFD e ECD; a correção do formato de data (`DDMMAAAA`, sem separador) |
