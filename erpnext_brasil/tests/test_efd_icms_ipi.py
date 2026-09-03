@@ -111,34 +111,47 @@ class TestMontarE110(unittest.TestCase):
 
 
 class TestAjuste(unittest.TestCase):
-	def test_codigo_precisa_ter_4_caracteres(self):
+	def test_codigo_precisa_ter_8_caracteres(self):
+		"""Corrigido em 2026-09-03: a versão anterior exigia 4 caracteres, o que
+		rejeitaria todo código real da tabela 5.1.1 (`GO040024`, `PE000001`)."""
 		with self.assertRaises(EfdInvalido):
-			Ajuste(codigo="123", descricao="teste", valor=d("10.00"))
+			Ajuste(codigo="MG00", descricao="teste", valor=d("10.00"))
+
+	def test_codigo_real_de_oito_caracteres_e_aceito(self):
+		"""`GO040024` é um código literal citado pelo próprio Guia Prático."""
+		ajuste = Ajuste(codigo="GO040024", descricao="ICMS próprio", valor=d("10.00"))
+
+		self.assertEqual(ajuste.tipo, "4")
+
+	def test_codigo_de_st_e_recusado_no_e111(self):
+		"""3º caractere `1` é ICMS-ST — pertence ao E220, não ao E111."""
+		with self.assertRaises(EfdInvalido):
+			Ajuste(codigo="MG100001", descricao="teste", valor=d("10.00"))
 
 	def test_quarto_caractere_precisa_ser_tipo_valido(self):
 		with self.assertRaises(EfdInvalido):
-			Ajuste(codigo="MG09", descricao="teste", valor=d("10.00"))
+			Ajuste(codigo="MG090001", descricao="teste", valor=d("10.00"))
 
 	def test_valor_negativo_e_rejeitado(self):
 		with self.assertRaises(EfdInvalido):
-			Ajuste(codigo="MG00", descricao="teste", valor=d("-1.00"))
+			Ajuste(codigo="MG000001", descricao="teste", valor=d("-1.00"))
 
 	def test_tipo_e_o_quarto_caractere(self):
-		self.assertEqual(Ajuste(codigo="MG00", descricao="", valor=d("1.00")).tipo, "0")
-		self.assertEqual(Ajuste(codigo="MG04", descricao="", valor=d("1.00")).tipo, "4")
+		self.assertEqual(Ajuste(codigo="MG000001", descricao="", valor=d("1.00")).tipo, "0")
+		self.assertEqual(Ajuste(codigo="MG040001", descricao="", valor=d("1.00")).tipo, "4")
 
 
 class TestMontarE111(unittest.TestCase):
 	def test_uma_linha_por_ajuste_na_ordem_oficial(self):
 		ajustes = [
-			Ajuste(codigo="MG00", descricao="Outros débitos", valor=d("50.00")),
-			Ajuste(codigo="MG04", descricao="Dedução do período", valor=d("10.00")),
+			Ajuste(codigo="MG000001", descricao="Outros débitos", valor=d("50.00")),
+			Ajuste(codigo="MG040001", descricao="Dedução do período", valor=d("10.00")),
 		]
 		linhas = montar_e111(ajustes)
 
 		self.assertEqual(len(linhas), 2)
 		self.assertEqual(list(linhas[0]), ["REG", "COD_AJ_APUR", "DESCR_COMPL_AJ", "VL_AJ_APUR"])
-		self.assertEqual(linhas[0]["COD_AJ_APUR"], "MG00")
+		self.assertEqual(linhas[0]["COD_AJ_APUR"], "MG000001")
 		self.assertEqual(linhas[0]["VL_AJ_APUR"], d("50.00"))
 
 	def test_lista_vazia_devolve_lista_vazia(self):
@@ -148,7 +161,7 @@ class TestMontarE111(unittest.TestCase):
 class TestMontarE110ComAjustes(unittest.TestCase):
 	def test_outros_debitos_soma_em_vl_tot_aj_debitos(self):
 		apuracao = ApuracaoPeriodo(tributo="ICMS", debitos=d("1000.00"), creditos=d("400.00"))
-		ajustes = [Ajuste(codigo="MG00", descricao="", valor=d("50.00"))]
+		ajustes = [Ajuste(codigo="MG000001", descricao="", valor=d("50.00"))]
 		campos = montar_e110(apuracao, ajustes)
 
 		self.assertEqual(campos["VL_TOT_AJ_DEBITOS"], d("50.00"))
@@ -158,12 +171,12 @@ class TestMontarE110ComAjustes(unittest.TestCase):
 	def test_cada_tipo_vai_para_o_campo_certo(self):
 		apuracao = ApuracaoPeriodo(tributo="ICMS", debitos=d("1000.00"), creditos=d("400.00"))
 		ajustes = [
-			Ajuste(codigo="MG00", descricao="", valor=d("10.00")),  # outros débitos
-			Ajuste(codigo="MG01", descricao="", valor=d("20.00")),  # estorno de crédito
-			Ajuste(codigo="MG02", descricao="", valor=d("30.00")),  # outros créditos
-			Ajuste(codigo="MG03", descricao="", valor=d("40.00")),  # estorno de débito
-			Ajuste(codigo="MG04", descricao="", valor=d("5.00")),  # dedução
-			Ajuste(codigo="MG05", descricao="", valor=d("15.00")),  # débito especial
+			Ajuste(codigo="MG000001", descricao="", valor=d("10.00")),  # outros débitos
+			Ajuste(codigo="MG010001", descricao="", valor=d("20.00")),  # estorno de crédito
+			Ajuste(codigo="MG020001", descricao="", valor=d("30.00")),  # outros créditos
+			Ajuste(codigo="MG030001", descricao="", valor=d("40.00")),  # estorno de débito
+			Ajuste(codigo="MG040001", descricao="", valor=d("5.00")),  # dedução
+			Ajuste(codigo="MG050001", descricao="", valor=d("15.00")),  # débito especial
 		]
 		campos = montar_e110(apuracao, ajustes)
 
@@ -179,14 +192,14 @@ class TestMontarE110ComAjustes(unittest.TestCase):
 		saldo apurado, conforme a definição oficial do campo."""
 		apuracao = ApuracaoPeriodo(tributo="ICMS", debitos=d("1000.00"), creditos=d("400.00"))
 		sem_ajuste = montar_e110(apuracao, [])
-		com_debito_especial = montar_e110(apuracao, [Ajuste(codigo="MG05", descricao="", valor=d("999.00"))])
+		com_debito_especial = montar_e110(apuracao, [Ajuste(codigo="MG050001", descricao="", valor=d("999.00"))])
 
 		self.assertEqual(sem_ajuste["VL_ICMS_RECOLHER"], com_debito_especial["VL_ICMS_RECOLHER"])
 
 	def test_ajuste_pode_transformar_devedor_em_credor(self):
 		apuracao = ApuracaoPeriodo(tributo="ICMS", debitos=d("100.00"), creditos=d("90.00"))
 		# +10 devedor antes do ajuste; +30 de outros créditos vira -20 (credor).
-		campos = montar_e110(apuracao, [Ajuste(codigo="MG02", descricao="", valor=d("30.00"))])
+		campos = montar_e110(apuracao, [Ajuste(codigo="MG020001", descricao="", valor=d("30.00"))])
 
 		self.assertEqual(campos["VL_ICMS_RECOLHER"], d("0.00"))
 		self.assertEqual(campos["VL_SLD_CREDOR_TRANSPORTAR"], d("20.00"))
@@ -195,7 +208,7 @@ class TestMontarE110ComAjustes(unittest.TestCase):
 		apuracao = ApuracaoPeriodo(tributo="ICMS", debitos=d("100.00"), creditos=d("90.00"))
 
 		with self.assertRaises(EfdInvalido):
-			montar_e110(apuracao, [Ajuste(codigo="MG04", descricao="", valor=d("50.00"))])
+			montar_e110(apuracao, [Ajuste(codigo="MG040001", descricao="", valor=d("50.00"))])
 
 	def test_sem_ajustes_e_igual_ao_comportamento_anterior(self):
 		apuracao = ApuracaoPeriodo(tributo="ICMS", debitos=d("1000.00"), creditos=d("400.00"))

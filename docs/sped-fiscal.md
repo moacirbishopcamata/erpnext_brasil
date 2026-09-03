@@ -158,10 +158,77 @@ arriscaria acertar o valor e errar o formato, ou vice-versa, sem teste dedicado 
 cada responsabilidade (mesma separação de `fiscal/documento/serializacao.py`: a árvore
 de dados primeiro, o formato de texto depois, como camada própria).
 
+## Correção: `COD_AJ_APUR` tem 8 caracteres, não 4 (2026-09-03)
+
+Bug real, encontrado ao levantar o layout do E220 (ICMS-ST): `Ajuste.__post_init__`
+exigia `len(codigo) == 4` e a docstring do módulo afirmava "COD_AJ_APUR tem 4
+caracteres". O layout oficial declara **`008`**, e todo código real da tabela 5.1.1 tem
+oito caracteres — `GO040024`, `GO090004`, `PE000001` são exemplos literais do próprio
+Guia Prático. Ou seja: a validação **rejeitaria qualquer código real** que um usuário
+informasse; nenhum teste pegou isso porque todos usavam códigos inventados de 4
+caracteres (`MG00`, `MG04`), que a validação aceitava e o Fisco recusaria.
+
+A estrutura por posição, agora modelada:
+
+| Posição | Conteúdo |
+|---|---|
+| 1-2 | Sigla da UF cuja tabela define o código |
+| 3 | Tributo: `0` = ICMS operações próprias, `1` = ICMS-ST |
+| 4 | Tipo do lançamento (a tabela de seis tipos, já documentada acima) |
+| 5-8 | Sequencial dentro da tabela da UF |
+
+O índice do 4º caractere (que decide o campo de destino) já estava certo — só o tamanho
+e a ausência da checagem do 3º caractere estavam errados. `Ajuste` passou a exigir `0`
+na 3ª posição, recusando um código de ST usado por engano num E111.
+
+**Fonte que revelou o erro**: Guia Prático oficial da EFD-ICMS/IPI publicado pela
+SEFAZ-GO (`goias.gov.br/economia/.../Guia_pratico_5.8.pdf`) — PDF baixado e lido
+localmente com `pdftotext`, não resumido por ferramenta. O site oficial da RFB
+(`sped.rfb.gov.br`) recusou conexão nesta rodada, mesmo obstáculo já registrado em
+`docs/nfce-qrcode.md`.
+
+## E200/E210/E220 (ICMS-ST): implementados em módulo próprio
+
+Ver `contabil/efd_icms_st.py`. São apurações genuinamente distintas do E110 — não o
+mesmo registro com outros nomes de campo:
+
+- **Escopo por UF**: o E200 se repete por Unidade da Federação onde o contribuinte é
+  substituto tributário (ocorrência `1:N`); o E110 é um só por período.
+- **Composição diferente**: o E210 tem `VL_DEVOL_ST`/`VL_RESSARC_ST`/`VL_RETENCAO_ST`,
+  que não existem no E110.
+- **`IND_MOV_ST`**: indicador de "sem operações"/"com operações" que o E110 não tem —
+  derivado dos próprios valores aqui, nunca recebido em paralelo (evita o chamador
+  declarar "sem operações" com valores preenchidos).
+
+**Achado real**: a apuração da ST **não tem campo de estorno**. Dos seis tipos de
+`COD_AJ_APUR`, só quatro têm destino no E210 (`0` outros débitos, `2` outros créditos,
+`4` deduções, `5` débitos especiais); os tipos `1`/`3` (estorno de crédito/débito) não
+têm campo correspondente, e a descrição oficial do E220 confirma isso ao enumerar
+exatamente esses quatro campos como os que ele discrimina. `AjusteSt` recusa `1`/`3` em
+vez de somá-los em algum campo "parecido" — silenciar produziria um E210 que fecha
+aritmeticamente e mente sobre a natureza do lançamento.
+
+`ApuracaoSt` **não** reaproveita `ApuracaoPeriodo` de propósito: aquela classe modela
+débito/crédito bruto de tributo com não cumulatividade constitucional
+(`TRIBUTOS_APURAVEIS = {ICMS, IPI}`), e a ST não é isso — o débito é imposto **retido**
+de terceiro (o que `fiscal.impostos.icms.calcular_icms_st` já produz por item) e os
+créditos são devolução/ressarcimento, conceitos ausentes daquela classe.
+
+**Nível de confiança**: o layout campo a campo de E200/E210/E220 vem de fonte
+secundária (`vriconsulting.com.br`, guias 142/143/144, que reproduzem o Guia Prático da
+RFB), cruzada com descrições de TOTVS/Senior que concordam quanto ao propósito de cada
+registro e à relação E220 → E210. Só o tamanho/estrutura do `COD_AJ_APUR` tem
+confirmação oficial (ver seção acima).
+
 ## Ainda por implementar
 
-- **Registros E200/E210 (ICMS-ST) e E300/E310 (ICMS-DIFAL)** — apurações distintas de
-  E110, não cobertas; DIFAL em particular já é gap deliberado desde `imposto_item.py`.
+- **Registros E300/E310 (ICMS-DIFAL)** — apuração distinta, não coberta; DIFAL em
+  particular já é gap deliberado desde `imposto_item.py`.
+- **E230/E240 (detalhamento dos ajustes de ST) e E250 (guias de recolhimento da ST)** —
+  o E250 exige dado de guia/pagamento (número, vencimento, banco) que este projeto não
+  modela; o E230 detalha processo judicial/fiscal por trás do ajuste, mesma categoria de
+  dado externo já excluída do E112/E113 no lado das operações próprias.
+- ~~Registros E200/E210 (ICMS-ST)~~ — **feito em 2026-09-03**, ver seção acima.
 - ~~Serialização para o formato de texto do EFD~~ — **feito em 2026-08-30**, ver
   `docs/sped-texto.md` (`contabil/sped_texto.montar_linha`).
 - **Blocos 0, C, D, H, K, 1, 9** do EFD (identificação, documentos fiscais, inventário,
@@ -176,6 +243,8 @@ de dados primeiro, o formato de texto depois, como camada própria).
 
 - `contabil/efd_icms_ipi.py` — `Ajuste`, `AjusteIpi`, `montar_e110`, `montar_e111`,
   `montar_e520`, `montar_e530`; camada pura, sem Frappe, testável sem bench.
+- `contabil/efd_icms_st.py` — `ApuracaoSt`, `AjusteSt`, `montar_e200`, `montar_e210`,
+  `montar_e220` (apuração do ICMS-ST); mesma camada pura.
 
 ## Fontes
 

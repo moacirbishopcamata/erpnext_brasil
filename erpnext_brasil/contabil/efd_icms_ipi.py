@@ -35,8 +35,20 @@ bloco, contra uma tabela de códigos própria por UF (Ato COTEPE/ICMS 09/2008, i
 mesma variação por UF já vista em `boleto.py`/`cnab400_retorno.py`: não modelada aqui,
 o código vem pronto de quem chama).
 
-`COD_AJ_APUR` tem 4 caracteres; o **quarto** decide para qual campo do E110 o valor do
-ajuste soma:
+`COD_AJ_APUR` tem **8 caracteres** — corrigido em 2026-09-03, ver
+`docs/sped-fiscal.md`. A versão anterior deste módulo exigia 4, o que rejeitaria
+**todo** código real da tabela 5.1.1 (`GO040024`, `GO090004`, `PE000001` — exemplos
+literais do próprio Guia Prático). O tamanho `008` está declarado no layout oficial do
+E111, e a estrutura por posição é:
+
+| Posição | Conteúdo |
+|---|---|
+| 1-2 | Sigla da UF cuja tabela de ajuste define o código |
+| 3 | Tributo: `0` = ICMS operações próprias, `1` = ICMS-ST |
+| 4 | Tipo do lançamento (tabela abaixo) |
+| 5-8 | Sequencial dentro da tabela da UF |
+
+O **quarto** caractere decide para qual campo do E110 o valor do ajuste soma:
 
 | 4º caractere | Tipo | Campo do E110 |
 |---|---|---|
@@ -46,6 +58,11 @@ ajuste soma:
 | `3` | Estornos de débito | `VL_ESTORNOS_DEB` |
 | `4` | Deduções | `VL_TOT_DED` |
 | `5` | Débitos especiais (extemporâneos) | `DEB_ESP` |
+
+O **terceiro** caractere é o que separa este registro do E220 (ICMS-ST, ver
+`contabil/efd_icms_st.py`): `Ajuste` exige `0` ali, e recusa um código de ST usado por
+engano num E111 — os dois registros são de apurações diferentes, e o código carrega essa
+informação.
 
 `VL_AJ_DEBITOS`/`VL_AJ_CREDITOS` (os dois campos "não-total", distintos de
 `VL_TOT_AJ_DEBITOS`/`VL_TOT_AJ_CREDITOS`) representam ajuste **vinculado a um documento
@@ -85,9 +102,34 @@ from decimal import Decimal
 
 from erpnext_brasil.contabil.apuracao_periodo import ApuracaoPeriodo
 
-__all__ = ["Ajuste", "AjusteIpi", "EfdInvalido", "montar_e110", "montar_e111", "montar_e520", "montar_e530"]
+__all__ = [
+	"POSICAO_TIPO",
+	"POSICAO_TRIBUTO",
+	"TAMANHO_COD_AJ_APUR",
+	"TRIBUTO_ICMS_PROPRIO",
+	"TRIBUTO_ICMS_ST",
+	"Ajuste",
+	"AjusteIpi",
+	"EfdInvalido",
+	"montar_e110",
+	"montar_e111",
+	"montar_e520",
+	"montar_e530",
+]
 
 ZERO = Decimal("0.00")
+
+TAMANHO_COD_AJ_APUR = 8
+"""Declarado como `008` no layout oficial do E111 — ver docstring do módulo."""
+
+POSICAO_TRIBUTO = 2
+"""Índice (base zero) do 3º caractere: `0` = ICMS próprio, `1` = ICMS-ST."""
+
+POSICAO_TIPO = 3
+"""Índice (base zero) do 4º caractere: o tipo do lançamento."""
+
+TRIBUTO_ICMS_PROPRIO = "0"
+TRIBUTO_ICMS_ST = "1"
 
 # 4º caractere de COD_AJ_APUR — ver a tabela na docstring do módulo.
 _TIPO_OUTROS_DEBITOS = "0"
@@ -113,7 +155,7 @@ class Ajuste:
 	`codigo` é o `COD_AJ_APUR` já resolvido por quem chama (tabela da UF do
 	contribuinte, ou a federal quando o estado não tem tabela própria — Ato
 	COTEPE/ICMS 09/2008, item 5.1.1) — este módulo não conhece nenhuma tabela de UF,
-	só lê o 4º caractere para saber o tipo.
+	só lê o 3º caractere (tributo) e o 4º (tipo).
 	"""
 
 	codigo: str
@@ -121,13 +163,23 @@ class Ajuste:
 	valor: Decimal
 
 	def __post_init__(self) -> None:
-		if len(self.codigo) != 4:
-			raise EfdInvalido(f"COD_AJ_APUR deve ter 4 caracteres, recebido {self.codigo!r}")
+		if len(self.codigo) != TAMANHO_COD_AJ_APUR:
+			raise EfdInvalido(
+				f"COD_AJ_APUR deve ter {TAMANHO_COD_AJ_APUR} caracteres "
+				f"(ex. 'GO040024'), recebido {self.codigo!r}"
+			)
 
-		if self.codigo[3] not in _TIPOS_VALIDOS:
+		if self.codigo[POSICAO_TRIBUTO] != TRIBUTO_ICMS_PROPRIO:
+			raise EfdInvalido(
+				f"3º caractere de {self.codigo!r} deve ser {TRIBUTO_ICMS_PROPRIO!r} (ICMS operações "
+				f"próprias) para um ajuste de E111 — {TRIBUTO_ICMS_ST!r} é ICMS-ST, que se "
+				"discrimina no E220 (ver contabil/efd_icms_st.py)"
+			)
+
+		if self.codigo[POSICAO_TIPO] not in _TIPOS_VALIDOS:
 			raise EfdInvalido(
 				f"4º caractere de {self.codigo!r} deve ser um de {sorted(_TIPOS_VALIDOS)}, "
-				f"recebido {self.codigo[3]!r}"
+				f"recebido {self.codigo[POSICAO_TIPO]!r}"
 			)
 
 		if self.valor < ZERO:
@@ -135,7 +187,7 @@ class Ajuste:
 
 	@property
 	def tipo(self) -> str:
-		return self.codigo[3]
+		return self.codigo[POSICAO_TIPO]
 
 
 def montar_e111(ajustes: list[Ajuste]) -> list[dict]:
