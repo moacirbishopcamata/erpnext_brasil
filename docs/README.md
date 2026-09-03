@@ -57,6 +57,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [rh-esocial-s1299.md](rh-esocial-s1299.md) | S-1299 (Fechamento dos Eventos Periódicos): achado de que a DCTFWeb não é um arquivo que o contribuinte constrói — é o `transDCTFWeb` deste evento que a dispara; `ideEvento` genuinamente diferente do S-1200 |
 | [rh-esocial-s2299.md](rh-esocial-s2299.md) | S-2299 (Desligamento): reaproveita de verdade o `DmDev` do S-1200, três variações de `procEmi` confirmadas, `mtvDeslig`/Tabela 19 genuinamente não localizada |
 | [rh-esocial-s1000.md](rh-esocial-s1000.md) | S-1000 (Informações do Empregador): `ideEvento` mais simples de todos (sem indRetif/nrRecibo), operação inclusão/alteração/exclusão como `xs:choice` real do XSD |
+| [rh-esocial-transmissao.md](rh-esocial-transmissao.md) | Envio HTTP de verdade do eSocial: `montar_xml_lote`, leitura de retorno, `transmissao_esocial.py` espelhando a NF-e; resolve a ressalva antiga sobre o wrapper `<consulta>` |
 | [boleto.md](boleto.md) | Código de barras/linha digitável FEBRABAN (validado contra exemplo real) e leitura do CNAB 400 de retorno para conciliação |
 | [cnab240-retorno.md](cnab240-retorno.md) | Sucessor do CNAB 400: Segmentos T/U do retorno, posições confirmadas contra dois bancos independentes, `codigo_movimento` como hipótese de trabalho |
 | [gia-nao-e-gap.md](gia-nao-e-gap.md) | GIA investigada e descartada: extinção nacional em curso (SP, MG, RJ já dispensaram, migraram para EFD-ICMS/IPI que este projeto já implementa) |

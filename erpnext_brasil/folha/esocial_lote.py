@@ -5,12 +5,11 @@
 
 Primeiro pedaço da "camada de transporte" do eSocial (`docs/rh-estado-esocial.md`
 tinha deixado como fatia à parte, depois de `docs/rh-esocial-s1200.md` ter coberto a
-árvore de negócio do evento). Modela só a **estrutura do envelope** — `envioLoteEventos`
-com `ideEmpregador`/`ideTransmissor`/`eventos` — e a tabela de endpoints; não modela
-assinatura XML nem envio HTTP de verdade (isso ainda depende de decidir se
-`fiscal/documento/assinador_local.py` é reaproveitável ou se o formato do envelope do
-eSocial exige um assinador próprio — não confirmado nesta rodada, ver
-`docs/rh-esocial-lote.md`).
+árvore de negócio do evento). Modela a **estrutura do envelope** — `envioLoteEventos`
+com `ideEmpregador`/`ideTransmissor`/`eventos` —, a tabela de endpoints, e (função
+`montar_xml_lote`, acrescentada depois de `integracao/assinador_esocial.py` resolver a
+assinatura) a serialização do envelope inteiro em XML pronto para envio. Não modela o
+envio HTTP de verdade em si — isso é `integracao/transmissao_esocial.py`.
 
 `TIdeEmpregador`/`TIdeTransmissor` do envelope ≠ `TEmpregador` do evento
 ------------------------------------------------------------------------------
@@ -53,6 +52,7 @@ __all__ = [
 	"IdeTransmissorLote",
 	"LoteEventos",
 	"endpoint",
+	"montar_xml_lote",
 ]
 
 # (serviço, ambiente) -> URL. Serviços confirmados: envio e consulta de lote. Cada
@@ -181,3 +181,32 @@ class LoteEventos:
 				f"lote aceita no máximo {LIMITE_MAXIMO_EVENTOS_POR_LOTE} eventos "
 				f"(regra de negócio, não do XSD), recebido {len(self.eventos)}"
 			)
+
+
+def montar_xml_lote(lote: LoteEventos) -> str:
+	"""Serializa `lote` no XML de `envioLoteEventos` — estrutura confirmada
+	diretamente em `EnvioLoteEventos-v1_1_1.xsd`:
+	`eSocial > envioLoteEventos[@grupo] > ideEmpregador, ideTransmissor, eventos >
+	evento[@Id]{<xs:any>}`.
+
+	Cada `EventoLote.xml_assinado` já é XML pronto (o evento individual, assinado
+	por `esocial_montagem.montar_evento_assinado`) — por isso este módulo monta o
+	envelope por concatenação de string, não por `para_xml`: o serializador da NF-e
+	não tem como embutir um fragmento de XML já pronto dentro de uma árvore de
+	dicionário (mesma razão de `esocial_soap.montar_envelope` embutir `xml_interno`
+	por concatenação, não por `para_xml`)."""
+	eventos_xml = "".join(
+		f'<evento Id="{evento.id_evento}">{evento.xml_assinado}</evento>' for evento in lote.eventos
+	)
+
+	return (
+		f'<eSocial xmlns="http://www.esocial.gov.br/schema/lote/eventos/envio/v1_1_1">'
+		f'<envioLoteEventos grupo="{lote.grupo}">'
+		f"<ideEmpregador><tpInsc>{lote.ide_empregador.tp_insc}</tpInsc>"
+		f"<nrInsc>{lote.ide_empregador.nr_insc}</nrInsc></ideEmpregador>"
+		f"<ideTransmissor><tpInsc>{lote.ide_transmissor.tp_insc}</tpInsc>"
+		f"<nrInsc>{lote.ide_transmissor.nr_insc}</nrInsc></ideTransmissor>"
+		f"<eventos>{eventos_xml}</eventos>"
+		"</envioLoteEventos>"
+		"</eSocial>"
+	)

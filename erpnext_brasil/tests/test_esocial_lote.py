@@ -15,6 +15,7 @@ from erpnext_brasil.folha.esocial_lote import (
 	IdeTransmissorLote,
 	LoteEventos,
 	endpoint,
+	montar_xml_lote,
 )
 
 
@@ -136,6 +137,43 @@ class TestLoteEventos(unittest.TestCase):
 				ide_transmissor=self._transmissor(),
 				eventos=(self._evento(),),
 			)
+
+
+class TestMontarXmlLote(unittest.TestCase):
+	def _empregador(self):
+		return IdeEmpregadorLote(tp_insc=1, nr_insc="12345678000199")
+
+	def _transmissor(self):
+		return IdeTransmissorLote(tp_insc=1, nr_insc="12345678000199")
+
+	def test_estrutura_do_envelope(self):
+		lote = LoteEventos(
+			grupo=1,
+			ide_empregador=self._empregador(),
+			ide_transmissor=self._transmissor(),
+			eventos=(EventoLote(id_evento="ID1", xml_assinado="<evtRemun>x</evtRemun>"),),
+		)
+
+		xml = montar_xml_lote(lote)
+
+		self.assertIn('<envioLoteEventos grupo="1">', xml)
+		self.assertIn("<ideEmpregador><tpInsc>1</tpInsc><nrInsc>12345678000199</nrInsc></ideEmpregador>", xml)
+		self.assertIn('<evento Id="ID1"><evtRemun>x</evtRemun></evento>', xml)
+
+	def test_varios_eventos_viram_irmaos(self):
+		lote = LoteEventos(
+			grupo=1,
+			ide_empregador=self._empregador(),
+			ide_transmissor=self._transmissor(),
+			eventos=(
+				EventoLote(id_evento="ID1", xml_assinado="<a/>"),
+				EventoLote(id_evento="ID2", xml_assinado="<b/>"),
+			),
+		)
+
+		xml = montar_xml_lote(lote)
+
+		self.assertIn('<evento Id="ID1"><a/></evento><evento Id="ID2"><b/></evento>', xml)
 
 
 if __name__ == "__main__":
