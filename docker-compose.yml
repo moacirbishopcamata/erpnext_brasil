@@ -1,0 +1,150 @@
+# Compose de desenvolvimento para o erpnext_brasil, no padrão do frappe_docker
+# (https://github.com/frappe/frappe_docker) — não testado de ponta a ponta nesta
+# sessão (o ambiente de desenvolvimento real usado é o bench WSL2 nativo, ver
+# docs/ambiente-dev-bench.md; isto aqui é o caminho alternativo "sobe tudo em
+# container", útil para quem não tem WSL2/bench configurado).
+#
+# Uso:
+#   docker compose up -d
+#   docker compose logs -f create-site   # acompanha a criação do site na 1ª subida
+#   # depois de pronto:
+#   docker compose exec backend bench --site erpnext-brasil.localhost run-tests --app erpnext_brasil
+#
+# Acesso: http://localhost:8080 (usuário Administrator, senha definida abaixo).
+
+services:
+  mariadb:
+    image: mariadb:10.6
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: admin
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --skip-innodb-read-only-compressed
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    healthcheck:
+      test: mysqladmin ping -h localhost -u root -padmin
+      interval: 5s
+      retries: 10
+
+  redis-cache:
+    image: redis:6.2-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-cache-data:/data
+
+  redis-queue:
+    image: redis:6.2-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-queue-data:/data
+
+  backend:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    environment:
+      DB_HOST: mariadb
+      DB_PORT: "3306"
+      REDIS_CACHE: redis://redis-cache:6379
+      REDIS_QUEUE: redis://redis-queue:6379
+      SOCKETIO_PORT: "9000"
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+
+  configurator:
+    build: .
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    environment:
+      DB_HOST: mariadb
+      DB_PORT: "3306"
+      REDIS_CACHE: redis://redis-cache:6379
+      REDIS_QUEUE: redis://redis-queue:6379
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+    entrypoint:
+      - bash
+      - -c
+    command:
+      - >
+        bench set-config -g db_host $$DB_HOST &&
+        bench set-config -gp db_port $$DB_PORT &&
+        bench set-config -g redis_cache $$REDIS_CACHE &&
+        bench set-config -g redis_queue $$REDIS_QUEUE &&
+        bench set-config -g redis_socketio $$REDIS_QUEUE
+
+  create-site:
+    build: .
+    depends_on:
+      - configurator
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+    entrypoint:
+      - bash
+      - -c
+    command:
+      - >
+        bench new-site erpnext-brasil.localhost
+        --mariadb-root-password admin
+        --admin-password admin
+        --no-mariadb-socket &&
+        bench --site erpnext-brasil.localhost install-app erpnext &&
+        bench --site erpnext-brasil.localhost install-app erpnext_brasil &&
+        bench --site erpnext-brasil.localhost set-config allow_tests true
+
+  websocket:
+    build: .
+    restart: unless-stopped
+    command: ["node", "/home/frappe/frappe-bench/apps/frappe/socketio.js"]
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+
+  queue-short:
+    build: .
+    restart: unless-stopped
+    command: ["bench", "worker", "--queue", "short,default"]
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+
+  queue-long:
+    build: .
+    restart: unless-stopped
+    command: ["bench", "worker", "--queue", "long,default,short"]
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+
+  scheduler:
+    build: .
+    restart: unless-stopped
+    command: ["bench", "schedule"]
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+
+  nginx:
+    image: frappe/erpnext:version-16
+    restart: unless-stopped
+    command: ["nginx-entrypoint.sh"]
+    environment:
+      BACKEND: backend:8000
+      SOCKETIO: websocket:9000
+      FRAPPE_SITE_NAME_HEADER: erpnext-brasil.localhost
+      UPSTREAM_REAL_IP_ADDRESS: "127.0.0.1"
+      UPSTREAM_REAL_IP_HEADER: X-Forwarded-For
+      UPSTREAM_REAL_IP_RECURSIVE: "off"
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+    ports:
+      - "8080:8080"
+
+volumes:
+  mariadb-data:
+  redis-cache-data:
+  redis-queue-data:
+  sites:

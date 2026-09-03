@@ -16,49 +16,29 @@ poucos meses. Isto aqui é uma tentativa de não repetir isso.
 
 ## Estado atual
 
-Primeiro incremento entregue: **cadastros e campos fiscais**, com validação.
+Este README cobre o núcleo original (cadastros, NF-e/NFC-e). O índice completo e sempre
+atualizado de tudo que existe está em [`docs/README.md`](docs/README.md) — cada
+incremento tem seu próprio documento, com fonte citada e nível de confiança declarado
+quando a fonte é secundária.
 
 | Área | Situação |
 |---|---|
-| Validação de CPF/CNPJ (inclusive **CNPJ alfanumérico**) | pronto |
-| Campos fiscais em Company, Customer, Supplier, Address, Item | pronto |
-| Validação de NCM e código IBGE de município | pronto |
-| Inscrição Estadual — as 27 UFs | pronto, com a ressalva abaixo |
-| Tabelas de código normativas (CST, CSOSN, origem) | pronto, embarcadas |
-| Tabelas voláteis (NCM, CFOP, LC 116) | importador versionado |
-| Aritmética de ICMS (por dentro, redução, ST/MVA, DIFAL) | pronto |
-| IPI, e a regra do IPI na base do ICMS | pronto |
-| PIS/COFINS, com exclusão do ICMS da base | pronto |
-| **IBS e CBS** (reforma tributária) | pronto — ver abaixo |
-| Grupos de IBS/CBS do layout da NF-e (grupo UB e W03) | pronto — validado no XSD |
-| CST do IBS/CBS e cClassTrib (leitor XLSX + importador) | pronto |
-| Validação de compatibilidade CST × cClassTrib | pronto |
-| Apuração do item (ordem de composição das bases) | pronto |
-| Ligação da apuração às linhas de imposto do ERPNext | pronto |
-| Retenções (IRRF, CSRF, INSS, ISS) | pronto |
-| Chave de acesso (44 posições, DV, CNPJ alfanumérico) | pronto |
-| Montagem da NF-e (`ide`, `emit`, `dest`, `infNFe`) | pronto |
-| Serialização dict → XML (forma canônica) | pronto |
-| Assinatura XMLDSig — estrutura e assinador local | pronto |
-| Grupos `prod` e `ICMSTot` (totais do documento) | pronto |
-| Grupo `imposto` do item (ICMS00/20/40/41/60, SN, IPI, PIS, COFINS, ISSQN + IBS/CBS) | pronto — escopo declarado |
-| Grupos `transp` e `pag` | pronto — escopo declarado |
-| Grupo `infAdic` | pronto |
-| `montar_nfe`/`assinar_nfe` — raiz, namespace e assinatura ligadas | pronto |
-| **Montagem da NF-e — completa do lado da estrutura do documento** | |
-| Tabela de autorizadores por UF (webservices da SEFAZ) | pronto — produção e homologação nos 12 grupos |
-| Envelope SOAP 1.2 (sem `nfeCabecMsg`, obsoleto desde 2017) | pronto |
-| Interpretação da resposta — os dois `cStat` (lote × nota) | pronto |
-| Adaptador de transporte — `transmitir` (com *polling*) e `consultar` | pronto |
-| Cancelamento (`cancelar`, evento 110111) | pronto — XSD do evento confirmado à parte do leiaute principal |
-| Carta de correção (`corrigir`, evento 110110) | pronto — mesma via, `infEvento` idêntico, `detEvento` próprio |
-| Rastreabilidade de lote (grupo `rastro`) | pronto |
-| Ciclo de vida do documento fiscal e porta de transmissão | pronto |
-| Inutilização de faixa de numeração (`inutilizar`) | pronto — CNPJ alfanumérico recusado deliberadamente, ver `docs/inutilizacao-nfe.md` |
-| Carta de correção (CC-e), inutilização e cancelamento assinados digitalmente | pronto — bug de assinatura ausente corrigido |
-| **NFC-e (modelo 65)** — QR Code (`infNFeSupl`, on-line e contingência offline) | pronto — tabela de URL de consulta nas 27 UFs |
-| Outros documentos fiscais (CT-e, MDF-e, NFS-e) | não iniciado |
-| Obrigações acessórias (SPED, EFD-Reinf) | não iniciado |
+| Cadastros fiscais (Company, Customer, Supplier, Address, Item) | pronto |
+| CPF/CNPJ (inclusive **CNPJ alfanumérico**), Inscrição Estadual (27 UFs) | pronto |
+| Aritmética fiscal: ICMS, IPI, PIS/COFINS, **IBS/CBS** (Reforma Tributária), retenções | pronto |
+| **NF-e/NFC-e** — montagem, assinatura, transmissão SOAP nativa, eventos, QR Code | maduro — ciclo de vida completo |
+| **CT-e** (modelo 57) — rodoviário, **os onze eventos** do leiaute v4.00 | completo |
+| **MDF-e** (modelo 58) — rodoviário, **os sete eventos** do leiaute v3.00 | completo |
+| Autorizador/webservice por UF — NF-e (12 grupos), CT-e (4 grupos), MDF-e (nacional único) | pronto |
+| Certificado A1 e ambiente SEFAZ configuráveis via `Company` | pronto |
+| **Contábil**: plano de contas, lançamentos, apuração ICMS/IPI, SPED Fiscal, ECD completa | pronto |
+| EFD-Contribuições, EFD-Reinf (R-4020/R-2099), DeSTDA (núcleo mínimo) | pronto |
+| **ECF** — Blocos 0/J/K (núcleo); Blocos L/M/N (Lucro Real) e P (Lucro Presumido) | em andamento |
+| Boleto bancário (CNAB 240/400, emissão + conciliação de retorno) | pronto |
+| Pix (payload BR Code, `Company.chave_pix`) | pronto |
+| **RH/folha**: eSocial (S-1010/S-1200/S-1299/S-2200/S-2299), INSS, FGTS, IRRF | pronto |
+| Transmissão real ao SEFAZ (certificado A1 de verdade) | bloqueado — sem certificado/homologação disponível para testar |
+| NFS-e, modais aéreo/aquaviário/ferroviário de CT-e/MDF-e | não iniciado |
 
 ### CNPJ alfanumérico
 
@@ -311,19 +291,21 @@ porque a decisão tem modulação.
 
 ## Documentação
 
-Referências detalhadas por assunto estão em [`docs/`](docs/README.md):
+O índice completo, sempre atualizado, está em [`docs/README.md`](docs/README.md) — mais
+de cem documentos, um por incremento, cada um citando a fonte legal/técnica usada e
+declarando o nível de confiança quando a fonte é secundária. Alguns pontos de partida:
 
 | Documento | Assunto |
 |---|---|
 | [arquitetura.md](docs/arquitetura.md) | Camadas, resiliência, DbC, como testar sem bench |
-| [chave-de-acesso.md](docs/chave-de-acesso.md) | Layout das 44 posições e o impacto do CNPJ alfanumérico |
 | [montagem-da-nfe.md](docs/montagem-da-nfe.md) | Grupos `ide`, `emit`, `dest` e por que a chave é derivada |
-| [reforma-tributaria.md](docs/reforma-tributaria.md) | IBS, CBS e IS: cronograma e obrigatoriedade vigente |
-| [transmissao-documento-fiscal.md](docs/transmissao-documento-fiscal.md) | ACBrLib × ACBr API e a fronteira de licença |
-| [transporte-nativo-sefaz.md](docs/transporte-nativo-sefaz.md) | SOAP nativo, autorizadores por UF, cancelamento e CC-e |
-| [inutilizacao-nfe.md](docs/inutilizacao-nfe.md) | Inutilização de faixa de numeração — por que é operação à parte |
-| [nfce-qrcode.md](docs/nfce-qrcode.md) | QR Code da NFC-e: algoritmo do hash, `infNFeSupl`, o que falta |
-| [ambiente-dev-bench.md](docs/ambiente-dev-bench.md) | Bench Frappe local (Windows 11 + WSL2 + Docker) |
+| [cte-estado.md](docs/cte-estado.md) | Estado do CT-e — conteúdo, assinatura, orquestração, os onze eventos |
+| [mdfe-estado.md](docs/mdfe-estado.md) | Estado do MDF-e — conteúdo, assinatura, orquestração, os sete eventos |
+| [cte-mdfe-autorizadores.md](docs/cte-mdfe-autorizadores.md) | Autorizador por UF de CT-e (4 grupos) e MDF-e (nacional único) |
+| [certificado-a1-configuracao.md](docs/certificado-a1-configuracao.md) | Certificado A1 e ambiente SEFAZ via `Company` |
+| [ecf-estado.md](docs/ecf-estado.md) | Estado da ECF — Blocos 0/J/K implementados, L/M/N/P pendentes |
+| [rh-estado-esocial.md](docs/rh-estado-esocial.md) | Estado do eSocial/folha — INSS, FGTS, IRRF |
+| [ambiente-dev-bench.md](docs/ambiente-dev-bench.md) | Bench Frappe local (Windows 11 + WSL2 + Docker; nativo no Windows não funciona) |
 
 ## Decisões de projeto
 
@@ -354,13 +336,27 @@ estrangeiro.
 
 ## Instalação
 
+Guia técnico completo (bench nativo e Docker) em
+[`docs/instalacao.md`](docs/instalacao.md). Resumo:
+
 ```sh
-bench get-app <url-deste-repositorio>
+bench get-app erpnext_brasil <url-ou-caminho-local-deste-repositorio>
 bench --site <site> install-app erpnext_brasil
 ```
 
 Os campos fiscais são recriados a cada `bench migrate` (`after_migrate`), de forma
 idempotente — campos customizados podem se perder quando o ERPNext altera o DocType base.
+
+### Com Docker
+
+```sh
+docker compose up -d
+```
+
+Ver [`docs/docker-compose.md`](docs/docker-compose.md) — caminho alternativo ao bench
+WSL2 nativo (que é o ambiente de desenvolvimento efetivamente confirmado funcionando,
+ver [`docs/ambiente-dev-bench.md`](docs/ambiente-dev-bench.md)); o compose ainda não foi
+build-testado de ponta a ponta.
 
 ## Dependências
 
@@ -378,14 +374,22 @@ cobertura.
 
 ## Testes
 
-As funções puras rodam sem infraestrutura nenhuma:
+As funções puras (`fiscal/`, `contabil/`, `folha/`) rodam sem infraestrutura nenhuma —
+sem bench, sem site, sem banco:
 
 ```sh
 python -m unittest discover -s erpnext_brasil/tests -t .
 ```
 
-São 36 testes cobrindo CPF/CNPJ, as 27 regras de Inscrição Estadual e a resolução de UF.
+Mais de 1.670 testes, cobrindo desde CPF/CNPJ e as 27 regras de Inscrição Estadual até a
+montagem completa de NF-e/CT-e/MDF-e (com os dezoito eventos dos dois últimos), ECD/ECF,
+eSocial e cálculo de folha. `test_arquitetura.py` faz valer, de forma executável, que
+nenhum desses módulos importa `frappe` — a regra não fica só em prosa.
+
+`erpnext_brasil/tests_bench/` cobre, à parte, o que só é testável com um bench de
+verdade (`integracao/`, que fala com `frappe.get_doc`/banco) — ver
+[`ambiente-dev-bench.md`](docs/ambiente-dev-bench.md) para como rodar.
 
 ## Licença
 
-MIT.
+MIT — ver [`license.txt`](license.txt).

@@ -30,6 +30,9 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [ecf-bloco-k.md](ecf-bloco-k.md) | Bloco K da ECF: `K155`/`K156` reaproveitam a aritmética de `I155` da ECD, achado de indicadores D/C com nomes diferentes (`IND_DC_*`/`IND_VL_SLD_*`/`IND_VL_SLD_INICIAL`), nível de confiança declarado |
 | [ecf-bloco-0.md](ecf-bloco-0.md) | Bloco 0 da ECF: `0000`/`0001`/`0030`/`0990` implementados, `0010`/`0020`/`0021` (40+ indicadores regulatórios) deliberadamente fora, wiring com `Company`/`Address` (achados dos campos `bairro`/número faltando no ERPNext nativo) |
 | [certificado-a1-configuracao.md](certificado-a1-configuracao.md) | Certificado A1 e ambiente SEFAZ configuráveis em `Company`; o que deliberadamente não virou configurável (tabelas de autorizador por UF) |
+| [docker-compose.md](docker-compose.md) | `Dockerfile`/`docker-compose.yml` no padrão `frappe_docker` — caminho alternativo ao bench WSL2, não build-testado nesta sessão |
+| [versoes-frappe-erpnext.md](versoes-frappe-erpnext.md) | `version-16` é a versão estável mais recente (Docker/compose apontam para ela); o bench de teste real continua em `version-15`, divergência declarada |
+| [instalacao.md](instalacao.md) | Guia técnico de instalação — bench nativo (recomendado) e Docker/compose (alternativo) |
 | [ecd.md](ecd.md) | ECD (SPED Contábil): registros I050/I051/I200/I250/I150/I155, numeração-padrão de contas, a pegadinha do `COD_NAT` do Patrimônio Líquido |
 | [sped-texto.md](sped-texto.md) | Serialização de linha pipe-delimited do SPED, comum a EFD e ECD; a correção do formato de data (`DDMMAAAA`, sem separador) |
 | [rh-estado-hrms.md](rh-estado-hrms.md) | Bloco RH: estado do `frappe/hrms`, confirmação de que o Brasil não existe nem lá nem no ERPNext, e o hook `regional_overrides` que permite tropicalizar sem fork |
