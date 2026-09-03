@@ -1,0 +1,79 @@
+# Tradução pt-BR do ERPNext Brasil.
+#
+# Este arquivo NÃO traduz o app: o código deste projeto já nasce em português (regra
+# registrada em docs/README.md). Ele existe para **corrigir e completar** a tradução
+# pt-BR do ERPNext no que diz respeito ao vocabulário contábil e fiscal brasileiro.
+#
+# Por que isto funciona (verificado no código-fonte, não suposto):
+# `frappe/translate.py::get_translations_from_apps` combina as traduções de todos os
+# apps instalados com `dict.update()`, na ordem de instalação. Como o `erpnext_brasil`
+# é instalado depois do `erpnext`, o que estiver aqui **sobrescreve** o que vem de lá.
+#
+# Critério para entrar neste arquivo: só correção que se sustenta numa fonte objetiva —
+# a Lei 6.404/76 (que este projeto já cita em contabil/plano_de_contas.py), a grafia
+# oficial de uma sigla, ou regra de ortografia do português. Preferência estilística não
+# entra: sobrescrever a tradução de outro app é poder que se usa com parcimônia.
+#
+# Ver docs/traducao.md para o levantamento completo.
+msgid ""
+msgstr ""
+"Project-Id-Version: erpnext_brasil\n"
+"Report-Msgid-Bugs-To: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pt_BR\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+# --- Siglas fiscais: grafia oficial, em caixa alta ---
+# O ERPNext traduz como "Cpf/cnpj". CPF e CNPJ são siglas (Cadastro de Pessoas Físicas,
+# Cadastro Nacional da Pessoa Jurídica) e se escrevem em caixa alta. Escrever "Cpf/cnpj"
+# num campo que o contribuinte lê todo dia depõe contra a seriedade do sistema.
+msgid "Tax ID"
+msgstr "CPF/CNPJ"
+
+# --- Terminologia da Lei 6.404/76 ---
+# O ERPNext usa "Ativo Fixo" em alguns pontos e "Ativo Imobilizado" em outros — dentro
+# do MESMO arquivo de tradução. A Lei 6.404/76, Art. 178, §1º, chama o grupo de
+# "Imobilizado"; "Ativo Fixo" é tradução literal de "Fixed Asset" e não é o termo do
+# balanço brasileiro. `contabil/plano_de_contas.py` já usa "Imobilizado" — aqui a
+# interface passa a falar a mesma língua do plano de contas (linguagem ubíqua).
+msgid "Fixed Asset"
+msgstr "Imobilizado"
+
+msgid "Fixed Asset Register"
+msgstr "Registro do Imobilizado"
+
+msgid "Is Fixed Asset"
+msgstr "É Imobilizado"
+
+# "Cost of Goods Sold" é o CPV — Custo dos Produtos Vendidos —, termo consagrado na
+# demonstração do resultado (Art. 187, II, da Lei 6.404/76). O ERPNext traduz como
+# "Custo Dos Produtos Vendidos", com a preposição em maiúscula, o que é erro de
+# ortografia: em título, preposições e artigos ficam em minúscula.
+msgid "Cost of Goods Sold"
+msgstr "Custo dos Produtos Vendidos"
+
+msgid "Cost of Issued Items"
+msgstr "Custo dos Produtos Enviados"
+
+# --- Ortografia: preposição em minúscula dentro do título ---
+# Mesma regra do caso acima, aplicada a termos que aparecem ao lado dos campos deste
+# app nas telas de item e de documento fiscal.
+msgid "Item Variants"
+msgstr "Variantes dos Itens"
+
+# --- Termos fiscais brasileiros que o núcleo não conhece ---
+# Não são correção: são vocabulário que só faz sentido numa instalação brasileira, e
+# que este app introduz.
+msgid "Access Key"
+msgstr "Chave de Acesso"
+
+msgid "Authorization Protocol"
+msgstr "Protocolo de Autorização"
+
+msgid "Digital Certificate"
+msgstr "Certificado Digital"
+
+msgid "Tax Regime"
+msgstr "Regime Tributário"

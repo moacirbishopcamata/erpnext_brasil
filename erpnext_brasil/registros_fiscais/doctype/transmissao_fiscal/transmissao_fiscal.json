@@ -1,0 +1,197 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "naming_series:",
+ "creation": "2026-09-03 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "secao_documento",
+  "documento_tipo",
+  "documento",
+  "chave_acesso",
+  "coluna_documento",
+  "tipo",
+  "ambiente",
+  "company",
+  "secao_resultado",
+  "situacao",
+  "codigo_status",
+  "mensagem",
+  "coluna_resultado",
+  "protocolo",
+  "recebido_em",
+  "secao_xml",
+  "xml_enviado",
+  "xml_retorno"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Série",
+   "options": "TRF-.YYYY.-",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "secao_documento",
+   "fieldtype": "Section Break",
+   "label": "Documento"
+  },
+  {
+   "fieldname": "documento_tipo",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Tipo do Documento",
+   "options": "DocType",
+   "reqd": 1
+  },
+  {
+   "fieldname": "documento",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Documento",
+   "options": "documento_tipo",
+   "reqd": 1
+  },
+  {
+   "description": "44 dígitos. Vazia em inutilização de faixa, que não tem documento.",
+   "fieldname": "chave_acesso",
+   "fieldtype": "Data",
+   "label": "Chave de Acesso",
+   "length": 44
+  },
+  {
+   "fieldname": "coluna_documento",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tipo",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Tipo",
+   "options": "Autorização\nCancelamento\nCarta de Correção\nInutilização\nConsulta\nEncerramento\nOutro",
+   "reqd": 1
+  },
+  {
+   "description": "Documento transmitido em homologação não tem valor fiscal.",
+   "fieldname": "ambiente",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Ambiente",
+   "options": "Homologação\nProdução",
+   "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Empresa",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "secao_resultado",
+   "fieldtype": "Section Break",
+   "label": "Resultado"
+  },
+  {
+   "fieldname": "situacao",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Situação",
+   "options": "Pendente\nAutorizado\nRejeitado\nDenegado\nCancelado",
+   "reqd": 1
+  },
+  {
+   "description": "cStat devolvido pela SEFAZ.",
+   "fieldname": "codigo_status",
+   "fieldtype": "Data",
+   "label": "Código de Status",
+   "length": 10
+  },
+  {
+   "fieldname": "mensagem",
+   "fieldtype": "Small Text",
+   "label": "Mensagem"
+  },
+  {
+   "fieldname": "coluna_resultado",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "protocolo",
+   "fieldtype": "Data",
+   "label": "Protocolo",
+   "length": 20
+  },
+  {
+   "fieldname": "recebido_em",
+   "fieldtype": "Datetime",
+   "label": "Recebido em"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "secao_xml",
+   "fieldtype": "Section Break",
+   "label": "XML"
+  },
+  {
+   "description": "O que foi enviado, exatamente como foi assinado.",
+   "fieldname": "xml_enviado",
+   "fieldtype": "Code",
+   "label": "XML Enviado",
+   "options": "XML"
+  },
+  {
+   "description": "A resposta da SEFAZ, sem interpretação.",
+   "fieldname": "xml_retorno",
+   "fieldtype": "Code",
+   "label": "XML de Retorno",
+   "options": "XML"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-03 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Registros Fiscais",
+ "name": "Transmissao Fiscal",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
