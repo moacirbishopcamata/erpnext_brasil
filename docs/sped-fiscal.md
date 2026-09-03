@@ -330,6 +330,61 @@ cruzar com uma fonte atual é o que pega o campo novo.
 entrar neles sem um consumidor real seria montar estrutura sem uso, mesmo critério
 aplicado aos blocos da ECF.
 
+## Bloco C (documentos fiscais de mercadoria)
+
+Ver `contabil/efd_bloco_c.py`. O maior bloco do arquivo — é onde cada nota fiscal entra.
+Cobertos `C001` (abertura), `C100` (o documento, 29 campos), `C190` (registro analítico,
+12 campos) e `C990` (encerramento).
+
+**O recorte C100 + C190 é regra do guia, não "o que deu tempo"**: para NF-e de emissão
+própria (Exceção 2) e para NFC-e (Exceção 9), o Guia Prático diz que "regra geral, devem
+ser apresentados **somente os registros C100 e C190**". O `C170` (itens, ~38 campos) só é
+admitido em hipóteses específicas — ressarcimento de ICMS-ST com `C176`, ou documentos de
+terceiros — e fica para um incremento próprio, com sua própria verificação.
+
+### Achado real: `IND_FRT` mudou de significado duas vezes, com os mesmos números
+
+O campo mais perigoso do registro. Três domínios ao longo do tempo, e **os mesmos códigos
+significando coisas diferentes**:
+
+| Código | Até 31/12/2011 | 2012-2017 | Vigente (desde 01/01/2018) |
+|---|---|---|---|
+| `0` | por conta de terceiros | por conta do emitente | frete por conta do remetente (CIF) |
+| `1` | por conta do emitente | por conta do destinatário/remetente | frete por conta do destinatário (FOB) |
+| `2` | por conta do destinatário | por conta de terceiros | frete por conta de terceiros |
+| `3` | — | — | transporte próprio por conta do remetente |
+| `4` | — | — | transporte próprio por conta do destinatário |
+| `9` | sem cobrança de frete | sem cobrança de frete | sem ocorrência de transporte |
+
+`0` e `1` **trocaram de sentido** entre a primeira e a segunda versão: um arquivo montado
+com a tabela antiga atribui o frete à parte errada **e passa no validador** — erro
+silencioso, do tipo que só aparece numa fiscalização. Implementada a tabela vigente; a
+histórica fica documentada para que ninguém "corrija" o código de volta ao que uma fonte
+antiga diz.
+
+Foi o segundo caso, na mesma frente, em que o guia oficial de 2013 estava desatualizado
+(o primeiro foi o `CEST` do `0200`) — a cada registro, cruzar com fonte atual antes de
+implementar deixou de ser zelo e virou necessidade demonstrada.
+
+### Regras cruzadas do guia, checadas no módulo
+
+- **`CHV_NFE` obrigatória** desde abril/2012 em todas as situações, exceto com numeração
+  inutilizada (`COD_SIT = "05"`) — e validada de verdade (44 posições e dígito
+  verificador) reaproveitando `fiscal.documento.chave_acesso.validar_chave`, a mesma
+  validação da família NF-e/CT-e/MDF-e, não uma segunda implementação.
+- **NFC-e (modelo 65)** não informa `COD_PART` nem os campos de ICMS-ST/IPI/PIS/COFINS
+  (Exceção 9). Preencher esses campos numa NFC-e é erro de montagem; falhar aqui é
+  melhor que ser rejeitado depois sem contexto.
+
+### Conflito de fonte declarado: `IND_PGTO`
+
+O Guia 2.0.13 anota que a partir de 01/07/2012 o domínio passaria a ser `0`/`1`/`2`, sem
+o `9`. A fonte secundária atual lista `0`/`1`/`2`/`9`. Como se contradizem e nenhuma é a
+versão mais recente do guia oficial, o módulo aceita o **superconjunto**: recusar um
+valor possivelmente válido quebraria um usuário legítimo, enquanto aceitar um
+possivelmente inválido é pego pelo validador do Fisco. Dúvida declarada, não resolvida
+por chute.
+
 ## Ainda por implementar
 - **E230/E240 (detalhamento dos ajustes de ST) e E250 (guias de recolhimento da ST)** —
   o E250 exige dado de guia/pagamento (número, vencimento, banco) que este projeto não
@@ -338,10 +393,14 @@ aplicado aos blocos da ECF.
 - ~~Registros E200/E210 (ICMS-ST)~~ — **feito em 2026-09-03**, ver seção acima.
 - ~~Serialização para o formato de texto do EFD~~ — **feito em 2026-08-30**, ver
   `docs/sped-texto.md` (`contabil/sped_texto.montar_linha`).
-- **Blocos C, D, H, K, 1, 9** do EFD (documentos fiscais de mercadoria e de serviço,
-  inventário, controle da produção, outras informações, encerramento) — o arquivo
-  completo tem muito mais que apuração e cadastro. O bloco C em particular é o maior:
-  é onde cada nota fiscal entra, item a item.
+- **`C170` (itens do documento, ~38 campos) e demais filhos do `C100`** (`C105`,
+  `C110`/`C111`-`C114`, `C120`, `C176`, `C195`/`C197`) — o `C170` é dispensado justamente
+  no caso mais comum (NF-e de emissão própria), e os demais dependem de dado externo
+  (norma legal, processo, ajuste por UF).
+- **Blocos D, H, K, 1, 9** do EFD (documentos fiscais de serviço/transporte, inventário,
+  controle da produção, outras informações, encerramento do arquivo).
+- ~~Bloco C (núcleo: `C001`/`C100`/`C190`/`C990`)~~ — **feito em 2026-09-03**, ver seção
+  acima.
 - ~~Bloco 0 (identificação e cadastros)~~ — **feito em 2026-09-03**, ver seção acima
   (`0000`/`0001`/`0150`/`0190`/`0200`/`0990`); os demais registros do bloco continuam
   fora de escopo, listados lá.
@@ -362,6 +421,9 @@ aplicado aos blocos da ECF.
 - `contabil/efd_bloco_0.py` — `Identificacao`, `Participante`, `Item`, `montar_0000`,
   `montar_0001`, `montar_0150`, `montar_0190`, `montar_0200`, `montar_0990` (abertura,
   identificação e cadastros); mesma camada pura.
+- `contabil/efd_bloco_c.py` — `DocumentoFiscal`, `RegistroAnalitico`, `montar_c001`,
+  `montar_c100`, `montar_c190`, `montar_c990` (documentos fiscais de mercadoria); mesma
+  camada pura.
 
 ## Fontes
 
