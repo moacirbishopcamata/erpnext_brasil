@@ -275,6 +275,61 @@ projeto evita.
 (`vriconsulting.com.br`, guias 235/258/237, que reproduzem o Guia Prático da RFB). O
 site oficial da RFB recusou conexão nesta rodada.
 
+## Bloco 0 (abertura, identificação e cadastros)
+
+Ver `contabil/efd_bloco_0.py`. Sem este bloco não existe arquivo EFD: os registros de
+apuração são o conteúdo, e o Bloco 0 identifica a entidade, o período, o perfil e os
+cadastros que os demais blocos referenciam por código. Cobertos: `0000`
+(abertura/identificação, 15 campos), `0001` (abertura do bloco), `0150` (participantes,
+13 campos), `0190` (unidades de medida, 3 campos), `0200` (itens, 13 campos) e `0990`
+(encerramento).
+
+### Achado real: `IND_MOV` do `0001` é o inverso do `IND_MOV_ST` do `E210`
+
+Mesmo prefixo de nome, semântica oposta — o tipo de detalhe que produz um arquivo aceito
+pelo validador e errado no conteúdo:
+
+| Campo | `0` significa | `1` significa |
+|---|---|---|
+| `0001.IND_MOV` (abertura de bloco) | bloco **com** dados | bloco **sem** dados |
+| `E210.IND_MOV_ST` (apuração da ST) | **sem** operações | **com** operações |
+
+Por isso `montar_0001` recebe `tem_dados: bool` e converte, em vez de aceitar a string
+crua — mesma proteção que `ecf_bloco_0.montar_0001` já aplicava ao `IND_DAD` da ECF (que
+segue a convenção do `0001`, não a do `E210`).
+
+### Achado real: fonte oficial antiga não basta — o `0200` ganhou o CEST
+
+O layout foi lido do Guia Prático oficial **versão 2.0.13** (cópia publicada pela
+SEFAZ-SP, PDF baixado e lido localmente com `pdftotext`, não resumido por ferramenta —
+o site da RFB continua recusando conexão). Conferindo contra fonte secundária atual
+antes de implementar, apareceu uma diferença real: o `0200` ganhou um **13º campo,
+`CEST`**, introduzido na versão 2.0.20 do guia e válido a partir de 01/01/2017 —
+posterior ao PDF lido. Implementado com os 13 campos. O `0000` foi conferido do mesmo
+jeito e continua com 15 campos, sem mudança.
+
+Reforça a disciplina do projeto: fonte oficial não basta se for de versão antiga;
+cruzar com uma fonte atual é o que pega o campo novo.
+
+### Regras cruzadas que o módulo checa
+
+- `0000`: CNPJ **ou** CPF, exatamente um (a entidade é PJ ou PF); e se o CPF for
+  informado, `IND_ATIV` tem de ser `1` (Outros) — pessoa física não é estabelecimento
+  industrial para efeito da EFD. Regra do próprio layout, checada aqui em vez de deixar
+  o validador do Fisco recusar depois.
+- `0150`: CNPJ e CPF são os dois "obrigatórios quando houver", e o layout **não** exige
+  um dos dois (participante estrangeiro se identifica só por `COD_PAIS`) — por isso
+  `Participante` não replica a exclusividade do `0000`. Exigir inventaria uma regra que
+  o layout não tem.
+
+### Fora de escopo declarado
+
+`0005` (dados complementares), `0100` (contabilista), `0175`, `0205`, `0206` (ANP),
+`0210`, `0220`, `0300`/`0305` (CIAP), `0400` (natureza da operação), `0450`, `0460`,
+`0500` (plano de contas) e `0600` (centros de custo) — cada um é um cadastro próprio;
+entrar neles sem um consumidor real seria montar estrutura sem uso, mesmo critério
+aplicado aos blocos da ECF.
+
 ## Ainda por implementar
 - **E230/E240 (detalhamento dos ajustes de ST) e E250 (guias de recolhimento da ST)** —
   o E250 exige dado de guia/pagamento (número, vencimento, banco) que este projeto não
@@ -283,9 +338,13 @@ site oficial da RFB recusou conexão nesta rodada.
 - ~~Registros E200/E210 (ICMS-ST)~~ — **feito em 2026-09-03**, ver seção acima.
 - ~~Serialização para o formato de texto do EFD~~ — **feito em 2026-08-30**, ver
   `docs/sped-texto.md` (`contabil/sped_texto.montar_linha`).
-- **Blocos 0, C, D, H, K, 1, 9** do EFD (identificação, documentos fiscais, inventário,
-  totalizadores) — o arquivo completo tem muito mais que o bloco E de apuração; este
-  incremento cobre só quatro registros de um bloco.
+- **Blocos C, D, H, K, 1, 9** do EFD (documentos fiscais de mercadoria e de serviço,
+  inventário, controle da produção, outras informações, encerramento) — o arquivo
+  completo tem muito mais que apuração e cadastro. O bloco C em particular é o maior:
+  é onde cada nota fiscal entra, item a item.
+- ~~Bloco 0 (identificação e cadastros)~~ — **feito em 2026-09-03**, ver seção acima
+  (`0000`/`0001`/`0150`/`0190`/`0200`/`0990`); os demais registros do bloco continuam
+  fora de escopo, listados lá.
 - **Tabela de códigos de ajuste por UF (ICMS)** — `Ajuste.codigo` vem pronto de quem
   chama; nenhuma das 27 tabelas estaduais (nem a federal de fallback) foi modelada
   aqui. A tabela do IPI (`AjusteIpi`) é nacional e também não foi transcrita — só a
@@ -300,6 +359,9 @@ site oficial da RFB recusou conexão nesta rodada.
 - `contabil/efd_icms_difal.py` — `ApuracaoDifal`, `AjusteDifal`, `montar_e300`,
   `montar_e310`, `montar_e311` (apuração do DIFAL e do FCP, EC 87/2015); mesma camada
   pura.
+- `contabil/efd_bloco_0.py` — `Identificacao`, `Participante`, `Item`, `montar_0000`,
+  `montar_0001`, `montar_0150`, `montar_0190`, `montar_0200`, `montar_0990` (abertura,
+  identificação e cadastros); mesma camada pura.
 
 ## Fontes
 
