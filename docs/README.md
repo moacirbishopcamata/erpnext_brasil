@@ -29,6 +29,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [ecf-bloco-j.md](ecf-bloco-j.md) | Bloco J da ECF: `J050`/`J051` reaproveitam `I050`/`I051` da ECD com o `REG` trocado, `J100` é tipo novo mínimo, `J053` fora de escopo |
 | [ecf-bloco-k.md](ecf-bloco-k.md) | Bloco K da ECF: `K155`/`K156` reaproveitam a aritmética de `I155` da ECD, achado de indicadores D/C com nomes diferentes (`IND_DC_*`/`IND_VL_SLD_*`/`IND_VL_SLD_INICIAL`), nível de confiança declarado |
 | [ecf-bloco-0.md](ecf-bloco-0.md) | Bloco 0 da ECF: `0000`/`0001`/`0030`/`0990` implementados, `0010`/`0020`/`0021` (40+ indicadores regulatórios) deliberadamente fora, wiring com `Company`/`Address` (achados dos campos `bairro`/número faltando no ERPNext nativo) |
+| [ecf-bloco-p.md](ecf-bloco-p.md) | Bloco P da ECF (Lucro Presumido): dimensionado, núcleo mínimo (`P001`/`P990`); achado de que seis registros compartilham formato "código+valor" sem catálogo oficial verificado |
 | [certificado-a1-configuracao.md](certificado-a1-configuracao.md) | Certificado A1 e ambiente SEFAZ configuráveis em `Company`; o que deliberadamente não virou configurável (tabelas de autorizador por UF) |
 | [docker-compose.md](docker-compose.md) | `Dockerfile`/`docker-compose.yml` no padrão `frappe_docker` — caminho alternativo ao bench WSL2, não build-testado nesta sessão |
 | [versoes-frappe-erpnext.md](versoes-frappe-erpnext.md) | `version-16` é a versão estável mais recente (Docker/compose apontam para ela); o bench de teste real continua em `version-15`, divergência declarada |

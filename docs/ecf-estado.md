@@ -70,8 +70,14 @@ não tem cadastro que responda essas perguntas de verdade. `0035`/`0930` também
 3. **Blocos L/M/N** — o núcleo do Lucro Real (e-LALUR/e-LACS, cálculo de IRPJ/CSLL). Não
    dimensionado — provavelmente o maior bloco sozinho, dependente de regras de ajuste fiscal
    (adições/exclusões ao lucro líquido) que este projeto não modela ainda.
-4. **Bloco P** (Lucro Presumido) — regime tributário mais simples que o Lucro Real, candidato a
-   vir antes de L/M/N se a maioria dos usuários-alvo deste app estiver no Simples/Presumido.
+4. **Bloco P** (Lucro Presumido) — **dimensionado, núcleo mínimo implementado** (ver
+   `docs/ecf-bloco-p.md`): `P001`/`P990` prontos. Achado real: seis dos dez registros
+   (`P130`/`P200`/`P230`/`P300`/`P400`/`P500`) compartilham o formato genérico
+   "código+descrição+valor", dependente de um catálogo de códigos da Receita não
+   verificado — implementar sem ele arriscaria um `CODIGO` inventado passando por
+   conferido. `P100`/`P150` são candidatos reais de reuso (plano de contas + saldo,
+   mesmo padrão de `J050`/`K155`), mas a fonte não confirma se usam o plano **próprio**
+   ou o **referencial** da RFB — dúvida real, não implementados até resolver.
 5. **Bloco Y** (incluindo `Y730`, novo no Leiaute 12) — informações econômicas gerais e
    rastreabilidade de incentivos fiscais.
 
