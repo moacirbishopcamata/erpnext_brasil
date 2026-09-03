@@ -58,9 +58,10 @@ não tem campo de bairro. Não é lacuna nova desta investigação: `xBairro` j�
 pelo endereço da NF-e (`fiscal/documento/elementos_nfe.json`) e nunca tinha campo — o
 `0030` da ECF só expôs de novo uma lacuna pré-existente, corrigida aqui.
 
-Achado real, registrado e não corrigido neste incremento: o `Address` nativo também não
-separa "número" de `address_line1` — `DadosCadastrais.numero` vem vazio até essa segunda
-lacuna ser fechada à parte.
+**Achado real 2, fechado em seguida ao anterior**: o `Address` nativo também não separa
+"número" de `address_line1` (embutido no texto do logradouro). Campo novo,
+`Address.numero_endereco`, mesmo padrão de `bairro` — `DadosCadastrais.numero` agora lê
+dele em vez de ficar sempre vazio.
 
 Sem teste dedicado — `integracao/ecf_dados_empresa.py` depende do Frappe.
 

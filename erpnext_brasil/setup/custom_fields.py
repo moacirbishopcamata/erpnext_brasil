@@ -230,6 +230,17 @@ def get_custom_fields() -> dict[str, list[dict]]:
 					"endereço da NF-e (xBairro) e no registro 0030 da ECF."
 				),
 			},
+			{
+				"fieldname": "numero_endereco",
+				"label": "Número",
+				"fieldtype": "Data",
+				"insert_after": "bairro",
+				"description": (
+					"O `Address` nativo do ERPNext embute o número em `address_line1` — "
+					"separado aqui porque a NF-e (`nro`) e a ECF (registro 0030, `NUM`) "
+					"exigem o número como campo próprio, não misturado ao logradouro."
+				),
+			},
 		],
 		"Item": [
 			{

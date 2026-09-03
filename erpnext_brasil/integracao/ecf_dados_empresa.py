@@ -23,6 +23,10 @@ Dois campos novos em `Company`/`Address` (`setup/custom_fields.py`)
   da NF-e (`fiscal/documento/elementos_nfe.json`) e nunca tinha campo para vir. O `0030`
   da ECF expõe a mesma lacuna pré-existente; corrigida aqui porque apareceu de novo, não
   porque a ECF a criou.
+- `Address.numero_endereco` — **achado real 2**, fechado em seguida ao anterior: o
+  `Address` nativo também embute o número do imóvel dentro de `address_line1` (texto
+  livre), sem campo próprio. A NF-e (`nro`) e o `0030` (`NUM`) exigem o número separado
+  do logradouro — campo novo, mesmo padrão de `bairro`.
 
 O que continua **não** vindo de `Company`/`Address` — nível de confiança do
 `ecf_bloco_0.md` se mantém
@@ -78,8 +82,9 @@ def montar_identificacao_0000(
 
 def montar_dados_cadastrais_0030(company: str, address: str) -> DadosCadastrais:
 	"""Monta `DadosCadastrais` lendo `br_natureza_juridica`/`cnae_principal` de
-	`Company` e o endereço de `Address` (`address_line1`/`address_line2`/`bairro`/
-	`state`/`codigo_municipio_ibge`/`pincode`/`phone`/`email_id`).
+	`Company` e o endereço de `Address` (`address_line1`/`numero_endereco`/
+	`address_line2`/`bairro`/`state`/`codigo_municipio_ibge`/`pincode`/`phone`/
+	`email_id`).
 
 	`address` é passado explicitamente, não resolvido a partir de `Company` sozinho —
 	`Company` não tem um endereço "principal" único e sem ambiguidade no ERPNext
@@ -90,15 +95,11 @@ def montar_dados_cadastrais_0030(company: str, address: str) -> DadosCadastrais:
 	empresa = frappe.get_doc("Company", company)
 	endereco = frappe.get_doc("Address", address)
 
-	# Achado real, não corrigido aqui (fora de escopo deste incremento): o `Address`
-	# nativo do ERPNext não separa "número" de `address_line1` — só `bairro`
-	# (adicionado agora) foi tratado, por ser exigido pelo `0030`/NF-e. `numero` vem
-	# vazio até essa segunda lacuna ser fechada à parte.
 	return DadosCadastrais(
 		natureza_juridica=empresa.get("br_natureza_juridica") or "",
 		cnae_fiscal=empresa.get("cnae_principal") or "",
 		endereco=endereco.address_line1 or "",
-		numero="",
+		numero=endereco.get("numero_endereco") or "",
 		complemento=endereco.address_line2 or "",
 		bairro=endereco.get("bairro") or "",
 		uf=endereco.state or "",
