@@ -148,6 +148,50 @@ def get_custom_fields() -> dict[str, list[dict]]:
 					"payload Pix ('Copia e Cola') na cobrança."
 				),
 			},
+			{
+				"fieldname": "secao_certificado_a1",
+				"label": "Certificado Digital (transmissão SEFAZ)",
+				"fieldtype": "Section Break",
+				"insert_after": "chave_pix",
+				"collapsible": 1,
+			},
+			{
+				"fieldname": "br_certificado_a1",
+				"label": "Certificado A1 (.pfx/.p12)",
+				"fieldtype": "Attach",
+				"insert_after": "secao_certificado_a1",
+				"no_copy": 1,
+				"description": (
+					"Arquivo do certificado digital A1, usado para assinar e transmitir "
+					"NF-e/CT-e/MDF-e direto ao SEFAZ. Fica anexado de forma privada — "
+					"ver integracao/certificado_a1.py sobre como é lido."
+				),
+			},
+			{
+				"fieldname": "br_senha_certificado_a1",
+				"label": "Senha do certificado A1",
+				"fieldtype": "Password",
+				"insert_after": "br_certificado_a1",
+				"no_copy": 1,
+				"description": "Armazenada criptografada pelo próprio Frappe (fieldtype Password).",
+			},
+			{
+				"fieldname": "coluna_certificado_a1",
+				"fieldtype": "Column Break",
+				"insert_after": "br_senha_certificado_a1",
+			},
+			{
+				"fieldname": "br_ambiente_sefaz",
+				"label": "Ambiente SEFAZ",
+				"fieldtype": "Select",
+				"options": "\nProdução\nHomologação",
+				"default": "Homologação",
+				"insert_after": "coluna_certificado_a1",
+				"description": (
+					"Homologação por padrão — troque para Produção só quando for emitir "
+					"documento fiscal de verdade. Nunca o padrão de fábrica."
+				),
+			},
 		],
 		"Customer": _campos_de_parte("tax_id"),
 		"Supplier": _campos_de_parte("tax_id"),
