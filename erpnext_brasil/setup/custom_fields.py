@@ -12,6 +12,7 @@ A instalação é idempotente: `create_custom_fields` com `update=True` reaplica
 definições sem duplicar, o que torna seguro rodar a cada `bench migrate`.
 """
 
+from erpnext_brasil.contabil.efd_bloco_0 import TIPOS_ITEM
 from erpnext_brasil.fiscal.codigos.tabelas import ORIGEM_MERCADORIA, opcoes_select
 
 REGIMES_TRIBUTARIOS = "\n".join(
@@ -45,6 +46,15 @@ FINALIDADES_COMPRA = "\n".join(["", "Industrialização", "Comercialização"])
 # o Code List. Escrever a lista aqui de novo criaria duas fontes para o mesmo dado, que
 # divergiriam na primeira alteração — o mesmo motivo pelo qual não se duplica `tax_id`.
 ORIGENS_MERCADORIA = opcoes_select(ORIGEM_MERCADORIA)
+
+# Tipo do item na EFD (campo TIPO_ITEM do registro 0200). Derivado da mesma tabela que
+# `contabil/efd_bloco_0.py` usa para validar o registro — se as duas listas fossem
+# escritas separadamente, um valor aceito no Select seria recusado na montagem do
+# arquivo (ou vice-versa), e ninguém descobriria até o Fisco recusar. Mesmo motivo de
+# `ORIGENS_MERCADORIA` sair da tabela normativa em vez de ser redigitada aqui.
+TIPOS_ITEM_EFD = "\n".join(
+	["", *(f"{codigo} - {titulo}" for codigo, titulo in TIPOS_ITEM.items())]
+)
 
 
 def _campos_de_parte(insert_after: str) -> list[dict]:
@@ -202,6 +212,62 @@ def get_custom_fields() -> dict[str, list[dict]]:
 					"documento fiscal de verdade. Nunca o padrão de fábrica."
 				),
 			},
+			{
+				"fieldname": "secao_efd",
+				"label": "EFD-ICMS/IPI (SPED Fiscal)",
+				"fieldtype": "Section Break",
+				"insert_after": "br_ambiente_sefaz",
+				"collapsible": 1,
+			},
+			{
+				"fieldname": "br_efd_perfil",
+				"label": "Perfil de Apresentação",
+				"fieldtype": "Select",
+				"options": "\nA\nB\nC",
+				"insert_after": "secao_efd",
+				"description": (
+					"Campo IND_PERFIL do registro 0000. Definido pela SEFAZ do estado, não "
+					"escolhido pela empresa — o perfil decide quais registros o arquivo "
+					"precisa conter."
+				),
+			},
+			{
+				"fieldname": "br_efd_atividade",
+				"label": "Tipo de Atividade (EFD)",
+				"fieldtype": "Select",
+				"options": "\nIndustrial ou equiparado a industrial\nOutros",
+				"insert_after": "br_efd_perfil",
+				"description": (
+					"Campo IND_ATIV do registro 0000. Entidade identificada por CPF só pode "
+					"ser 'Outros' — regra do próprio layout."
+				),
+			},
+			{
+				"fieldname": "coluna_efd",
+				"fieldtype": "Column Break",
+				"insert_after": "br_efd_atividade",
+			},
+			{
+				"fieldname": "br_efd_versao_leiaute",
+				"label": "Versão do Leiaute (EFD)",
+				"fieldtype": "Data",
+				"insert_after": "coluna_efd",
+				"description": (
+					"Campo COD_VER do registro 0000, 3 dígitos. Vale a versão vigente na "
+					"data final da escrituração (tabela do Ato COTEPE/ICMS 09/2008) — por "
+					"isso é configuração, não constante do código."
+				),
+			},
+			{
+				"fieldname": "suframa",
+				"label": "Inscrição SUFRAMA",
+				"fieldtype": "Data",
+				"insert_after": "br_efd_versao_leiaute",
+				"description": (
+					"Campo SUFRAMA do registro 0000. A Company não tinha este campo (só "
+					"Customer/Supplier tinham) e a EFD o exige de quem é inscrito."
+				),
+			},
 		],
 		"Customer": _campos_de_parte("tax_id"),
 		"Supplier": _campos_de_parte("tax_id"),
@@ -307,6 +373,39 @@ def get_custom_fields() -> dict[str, list[dict]]:
 					"insumo de produção) ou para comercializar (revender como veio). Decide o "
 					"CFOP de compra — não confundir com 'destinado a revenda' na apuração de "
 					"impostos, que é uma regra diferente (IPI na base do ICMS)."
+				),
+			},
+			{
+				"fieldname": "br_efd_tipo_item",
+				"label": "Tipo do Item (EFD)",
+				"fieldtype": "Select",
+				"options": TIPOS_ITEM_EFD,
+				"insert_after": "finalidade_compra",
+				"description": (
+					"Campo TIPO_ITEM do registro 0200 da EFD, obrigatório. Não tem "
+					"equivalente nativo no ERPNext: 'produção própria' e 'finalidade da "
+					"compra' respondem a outras perguntas (CFOP), não a esta classificação "
+					"de estoque do Fisco."
+				),
+			},
+			{
+				"fieldname": "br_efd_codigo_genero",
+				"label": "Código do Gênero (EFD)",
+				"fieldtype": "Data",
+				"insert_after": "br_efd_tipo_item",
+				"description": (
+					"Campo COD_GEN do registro 0200, 2 dígitos — o capítulo da NCM, conforme "
+					"a Tabela 4.2.1. Obrigatório para quem apresenta o Bloco H (inventário)."
+				),
+			},
+			{
+				"fieldname": "br_ex_ipi",
+				"label": "EX da TIPI",
+				"fieldtype": "Data",
+				"insert_after": "br_efd_codigo_genero",
+				"description": (
+					"Campo EX_IPI do registro 0200, 3 dígitos. Exceção da TIPI aplicável ao "
+					"NCM deste item, quando houver."
 				),
 			},
 		],
