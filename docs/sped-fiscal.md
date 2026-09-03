@@ -385,6 +385,44 @@ valor possivelmente válido quebraria um usuário legítimo, enquanto aceitar um
 possivelmente inválido é pego pelo validador do Fisco. Dúvida declarada, não resolvida
 por chute.
 
+## Bloco 9 (controle e encerramento) — e o arquivo completo de ponta a ponta
+
+Ver `contabil/efd_bloco_9.py`. `9001` (abertura), `9900` (uma linha por tipo de registro,
+com a contagem de cada um), `9990` (encerramento do bloco) e `9999` (encerramento do
+arquivo, com o total de linhas).
+
+### A sutileza real do `9900`: a contagem é auto-referente
+
+O guia diz que "todos os registros referenciados neste arquivo, **inclusive os
+posteriores a este registro**, devem ter uma linha totalizadora". Ou seja, o `9900`
+precisa totalizar o `9001`, o `9990`, o `9999` — e o **próprio `9900`**. E a quantidade
+de linhas `9900` é o número de tipos distintos no arquivo, que inclui o `9900`. A
+contagem depende de si mesma.
+
+Resolvido em `montar_bloco_9` de forma fechada, sem iterar até convergir: com `N` tipos
+distintos fora do Bloco 9, o total é `N + 4` (os quatro registros do Bloco 9, que não
+aparecem em nenhum outro lugar), e daí saem as três contagens:
+
+- linhas `9900` = `N + 4`
+- `QTD_LIN_9` = 1 (`9001`) + (`N + 4`) + 1 (`9990`) = `N + 6`
+- `QTD_LIN` = linhas dos demais blocos + (`N + 6`) + 1 (o próprio `9999`)
+
+Errar essa conta não produz um arquivo "quase certo": o PVA valida cada `QTD_` contra a
+contagem real e rejeita o arquivo inteiro.
+
+### Marco: arquivo EFD completo, montado e serializado
+
+`tests/test_efd_arquivo_completo.py` monta um arquivo mínimo mas real — identificação,
+participante, unidade, item, uma nota fiscal com seu analítico e a apuração do ICMS —
+do `0000` ao `9999`, e serializa em texto SPED via `contabil/sped_texto.py`.
+
+É um teste de **costura**, não de unidade: confere cada linha `9900` contra a contagem
+real do arquivo (o que o PVA faz), confere `QTD_LIN` contra o número de linhas
+efetivamente produzidas, e confere os encerramentos de bloco (`0990`/`C990`) contra as
+linhas de cada bloco. Nenhum teste anterior cruzava os quatro módulos do EFD com o
+serializador — cada um estava testado sozinho, e é exatamente aí que a contagem de um
+arquivo inteiro pode sair errada com todas as peças individualmente corretas.
+
 ## Ainda por implementar
 - **E230/E240 (detalhamento dos ajustes de ST) e E250 (guias de recolhimento da ST)** —
   o E250 exige dado de guia/pagamento (número, vencimento, banco) que este projeto não
@@ -397,8 +435,12 @@ por chute.
   `C110`/`C111`-`C114`, `C120`, `C176`, `C195`/`C197`) — o `C170` é dispensado justamente
   no caso mais comum (NF-e de emissão própria), e os demais dependem de dado externo
   (norma legal, processo, ajuste por UF).
-- **Blocos D, H, K, 1, 9** do EFD (documentos fiscais de serviço/transporte, inventário,
-  controle da produção, outras informações, encerramento do arquivo).
+- **Blocos D, H, K, 1** do EFD (documentos fiscais de serviço/transporte, inventário,
+  controle da produção, outras informações).
+- **Abertura/encerramento do Bloco E** (`E001`/`E990`) — os registros de apuração já
+  existem, falta o par que delimita o bloco; trivial, mas ainda não escrito.
+- ~~Bloco 9 (controle e encerramento do arquivo)~~ — **feito em 2026-09-03**, ver seção
+  acima.
 - ~~Bloco C (núcleo: `C001`/`C100`/`C190`/`C990`)~~ — **feito em 2026-09-03**, ver seção
   acima.
 - ~~Bloco 0 (identificação e cadastros)~~ — **feito em 2026-09-03**, ver seção acima
@@ -424,6 +466,9 @@ por chute.
 - `contabil/efd_bloco_c.py` — `DocumentoFiscal`, `RegistroAnalitico`, `montar_c001`,
   `montar_c100`, `montar_c190`, `montar_c990` (documentos fiscais de mercadoria); mesma
   camada pura.
+- `contabil/efd_bloco_9.py` — `montar_9001`, `montar_9900`, `montar_9990`, `montar_9999`
+  e `montar_bloco_9` (a contagem auto-referente resolvida em um lugar só); mesma camada
+  pura.
 
 ## Fontes
 
