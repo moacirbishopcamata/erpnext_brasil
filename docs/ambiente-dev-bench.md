@@ -22,18 +22,28 @@ MariaDB) motivou originalmente a decisão de WSL2 + Docker registrada abaixo.
   ser necessária: bench e MariaDB estariam na mesma máquina/host, sem fronteira de
   rede virtual para atravessar.
 
-**Consequência esperada, ainda não exercitada nesta sessão**: com os dois serviços
-nativos presentes, o bench pode em tese rodar **localmente no Windows, sem WSL2 nem
-Docker** — eliminando a cadeia de obstáculos registrada nas seções seguintes deste
-documento (rede WSL2↔Windows, Hyper-V Firewall, Git Bash → `wsl.exe` corrompendo
-caminhos, `sudo` sem senha, etc. — todos específicos de rodar o bench *dentro* do
-WSL2). Isso pressupõe que o próprio `bench`/Frappe funcione nativo no Windows
-(historicamente um caminho frágil, motivo original de ter ido para WSL2 — ver seção
-seguinte) — **não testado nesta sessão**. O ambiente WSL2 + Docker documentado
-abaixo continua sendo o único confirmado funcionando de ponta a ponta (`bench
-run-tests` rodado de verdade, 685 testes). Até essa alternativa nativa ser
-efetivamente tentada e confirmada, tratar como uma opção disponível, não como o
-caminho validado.
+**Atualização de 2026-09-03 — tentado e descartado, achado definitivo**: a pedido
+direto do usuário, a alternativa nativa foi de fato tentada (`pip install
+frappe-bench` com Python 3.14 nativo do Windows, Memurai e MariaDB nativos já
+rodando como serviço). **Não funciona, e não é um obstáculo de configuração
+contornável**: `bench/cli.py` (o próprio pacote `frappe-bench`) faz `import pwd` **no
+topo do arquivo**, incondicional — `pwd` é módulo da stdlib exclusivamente POSIX
+(base de usuários/grupos do Unix, `getpwnam`/`getpwuid`), sem implementação possível
+no Windows (não é uma lacuna de porte, é uma API que não existe no SO). O import
+falha antes de qualquer comando rodar — `bench --version` já quebra com
+`ModuleNotFoundError: No module named 'pwd'`. Um stub de `pwd.py` resolveria esse
+import específico (testado e removido), mas não haveria garantia de não bater no
+próximo obstáculo POSIX do restante do código (symlinks, possivelmente `fork`) antes
+de conseguir `bench init` de verdade. **Conclusão prática: bench não roda nativo no
+Windows — o ambiente WSL2 + Docker abaixo continua sendo o único caminho, ponto
+final, não "opção não testada ainda".**
+
+Ambiente WSL2 confirmado funcionando de novo na mesma data, depois de um hiato: o
+clone de `erpnext_brasil` dentro do bench estava 113 commits atrasado — `git pull`
+trouxe tudo, `bench migrate` aplicou os campos novos sem erro, e `bench run-tests
+--app erpnext_brasil` confirmou **1671 testes, mesma contagem da suíte pura, 1 skip
+esperado** (subiu de 685 desde a confirmação original, refletindo toda a frente de
+CT-e/MDF-e/ECF/certificado A1 construída nesta sessão).
 
 ## Por que não bench nativo no Windows (decisão original, antes do Memurai)
 
