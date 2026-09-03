@@ -1,0 +1,193 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "naming_series:",
+ "creation": "2026-09-03 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "secao_escrituracao",
+  "company",
+  "tipo",
+  "finalidade",
+  "coluna_escrituracao",
+  "data_inicial",
+  "data_final",
+  "recibo_anterior",
+  "secao_entrega",
+  "situacao",
+  "gerado_em",
+  "coluna_entrega",
+  "entregue_em",
+  "recibo",
+  "secao_conteudo",
+  "hash_conteudo",
+  "quantidade_de_linhas",
+  "arquivo"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Série",
+   "options": "SPED-.YYYY.-",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "secao_escrituracao",
+   "fieldtype": "Section Break",
+   "label": "Escrituração"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Empresa",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "tipo",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Tipo",
+   "options": "EFD-ICMS/IPI\nEFD-Contribuições\nECD\nECF",
+   "reqd": 1
+  },
+  {
+   "description": "Substituto exige o recibo da entrega anterior.",
+   "fieldname": "finalidade",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Finalidade",
+   "options": "Original\nSubstituto",
+   "reqd": 1
+  },
+  {
+   "fieldname": "coluna_escrituracao",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "data_inicial",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Início do Período",
+   "reqd": 1
+  },
+  {
+   "fieldname": "data_final",
+   "fieldtype": "Date",
+   "label": "Fim do Período",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.finalidade=='Substituto'",
+   "description": "Recibo da entrega que este arquivo substitui.",
+   "fieldname": "recibo_anterior",
+   "fieldtype": "Data",
+   "label": "Recibo Anterior",
+   "mandatory_depends_on": "eval:doc.finalidade=='Substituto'"
+  },
+  {
+   "fieldname": "secao_entrega",
+   "fieldtype": "Section Break",
+   "label": "Entrega"
+  },
+  {
+   "fieldname": "situacao",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Situação",
+   "options": "Gerado\nEntregue",
+   "reqd": 1
+  },
+  {
+   "fieldname": "gerado_em",
+   "fieldtype": "Datetime",
+   "label": "Gerado em"
+  },
+  {
+   "fieldname": "coluna_entrega",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "entregue_em",
+   "fieldtype": "Datetime",
+   "label": "Entregue em"
+  },
+  {
+   "description": "Recibo devolvido pelo receptor (PVA/Receita) na transmissão.",
+   "fieldname": "recibo",
+   "fieldtype": "Data",
+   "label": "Recibo da Entrega"
+  },
+  {
+   "fieldname": "secao_conteudo",
+   "fieldtype": "Section Break",
+   "label": "Conteúdo"
+  },
+  {
+   "description": "SHA-256 do arquivo gerado. Responde à pergunta que importa: o arquivo que tenho aqui é o que foi entregue?",
+   "fieldname": "hash_conteudo",
+   "fieldtype": "Data",
+   "label": "Hash do Conteúdo",
+   "length": 64,
+   "read_only": 1
+  },
+  {
+   "fieldname": "quantidade_de_linhas",
+   "fieldtype": "Int",
+   "label": "Quantidade de Linhas",
+   "read_only": 1
+  },
+  {
+   "fieldname": "arquivo",
+   "fieldtype": "Attach",
+   "label": "Arquivo"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-03 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Registros Fiscais",
+ "name": "Arquivo SPED",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

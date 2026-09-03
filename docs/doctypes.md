@@ -124,9 +124,49 @@ evento enviado), se foi duplicado, e o `retornoEvento` **sem interpretação** �
 por dentro dele não foi localizado em fonte, e isso já estava registrado em
 `esocial_retorno.RetornoEvento`. O teste confere que o campo comporta os 36 caracteres.
 
+## `Arquivo SPED`
+
+Terceiro DocType, e o que fecha o ciclo do bloco contábil. Os módulos de EFD, ECD e ECF
+montam o arquivo e o devolvem — e **nada registrava que ele existiu**. Não havia como
+responder o que uma fiscalização pergunta: qual período foi entregue, quando, e se o
+arquivo que está no disco hoje é o mesmo que foi transmitido.
+
+### O hash é o que dá sentido ao registro
+
+Guardar "gerei a EFD de janeiro" sem guardar **o que** foi gerado registra pouco. O
+SHA-256 do conteúdo responde à pergunta que importa: *o arquivo que tenho aqui é o que
+foi entregue?* Regerar a mesma escrituração com dado corrigido produz hash diferente — e
+é essa diferença que distingue reentrega legítima de confusão de versões.
+
+Dois cuidados, ambos com teste:
+
+- **O hash é `read_only`.** Hash digitado à mão não prova nada sobre o conteúdo.
+- **É calculado sobre Latin-1, não UTF-8.** O SPED é entregue em ANSI; o hash de uma
+  representação intermediária não corresponderia aos bytes que saem.
+
+### A invariante que os módulos de montagem não tinham
+
+`ecf_bloco_0.IdentificacaoEcf` já modelava `retificadora` e `numero_recibo_anterior` —
+mas **sem exigir coerência entre os dois**, e deliberadamente (aquele módulo não cataloga
+significado de código).
+
+No registro do arquivo a coerência é o ponto: declarar-se **substituto sem informar o
+recibo do original** é dizer que se corrige algo, sem dizer o quê — o Fisco não tem como
+ligar a retificação ao arquivo substituído. O inverso é igualmente contraditório:
+informar recibo anterior num arquivo **original** afirma que ele substitui outra entrega.
+
+A tela também exige (`mandatory_depends_on`), e há teste conferindo que a tela e a regra
+dizem a mesma coisa: a regra recusa depois, a tela avisa antes.
+
+### Só os tipos que o projeto gera de verdade
+
+`EFD-ICMS/IPI`, `EFD-Contribuições`, `ECD`, `ECF`. Listar EFD-Reinf ou eSocial ali criaria
+a expectativa de que o app os gera como arquivo — e eles são transmitidos por evento, não
+entregues como arquivo.
+
 ## Próximos DocTypes, quando houver consumidor
 
 Mesma disciplina: só quando o dado tiver vida própria e alguém for lê-lo.
 
-- **Arquivo SPED gerado** — período, tipo (EFD/ECD/ECF), hash, quem gerou. Hoje o arquivo
-  é montado e devolvido, sem registro de que foi entregue.
+Os três que a auditoria identificou estão feitos. O próximo virá quando aparecer dado
+com vida própria que ainda não tenha onde morar.
