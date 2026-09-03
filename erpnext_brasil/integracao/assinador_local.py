@@ -35,14 +35,16 @@ from erpnext_brasil.fiscal.documento.assinatura import (
 	MaterialAssinatura,
 )
 
-__all__ = ["AssinadorLocal", "carregar_certificado"]
+__all__ = ["AssinadorLocal", "carregar_certificado", "expiracao_do_certificado"]
 
 
-def carregar_certificado(pfx: bytes, senha: str):
-	"""Abre um certificado A1 (.pfx / PKCS#12) e devolve (chave privada, certificado).
+def _abrir_pkcs12(pfx: bytes, senha: str):
+	"""Abre o arquivo e devolve (chave privada, certificado), **sem** julgar validade.
 
-	Verifica a validade na abertura: certificado vencido produz assinatura tecnicamente
-	correta e documento rejeitado, e descobrir isso na SEFAZ é pior que descobrir aqui.
+	Separado de `carregar_certificado` porque há dois usos legítimos e opostos: assinar
+	exige recusar certificado vencido, mas **avisar que venceu** exige justamente
+	conseguir abrir o vencido. Uma função que sempre recusa não serviria ao alerta —
+	ele nunca chegaria a informar o caso mais urgente.
 	"""
 	try:
 		from cryptography.hazmat.primitives.serialization import pkcs12
@@ -70,6 +72,29 @@ def carregar_certificado(pfx: bytes, senha: str):
 		raise AssinaturaInvalida(
 			"O arquivo não contém chave privada e certificado — verifique se é um A1 (.pfx)"
 		)
+
+	return chave, certificado
+
+
+def expiracao_do_certificado(pfx: bytes, senha: str):
+	"""Data/hora (UTC) em que o certificado deixa de valer, ou `None` se não declarada.
+
+	Abre sem julgar validade — é o que permite avisar sobre um certificado **já
+	vencido**, que `carregar_certificado` recusaria. Consumido por
+	`integracao/alerta_certificado.py`.
+	"""
+	_, certificado = _abrir_pkcs12(pfx, senha)
+
+	return getattr(certificado, "not_valid_after_utc", None)
+
+
+def carregar_certificado(pfx: bytes, senha: str):
+	"""Abre um certificado A1 (.pfx / PKCS#12) e devolve (chave privada, certificado).
+
+	Verifica a validade na abertura: certificado vencido produz assinatura tecnicamente
+	correta e documento rejeitado, e descobrir isso na SEFAZ é pior que descobrir aqui.
+	"""
+	chave, certificado = _abrir_pkcs12(pfx, senha)
 
 	agora = datetime.now(timezone.utc)
 

@@ -84,3 +84,12 @@ for _doctype in ("Subcontracting Order", "Subcontracting Receipt"):
 	doc_events[_doctype] = {
 		"validate": ["erpnext_brasil.integracao.cfop_sugestao.sugerir_cfop_subcontratacao"]
 	}
+
+# Diário, não horário: o certificado A1 vale um ano, e a regra de aviso
+# (`fiscal/documento/validade_certificado.py`) raciocina em dias — verificar de hora em
+# hora repetiria o mesmo alerta 24 vezes no dia do marco.
+scheduler_events = {
+	"daily": [
+		"erpnext_brasil.integracao.alerta_certificado.verificar_validade_dos_certificados",
+	]
+}

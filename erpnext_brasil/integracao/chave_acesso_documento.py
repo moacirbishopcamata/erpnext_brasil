@@ -31,21 +31,34 @@ família NF-e/CT-e/MDF-e), não reimplementa nada.
 import frappe
 from frappe import _
 
-from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, validar_chave
+from erpnext_brasil.fiscal.documento.leitura_codigo import LeituraInvalida, extrair_chave
 
 __all__ = ["validar_chave_acesso"]
 
 
 def validar_chave_acesso(doc, method=None):
-	"""Valida `br_chave_acesso` quando preenchida, e normaliza (remove máscara)."""
+	"""Valida `br_chave_acesso` quando preenchida, e normaliza (remove máscara).
+
+	Aceita leitura de código de barras direto no campo
+	--------------------------------------------------------
+	Passou a usar `leitura_codigo.extrair_chave` em vez de `chave_acesso.validar_chave`
+	direto: o leitor **1D** do DANFE entrega os 44 dígitos (que já funcionavam), mas o
+	leitor **2D** do cupom da NFC-e entrega a **URL inteira** do QR Code, com a chave no
+	meio. Antes, escanear o cupom colava a URL e a validação recusava — e o usuário
+	concluía, erradamente, que "o leitor 2D não funciona".
+
+	`extrair_chave` continua validando layout e dígito verificador, então nada foi
+	afrouxado: o campo aceita mais formas de **entrada**, e guarda exatamente o mesmo
+	valor canônico de sempre.
+	"""
 	valor = doc.get("br_chave_acesso")
 
 	if not valor:
 		return
 
 	try:
-		limpa = validar_chave(valor)
-	except ChaveInvalida as e:
+		limpa = extrair_chave(valor)
+	except LeituraInvalida as e:
 		frappe.throw(
 			_("Chave de acesso inválida em {0}: {1}").format(doc.doctype, str(e)),
 			title=_("Chave de acesso inválida"),
