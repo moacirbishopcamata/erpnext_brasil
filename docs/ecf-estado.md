@@ -40,17 +40,22 @@ A fonte lista `COD_NAT` do `J050` com seis valores (`01`-Ativo, `02`-Passivo, `0
 escopo — achado real, não tem equivalente na ECD (é específico de reorganização
 societária). Ver `docs/ecf-bloco-j.md` para o detalhe completo.
 
-## Bloco K aberto — `K155` implementado
+## Bloco K aberto — `K155`/`K156` implementados
 
 `K155` reaproveita a aritmética de saldo de `ecd_i150.montar_i155` — achado real: os dois
 campos indicadores mudam de nome entre ECD e ECF (`IND_DC_*` → `IND_VL_SLD_*`), mesmo
-valor. Ver `docs/ecf-bloco-k.md`.
+valor. `K156` (mapeamento referencial) reaproveita a mesma aritmética indexada por
+`COD_CTA_REF` — achado real (nível de confiança declarado): o indicador inicial aparece
+como `IND_VL_SLD_INICIAL` (forma por extenso) na fonte consultada para `K156`, diferente
+de `IND_VL_SLD_INI` (`K155`) — pode ser divergência real ou variação de transcrição,
+registrado para conferência. Ver `docs/ecf-bloco-k.md`.
 
 ## O que ainda falta investigar/implementar, em ordem de proximidade com o que já existe
 
-1. **`K030`/`K156`/`K355`/`K356`/`K915`/`K935`** — os demais registros do Bloco K (método
-   de apuração de IRPJ/CSLL, mapeamento referencial, saldos de resultado antes do
-   encerramento, justificativa de divergência). Ver `docs/ecf-bloco-k.md` para o
+1. **`K030`/`K355`/`K356`/`K915`/`K935`** — os demais registros do Bloco K (método
+   de apuração de IRPJ/CSLL, saldos de resultado antes do encerramento, justificativa
+   de divergência — `K915`/`K935` confirmados como preenchimento manual do usuário no
+   PVA, não calculáveis por este projeto). Ver `docs/ecf-bloco-k.md` para o
    detalhe de por que cada um ficou de fora.
 2. **Bloco 0** — abertura/identificação, mesma convenção de `0000`/`0010` já vista em
    DeSTDA/EFD-Reinf; não investigado campo a campo ainda.

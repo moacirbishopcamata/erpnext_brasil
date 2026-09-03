@@ -26,13 +26,39 @@ trocando só `REG` (como `montar_j050`/`montar_j051` fazem) — reconstrói o di
 renomeando os dois campos indicadores, mantendo os outros sete exatamente como
 `montar_i155` os calcula (mesma aritmética de saldo, mesmo `ContaDesconhecida`).
 
-O que fica de fora deste primeiro incremento do Bloco K
+`K156` implementado em seguida — achado real de possível inconsistência de nome, declarado
+------------------------------------------------------------------------------------------
+`K156` (mapeamento referencial dos saldos finais) tem `REG`, `COD_CTA_REF`, `VL_SLD_INI`,
+`IND_VL_SLD_INICIAL`, `VL_DEB`, `VL_CRED`, `VL_SLD_FIN`, `IND_VL_SLD_FIN` — os mesmos
+valores financeiros de `K155`, agora indexados por `COD_CTA_REF` (código do plano
+referencial da RFB) em vez de `COD_CTA` (código próprio), e sem `COD_CCUS` (o mapeamento
+referencial não distingue centro de custo). **Nível de confiança declarado, não
+escondido**: duas consultas à mesma fonte devolveram o indicador inicial como
+`IND_VL_SLD_INI` (para `K155`) e `IND_VL_SLD_INICIAL` (para `K156`, forma por extenso) —
+pode ser uma divergência real entre os dois registros (o leiaute do SPED tem exemplos
+conhecidos de inconsistência de nome entre registros próximos, ver `evGTV`/CT-e nesta
+mesma frente) ou uma variação de transcrição da fonte secundária. Este módulo grava
+`IND_VL_SLD_INICIAL` (a forma que a consulta específica de `K156` devolveu), mas o valor
+em si (`"D"`/`"C"`) é idêntico de qualquer forma — o risco fica só no nome do campo, não
+no dado, e fica registrado aqui para conferência contra o Manual de Orientação oficial
+antes de qualquer geração de arquivo real.
+
+`montar_k156` não agrega várias contas próprias no mesmo código referencial — cada
+`MapeamentoReferencial` (o mesmo tipo já usado para `J051`) vira uma linha própria, com o
+saldo daquela conta. Agregação de N contas próprias mapeadas para o mesmo
+`COD_CTA_REF` não é modelada (a fonte não deixa claro se o PVA agrega ou se cada
+mapeamento gera sua própria linha) — declarado como limitação, não escondido.
+
+O que fica de fora deste incremento do Bloco K
 ------------------------------------------------------------------------------
-- **`K030`** (identificação do período e método de apuração de IRPJ/CSLL — trimestral,
-  anual por estimativa) — este projeto não modela ainda qual método de apuração a
-  empresa usa; fica para quando o núcleo de Lucro Real (Blocos L/M/N) entrar.
-- **`K156`** (mapeamento referencial dos saldos finais) — mesmo papel de `J051`/`I051`
-  para o Bloco K, mas não investigado a fundo ainda; candidato a incremento seguinte.
+- **`K030`** (identificação do período e método de apuração de IRPJ/CSLL) — campos
+  confirmados na mesma fonte (`REG`, `DT_INI`, `DT_FIN`, `PER_APUR`), mas este projeto não
+  modela ainda qual método de apuração a empresa usa (`PER_APUR`); fica para quando o
+  núcleo de Lucro Real (Blocos L/M/N) entrar.
+- **`K915`/`K935`** (justificativa de divergência de saldo) — a própria fonte diz que
+  `K915` "não é gerado pelo ERP" e "o campo de justificativa deve ser preenchido
+  manualmente no PVA" — confirma que não é um registro para este projeto calcular, é
+  preenchimento manual do usuário final no validador da Receita.
 - **`K355`/`K356`** (saldos das contas de resultado **antes** do encerramento) — exige
   distinguir "antes" e "depois" do encerramento de resultado, que `lancamento.py`/
   `ecd_i150.py` não modelam (só produzem o saldo final de cada conta, não os dois
@@ -47,10 +73,19 @@ bloco-k.htm`, consultada em 2026-09-03 — mesmo padrão de confiança já aceit
 (fonte técnica de ERP, não o Manual de Orientação da Receita lido diretamente).
 """
 
+from erpnext_brasil.contabil.ecd_i050 import MapeamentoReferencial
 from erpnext_brasil.contabil.ecd_i150 import ContaDesconhecida, SaldoInicial, montar_i155
 from erpnext_brasil.contabil.lancamento import Lancamento
+from erpnext_brasil.contabil.plano_de_contas import ARVORE, montar_codigos
 
-__all__ = ["ContaDesconhecida", "SaldoInicial", "montar_k001", "montar_k155", "montar_k990"]
+__all__ = [
+	"ContaDesconhecida",
+	"SaldoInicial",
+	"montar_k001",
+	"montar_k155",
+	"montar_k156",
+	"montar_k990",
+]
 
 
 def montar_k001(tem_dados: bool) -> dict:
@@ -82,6 +117,56 @@ def montar_k155(
 		)
 
 	return linhas_k155
+
+
+def montar_k156(
+	lancamentos: list[Lancamento],
+	mapeamentos: list[MapeamentoReferencial],
+	saldos_iniciais: dict[str, SaldoInicial] | None = None,
+) -> list[dict]:
+	"""Monta o registro `K156` — uma linha por `MapeamentoReferencial`, com o saldo da
+	conta própria mapeada, indexado por `COD_CTA_REF` em vez de `COD_CTA` (ver
+	docstring do módulo sobre o achado de possível divergência de nome do indicador
+	inicial, e sobre agregação de várias contas no mesmo código referencial não ser
+	modelada).
+
+	Não recebe `arvore` como parâmetro — `montar_i155` (que este módulo reaproveita
+	por dentro) também não recebe, sempre usa `plano_de_contas.ARVORE`; aceitar um
+	valor diferente aqui criaria uma inconsistência silenciosa entre os dois lados do
+	cruzamento (código próprio resolvido por uma árvore, saldo calculado por outra).
+	"""
+	codigos = montar_codigos(ARVORE)
+	linhas_por_codigo = {linha["COD_CTA"]: linha for linha in montar_i155(lancamentos, saldos_iniciais)}
+
+	linhas_k156 = []
+
+	for mapeamento in mapeamentos:
+		codigo_proprio = codigos.get(mapeamento.conta)
+
+		if codigo_proprio is None:
+			raise ContaDesconhecida(f"Conta {mapeamento.conta!r} não existe em plano_de_contas.ARVORE")
+
+		linha_saldo = linhas_por_codigo.get(codigo_proprio)
+
+		if linha_saldo is None:
+			# Conta mapeada, mas sem movimento no período — mesma disciplina de
+			# `montar_i155`: nenhuma linha é gerada, não é erro.
+			continue
+
+		linhas_k156.append(
+			{
+				"REG": "K156",
+				"COD_CTA_REF": mapeamento.codigo_referencial,
+				"VL_SLD_INI": linha_saldo["VL_SLD_INI"],
+				"IND_VL_SLD_INICIAL": linha_saldo["IND_DC_INI"],
+				"VL_DEB": linha_saldo["VL_DEB"],
+				"VL_CRED": linha_saldo["VL_CRED"],
+				"VL_SLD_FIN": linha_saldo["VL_SLD_FIN"],
+				"IND_VL_SLD_FIN": linha_saldo["IND_DC_FIN"],
+			}
+		)
+
+	return linhas_k156
 
 
 def montar_k990(quantidade_linhas: int) -> dict:

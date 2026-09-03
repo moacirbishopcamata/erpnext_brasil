@@ -11,8 +11,9 @@ renomeia os dois campos indicadores.
 import unittest
 from decimal import Decimal
 
+from erpnext_brasil.contabil.ecd_i050 import MapeamentoReferencial
 from erpnext_brasil.contabil.ecd_i150 import SaldoInicial, montar_i155
-from erpnext_brasil.contabil.ecf_bloco_k import montar_k001, montar_k155, montar_k990
+from erpnext_brasil.contabil.ecf_bloco_k import montar_k001, montar_k155, montar_k156, montar_k990
 from erpnext_brasil.contabil.lancamento import Lancamento
 
 LANCAMENTOS = [
@@ -56,6 +57,45 @@ class TestMontarK155(unittest.TestCase):
 
 	def test_uma_linha_por_conta_com_movimento(self):
 		self.assertEqual(len(montar_k155(LANCAMENTOS)), 2)
+
+
+class TestMontarK156(unittest.TestCase):
+	def test_uma_linha_por_mapeamento_com_movimento(self):
+		mapeamentos = [
+			MapeamentoReferencial(conta="Clientes", codigo_referencial="1.01.03.01"),
+		]
+
+		linhas = montar_k156(LANCAMENTOS, mapeamentos)
+
+		self.assertEqual(len(linhas), 1)
+		self.assertEqual(linhas[0]["REG"], "K156")
+		self.assertEqual(linhas[0]["COD_CTA_REF"], "1.01.03.01")
+		self.assertNotIn("COD_CTA", linhas[0])
+		self.assertNotIn("COD_CCUS", linhas[0])
+
+	def test_valores_batem_com_i155(self):
+		mapeamentos = [MapeamentoReferencial(conta="Clientes", codigo_referencial="1.01.03.01")]
+
+		linhas_i155 = montar_i155(LANCAMENTOS)
+		linhas_k156 = montar_k156(LANCAMENTOS, mapeamentos)
+
+		linha_clientes = next(
+			l for l in linhas_i155 if l["VL_SLD_FIN"] == linhas_k156[0]["VL_SLD_FIN"]
+		)
+		self.assertEqual(linhas_k156[0]["VL_DEB"], linha_clientes["VL_DEB"])
+		self.assertEqual(linhas_k156[0]["IND_VL_SLD_INICIAL"], linha_clientes["IND_DC_INI"])
+		self.assertEqual(linhas_k156[0]["IND_VL_SLD_FIN"], linha_clientes["IND_DC_FIN"])
+
+	def test_conta_mapeada_sem_movimento_nao_gera_linha(self):
+		mapeamentos = [MapeamentoReferencial(conta="Estoques", codigo_referencial="1.01.04.01")]
+
+		self.assertEqual(montar_k156(LANCAMENTOS, mapeamentos), [])
+
+	def test_conta_desconhecida_levanta_erro(self):
+		mapeamentos = [MapeamentoReferencial(conta="Conta Inexistente", codigo_referencial="9.99")]
+
+		with self.assertRaises(Exception):
+			montar_k156(LANCAMENTOS, mapeamentos)
 
 
 class TestMontarK990(unittest.TestCase):
