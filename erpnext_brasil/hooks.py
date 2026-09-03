@@ -72,7 +72,11 @@ for _doctype in (
 			"erpnext_brasil.integracao.documento.apurar_impostos",
 			"erpnext_brasil.integracao.cfop_sugestao.sugerir_cfop_compra_venda",
 			"erpnext_brasil.integracao.chave_acesso_documento.validar_chave_acesso",
-		]
+		],
+		# Em `on_submit`, não em `validate`: o aviso de ambiente de teste só faz sentido
+		# quando o documento é efetivado. Em `validate` ele apareceria a cada gravação
+		# de rascunho, e alerta repetido é alerta ignorado.
+		"on_submit": ["erpnext_brasil.integracao.alerta_fiscal.avisar_ambiente_de_homologacao"],
 	}
 
 for _doctype in ("Sales Order", "Purchase Order"):

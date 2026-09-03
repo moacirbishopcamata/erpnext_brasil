@@ -91,3 +91,59 @@ conseguir abrir o vencido, ou nunca informaria o caso mais urgente. Daí
   dos dois, registra no log em vez de criar notificação órfã.
 - **Diário, não horário**: a regra raciocina em dias; de hora em hora repetiria o mesmo
   alerta 24 vezes no dia do marco.
+
+## Auditoria: que outras funcionalidades precisavam de alerta
+
+Pergunta seguinte do usuário. Levantados todos os pontos de risco do app; os dois abaixo
+tinham risco real **e** base já verificada no código, e foram implementados em
+`integracao/alerta_fiscal.py`.
+
+### 1. Documento fiscal aprovado com o ambiente em Homologação
+
+O pior tipo de falha: silenciosa e cara. Documento transmitido em homologação **não tem
+valor fiscal nenhum** — a SEFAZ autoriza, o número é consumido no ambiente de teste, e a
+mercadoria circula sem documento válido. Quem esquece o ambiente em Homologação depois de
+testar não recebia erro nenhum.
+
+Decisões:
+
+- **Aviso, não bloqueio** (`msgprint`, não `throw`): homologar é uso legítimo, e travar o
+  envio impediria justamente o teste que o ambiente existe para permitir.
+- **Em `on_submit`, não em `validate`**: em `validate` apareceria a cada gravação de
+  rascunho, e alerta repetido é alerta ignorado.
+- **Só quando há chave de acesso preenchida**: sem chave o documento não foi transmitido
+  a lugar nenhum e o ambiente é irrelevante — avisar ali seria ruído em todo lançamento
+  manual.
+
+### 2. Cadastro incompleto para gerar a EFD
+
+Os registros recusam dado ausente um a um, mas só na montagem, e a montagem para no
+primeiro erro: quem tem mil itens descobre um problema por rodada. `verificar_prontidao_efd`
+varre antes e devolve a **lista completa**.
+
+A regra do que é pendência mora em `contabil/prontidao_fiscal.py` (puro, testável sem
+bench) e **não inventa exigência**: é exatamente o que `efd_bloco_0`/`efd_bloco_c` já
+exigem. Onde o registro aceita vazio, aqui também não vira bloqueio — o NCM ausente, por
+exemplo, é **atenção** e não bloqueio, porque o layout o exige de indústria e equiparada,
+não de todo mundo. Alertar sobre campo opcional treinaria o usuário a ignorar o alerta,
+que é como um alerta morre.
+
+Cada pendência diz **onde resolver** na tela ("Empresa > EFD-ICMS/IPI"), não o nome
+interno do campo: quem lê precisa saber para onde ir.
+
+### O que deliberadamente NÃO virou alerta: prazos das obrigações acessórias
+
+Seria o alerta mais óbvio de um ERP fiscal — e foi deixado de fora de propósito. Ao
+levantar as datas, as fontes consultadas **divergem entre si**:
+
+- EFD-Contribuições aparece como "dia 15" numa fonte e "10º dia útil do 2º mês
+  subsequente" noutra;
+- ECD aparece como "30 de junho" e como "último dia útil de maio";
+- o prazo da EFD-ICMS/IPI **varia por UF**, então não existe uma data nacional;
+- o site oficial da RFB continua recusando conexão (mesmo obstáculo de
+  `docs/nfce-qrcode.md` e `docs/sped-fiscal.md`).
+
+Cravar data legal errada em código é **pior** que não ter o alerta: o usuário confiaria e
+perderia o prazo — com multa. Fica como pendência explícita, a ser implementada quando
+houver fonte primária confirmada, e provavelmente **como configuração** (o prazo muda por
+legislação e por UF), não como constante.
