@@ -289,6 +289,99 @@ de 1.000 para 820, e manter o ICMS ali recolhe R$ 6,57 a maior no regime cumulat
 dinheiro que a empresa não deve. A exclusão é o padrão, mas continua sendo parâmetro,
 porque a decisão tem modulação.
 
+## Padrões de engenharia deste projeto
+
+O que diferencia este app de uma localização fiscal típica não é o volume de código —
+é a disciplina por trás de cada linha. Cinco regras não-negociáveis, aplicadas desde o
+primeiro incremento:
+
+1. **Nenhuma regra fiscal nasce de memória.** Alíquota, prazo, base de cálculo, layout
+   de campo — tudo é conferido contra a norma (lei, IN RFB, Ajuste SINIEF, Convênio
+   ICMS, Nota Técnica, XSD oficial) antes de virar código. Quando só existe fonte
+   secundária, o nível de confiança é **declarado no próprio módulo**, nunca
+   apresentado como se fosse primário — ver por exemplo `contabil/destda.py` ou
+   `contabil/ecf_bloco_k.py`.
+2. **Nunca supor por analogia entre documentos "da mesma família".** NF-e, CT-e e
+   MDF-e parecem primos — e divergem sistematicamente em pontos que só a leitura
+   direta do XSD de cada um revela (`modal` do CT-e é `01`-`06`, do MDF-e é `1`-`4`;
+   o `tpEvento` de cancelamento é o mesmo número nos três documentos, mas o autorizador
+   por UF do CT-e não bate com o da NF-e nem para as UFs que têm webservice próprio
+   nos dois). Cada divergência real vira um achado documentado, não um bug descoberto
+   depois em produção.
+3. **Camada fiscal pura, sem uma linha de framework.** `fiscal/`, `contabil/` e
+   `folha/` não importam `frappe` — são funções e dataclasses testáveis com
+   `python -m unittest`, sem bench, sem site, sem banco. A regra é **executável**, não
+   só documentada: `tests/test_arquitetura.py` percorre a árvore de imports e falha se
+   algum módulo violar essa fronteira. `integracao/` é a única camada que fala com o
+   Frappe, e é deliberadamente fina (limite de linhas também testado).
+4. **Todo incremento vira documento, não só commit.** Cada peça de código tem um
+   `.md` irmão em [`docs/`](docs/README.md) explicando o que foi verificado, contra
+   qual fonte, e o que ficou de fora e por quê — inclusive quando a resposta é "isto
+   não é um gap real" (ver `docs/gia-nao-e-gap.md`) ou "isto está fora do que dá para
+   verificar com segurança agora" (ver `docs/versoes-frappe-erpnext.md`).
+5. **Achado real > suposição conveniente.** Quando um teste ou uma investigação revela
+   algo que contradiz a expectativa — um campo com nome diferente do esperado, uma
+   tabela que não bate com a de um documento irmão, um bug no próprio teste em vez de
+   no código — isso é registrado explicitamente como achado, nunca silenciado para a
+   história ficar mais limpa.
+
+### SOLID, Design by Contract e Elegant Objects — como lentes, não como dogma
+
+Três referências de design orientam decisões concretas neste projeto, sempre a favor
+do pragmatismo quando conflitam com o estilo idiomático do Frappe:
+
+- **SOLID**: a inversão de dependência é a mais aplicada — `fiscal/` nunca depende de
+  `integracao/` (regra 3 acima é uma instância disso), e onde a apuração fiscal precisa
+  de uma tabela oficial (classificação, CFOP), ela depende de um `Protocol` (ex.
+  `RepositorioClassificacao`), não da fonte concreta do dado. Responsabilidade única
+  contra o "AppService" que cresceria para cobrir casos não relacionados — cada módulo
+  de `contabil/`/`fiscal/` cobre um registro/documento, não um domínio inteiro.
+- **Design by Contract** (pré-condição/pós-condição/invariante, não só "contrato" no
+  sentido de interface): a correção real de `montar_ide` do CT-e — que não validava o
+  modelo da chave antes de extrair o `cDV` — foi resolvida acrescentando uma
+  pré-condição explícita (`CteInvalido` se a chave não for modelo `"57"`), não só
+  corrigindo o valor. Pós-condição é o que `test_j050_e_i050_com_reg_trocado`/
+  `test_k155_reaproveita_i155_com_indicadores_renomeados` verificam: não só "a função
+  devolveu algo", mas que os valores batem exatamente com o que a função reaproveitada
+  já calculou.
+- **Elegant Objects** (Bugayenko) como lente de revisão, não regra a obedecer: as
+  dataclasses `frozen=True` que dominam `fiscal/`/`contabil/` (`CorrecaoCte`,
+  `SaldoInicial`, `MapeamentoReferencial`) são o pedaço do estilo que custa zero e só
+  traz benefício — imutabilidade real, sem setter. Onde o projeto **diverge**
+  conscientemente (métodos estáticos/funções soltas em vez de objeto com estado, ORM do
+  Frappe como Active Record deliberado) isso é uma escolha registrada, não um
+  descuido — ver a seção "Sete Virtudes de Bugayenko vs. arquitetura em camadas" nas
+  diretrizes de engenharia deste time.
+
+Estas três referências (SOLID, Design by Contract, Elegant Objects) e o modo como se
+aplicam a este projeto são escolha própria do projetista de software **Moacir Bishop
+Camata** (<moacirbishopcamata@gmail.com>).
+
+### TDD e cobertura de teste — na costura, não só na unidade isolada
+
+Nenhum incremento entra sem teste — não como formalidade depois do fato, mas como parte
+do próprio ciclo de escrever o código: toda função de montagem nasce com o teste que
+prova o formato certo antes de ser considerada pronta, e todo achado real (uma
+divergência de nome de campo, um reuso que bate exatamente com o que outro módulo já
+produz) vira um teste nomeado pelo achado, não um `assert` genérico — os nomes de teste
+deste projeto são pesquisáveis por achado (`test_k155_reaproveita_i155_com_indicadores_
+renomeados`, `test_cdv_e_o_digito_verificador_da_chave`).
+
+Cobertura alta de linha não é o alvo em si — é consequência de mirar na **costura**, não
+no componente isolado: um teste que só confere "a função devolveu sem erro" não pega uma
+mutação que devia ter persistido e não persistiu, porque nunca releu por um caminho
+independente para comparar. É por isso que `test_j050_e_i050_com_reg_trocado` compara o
+resultado de duas funções calculadas por caminhos diferentes campo a campo, em vez de só
+checar que cada uma "funciona" sozinha — e por isso a primeira rodada real de
+`tests_bench/test_certificado_a1.py` contra bench de verdade achou dois bugs (`decode`
+do `File`, estado que não voltava entre testes) que a suíte pura, sem banco real, não
+tinha como pegar.
+
+Mais de **1.670 testes** para o volume de código deste app é, também, o resultado
+prático dessa disciplina: cada regra fiscal chega com o teste que a defende, e a
+arquitetura em si (camada pura sem `frappe`, dependência numa direção só) é imposta por
+teste, não só por convenção em prosa (`tests/test_arquitetura.py`).
+
 ## Documentação
 
 O índice completo, sempre atualizado, está em [`docs/README.md`](docs/README.md) — mais
