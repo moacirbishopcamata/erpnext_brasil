@@ -89,9 +89,7 @@ def _det_pag(
 		)
 
 	if forma == "99" and not descricao:
-		raise PagamentoInvalido(
-			"Forma de pagamento 99 (Outros) exige a descrição (xPag)", "descricao"
-		)
+		raise PagamentoInvalido("Forma de pagamento 99 (Outros) exige a descrição (xPag)", "descricao")
 
 	grupo: dict = {}
 

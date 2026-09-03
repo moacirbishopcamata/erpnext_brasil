@@ -149,7 +149,9 @@ class EventoLote:
 
 	def __post_init__(self):
 		if not self.id_evento:
-			raise EsocialLoteInvalido("id_evento não pode ser vazio — é a chave de casamento evento↔resultado")
+			raise EsocialLoteInvalido(
+				"id_evento não pode ser vazio — é a chave de casamento evento↔resultado"
+			)
 
 		if not self.xml_assinado:
 			raise EsocialLoteInvalido("xml_assinado não pode ser vazio")

@@ -86,13 +86,13 @@ mas deixaria este incremento sem nada para testar até existir tal caller).
 from dataclasses import dataclass, field
 
 __all__ = [
+	"ARVORE",
 	"ROOT_TYPE_ATIVO",
 	"ROOT_TYPE_DESPESA",
 	"ROOT_TYPE_PASSIVO",
 	"ROOT_TYPE_PATRIMONIO_LIQUIDO",
 	"ROOT_TYPE_RECEITA",
 	"TRIBUTOS_CONHECIDOS",
-	"ARVORE",
 	"Conta",
 	"PlanoDeContasInvalido",
 	"contas_do_tributo",
@@ -113,9 +113,7 @@ ROOT_TYPE_DESPESA = "Expense"
 # implícitos nos módulos de cálculo (`icms.py`, `ipi.py`, `pis_cofins.py`, `ibs_cbs.py`).
 # Mantido aqui como allowlist — se um novo tributo ganhar conta, precisa entrar nesta
 # lista primeiro, nunca só aparecer solto numa `Conta`.
-TRIBUTOS_CONHECIDOS = frozenset(
-	{"ICMS", "IPI", "PIS", "COFINS", "ISS", "IBS", "CBS", "IRRF", "CSRF", "INSS"}
-)
+TRIBUTOS_CONHECIDOS = frozenset({"ICMS", "IPI", "PIS", "COFINS", "ISS", "IBS", "CBS", "IRRF", "CSRF", "INSS"})
 
 
 class PlanoDeContasInvalido(ValueError):
@@ -287,12 +285,7 @@ def contas_do_tributo(tributo: str, arvore: tuple[tuple[str, Conta], ...] = ARVO
 	Devolve lista vazia para tributo desconhecido ou sem conta — nunca levanta: quem
 	precisa garantir que o tributo existe usa `validar_arvore`, não este atalho.
 	"""
-	return [
-		conta
-		for _root_type, raiz in arvore
-		for conta in _percorrer(raiz)
-		if conta.tributo == tributo
-	]
+	return [conta for _root_type, raiz in arvore for conta in _percorrer(raiz) if conta.tributo == tributo]
 
 
 def montar_codigos(arvore: tuple[tuple[str, Conta], ...] = ARVORE) -> dict[str, str]:

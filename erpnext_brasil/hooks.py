@@ -80,9 +80,7 @@ for _doctype in (
 	}
 
 for _doctype in ("Sales Order", "Purchase Order"):
-	doc_events[_doctype] = {
-		"validate": ["erpnext_brasil.integracao.cfop_sugestao.sugerir_cfop_compra_venda"]
-	}
+	doc_events[_doctype] = {"validate": ["erpnext_brasil.integracao.cfop_sugestao.sugerir_cfop_compra_venda"]}
 
 for _doctype in ("Subcontracting Order", "Subcontracting Receipt"):
 	doc_events[_doctype] = {
@@ -95,8 +93,9 @@ for _doctype in ("Subcontracting Order", "Subcontracting Receipt"):
 scheduler_events = {
 	"daily": [
 		"erpnext_brasil.integracao.alerta_certificado.verificar_validade_dos_certificados",
-		# Mesma pergunta ("o que vai parar de funcionar em breve?"), mesma frequência:
-		# uma segunda entrada no agendador para um `if` de ano seria custo sem ganho.
-		"erpnext_brasil.integracao.alerta_certificado.verificar_transicao_da_reforma",
+		# Módulo diferente do de cima de propósito: é alerta de risco fiscal, não de
+		# certificado. Mesma frequência porque as duas respondem à mesma pergunta —
+		# "o que vai parar de funcionar em breve?".
+		"erpnext_brasil.integracao.alerta_fiscal.verificar_transicao_da_reforma",
 	]
 }

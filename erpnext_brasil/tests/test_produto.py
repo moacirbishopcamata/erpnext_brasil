@@ -169,10 +169,7 @@ class TestConformidadeDeTags(unittest.TestCase):
 		import pathlib
 
 		manifesto = (
-			pathlib.Path(__file__).resolve().parents[1]
-			/ "fiscal"
-			/ "documento"
-			/ "elementos_nfe.json"
+			pathlib.Path(__file__).resolve().parents[1] / "fiscal" / "documento" / "elementos_nfe.json"
 		)
 		self.elementos = set(json.loads(manifesto.read_text(encoding="utf-8")))
 

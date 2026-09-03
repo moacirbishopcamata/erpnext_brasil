@@ -15,7 +15,6 @@ from decimal import Decimal
 from erpnext_brasil.contabil.cnab400_retorno import (
 	CODIGOS_OCORRENCIA,
 	CODIGOS_OCORRENCIA_CORROBORADOS,
-	RegistroDetalhe,
 	RetornoCnabInvalido,
 	foi_pago,
 	ler_registro_detalhe,

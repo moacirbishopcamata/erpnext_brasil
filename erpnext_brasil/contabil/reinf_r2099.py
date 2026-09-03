@@ -44,7 +44,12 @@ Funções puras: nenhuma dependência do Frappe.
 import re
 from dataclasses import dataclass
 
-from erpnext_brasil.contabil.reinf_r4020 import AMBIENTE_PRODUCAO, AMBIENTE_PRODUCAO_RESTRITA, IdeContri, ReinfInvalido
+from erpnext_brasil.contabil.reinf_r4020 import (
+	AMBIENTE_PRODUCAO,
+	AMBIENTE_PRODUCAO_RESTRITA,
+	IdeContri,
+	ReinfInvalido,
+)
 
 __all__ = [
 	"AMBIENTE_PRODUCAO",
@@ -77,12 +82,13 @@ class IdeEventoFechamento:
 	def __post_init__(self):
 		if not _PADRAO_PER_APUR.match(self.per_apur):
 			raise ReinfInvalido(
-				f"perApur deve seguir o padrão AAAA-MM, entre 2010-01 e 2099-12, "
-				f"recebido {self.per_apur!r}"
+				f"perApur deve seguir o padrão AAAA-MM, entre 2010-01 e 2099-12, recebido {self.per_apur!r}"
 			)
 
 		if self.tp_amb not in (AMBIENTE_PRODUCAO, AMBIENTE_PRODUCAO_RESTRITA):
-			raise ReinfInvalido(f"tpAmb deve ser 1 (Produção) ou 2 (Produção Restrita), recebido {self.tp_amb}")
+			raise ReinfInvalido(
+				f"tpAmb deve ser 1 (Produção) ou 2 (Produção Restrita), recebido {self.tp_amb}"
+			)
 
 		if self.proc_emi not in (1, 2):
 			raise ReinfInvalido(f"procEmi deve ser 1 ou 2 neste evento, recebido {self.proc_emi}")

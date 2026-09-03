@@ -62,8 +62,8 @@ from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.validators import validar_cnpj
 
 __all__ = [
-	"CODIGO_SUCESSO_INUTILIZACAO",
 	"CODIGOS_UF_IBGE",
+	"CODIGO_SUCESSO_INUTILIZACAO",
 	"CODIGO_UF_POR_SIGLA",
 	"JUSTIFICATIVA_MAXIMA",
 	"JUSTIFICATIVA_MINIMA",

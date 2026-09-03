@@ -19,7 +19,13 @@ from erpnext_brasil.contabil.lancamento import (
 	gerar_lancamentos_venda,
 )
 from erpnext_brasil.contabil.plano_de_contas import listar_nomes
-from erpnext_brasil.fiscal.impostos.apuracao import ApuracaoDocumento, ItemFiscal, Operacao, apurar, apurar_documento
+from erpnext_brasil.fiscal.impostos.apuracao import (
+	ApuracaoDocumento,
+	ItemFiscal,
+	Operacao,
+	apurar,
+	apurar_documento,
+)
 
 
 def d(v: str) -> Decimal:
@@ -53,7 +59,8 @@ class TestGerarLancamentosVenda(unittest.TestCase):
 		"""Receita reconhecida + IPI (que passa por fora dela) precisa esgotar o total
 		da nota — nem sobra nem falta centavo em relação à apuração de origem."""
 		debito_clientes = sum(
-			(l.valor for l in self.lancamentos if l.conta_debito == "Clientes"), Decimal("0.00")
+			(lancamento.valor for lancamento in self.lancamentos if lancamento.conta_debito == "Clientes"),
+			Decimal("0.00"),
 		)
 
 		self.assertEqual(debito_clientes, self.apuracao.total_documento)
@@ -61,23 +68,31 @@ class TestGerarLancamentosVenda(unittest.TestCase):
 	def test_toda_conta_de_credito_aparece_exatamente_uma_vez(self):
 		"""Cada tributo/receita tem uma única partida de crédito neste conjunto — uma
 		conta creditada duas vezes seria sinal de dupla contagem."""
-		creditos = [l.conta_credito for l in self.lancamentos]
+		creditos = [lancamento.conta_credito for lancamento in self.lancamentos]
 
 		self.assertEqual(len(creditos), len(set(creditos)))
 
 	def test_ipi_nao_toca_a_receita(self):
 		"""DL 1.598/1977, Art. 12, § 4º, I — IPI vai direto Clientes → IPI a Recolher."""
-		linha_ipi = next(l for l in self.lancamentos if l.conta_credito == "IPI a Recolher")
+		linha_ipi = next(
+			lancamento for lancamento in self.lancamentos if lancamento.conta_credito == "IPI a Recolher"
+		)
 
 		self.assertEqual(linha_ipi.conta_debito, "Clientes")
 		self.assertEqual(linha_ipi.valor, self.apuracao.total_ipi)
 
-		linha_receita = next(l for l in self.lancamentos if l.conta_credito == "Receita Bruta de Vendas e Serviços")
+		linha_receita = next(
+			lancamento
+			for lancamento in self.lancamentos
+			if lancamento.conta_credito == "Receita Bruta de Vendas e Serviços"
+		)
 
 		self.assertEqual(linha_receita.valor, self.apuracao.total_produtos)
 
 	def test_icms_e_deducao_da_receita(self):
-		linha = next(l for l in self.lancamentos if l.conta_credito == "ICMS a Recolher")
+		linha = next(
+			lancamento for lancamento in self.lancamentos if lancamento.conta_credito == "ICMS a Recolher"
+		)
 
 		self.assertEqual(linha.conta_debito, "ICMS sobre Vendas")
 		self.assertEqual(linha.valor, self.apuracao.total_icms)
@@ -95,12 +110,12 @@ class TestGerarLancamentosVenda(unittest.TestCase):
 		apuracao_sem_icms = apurar_documento([item_padrao(aliquota_icms=d("0"))], Operacao())
 		lancamentos = gerar_lancamentos_venda(apuracao_sem_icms)
 
-		self.assertFalse(any(l.conta_credito == "ICMS a Recolher" for l in lancamentos))
+		self.assertFalse(any(lancamento.conta_credito == "ICMS a Recolher" for lancamento in lancamentos))
 
 	def test_historico_customizado_propaga_para_todas_as_partidas(self):
 		lancamentos = gerar_lancamentos_venda(self.apuracao, historico="NF-e 123")
 
-		self.assertTrue(all(l.historico == "NF-e 123" for l in lancamentos))
+		self.assertTrue(all(lancamento.historico == "NF-e 123" for lancamento in lancamentos))
 
 	def test_ibs_e_cbs_entram_na_receita_e_saem_por_deducao_quando_ha_recolhimento_real(self):
 		"""Modelagem provisória (ver docstring do módulo): tratados como o ICMS, não
@@ -113,11 +128,21 @@ class TestGerarLancamentosVenda(unittest.TestCase):
 		)
 		lancamentos = gerar_lancamentos_venda(apuracao)
 
-		linha_receita = next(l for l in lancamentos if l.conta_credito == "Receita Bruta de Vendas e Serviços")
-		linha_ibs = next(l for l in lancamentos if l.conta_credito == "IBS a Recolher")
-		linha_cbs = next(l for l in lancamentos if l.conta_credito == "CBS a Recolher")
+		linha_receita = next(
+			lancamento
+			for lancamento in lancamentos
+			if lancamento.conta_credito == "Receita Bruta de Vendas e Serviços"
+		)
+		linha_ibs = next(
+			lancamento for lancamento in lancamentos if lancamento.conta_credito == "IBS a Recolher"
+		)
+		linha_cbs = next(
+			lancamento for lancamento in lancamentos if lancamento.conta_credito == "CBS a Recolher"
+		)
 
-		self.assertEqual(linha_receita.valor, apuracao.total_produtos + apuracao.total_ibs + apuracao.total_cbs)
+		self.assertEqual(
+			linha_receita.valor, apuracao.total_produtos + apuracao.total_ibs + apuracao.total_cbs
+		)
 		self.assertEqual(linha_ibs.conta_debito, "IBS sobre Vendas")
 		self.assertEqual(linha_cbs.conta_debito, "CBS sobre Vendas")
 
@@ -134,7 +159,7 @@ class TestFaseDeTesteIBSCBS(unittest.TestCase):
 		)
 		lancamentos = gerar_lancamentos_venda(apuracao)
 
-		contas_creditadas = {l.conta_credito for l in lancamentos}
+		contas_creditadas = {lancamento.conta_credito for lancamento in lancamentos}
 
 		self.assertNotIn("IBS a Recolher", contas_creditadas)
 		self.assertNotIn("CBS a Recolher", contas_creditadas)
@@ -146,9 +171,15 @@ class TestFaseDeTesteIBSCBS(unittest.TestCase):
 		)
 		lancamentos = gerar_lancamentos_venda(apuracao)
 
-		linha_receita = next(l for l in lancamentos if l.conta_credito == "Receita Bruta de Vendas e Serviços")
+		linha_receita = next(
+			lancamento
+			for lancamento in lancamentos
+			if lancamento.conta_credito == "Receita Bruta de Vendas e Serviços"
+		)
 
-		self.assertEqual(linha_receita.valor, apuracao.total_produtos + apuracao.total_ibs + apuracao.total_cbs)
+		self.assertEqual(
+			linha_receita.valor, apuracao.total_produtos + apuracao.total_ibs + apuracao.total_cbs
+		)
 
 	def test_debito_em_clientes_continua_fechando_com_o_total_do_documento(self):
 		apuracao = apurar_documento(
@@ -157,7 +188,10 @@ class TestFaseDeTesteIBSCBS(unittest.TestCase):
 		)
 		lancamentos = gerar_lancamentos_venda(apuracao)
 
-		debito_clientes = sum((l.valor for l in lancamentos if l.conta_debito == "Clientes"), Decimal("0.00"))
+		debito_clientes = sum(
+			(lancamento.valor for lancamento in lancamentos if lancamento.conta_debito == "Clientes"),
+			Decimal("0.00"),
+		)
 
 		self.assertEqual(debito_clientes, apuracao.total_documento)
 
@@ -165,7 +199,11 @@ class TestFaseDeTesteIBSCBS(unittest.TestCase):
 		"""Um item apurado em 2026 (informativo) e outro em 2027 (recolhimento real) no
 		mesmo documento não têm uma única regra de lançamento válida — falha alto em vez
 		de escolher um dos dois lados por conta própria."""
-		aliquotas_ibs_cbs = {"aliquota_ibs_uf": d("0.10"), "aliquota_ibs_mun": d("0.02"), "aliquota_cbs": d("0.05")}
+		aliquotas_ibs_cbs = {
+			"aliquota_ibs_uf": d("0.10"),
+			"aliquota_ibs_mun": d("0.02"),
+			"aliquota_cbs": d("0.05"),
+		}
 		item_2026 = apurar(item_padrao(**aliquotas_ibs_cbs), Operacao(ano=2026))
 		item_2027 = apurar(item_padrao(**aliquotas_ibs_cbs), Operacao(ano=2027))
 		apuracao_mista = ApuracaoDocumento(itens=[item_2026, item_2027])
@@ -205,22 +243,31 @@ class TestGerarLancamentosCompra(unittest.TestCase):
 	def test_credito_de_icms_reduz_o_custo_em_estoques(self):
 		lancamentos = gerar_lancamentos_compra(d("1000.00"), {"ICMS": d("180.00")})
 
-		linha_credito = next(l for l in lancamentos if l.conta_debito == "ICMS a Recuperar")
+		linha_credito = next(
+			lancamento for lancamento in lancamentos if lancamento.conta_debito == "ICMS a Recuperar"
+		)
 		self.assertEqual(linha_credito.conta_credito, "Estoques")
 		self.assertEqual(linha_credito.valor, d("180.00"))
 
-		debito_estoques = sum((l.valor for l in lancamentos if l.conta_debito == "Estoques"), d("0.00"))
-		credito_estoques = sum((l.valor for l in lancamentos if l.conta_credito == "Estoques"), d("0.00"))
+		debito_estoques = sum(
+			(lancamento.valor for lancamento in lancamentos if lancamento.conta_debito == "Estoques"),
+			d("0.00"),
+		)
+		credito_estoques = sum(
+			(lancamento.valor for lancamento in lancamentos if lancamento.conta_credito == "Estoques"),
+			d("0.00"),
+		)
 		self.assertEqual(debito_estoques - credito_estoques, d("820.00"))
 
 	def test_varios_creditos_simultaneos(self):
 		lancamentos = gerar_lancamentos_compra(
 			d("1000.00"), {"ICMS": d("180.00"), "IPI": d("100.00"), "PIS": d("16.50"), "COFINS": d("76.00")}
 		)
-		contas_debito = {l.conta_debito for l in lancamentos}
+		contas_debito = {lancamento.conta_debito for lancamento in lancamentos}
 
 		self.assertEqual(
-			contas_debito, {"Estoques", "ICMS a Recuperar", "IPI a Recuperar", "PIS a Recuperar", "COFINS a Recuperar"}
+			contas_debito,
+			{"Estoques", "ICMS a Recuperar", "IPI a Recuperar", "PIS a Recuperar", "COFINS a Recuperar"},
 		)
 
 	def test_credito_zerado_nao_gera_lancamento_vazio(self):
@@ -251,7 +298,7 @@ class TestGerarLancamentosCompra(unittest.TestCase):
 	def test_historico_customizado_propaga(self):
 		lancamentos = gerar_lancamentos_compra(d("1000.00"), {"ICMS": d("180.00")}, historico="NF 456")
 
-		self.assertTrue(all(l.historico == "NF 456" for l in lancamentos))
+		self.assertTrue(all(lancamento.historico == "NF 456" for lancamento in lancamentos))
 
 
 class TestPartida(unittest.TestCase):
@@ -287,7 +334,9 @@ class TestLancamentoMultiplo(unittest.TestCase):
 
 	def test_sem_partida_de_um_dos_lados_e_rejeitado(self):
 		with self.assertRaises(LancamentoInvalido):
-			LancamentoMultiplo(debitos=(), creditos=(Partida("Disponibilidades", d("100.00")),), historico="teste")
+			LancamentoMultiplo(
+				debitos=(), creditos=(Partida("Disponibilidades", d("100.00")),), historico="teste"
+			)
 
 	def test_valor_total_e_o_mesmo_dos_dois_lados(self):
 		lancamento = LancamentoMultiplo(

@@ -119,8 +119,8 @@ __all__ = [
 	"ENDPOINTS_NFCE",
 	"ENDPOINTS_NFCE_HOMOLOGACAO",
 	"OPERACAO_SOAP",
-	"UF_CONTINGENCIA_SVC",
 	"UFS_COM_CONSULTA_CADASTRO_NO_SVRS",
+	"UF_CONTINGENCIA_SVC",
 	"AutorizadorDesconhecido",
 	"endpoint",
 ]
@@ -643,11 +643,7 @@ def endpoint(
 	if grupo is None:
 		raise AutorizadorDesconhecido(f"UF {uf!r} não consta na tabela de autorizadores")
 
-	if (
-		grupo == _SVRS
-		and servico == "NfeConsultaCadastro"
-		and sigla not in UFS_COM_CONSULTA_CADASTRO_NO_SVRS
-	):
+	if grupo == _SVRS and servico == "NfeConsultaCadastro" and sigla not in UFS_COM_CONSULTA_CADASTRO_NO_SVRS:
 		return None
 
 	chave = grupo if grupo in (_SVAN, _SVRS) else sigla

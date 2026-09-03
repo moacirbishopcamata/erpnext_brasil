@@ -37,9 +37,7 @@ class TestAutorizadorPorUf(unittest.TestCase):
 		serve DistribuicaoDFe -- excluídos para isolar as UFs com webservice
 		próprio de verdade."""
 		nao_uf = {"SVRS", "SVSP", "AN"}
-		proprios = {
-			uf for uf, grupo in AUTORIZADOR_POR_UF.items() if grupo == uf and uf not in nao_uf
-		}
+		proprios = {uf for uf, grupo in AUTORIZADOR_POR_UF.items() if grupo == uf and uf not in nao_uf}
 		self.assertEqual(proprios, {"MG", "MS", "MT", "PR", "RS", "SP"})
 
 

@@ -336,9 +336,7 @@ _REGRAS: dict[str, Callable[[str], bool]] = {
 	"PR": _regra_dois_digitos(10, (3, 2, 7, 6, 5, 4, 3, 2), (4, 3, 2, 7, 6, 5, 4, 3, 2)),
 	"RJ": _regra_simples(8, (2, 7, 6, 5, 4, 3, 2)),
 	"RN": _regra_simples(9, _PADRAO_9, prefixos=("20",), dv=_dv_vezes_10),
-	"RO": _regra_simples(
-		14, (6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2), dv=_dv_modulo_11_subtraindo_10
-	),
+	"RO": _regra_simples(14, (6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2), dv=_dv_modulo_11_subtraindo_10),
 	"RR": _validar_rr,
 	"RS": _regra_simples(10, (2, 9, 8, 7, 6, 5, 4, 3, 2)),
 	"SC": _regra_simples(9, _PADRAO_9),

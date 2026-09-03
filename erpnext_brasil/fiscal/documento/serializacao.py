@@ -73,8 +73,7 @@ class Cdata:
 	def __post_init__(self):
 		if "]]>" in self.texto:
 			raise ErroSerializacao(
-				"Conteúdo de CDATA não pode conter a sequência ']]>' — encerraria a "
-				"seção no meio do texto"
+				"Conteúdo de CDATA não pode conter a sequência ']]>' — encerraria a seção no meio do texto"
 			)
 
 
@@ -157,8 +156,7 @@ def para_xml(arvore: dict, namespace: str | None = None, declaracao: bool = Fals
 
 	if len(nomes) != 1:
 		raise ErroSerializacao(
-			f"O XML precisa de exatamente um elemento raiz, encontrados {len(nomes)}: "
-			f"{nomes}"
+			f"O XML precisa de exatamente um elemento raiz, encontrados {len(nomes)}: {nomes}"
 		)
 
 	nome = nomes[0]

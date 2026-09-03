@@ -99,7 +99,9 @@ class IdeEvento:
 		_validar_digito_unico(self.proc_emi, "procEmi")
 
 		if not (1 <= len(self.ver_proc) <= 20):
-			raise EsocialS2299Invalido(f"verProc deve ter entre 1 e 20 caracteres, recebido {self.ver_proc!r}")
+			raise EsocialS2299Invalido(
+				f"verProc deve ter entre 1 e 20 caracteres, recebido {self.ver_proc!r}"
+			)
 
 
 @dataclass(frozen=True)
@@ -134,4 +136,6 @@ class VerbasResc:
 
 	def __post_init__(self):
 		if len(self.dm_dev) > 50:
-			raise EsocialS2299Invalido(f"dmDev aceita no máximo 50 ocorrências aqui, recebido {len(self.dm_dev)}")
+			raise EsocialS2299Invalido(
+				f"dmDev aceita no máximo 50 ocorrências aqui, recebido {len(self.dm_dev)}"
+			)

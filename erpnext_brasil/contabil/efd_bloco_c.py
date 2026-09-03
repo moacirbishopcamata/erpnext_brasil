@@ -75,6 +75,8 @@ from erpnext_brasil.contabil.efd_icms_ipi import EfdInvalido
 
 __all__ = [
 	"COD_SIT_VALIDOS",
+	"EMISSAO_PROPRIA",
+	"EMISSAO_TERCEIROS",
 	"IND_FRT_VALIDOS",
 	"IND_PGTO_VALIDOS",
 	"MODELOS_ELETRONICOS",
@@ -82,8 +84,6 @@ __all__ = [
 	"MODELO_NFE",
 	"OPERACAO_ENTRADA",
 	"OPERACAO_SAIDA",
-	"EMISSAO_PROPRIA",
-	"EMISSAO_TERCEIROS",
 	"SITUACAO_NUMERACAO_INUTILIZADA",
 	"DocumentoFiscal",
 	"RegistroAnalitico",
@@ -245,16 +245,12 @@ class DocumentoFiscal:
 			return
 
 		if self.codigo_participante:
-			raise EfdInvalido(
-				"NFC-e (modelo 65) não informa COD_PART (Exceção 9 do Guia Prático)"
-			)
+			raise EfdInvalido("NFC-e (modelo 65) não informa COD_PART (Exceção 9 do Guia Prático)")
 
 		informados = [nome for nome in _PROIBIDOS_NA_NFCE if getattr(self, nome) is not None]
 
 		if informados:
-			raise EfdInvalido(
-				f"NFC-e (modelo 65) não informa {informados} (Exceção 9 do Guia Prático)"
-			)
+			raise EfdInvalido(f"NFC-e (modelo 65) não informa {informados} (Exceção 9 do Guia Prático)")
 
 
 @dataclass(frozen=True)
@@ -351,8 +347,7 @@ def montar_c990(quantidade_linhas: int) -> dict:
 	convenção de `efd_bloco_0.montar_0990`. A contagem inclui o próprio `C990`."""
 	if quantidade_linhas < 2:
 		raise EfdInvalido(
-			"o Bloco C tem no mínimo duas linhas (C001 e o próprio C990), "
-			f"recebido {quantidade_linhas}"
+			f"o Bloco C tem no mínimo duas linhas (C001 e o próprio C990), recebido {quantidade_linhas}"
 		)
 
 	return {"REG": "C990", "QTD_LIN_C": str(quantidade_linhas)}

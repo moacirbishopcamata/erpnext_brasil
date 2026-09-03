@@ -156,9 +156,7 @@ def operacao_de_documento(documento: dict) -> Operacao:
 
 	return Operacao(
 		destinatario_contribuinte=indicador == "Contribuinte ICMS",
-		destinado_a_industrializacao_ou_comercio=bool(
-			documento.get("br_destinado_a_revenda", True)
-		),
+		destinado_a_industrializacao_ou_comercio=bool(documento.get("br_destinado_a_revenda", True)),
 		regime_pis_cofins=documento.get("br_regime_pis_cofins") or "cumulativo",
 		ano=_ano_da_operacao(documento),
 		excluir_icms_de_pis_cofins=bool(documento.get("br_excluir_icms_pis_cofins", True)),

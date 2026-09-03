@@ -37,7 +37,9 @@ class TestCfopPrestacaoTransporte(unittest.TestCase):
 
 		for finalidade, esperado in casos.items():
 			with self.subTest(finalidade=finalidade):
-				self.assertEqual(cfop_prestacao_transporte(mesmo_estado=True, finalidade=finalidade), esperado)
+				self.assertEqual(
+					cfop_prestacao_transporte(mesmo_estado=True, finalidade=finalidade), esperado
+				)
 
 	def test_todos_os_perfis_outro_estado(self):
 		"""Mesmos oito perfis, outro estado — só o primeiro dígito muda (5→6), mesmo
@@ -55,7 +57,9 @@ class TestCfopPrestacaoTransporte(unittest.TestCase):
 
 		for finalidade, esperado in casos.items():
 			with self.subTest(finalidade=finalidade):
-				self.assertEqual(cfop_prestacao_transporte(mesmo_estado=False, finalidade=finalidade), esperado)
+				self.assertEqual(
+					cfop_prestacao_transporte(mesmo_estado=False, finalidade=finalidade), esperado
+				)
 
 	def test_finalidade_desconhecida_levanta_cfop_invalido(self):
 		with self.assertRaises(CfopInvalido):

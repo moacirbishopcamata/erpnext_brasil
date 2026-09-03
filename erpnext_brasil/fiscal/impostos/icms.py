@@ -25,7 +25,7 @@ classe de bug em que alguém passa 18 e obtém um imposto dezoito vezes maior.
 Funções puras: nenhuma dependência do Frappe.
 """
 
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 __all__ = [
 	"CENTAVO",
@@ -57,9 +57,7 @@ def arredondar(valor: Decimal, casas: Decimal = CENTAVO) -> Decimal:
 def _fracao(aliquota: Decimal, nome: str) -> Decimal:
 	"""Valida que a alíquota veio como fração, não como percentual."""
 	if not (Decimal(0) <= aliquota < Decimal(1)):
-		raise ValueError(
-			f"{nome} deve ser fração entre 0 e 1 (0.18 para 18%), recebido {aliquota}"
-		)
+		raise ValueError(f"{nome} deve ser fração entre 0 e 1 (0.18 para 18%), recebido {aliquota}")
 
 	return aliquota
 
@@ -129,7 +127,7 @@ def mva_ajustada(
 	carga na origem é menor, e usar a MVA original subestimaria a substituição. O ajuste
 	recompõe a diferença:
 
-        MVA aj = [(1 + MVA) × (1 - Aliq inter) / (1 - Aliq intra)] - 1
+	MVA aj = [(1 + MVA) × (1 - Aliq inter) / (1 - Aliq intra)] - 1
 
 	Devolve fração (0.4523 para 45,23%), com quatro casas — a precisão usada nos
 	convênios.
@@ -231,9 +229,7 @@ def calcular_difal(
 	icms_origem = arredondar(valor_operacao * aliquota_interestadual)
 
 	if base_dupla:
-		base_destino = arredondar(
-			(valor_operacao - icms_origem) / (Decimal(1) - aliquota_interna_destino)
-		)
+		base_destino = arredondar((valor_operacao - icms_origem) / (Decimal(1) - aliquota_interna_destino))
 	else:
 		base_destino = arredondar(valor_operacao)
 

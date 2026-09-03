@@ -105,9 +105,6 @@ __all__ = [
 	"NAMESPACE_MDFE",
 	"PROCESSO_EMISSAO_APLICATIVO_CONTRIBUINTE",
 	"PROCESSO_EMISSAO_PAA",
-	"TRANSPORTADOR_CTC",
-	"TRANSPORTADOR_ETC",
-	"TRANSPORTADOR_TAC",
 	"RESPONSAVEL_SEGURO_CONTRATANTE",
 	"RESPONSAVEL_SEGURO_EMITENTE",
 	"TIPO_CARGA_CONTEINERIZADA",
@@ -122,6 +119,9 @@ __all__ = [
 	"TIPO_CARGA_PERIGOSA_FRIGORIFICADA",
 	"TIPO_CARGA_PERIGOSA_GRANEL_LIQUIDO",
 	"TIPO_CARGA_PERIGOSA_GRANEL_SOLIDO",
+	"TRANSPORTADOR_CTC",
+	"TRANSPORTADOR_ETC",
+	"TRANSPORTADOR_TAC",
 	"UNIDADE_PESO_KG",
 	"UNIDADE_PESO_TON",
 	"Emitente",
@@ -201,15 +201,24 @@ TIPO_CARGA_PERIGOSA_CARGA_GERAL = "11"
 TIPO_CARGA_GRANEL_PRESSURIZADA = "12"
 
 _TIPOS_CARGA_VALIDOS = {
-	TIPO_CARGA_GRANEL_SOLIDO, TIPO_CARGA_GRANEL_LIQUIDO, TIPO_CARGA_FRIGORIFICADA,
-	TIPO_CARGA_CONTEINERIZADA, TIPO_CARGA_GERAL, TIPO_CARGA_NEOGRANEL,
-	TIPO_CARGA_PERIGOSA_GRANEL_SOLIDO, TIPO_CARGA_PERIGOSA_GRANEL_LIQUIDO,
-	TIPO_CARGA_PERIGOSA_FRIGORIFICADA, TIPO_CARGA_PERIGOSA_CONTEINERIZADA,
-	TIPO_CARGA_PERIGOSA_CARGA_GERAL, TIPO_CARGA_GRANEL_PRESSURIZADA,
+	TIPO_CARGA_GRANEL_SOLIDO,
+	TIPO_CARGA_GRANEL_LIQUIDO,
+	TIPO_CARGA_FRIGORIFICADA,
+	TIPO_CARGA_CONTEINERIZADA,
+	TIPO_CARGA_GERAL,
+	TIPO_CARGA_NEOGRANEL,
+	TIPO_CARGA_PERIGOSA_GRANEL_SOLIDO,
+	TIPO_CARGA_PERIGOSA_GRANEL_LIQUIDO,
+	TIPO_CARGA_PERIGOSA_FRIGORIFICADA,
+	TIPO_CARGA_PERIGOSA_CONTEINERIZADA,
+	TIPO_CARGA_PERIGOSA_CARGA_GERAL,
+	TIPO_CARGA_GRANEL_PRESSURIZADA,
 }
 
 _EMITENTES_VALIDOS = {
-	EMITENTE_PRESTADOR_SERVICO, EMITENTE_TRANSPORTADOR_CARGA_PROPRIA, EMITENTE_PRESTADOR_CTE_GLOBALIZADO,
+	EMITENTE_PRESTADOR_SERVICO,
+	EMITENTE_TRANSPORTADOR_CARGA_PROPRIA,
+	EMITENTE_PRESTADOR_CTE_GLOBALIZADO,
 }
 _TRANSPORTADORES_VALIDOS = {TRANSPORTADOR_ETC, TRANSPORTADOR_TAC, TRANSPORTADOR_CTC}
 _MODAIS_VALIDOS = {MODAL_RODOVIARIO, MODAL_AEREO, MODAL_AQUAVIARIO, MODAL_FERROVIARIO}
@@ -272,8 +281,7 @@ class IdentificacaoMdfe:
 	def validar(self) -> None:
 		if self.tipo_emitente not in _EMITENTES_VALIDOS:
 			raise MdfeInvalido(
-				f"tipo_emitente deve ser um de {sorted(_EMITENTES_VALIDOS)}, "
-				f"recebido {self.tipo_emitente!r}",
+				f"tipo_emitente deve ser um de {sorted(_EMITENTES_VALIDOS)}, recebido {self.tipo_emitente!r}",
 				"tipo_emitente",
 			)
 
@@ -322,7 +330,9 @@ class MunicipioDescarga:
 	chaves_nfe: list[str] = field(default_factory=list)
 
 
-def _montar_referencias(chaves: list[str], modelo_esperado: str, campo_chave: str, nome_grupo: str) -> list[dict]:
+def _montar_referencias(
+	chaves: list[str], modelo_esperado: str, campo_chave: str, nome_grupo: str
+) -> list[dict]:
 	"""Valida e monta uma lista de referências por chave — mesma lógica de
 	`fiscal.cte.montar_infnfe`, parametrizada pelo modelo e pelo nome do campo/grupo
 	porque `infCTe`/`chCTe` e `infNFe`/`chNFe` só diferem nisso."""
@@ -463,8 +473,7 @@ def montar_tot(
 	"""
 	if unidade_peso not in _UNIDADES_PESO_VALIDAS:
 		raise MdfeInvalido(
-			f"unidade_peso deve ser um de {sorted(_UNIDADES_PESO_VALIDAS)}, "
-			f"recebido {unidade_peso!r}",
+			f"unidade_peso deve ser um de {sorted(_UNIDADES_PESO_VALIDAS)}, recebido {unidade_peso!r}",
 			"unidade_peso",
 		)
 

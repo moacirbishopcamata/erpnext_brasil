@@ -108,7 +108,9 @@ class IdeEventoFechamento:
 			)
 
 		if self.tp_amb not in (AMBIENTE_PRODUCAO, AMBIENTE_PRODUCAO_RESTRITA):
-			raise EsocialInvalido(f"tpAmb deve ser 1 (Produção) ou 2 (Produção Restrita), recebido {self.tp_amb}")
+			raise EsocialInvalido(
+				f"tpAmb deve ser 1 (Produção) ou 2 (Produção Restrita), recebido {self.tp_amb}"
+			)
 
 		validar_digito_unico(self.proc_emi, "procEmi")
 

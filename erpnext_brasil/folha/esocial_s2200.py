@@ -136,7 +136,9 @@ class IdeEvento:
 			raise EsocialS2200Invalido("procEmi não aceita o valor 8 neste evento (TS_procEmi_sem_8)")
 
 		if not (1 <= len(self.ver_proc) <= 20):
-			raise EsocialS2200Invalido(f"verProc deve ter entre 1 e 20 caracteres, recebido {self.ver_proc!r}")
+			raise EsocialS2200Invalido(
+				f"verProc deve ter entre 1 e 20 caracteres, recebido {self.ver_proc!r}"
+			)
 
 
 @dataclass(frozen=True)
@@ -179,7 +181,9 @@ class Vinculo:
 
 	def __post_init__(self):
 		if not (1 <= len(self.matricula) <= 30):
-			raise EsocialS2200Invalido(f"matricula deve ter entre 1 e 30 caracteres, recebido {self.matricula!r}")
+			raise EsocialS2200Invalido(
+				f"matricula deve ter entre 1 e 30 caracteres, recebido {self.matricula!r}"
+			)
 
 		_validar_digito_unico(self.tp_reg_trab, "tpRegTrab")
 
@@ -243,10 +247,14 @@ class InfoContrato:
 			raise EsocialS2200Invalido(f"codCateg deve ter exatamente 3 dígitos, recebido {self.cod_categ}")
 
 		if not (1 <= len(self.nm_cargo) <= 100):
-			raise EsocialS2200Invalido(f"nmCargo deve ter entre 1 e 100 caracteres, recebido {self.nm_cargo!r}")
+			raise EsocialS2200Invalido(
+				f"nmCargo deve ter entre 1 e 100 caracteres, recebido {self.nm_cargo!r}"
+			)
 
 		if self.valor_salario < Decimal("0"):
-			raise EsocialS2200Invalido(f"valor do salário não pode ser negativo, recebido {self.valor_salario}")
+			raise EsocialS2200Invalido(
+				f"valor do salário não pode ser negativo, recebido {self.valor_salario}"
+			)
 
 		_validar_digito_unico(self.unid_sal_fixo, "unidSalFixo")
 		_validar_digito_unico(self.tp_salario, "tpSalario")

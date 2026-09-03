@@ -65,7 +65,9 @@ def enviar_evento(
 	url = endpoint(contexto.uf, "RecepcaoEvento", ambiente=contexto.ambiente, modelo=modelo)
 
 	if not url:
-		raise TransporteIndisponivel(f"Não há endpoint de RecepcaoEvento confirmado para a UF {contexto.uf!r}")
+		raise TransporteIndisponivel(
+			f"Não há endpoint de RecepcaoEvento confirmado para a UF {contexto.uf!r}"
+		)
 
 	xml_interno = para_xml(envelope)
 	soap = montar_envelope("RecepcaoEvento", xml_interno)

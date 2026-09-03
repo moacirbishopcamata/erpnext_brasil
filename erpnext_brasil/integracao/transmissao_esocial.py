@@ -46,7 +46,9 @@ from erpnext_brasil.integracao.eventos_sefaz import TransporteIndisponivel
 __all__ = ["consultar_lote", "enviar_lote"]
 
 
-_NAMESPACE_CONSULTA = "http://www.esocial.gov.br/schema/lote/eventos/envio/consulta/retornoProcessamento/v1_0_0"
+_NAMESPACE_CONSULTA = (
+	"http://www.esocial.gov.br/schema/lote/eventos/envio/consulta/retornoProcessamento/v1_0_0"
+)
 """Confirmado no `targetNamespace` de `ConsultaLoteEventos-v1_0_0.xsd` — diferente do
 namespace da operação SOAP (`esocial_soap.py`'s `.../servicos/empregador/.../v1_0_0`).
 Sem declarar este aqui, o `<eSocial>` da consulta herdaria por engano o namespace da

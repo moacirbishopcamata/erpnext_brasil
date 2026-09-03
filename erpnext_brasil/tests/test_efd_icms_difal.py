@@ -109,7 +109,9 @@ class TestMontarE310(unittest.TestCase):
 	def test_formula_do_saldo_devedor(self):
 		"""Campo 08 = (04 + 05) - (03 + 06 + 07), quando >= 0."""
 		campos = montar_e310(
-			ApuracaoDifal(total_debitos=d("100.00"), total_creditos=d("30.00"), saldo_credor_anterior=d("10.00"))
+			ApuracaoDifal(
+				total_debitos=d("100.00"), total_creditos=d("30.00"), saldo_credor_anterior=d("10.00")
+			)
 		)
 
 		self.assertEqual(campos["VL_SLD_DEV_ANT_DIFAL"], d("60.00"))
@@ -201,9 +203,7 @@ class TestMontarE310(unittest.TestCase):
 		self.assertEqual(campos["IND_MOV_FCP_DIFAL"], IND_MOV_COM_OPERACOES)
 
 	def test_ind_mov_com_operacoes_quando_so_ha_debito_especial(self):
-		campos = montar_e310(
-			ApuracaoDifal(), [AjusteDifal(codigo="MG250001", descricao="", valor=d("1.00"))]
-		)
+		campos = montar_e310(ApuracaoDifal(), [AjusteDifal(codigo="MG250001", descricao="", valor=d("1.00"))])
 
 		self.assertEqual(campos["IND_MOV_FCP_DIFAL"], IND_MOV_COM_OPERACOES)
 

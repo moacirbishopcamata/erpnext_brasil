@@ -49,9 +49,7 @@ def validar_rntrc(rntrc: str) -> str:
 		return valor
 
 	if not (valor.isdigit() and len(valor) == 8):
-		raise RntrcInvalido(
-			f"RNTRC deve ter 8 dígitos ou ser a palavra {RNTRC_ISENTO!r}, recebido {rntrc!r}"
-		)
+		raise RntrcInvalido(f"RNTRC deve ter 8 dígitos ou ser a palavra {RNTRC_ISENTO!r}, recebido {rntrc!r}")
 
 	return valor
 

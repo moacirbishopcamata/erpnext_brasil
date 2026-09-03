@@ -30,8 +30,8 @@ from dataclasses import dataclass
 from erpnext_brasil.contabil.efd_bloco_0 import PERFIS, TIPOS_ITEM
 
 __all__ = [
-	"GRAVIDADE_BLOQUEIA",
 	"GRAVIDADE_ATENCAO",
+	"GRAVIDADE_BLOQUEIA",
 	"Pendencia",
 	"verificar_empresa",
 	"verificar_item",
@@ -193,8 +193,7 @@ def verificar_item(dados: dict) -> list[Pendencia]:
 				campo="NCM",
 				onde=f"Item {item} > Dados Fiscais",
 				motivo=(
-					"obrigatório para indústria e equiparada, e sempre que houver crédito "
-					"ou débito de IPI"
+					"obrigatório para indústria e equiparada, e sempre que houver crédito ou débito de IPI"
 				),
 				gravidade=GRAVIDADE_ATENCAO,
 			)

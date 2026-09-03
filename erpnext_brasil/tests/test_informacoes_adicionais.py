@@ -26,9 +26,7 @@ class TestCamposIndividuais(unittest.TestCase):
 		self.assertEqual(grupo["infAdFisco"], "Isenção conforme convênio X")
 
 	def test_os_dois_juntos(self):
-		grupo = montar_infadic(informacoes_complementares="A", informacoes_ao_fisco="B")[
-			"infAdic"
-		]
+		grupo = montar_infadic(informacoes_complementares="A", informacoes_ao_fisco="B")["infAdic"]
 
 		self.assertEqual(grupo["infCpl"], "A")
 		self.assertEqual(grupo["infAdFisco"], "B")
@@ -46,9 +44,7 @@ class TestObservacoesEstruturadas(unittest.TestCase):
 		self.assertEqual(grupo["obsFisco"], [{"@xCampo": "Regime", "xTexto": "Especial"}])
 
 	def test_varias_observacoes_viram_lista(self):
-		grupo = montar_infadic(
-			observacoes_contribuinte={"Pedido": "1", "Vendedor": "João"}
-		)["infAdic"]
+		grupo = montar_infadic(observacoes_contribuinte={"Pedido": "1", "Vendedor": "João"})["infAdic"]
 
 		self.assertEqual(len(grupo["obsCont"]), 2)
 

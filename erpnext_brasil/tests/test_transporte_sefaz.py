@@ -61,7 +61,7 @@ def _resposta_soap(elemento_result: str, corpo_ret_envi: str) -> Mock:
 		'<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">'
 		f"<soap:Body><{elemento_result}>{corpo_ret_envi}</{elemento_result}></soap:Body>"
 		"</soap:Envelope>"
-	).encode("utf-8")
+	).encode()
 	resposta.raise_for_status = Mock()
 
 	return resposta
@@ -86,9 +86,7 @@ def _prot_nfe(cstat="100", motivo="Autorizado o uso da NF-e"):
 	)
 
 
-DOCUMENTO_MINIMO = {
-	"NFe": {"@xmlns": "x", "infNFe": {"@Id": "NFe1", "ide": {"mod": "55"}, "a": "1"}}
-}
+DOCUMENTO_MINIMO = {"NFe": {"@xmlns": "x", "infNFe": {"@Id": "NFe1", "ide": {"mod": "55"}, "a": "1"}}}
 
 
 class SessaoFalsa:
@@ -109,7 +107,9 @@ class TestContratoDaPorta(unittest.TestCase):
 	def test_satisfaz_transportefiscal(self):
 		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
 
-		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=SessaoFalsa([])) as transporte:
+		with TransporteSefaz(
+			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=SessaoFalsa([])
+		) as transporte:
 			self.assertIsInstance(transporte, TransporteFiscal)
 
 
@@ -118,7 +118,9 @@ class TestArquivosTLS(unittest.TestCase):
 	def test_escreve_e_remove_os_arquivos_temporarios(self):
 		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
 
-		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=SessaoFalsa([])) as transporte:
+		with TransporteSefaz(
+			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=SessaoFalsa([])
+		) as transporte:
 			self.assertTrue(transporte._arquivo_cert.exists())
 			self.assertTrue(transporte._arquivo_chave.exists())
 			caminho_cert = transporte._arquivo_cert
@@ -232,8 +234,14 @@ class TestPolling(unittest.TestCase):
 
 		sessao = SessaoFalsa(
 			[
-				_resposta_soap("nfeAutorizacaoLoteResult", _ret_envi_nfe(cstat="103", motivo="Lote recebido", nrec="351000000000001")),
-				_resposta_soap("nfeRetAutorizacaoLoteResult", _ret_envi_nfe(cstat="105", motivo="Lote em processamento", nrec="351000000000001")),
+				_resposta_soap(
+					"nfeAutorizacaoLoteResult",
+					_ret_envi_nfe(cstat="103", motivo="Lote recebido", nrec="351000000000001"),
+				),
+				_resposta_soap(
+					"nfeRetAutorizacaoLoteResult",
+					_ret_envi_nfe(cstat="105", motivo="Lote em processamento", nrec="351000000000001"),
+				),
 				_resposta_soap("nfeRetAutorizacaoLoteResult", _ret_envi_nfe(inf_prot=_prot_nfe())),
 			]
 		)
@@ -253,7 +261,9 @@ class TestPolling(unittest.TestCase):
 
 		sessao = SessaoFalsa(
 			[
-				_resposta_soap("nfeAutorizacaoLoteResult", _ret_envi_nfe(cstat="103", motivo="x", nrec="999")),
+				_resposta_soap(
+					"nfeAutorizacaoLoteResult", _ret_envi_nfe(cstat="103", motivo="x", nrec="999")
+				),
 				_resposta_soap("nfeRetAutorizacaoLoteResult", _ret_envi_nfe(inf_prot=_prot_nfe())),
 			]
 		)
@@ -270,9 +280,7 @@ class TestPolling(unittest.TestCase):
 		from erpnext_brasil.integracao.transporte_sefaz import TransporteIndisponivel, TransporteSefaz
 
 		sempre_pendente = [
-			_resposta_soap(
-				"x", _ret_envi_nfe(cstat="105", motivo="Lote em processamento", nrec="1")
-			)
+			_resposta_soap("x", _ret_envi_nfe(cstat="105", motivo="Lote em processamento", nrec="1"))
 			for _ in range(4)
 		]
 
@@ -294,9 +302,7 @@ class TestConsultar(unittest.TestCase):
 	def test_devolve_resultado_consulta(self):
 		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
 
-		sessao = SessaoFalsa(
-			[_resposta_soap("nfeConsultaNFResult", _ret_envi_nfe(inf_prot=_prot_nfe()))]
-		)
+		sessao = SessaoFalsa([_resposta_soap("nfeConsultaNFResult", _ret_envi_nfe(inf_prot=_prot_nfe()))])
 
 		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao) as transporte:
 			resultado = transporte.consultar(CHAVE_VALIDA)
@@ -337,9 +343,7 @@ class TestCancelar(unittest.TestCase):
 	def test_homologado_devolve_autorizacao_com_protocolo_do_cancelamento(self):
 		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
 
-		resposta = _resposta_soap(
-			"retEnvEventoResult", _ret_env_evento(inf_evento=_inf_evento())
-		)
+		resposta = _resposta_soap("retEnvEventoResult", _ret_env_evento(inf_evento=_inf_evento()))
 
 		with TransporteSefaz(
 			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=SessaoFalsa([resposta])
@@ -360,9 +364,7 @@ class TestCancelar(unittest.TestCase):
 			[_resposta_soap("retEnvEventoResult", _ret_env_evento(inf_evento=_inf_evento()))]
 		)
 
-		with TransporteSefaz(
-			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao
-		) as transporte:
+		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao) as transporte:
 			transporte.cancelar(CHAVE_VALIDA, "135260000000001", JUSTIFICATIVA_TESTE)
 
 		corpo = sessao.chamadas[0]["data"].decode("utf-8")
@@ -452,12 +454,14 @@ class TestCorrigir(unittest.TestCase):
 		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
 
 		sessao = SessaoFalsa(
-			[_resposta_soap("retEnvEventoResult", _ret_env_evento(inf_evento=_inf_evento(tipo_evento="110110")))]
+			[
+				_resposta_soap(
+					"retEnvEventoResult", _ret_env_evento(inf_evento=_inf_evento(tipo_evento="110110"))
+				)
+			]
 		)
 
-		with TransporteSefaz(
-			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao
-		) as transporte:
+		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao) as transporte:
 			transporte.corrigir(CHAVE_VALIDA, TEXTO_CORRECAO_TESTE)
 
 		self.assertIn("recepcaoevento", sessao.chamadas[0]["url"].lower())
@@ -495,9 +499,7 @@ class TestInutilizar(unittest.TestCase):
 	def test_rejeitada_nao_e_homologada(self):
 		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
 
-		resposta = _resposta_soap(
-			"retInutNFeResult", _ret_inut(cstat="563", motivo="Rejeicao: outro motivo")
-		)
+		resposta = _resposta_soap("retInutNFeResult", _ret_inut(cstat="563", motivo="Rejeicao: outro motivo"))
 
 		with TransporteSefaz(
 			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=SessaoFalsa([resposta])
@@ -514,9 +516,7 @@ class TestInutilizar(unittest.TestCase):
 
 		sessao = SessaoFalsa([_resposta_soap("retInutNFeResult", _ret_inut())])
 
-		with TransporteSefaz(
-			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao
-		) as transporte:
+		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao) as transporte:
 			transporte.inutilizar("26", "11222333000181", "55", "1", "100", "105", JUSTIFICATIVA_INUTILIZACAO)
 
 		self.assertIn("nfeinutilizacao", sessao.chamadas[0]["url"].lower())
@@ -528,9 +528,7 @@ class TestInutilizar(unittest.TestCase):
 
 		sessao = SessaoFalsa([_resposta_soap("retInutNFeResult", _ret_inut())])
 
-		with TransporteSefaz(
-			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao
-		) as transporte:
+		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao) as transporte:
 			transporte.inutilizar("26", "11222333000181", "55", "1", "100", "105", JUSTIFICATIVA_INUTILIZACAO)
 
 		corpo = sessao.chamadas[0]["data"].decode("utf-8")
@@ -545,9 +543,7 @@ class TestInutilizar(unittest.TestCase):
 
 		sessao = SessaoFalsa([_resposta_soap("retInutNFeResult", _ret_inut())])
 
-		with TransporteSefaz(
-			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao
-		) as transporte:
+		with TransporteSefaz(_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=sessao) as transporte:
 			transporte.inutilizar("26", "11222333000181", "55", "1", "100", "105", JUSTIFICATIVA_INUTILIZACAO)
 
 		corpo = sessao.chamadas[0]["data"].decode("utf-8")

@@ -123,9 +123,7 @@ class TestMontarE210(unittest.TestCase):
 		self.assertEqual(campos["VL_SLD_CRED_ST_TRANSPORTAR"], d("20.00"))
 
 	def test_devolucao_e_ressarcimento_sao_credito(self):
-		campos = montar_e210(
-			ApuracaoSt(retencao=d("100.00"), devolucao=d("15.00"), ressarcimento=d("25.00"))
-		)
+		campos = montar_e210(ApuracaoSt(retencao=d("100.00"), devolucao=d("15.00"), ressarcimento=d("25.00")))
 
 		self.assertEqual(campos["VL_DEVOL_ST"], d("15.00"))
 		self.assertEqual(campos["VL_RESSARC_ST"], d("25.00"))

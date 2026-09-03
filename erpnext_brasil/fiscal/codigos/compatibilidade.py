@@ -36,8 +36,8 @@ __all__ = [
 	"GRUPOS_DO_XML",
 	"Incompatibilidade",
 	"problemas_dos_itens",
-	"validar_com_repositorio",
 	"validar_classificacao",
+	"validar_com_repositorio",
 	"validar_grupos_informados",
 ]
 

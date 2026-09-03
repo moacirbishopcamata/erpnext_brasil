@@ -103,9 +103,7 @@ def _sanitizar(texto: str, tamanho_maximo: int, campo: str) -> str:
 	if not texto or not texto.strip():
 		raise PixInvalido(f"{campo} não pode ser vazio")
 
-	sem_acento = (
-		unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode("ascii")
-	)
+	sem_acento = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode("ascii")
 
 	return sem_acento.strip()[:tamanho_maximo]
 

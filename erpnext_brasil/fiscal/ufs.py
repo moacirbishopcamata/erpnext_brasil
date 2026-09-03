@@ -57,9 +57,7 @@ _NOMES = {
 
 def _normalizar(texto: str) -> str:
 	"""Remove acentos, colapsa espaços e caixa — "São Paulo" e "sao  paulo" convergem."""
-	sem_acento = "".join(
-		c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn"
-	)
+	sem_acento = "".join(c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn")
 
 	return " ".join(sem_acento.lower().split())
 

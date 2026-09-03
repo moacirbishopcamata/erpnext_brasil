@@ -150,11 +150,11 @@ class TestLinhasDeImposto(unittest.TestCase):
 
 	def test_uma_linha_por_tributo_com_valor(self):
 		self.assertEqual(
-			[l["description"] for l in self.linhas], ["ICMS", "IPI", "PIS", "COFINS", "IBS", "CBS"]
+			[linha["description"] for linha in self.linhas], ["ICMS", "IPI", "PIS", "COFINS", "IBS", "CBS"]
 		)
 
 	def test_valores_batem_com_a_apuracao(self):
-		por_tributo = {l["description"]: l["tax_amount"] for l in self.linhas}
+		por_tributo = {linha["description"]: linha["tax_amount"] for linha in self.linhas}
 
 		self.assertEqual(por_tributo["ICMS"], d("180.00"))
 		self.assertEqual(por_tributo["IPI"], d("100.00"))
@@ -166,9 +166,7 @@ class TestLinhasDeImposto(unittest.TestCase):
 				self.assertEqual(linha["charge_type"], "Actual")
 
 	def test_tributos_por_dentro_sao_marcados(self):
-		por_dentro = {
-			l["description"]: l["included_in_print_rate"] for l in self.linhas
-		}
+		por_dentro = {linha["description"]: linha["included_in_print_rate"] for linha in self.linhas}
 
 		self.assertEqual(por_dentro["ICMS"], 1)
 		self.assertEqual(por_dentro["PIS"], 1)
@@ -181,14 +179,14 @@ class TestLinhasDeImposto(unittest.TestCase):
 		"""Melhor não lançar do que lançar em conta errada: some na conciliação."""
 		linhas = linhas_de_imposto(self.apuracao.itens, {"ICMS": "ICMS a Recolher - _TC"})
 
-		self.assertEqual([l["description"] for l in linhas], ["ICMS"])
+		self.assertEqual([linha["description"] for linha in linhas], ["ICMS"])
 
 	def test_tributo_zerado_nao_gera_linha(self):
 		apuracao = apurar_documento([item_fiscal_de_linha({"net_amount": 1000})])
 		linhas = linhas_de_imposto(apuracao.itens, CONTAS)
 
-		self.assertNotIn("ICMS", [l["description"] for l in linhas])
-		self.assertIn("CBS", [l["description"] for l in linhas])
+		self.assertNotIn("ICMS", [linha["description"] for linha in linhas])
+		self.assertIn("CBS", [linha["description"] for linha in linhas])
 
 	def test_sem_apuracao_nao_ha_linhas(self):
 		self.assertEqual(linhas_de_imposto([], CONTAS), [])
@@ -196,7 +194,7 @@ class TestLinhasDeImposto(unittest.TestCase):
 	def test_soma_dos_itens_e_nao_recalculo(self):
 		dois = apurar_documento([item_fiscal_de_linha(LINHA), item_fiscal_de_linha(LINHA)])
 		linhas = linhas_de_imposto(dois.itens, CONTAS)
-		por_tributo = {l["description"]: l["tax_amount"] for l in linhas}
+		por_tributo = {linha["description"]: linha["tax_amount"] for linha in linhas}
 
 		self.assertEqual(por_tributo["ICMS"], d("360.00"))
 
@@ -243,16 +241,14 @@ class TestReconciliacaoDaTabelaDeImpostos(unittest.TestCase):
 
 		self.assertEqual(len(primeira), len(segunda))
 		self.assertEqual(
-			sum(l["tax_amount"] for l in segunda), sum(l["tax_amount"] for l in primeira)
+			sum(item["tax_amount"] for item in segunda), sum(item["tax_amount"] for item in primeira)
 		)
 
 	def test_manuais_vem_antes_e_na_ordem_original(self):
 		outro_manual = {**self.manual, "description": "Seguro"}
 		final = reconciliar_tabela_de_impostos([self.manual, self.automatica, outro_manual], [self.nova])
 
-		self.assertEqual(
-			[l["description"] for l in final], ["Frete contratado", "Seguro", "ICMS"]
-		)
+		self.assertEqual([item["description"] for item in final], ["Frete contratado", "Seguro", "ICMS"])
 
 	def test_novas_linhas_recebem_a_marca(self):
 		final = reconciliar_tabela_de_impostos([], [self.nova])
@@ -270,7 +266,7 @@ class TestReconciliacaoDaTabelaDeImpostos(unittest.TestCase):
 		"""Zerar as alíquotas precisa limpar os impostos, não deixar o valor antigo."""
 		final = reconciliar_tabela_de_impostos([self.manual, self.automatica], [])
 
-		self.assertEqual([l["description"] for l in final], ["Frete contratado"])
+		self.assertEqual([item["description"] for item in final], ["Frete contratado"])
 
 
 if __name__ == "__main__":

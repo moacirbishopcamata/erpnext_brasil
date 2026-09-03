@@ -49,7 +49,7 @@ Funções puras: nenhuma dependência do Frappe.
 
 from decimal import ROUND_HALF_UP, Decimal
 
-__all__ = ["ANO_VIGENTE", "INSSInvalido", "TETO_POR_ANO", "calcular_inss"]
+__all__ = ["ANO_VIGENTE", "TETO_POR_ANO", "INSSInvalido", "calcular_inss"]
 
 ANO_VIGENTE = 2026
 

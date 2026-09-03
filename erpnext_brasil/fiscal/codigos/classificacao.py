@@ -30,8 +30,8 @@ import re
 from dataclasses import dataclass, field
 
 __all__ = [
-	"CST_IBS_CBS",
 	"CLASSIFICACAO_TRIBUTARIA",
+	"CST_IBS_CBS",
 	"ClassificacaoTributaria",
 	"CstIbsCbs",
 	"formato_valido_cclasstrib",
@@ -127,9 +127,7 @@ def ler_cst(linhas: list[dict]) -> list[CstIbsCbs]:
 	colunas = _cabecalho(linhas)
 
 	if "CST-IBS/CBS" not in colunas:
-		raise ValueError(
-			f"Planilha não parece a de CST do IBS/CBS. Colunas encontradas: {sorted(colunas)}"
-		)
+		raise ValueError(f"Planilha não parece a de CST do IBS/CBS. Colunas encontradas: {sorted(colunas)}")
 
 	indicadores = [titulo for titulo in colunas if titulo.startswith("ind_")]
 	registros = []
@@ -158,9 +156,7 @@ def ler_cclasstrib(linhas: list[dict]) -> list[ClassificacaoTributaria]:
 	colunas = _cabecalho(linhas)
 
 	if "cClassTrib" not in colunas:
-		raise ValueError(
-			f"Planilha não parece a de cClassTrib. Colunas encontradas: {sorted(colunas)}"
-		)
+		raise ValueError(f"Planilha não parece a de cClassTrib. Colunas encontradas: {sorted(colunas)}")
 
 	documentos = [titulo for titulo in colunas if titulo.startswith("ind") and "NF" in titulo]
 	registros = []
@@ -180,9 +176,7 @@ def ler_cclasstrib(linhas: list[dict]) -> list[ClassificacaoTributaria]:
 				tipo_aliquota=_campo(linha, colunas, "Tipo de Alíquota"),
 				reducao_ibs=_campo(linha, colunas, "pRedIBS", "0") or "0",
 				reducao_cbs=_campo(linha, colunas, "pRedCBS", "0") or "0",
-				documentos={
-					titulo.replace(" ", ""): _campo(linha, colunas, titulo) for titulo in documentos
-				},
+				documentos={titulo.replace(" ", ""): _campo(linha, colunas, titulo) for titulo in documentos},
 			)
 		)
 

@@ -102,7 +102,9 @@ def _exigir(valor, campo: str) -> str:
 	return texto
 
 
-def montar_rastro(numero_lote: str, quantidade_lote, data_fabricacao: str, data_validade: str, codigo_agregacao: str = "") -> dict:
+def montar_rastro(
+	numero_lote: str, quantidade_lote, data_fabricacao: str, data_validade: str, codigo_agregacao: str = ""
+) -> dict:
 	"""Um item do grupo `rastro` — um lote entre os até 500 que um item pode ter.
 
 	`data_fabricacao`/`data_validade` já vêm formatadas (`AAAA-MM-DD`, `TData`) — este
@@ -190,8 +192,7 @@ def montar_prod(
 	if lotes:
 		if len(lotes) > MAXIMO_LOTES_POR_ITEM:
 			raise ProdutoInvalido(
-				f"Um item admite no máximo {MAXIMO_LOTES_POR_ITEM} lotes, "
-				f"recebidos {len(lotes)}",
+				f"Um item admite no máximo {MAXIMO_LOTES_POR_ITEM} lotes, recebidos {len(lotes)}",
 				"lotes",
 			)
 
@@ -211,9 +212,7 @@ def montar_prod(
 		_quantidade(quantidade_tributavel) if quantidade_tributavel is not None else grupo["qCom"]
 	)
 	grupo["vUnTrib"] = (
-		_valor(valor_unitario_tributavel)
-		if valor_unitario_tributavel is not None
-		else grupo["vUnCom"]
+		_valor(valor_unitario_tributavel) if valor_unitario_tributavel is not None else grupo["vUnCom"]
 	)
 
 	# Acessórios entram apenas quando houver valor: campo zerado aqui é ruído, e o layout

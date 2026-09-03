@@ -73,7 +73,9 @@ class TestIdeEvento(unittest.TestCase):
 
 	def test_decimo_terceiro_com_per_apur_mensal_e_erro(self):
 		with self.assertRaises(EsocialInvalido):
-			IdeEvento(**_ide_evento_valido(ind_apuracao=INDICADOR_APURACAO_DECIMO_TERCEIRO, per_apur="2026-01"))
+			IdeEvento(
+				**_ide_evento_valido(ind_apuracao=INDICADOR_APURACAO_DECIMO_TERCEIRO, per_apur="2026-01")
+			)
 
 	def test_mensal_com_per_apur_so_ano_e_erro(self):
 		with self.assertRaises(EsocialInvalido):
@@ -119,13 +121,21 @@ class TestItemRemuneracao(unittest.TestCase):
 
 	def test_quantidade_fator_valor_consistentes(self):
 		ItemRemuneracao(
-			cod_rubr="1002", qtd_rubr=d("10.00"), fator_rubr=d("1.00"), vr_unit=d("50.00"), vr_rubr=d("500.00")
+			cod_rubr="1002",
+			qtd_rubr=d("10.00"),
+			fator_rubr=d("1.00"),
+			vr_unit=d("50.00"),
+			vr_rubr=d("500.00"),
 		)
 
 	def test_quantidade_fator_valor_inconsistentes_e_erro(self):
 		with self.assertRaises(EsocialInvalido):
 			ItemRemuneracao(
-				cod_rubr="1002", qtd_rubr=d("10.00"), fator_rubr=d("1.00"), vr_unit=d("50.00"), vr_rubr=d("999.00")
+				cod_rubr="1002",
+				qtd_rubr=d("10.00"),
+				fator_rubr=d("1.00"),
+				vr_unit=d("50.00"),
+				vr_rubr=d("999.00"),
 			)
 
 	def test_cod_rubr_vazio_e_erro(self):
@@ -139,9 +149,7 @@ class TestItemRemuneracao(unittest.TestCase):
 
 class TestLinhasDeInssIrrf(unittest.TestCase):
 	def test_gera_duas_linhas_com_os_codigos_informados(self):
-		linhas = linhas_de_inss_irrf(
-			d("155.68"), d("0.00"), cod_rubrica_inss="9001", cod_rubrica_irrf="9002"
-		)
+		linhas = linhas_de_inss_irrf(d("155.68"), d("0.00"), cod_rubrica_inss="9001", cod_rubrica_irrf="9002")
 
 		self.assertEqual(len(linhas), 2)
 		self.assertEqual(linhas[0].cod_rubr, "9001")

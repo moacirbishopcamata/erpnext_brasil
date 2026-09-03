@@ -133,9 +133,7 @@ class TestParticipante(unittest.TestCase):
 
 	def test_cnpj_e_cpf_juntos_e_erro(self):
 		with self.assertRaises(EfdInvalido):
-			Participante(
-				codigo="X", nome="X", codigo_pais="01058", cnpj="11222333000181", cpf="11122233344"
-			)
+			Participante(codigo="X", nome="X", codigo_pais="01058", cnpj="11222333000181", cpf="11122233344")
 
 	def test_codigo_vazio_e_erro(self):
 		with self.assertRaises(EfdInvalido):

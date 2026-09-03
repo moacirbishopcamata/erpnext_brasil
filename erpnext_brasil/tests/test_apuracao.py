@@ -89,9 +89,7 @@ class TestVendaAConsumidorFinal(unittest.TestCase):
 class TestComparacaoEntreAsDuasOperacoes(unittest.TestCase):
 	def setUp(self):
 		self.revenda = apurar(item_padrao(), Operacao())
-		self.consumidor = apurar(
-			item_padrao(), Operacao(destinado_a_industrializacao_ou_comercio=False)
-		)
+		self.consumidor = apurar(item_padrao(), Operacao(destinado_a_industrializacao_ou_comercio=False))
 
 	def test_o_total_e_o_mesmo(self):
 		"""O ICMS é por dentro: muda o imposto, não o que o cliente paga."""
@@ -168,9 +166,7 @@ class TestDocumento(unittest.TestCase):
 		self.assertEqual(self.doc.total_cbs, d("13.50"))
 
 	def test_total_e_soma_dos_itens(self):
-		self.assertEqual(
-			self.doc.total_documento, sum(i.total_item for i in self.doc.itens)
-		)
+		self.assertEqual(self.doc.total_documento, sum(i.total_item for i in self.doc.itens))
 
 	def test_documento_sem_itens_e_erro(self):
 		with self.assertRaises(ValueError):

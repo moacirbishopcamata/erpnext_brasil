@@ -23,7 +23,7 @@ def _resposta_soap(operacao: str, corpo_interno: str) -> Mock:
 		'<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
 		f"<soap:Body><{operacao}Response>{corpo_interno}</{operacao}Response></soap:Body>"
 		"</soap:Envelope>"
-	).encode("utf-8")
+	).encode()
 	resposta.raise_for_status = Mock()
 
 	return resposta
@@ -54,9 +54,7 @@ def _retorno_processamento(cd_resposta=201, desc="Processado", eventos_xml=""):
 	)
 
 
-_EVENTO_OK = (
-	'<evento Id="ID1"><retornoEvento><eSocial xmlns="y"><evtRecibo>ok</evtRecibo></eSocial></retornoEvento></evento>'
-)
+_EVENTO_OK = '<evento Id="ID1"><retornoEvento><eSocial xmlns="y"><evtRecibo>ok</evtRecibo></eSocial></retornoEvento></evento>'
 
 
 class SessaoFalsa:
@@ -122,7 +120,12 @@ class TestEnviarLote(unittest.TestCase):
 
 	def test_lote_recusado_e_erro(self):
 		sessao = SessaoFalsa(
-			[_resposta_soap("EnviarLoteEventos", _retorno_envio(cd_resposta=401, desc="Erro de preenchimento", protocolo=""))]
+			[
+				_resposta_soap(
+					"EnviarLoteEventos",
+					_retorno_envio(cd_resposta=401, desc="Erro de preenchimento", protocolo=""),
+				)
+			]
 		)
 
 		with self.assertRaises(TransporteIndisponivel):
@@ -140,7 +143,9 @@ class TestPolling(unittest.TestCase):
 		sessao = SessaoFalsa(
 			[
 				_resposta_soap("EnviarLoteEventos", _retorno_envio()),
-				_resposta_soap("ConsultarLoteEventos", _retorno_processamento(cd_resposta=203, desc="Em fila")),
+				_resposta_soap(
+					"ConsultarLoteEventos", _retorno_processamento(cd_resposta=203, desc="Em fila")
+				),
 				_resposta_soap("ConsultarLoteEventos", _retorno_processamento(eventos_xml=_EVENTO_OK)),
 			]
 		)
@@ -172,7 +177,9 @@ class TestPolling(unittest.TestCase):
 
 class TestConsultarLote(unittest.TestCase):
 	def test_consulta_sem_reenviar(self):
-		sessao = SessaoFalsa([_resposta_soap("ConsultarLoteEventos", _retorno_processamento(eventos_xml=_EVENTO_OK))])
+		sessao = SessaoFalsa(
+			[_resposta_soap("ConsultarLoteEventos", _retorno_processamento(eventos_xml=_EVENTO_OK))]
+		)
 
 		resultado = consultar_lote("1.1.0000000000000000001", _contexto(sessao))
 

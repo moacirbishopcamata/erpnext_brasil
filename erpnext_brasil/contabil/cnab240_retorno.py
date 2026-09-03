@@ -139,4 +139,6 @@ def ler_segmento_u(linha: str) -> SegmentoU:
 	valor_pago = Decimal(valor_bruto) / 100
 	data_ocorrencia = _data_ddmmaaaa(linha[137:145])
 
-	return SegmentoU(codigo_movimento=codigo_movimento, valor_pago=valor_pago, data_ocorrencia=data_ocorrencia)
+	return SegmentoU(
+		codigo_movimento=codigo_movimento, valor_pago=valor_pago, data_ocorrencia=data_ocorrencia
+	)

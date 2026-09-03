@@ -178,29 +178,86 @@ URL_QRCODE_POR_UF = {
 # consultado em 2026-08-30. GO, MG, PE, SC ausentes de propósito (não constam na fonte,
 # nenhum ambiente); CE só tem homologação confirmada — ver docstring do módulo.
 URL_CHAVE_POR_UF = {
-	"AC": {"producao": "http://www.sefaznet.ac.gov.br/nfce/consulta", "homologacao": "http://hml.sefaznet.ac.gov.br/nfce/consulta"},
-	"AL": {"producao": "http://nfce.sefaz.al.gov.br/consultaNFCe.htm", "homologacao": "http://nfce.sefaz.al.gov.br/consultaNFCe.htm"},
-	"AP": {"producao": "https://www.sefaz.ap.gov.br/sate/seg/SEGf_AcessarFuncao.jsp?cdFuncao=FIS_1261", "homologacao": "https://www.sefaz.ap.gov.br/sate1/seg/SEGf_AcessarFuncao.jsp?cdFuncao=FIS_1261"},
-	"AM": {"producao": "https://sistemas.sefaz.am.gov.br/nfceweb/formConsulta.do", "homologacao": "http://homnfce.sefaz.am.gov.br/nfceweb/formConsulta.do"},
-	"BA": {"producao": "https://nfe.sefaz.ba.gov.br/servicos/nfce/default.aspx", "homologacao": "http://hnfe.sefaz.ba.gov.br/servicos/nfce/default.aspx"},
+	"AC": {
+		"producao": "http://www.sefaznet.ac.gov.br/nfce/consulta",
+		"homologacao": "http://hml.sefaznet.ac.gov.br/nfce/consulta",
+	},
+	"AL": {
+		"producao": "http://nfce.sefaz.al.gov.br/consultaNFCe.htm",
+		"homologacao": "http://nfce.sefaz.al.gov.br/consultaNFCe.htm",
+	},
+	"AP": {
+		"producao": "https://www.sefaz.ap.gov.br/sate/seg/SEGf_AcessarFuncao.jsp?cdFuncao=FIS_1261",
+		"homologacao": "https://www.sefaz.ap.gov.br/sate1/seg/SEGf_AcessarFuncao.jsp?cdFuncao=FIS_1261",
+	},
+	"AM": {
+		"producao": "https://sistemas.sefaz.am.gov.br/nfceweb/formConsulta.do",
+		"homologacao": "http://homnfce.sefaz.am.gov.br/nfceweb/formConsulta.do",
+	},
+	"BA": {
+		"producao": "https://nfe.sefaz.ba.gov.br/servicos/nfce/default.aspx",
+		"homologacao": "http://hnfe.sefaz.ba.gov.br/servicos/nfce/default.aspx",
+	},
 	"CE": {"homologacao": "http://nfceh.sefaz.ce.gov.br/pages/consultaNota.jsf"},
-	"DF": {"producao": "http://dec.fazenda.df.gov.br/NFCE/", "homologacao": "http://dec.fazenda.df.gov.br/NFCE/"},
-	"ES": {"producao": "http://app.sefaz.es.gov.br/ConsultaNFCe", "homologacao": "http://homologacao.sefaz.es.gov.br/ConsultaNFCe"},
-	"MA": {"producao": "http://www.nfce.sefaz.ma.gov.br/portal/consultaNFe.do?method=preFilterCupom&", "homologacao": "http://www.hom.nfce.sefaz.ma.gov.br/portal/consultarNFCe.jsp"},
-	"MT": {"producao": "http://www.sefaz.mt.gov.br/nfce/consultanfce", "homologacao": "http://homologacao.sefaz.mt.gov.br/nfce/consultanfce"},
+	"DF": {
+		"producao": "http://dec.fazenda.df.gov.br/NFCE/",
+		"homologacao": "http://dec.fazenda.df.gov.br/NFCE/",
+	},
+	"ES": {
+		"producao": "http://app.sefaz.es.gov.br/ConsultaNFCe",
+		"homologacao": "http://homologacao.sefaz.es.gov.br/ConsultaNFCe",
+	},
+	"MA": {
+		"producao": "http://www.nfce.sefaz.ma.gov.br/portal/consultaNFe.do?method=preFilterCupom&",
+		"homologacao": "http://www.hom.nfce.sefaz.ma.gov.br/portal/consultarNFCe.jsp",
+	},
+	"MT": {
+		"producao": "http://www.sefaz.mt.gov.br/nfce/consultanfce",
+		"homologacao": "http://homologacao.sefaz.mt.gov.br/nfce/consultanfce",
+	},
 	"MS": {"producao": "http://www.dfe.ms.gov.br/nfce", "homologacao": "http://www.dfe.ms.gov.br/nfce"},
-	"PA": {"producao": "https://appnfc.sefa.pa.gov.br/portal/view/consultas/nfce/consultanfce.seam", "homologacao": "https://appnfc.sefa.pa.gov.br/portal-homologacao/view/consultas/nfce/consultanfce.seam"},
-	"PB": {"producao": "https://www.receita.pb.gov.br/nfce", "homologacao": "http://www.receita.pb.gov.br/nfcehom"},
+	"PA": {
+		"producao": "https://appnfc.sefa.pa.gov.br/portal/view/consultas/nfce/consultanfce.seam",
+		"homologacao": "https://appnfc.sefa.pa.gov.br/portal-homologacao/view/consultas/nfce/consultanfce.seam",
+	},
+	"PB": {
+		"producao": "https://www.receita.pb.gov.br/nfce",
+		"homologacao": "http://www.receita.pb.gov.br/nfcehom",
+	},
 	"PR": {"producao": "http://www.fazenda.pr.gov.br", "homologacao": "http://www.fazenda.pr.gov.br"},
-	"PI": {"producao": "http://webas.sefaz.pi.gov.br/nfceweb/consultarNFCe.jsf", "homologacao": "http://webas.sefaz.pi.gov.br/nfceweb-homologacao/consultarNFCe.jsf"},
-	"RJ": {"producao": "https://www.nfce.fazenda.rj.gov.br/consulta", "homologacao": "https://www.nfce.fazenda.rj.gov.br/consulta"},
-	"RN": {"producao": "http://nfce.set.rn.gov.br/consultarNFCe.aspx", "homologacao": "http://nfce.set.rn.gov.br/consultarNFCe.aspx"},
-	"RS": {"producao": "https://www.sefaz.rs.gov.br/NFCE/NFCE-COM.aspx", "homologacao": "https://www.sefaz.rs.gov.br/NFCE/NFCE-COM.aspx"},
+	"PI": {
+		"producao": "http://webas.sefaz.pi.gov.br/nfceweb/consultarNFCe.jsf",
+		"homologacao": "http://webas.sefaz.pi.gov.br/nfceweb-homologacao/consultarNFCe.jsf",
+	},
+	"RJ": {
+		"producao": "https://www.nfce.fazenda.rj.gov.br/consulta",
+		"homologacao": "https://www.nfce.fazenda.rj.gov.br/consulta",
+	},
+	"RN": {
+		"producao": "http://nfce.set.rn.gov.br/consultarNFCe.aspx",
+		"homologacao": "http://nfce.set.rn.gov.br/consultarNFCe.aspx",
+	},
+	"RS": {
+		"producao": "https://www.sefaz.rs.gov.br/NFCE/NFCE-COM.aspx",
+		"homologacao": "https://www.sefaz.rs.gov.br/NFCE/NFCE-COM.aspx",
+	},
 	"RO": {"producao": "http://www.nfce.sefin.ro.gov.br", "homologacao": "http://www.nfce.sefin.ro.gov.br"},
-	"RR": {"producao": "https://www.sefaz.rr.gov.br/nfce/servlet/wp_consulta_nfce", "homologacao": "http://200.174.88.103:8080/nfce/servlet/wp_consulta_nfce"},
-	"SP": {"producao": "https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica", "homologacao": "https://www.homologacao.nfce.fazenda.sp.gov.br/NFCeConsultaPublica"},
-	"SE": {"producao": "http://www.nfce.se.gov.br/portal/portalNoticias.jsp", "homologacao": "http://www.hom.nfe.se.gov.br/portal/portalNoticias.jsp"},
-	"TO": {"producao": "http://apps.sefaz.to.gov.br/portal-nfce/consultarNFCe.jsf", "homologacao": "http://apps.sefaz.to.gov.br/portal-nfce-homologacao/consultarNFCe.jsf"},
+	"RR": {
+		"producao": "https://www.sefaz.rr.gov.br/nfce/servlet/wp_consulta_nfce",
+		"homologacao": "http://200.174.88.103:8080/nfce/servlet/wp_consulta_nfce",
+	},
+	"SP": {
+		"producao": "https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica",
+		"homologacao": "https://www.homologacao.nfce.fazenda.sp.gov.br/NFCeConsultaPublica",
+	},
+	"SE": {
+		"producao": "http://www.nfce.se.gov.br/portal/portalNoticias.jsp",
+		"homologacao": "http://www.hom.nfe.se.gov.br/portal/portalNoticias.jsp",
+	},
+	"TO": {
+		"producao": "http://apps.sefaz.to.gov.br/portal-nfce/consultarNFCe.jsf",
+		"homologacao": "http://apps.sefaz.to.gov.br/portal-nfce-homologacao/consultarNFCe.jsf",
+	},
 	# GO, MG, PE, SC deliberadamente ausentes — não constam na fonte ENCAT.
 }
 

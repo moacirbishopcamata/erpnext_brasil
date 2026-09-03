@@ -120,18 +120,14 @@ class TestSubstituicaoTributaria(unittest.TestCase):
 
 	def test_ipi_nao_entra_na_base_do_icms_proprio(self):
 		"""A pegadinha que mais gera ST a menos: IPI compõe a ST, não o próprio."""
-		com_ipi = calcular_icms_st(
-			d("1000.00"), d("0.12"), d("0.18"), d("0.40"), ipi=d("100.00")
-		)
+		com_ipi = calcular_icms_st(d("1000.00"), d("0.12"), d("0.18"), d("0.40"), ipi=d("100.00"))
 		sem_ipi = calcular_icms_st(d("1000.00"), d("0.12"), d("0.18"), d("0.40"))
 
 		self.assertEqual(com_ipi.icms_proprio, sem_ipi.icms_proprio)
 		self.assertGreater(com_ipi.base_st, sem_ipi.base_st)
 
 	def test_frete_entra_nas_duas_bases(self):
-		com_frete = calcular_icms_st(
-			d("1000.00"), d("0.12"), d("0.18"), d("0.40"), frete=d("100.00")
-		)
+		com_frete = calcular_icms_st(d("1000.00"), d("0.12"), d("0.18"), d("0.40"), frete=d("100.00"))
 		sem_frete = calcular_icms_st(d("1000.00"), d("0.12"), d("0.18"), d("0.40"))
 
 		self.assertGreater(com_frete.icms_proprio, sem_frete.icms_proprio)

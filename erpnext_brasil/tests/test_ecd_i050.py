@@ -95,7 +95,9 @@ class TestMontarI051(unittest.TestCase):
 		self.assertEqual(linha, {"REG": "I051", "COD_CCUS": "001", "COD_CTA_REF": "1.01.01.01"})
 
 	def test_centro_custo_padrao_e_vazio(self):
-		_conta, linha = montar_i051([MapeamentoReferencial(conta="Clientes", codigo_referencial="1.01.01.01")])[0]
+		_conta, linha = montar_i051(
+			[MapeamentoReferencial(conta="Clientes", codigo_referencial="1.01.01.01")]
+		)[0]
 
 		self.assertEqual(linha["COD_CCUS"], "")
 

@@ -36,15 +36,13 @@ def _montar_xlsx(planilhas: dict[str, list[list[str]]]) -> io.BytesIO:
 
 				for coluna, texto in zip("ABCDEFGHIJKLMNOPQRSTUVWXYZ", linha, strict=False):
 					seguro = texto.replace("&", "&amp;").replace("<", "&lt;")
-					celulas.append(
-						f'<c r="{coluna}{numero}" t="inlineStr"><is><t>{seguro}</t></is></c>'
-					)
+					celulas.append(f'<c r="{coluna}{numero}" t="inlineStr"><is><t>{seguro}</t></is></c>')
 
 				corpo.append(f'<row r="{numero}">{"".join(celulas)}</row>')
 
 			z.writestr(
 				f"xl/worksheets/sheet{indice}.xml",
-				f'<worksheet {_NS}><sheetData>{"".join(corpo)}</sheetData></worksheet>',
+				f"<worksheet {_NS}><sheetData>{''.join(corpo)}</sheetData></worksheet>",
 			)
 
 	buffer.seek(0)
@@ -156,9 +154,42 @@ class TestLeituraDeCClassTrib(unittest.TestCase):
 			{
 				"cc": [
 					CABECALHO_CCLASS,
-					["000", "Tributação integral", "000001", "Integral", "Desc", "Padrão", "0", "0", "1", "1"],
-					["000", "Tributação integral", "000002", "Exploração de via", "Desc", "Padrão", "0", "0", "0", "0"],
-					["200", "Alíquota reduzida", "200001", "Reduzida", "Desc", "Reduzida", "60", "60", "1", "0"],
+					[
+						"000",
+						"Tributação integral",
+						"000001",
+						"Integral",
+						"Desc",
+						"Padrão",
+						"0",
+						"0",
+						"1",
+						"1",
+					],
+					[
+						"000",
+						"Tributação integral",
+						"000002",
+						"Exploração de via",
+						"Desc",
+						"Padrão",
+						"0",
+						"0",
+						"0",
+						"0",
+					],
+					[
+						"200",
+						"Alíquota reduzida",
+						"200001",
+						"Reduzida",
+						"Desc",
+						"Reduzida",
+						"60",
+						"60",
+						"1",
+						"0",
+					],
 				]
 			}
 		)

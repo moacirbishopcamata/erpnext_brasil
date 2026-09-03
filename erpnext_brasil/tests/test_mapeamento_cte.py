@@ -10,7 +10,9 @@ from erpnext_brasil.fiscal.mdfe import MunicipioDescarga
 from erpnext_brasil.integracao.mapeamento_cte import ReferenciaDocumentoFiscal, agrupar_por_municipio_descarga
 
 
-def _ref(chave: str, modelo: str, municipio_codigo="3550308", municipio_nome="São Paulo") -> ReferenciaDocumentoFiscal:
+def _ref(
+	chave: str, modelo: str, municipio_codigo="3550308", municipio_nome="São Paulo"
+) -> ReferenciaDocumentoFiscal:
 	return ReferenciaDocumentoFiscal(
 		chave=chave, modelo=modelo, municipio_codigo=municipio_codigo, municipio_nome=municipio_nome
 	)

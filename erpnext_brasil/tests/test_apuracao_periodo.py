@@ -25,7 +25,9 @@ def d(v: str) -> Decimal:
 
 
 def lancamento(conta_debito: str, conta_credito: str, valor: str) -> Lancamento:
-	return Lancamento(conta_debito=conta_debito, conta_credito=conta_credito, valor=d(valor), historico="teste")
+	return Lancamento(
+		conta_debito=conta_debito, conta_credito=conta_credito, valor=d(valor), historico="teste"
+	)
 
 
 class TestApuracaoPeriodo(unittest.TestCase):
@@ -46,7 +48,9 @@ class TestApuracaoPeriodo(unittest.TestCase):
 			with self.subTest(debitos=debitos, creditos=creditos):
 				apuracao = ApuracaoPeriodo(tributo="ICMS", debitos=d(debitos), creditos=d(creditos))
 
-				self.assertTrue(apuracao.a_recolher == d("0.00") or apuracao.saldo_credor_a_transportar == d("0.00"))
+				self.assertTrue(
+					apuracao.a_recolher == d("0.00") or apuracao.saldo_credor_a_transportar == d("0.00")
+				)
 
 	def test_saldo_credor_anterior_soma_ao_credito_do_periodo(self):
 		apuracao = ApuracaoPeriodo(

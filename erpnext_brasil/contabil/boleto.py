@@ -149,9 +149,7 @@ def calcular_dv_campo(campo: str) -> str:
 	return str((10 - soma % 10) % 10)
 
 
-def montar_codigo_barras(
-	codigo_banco: str, valor: Decimal, data_vencimento: date, campo_livre: str
-) -> str:
+def montar_codigo_barras(codigo_banco: str, valor: Decimal, data_vencimento: date, campo_livre: str) -> str:
 	"""Monta o código de barras completo (44 posições).
 
 	`codigo_banco` são 3 dígitos (tabela de bancos do Bacen/FEBRABAN, não reproduzida

@@ -69,15 +69,15 @@ Funções puras: nenhuma dependência do Frappe.
 from dataclasses import dataclass
 
 __all__ = [
+	"INDICADOR_CONSTRUTORA_NAO",
+	"INDICADOR_CONSTRUTORA_SIM",
 	"INDICADOR_COOPERATIVA_NAO",
 	"INDICADOR_COOPERATIVA_OUTRAS",
 	"INDICADOR_COOPERATIVA_PRODUCAO",
 	"INDICADOR_COOPERATIVA_TRABALHO",
-	"INDICADOR_CONSTRUTORA_NAO",
-	"INDICADOR_CONSTRUTORA_SIM",
+	"INDICADOR_DESONERACAO_EMPRESA",
 	"INDICADOR_DESONERACAO_MUNICIPIO",
 	"INDICADOR_DESONERACAO_NAO_APLICAVEL",
-	"INDICADOR_DESONERACAO_EMPRESA",
 	"TIPO_INSCRICAO_CNPJ",
 	"TIPO_INSCRICAO_CPF",
 	"EsocialS1000Invalido",
@@ -129,13 +129,17 @@ class IdeEvento:
 
 	def __post_init__(self):
 		if self.tp_amb not in (1, 2):
-			raise EsocialS1000Invalido(f"tpAmb deve ser 1 (produção) ou 2 (produção restrita), recebido {self.tp_amb}")
+			raise EsocialS1000Invalido(
+				f"tpAmb deve ser 1 (produção) ou 2 (produção restrita), recebido {self.tp_amb}"
+			)
 
 		if not (0 <= self.proc_emi <= 9):
 			raise EsocialS1000Invalido(f"procEmi deve ser um dígito único (0-9), recebido {self.proc_emi}")
 
 		if not (1 <= len(self.ver_proc) <= 20):
-			raise EsocialS1000Invalido(f"verProc deve ter entre 1 e 20 caracteres, recebido {self.ver_proc!r}")
+			raise EsocialS1000Invalido(
+				f"verProc deve ter entre 1 e 20 caracteres, recebido {self.ver_proc!r}"
+			)
 
 
 @dataclass(frozen=True)
@@ -162,10 +166,14 @@ class IdePeriodo:
 
 	def __post_init__(self):
 		if len(self.ini_valid) != 7:
-			raise EsocialS1000Invalido(f"iniValid deve ter 7 caracteres (formato AAAA-MM), recebido {self.ini_valid!r}")
+			raise EsocialS1000Invalido(
+				f"iniValid deve ter 7 caracteres (formato AAAA-MM), recebido {self.ini_valid!r}"
+			)
 
 		if self.fim_valid is not None and len(self.fim_valid) != 7:
-			raise EsocialS1000Invalido(f"fimValid deve ter 7 caracteres (formato AAAA-MM), recebido {self.fim_valid!r}")
+			raise EsocialS1000Invalido(
+				f"fimValid deve ter 7 caracteres (formato AAAA-MM), recebido {self.fim_valid!r}"
+			)
 
 
 @dataclass(frozen=True)
@@ -198,7 +206,9 @@ class InfoCadastro:
 			raise EsocialS1000Invalido(f"indDesFolha deve ser 0, 1 ou 2, recebido {self.ind_des_folha}")
 
 		if self.ind_opt_reg_eletron not in (0, 1):
-			raise EsocialS1000Invalido(f"indOptRegEletron deve ser 0 ou 1, recebido {self.ind_opt_reg_eletron}")
+			raise EsocialS1000Invalido(
+				f"indOptRegEletron deve ser 0 ou 1, recebido {self.ind_opt_reg_eletron}"
+			)
 
 		if self.ind_coop is not None and self.ind_coop not in _INDICADORES_COOPERATIVA_VALIDOS:
 			raise EsocialS1000Invalido(f"indCoop deve ser 0, 1, 2 ou 3, recebido {self.ind_coop}")
@@ -210,7 +220,9 @@ class InfoCadastro:
 			raise EsocialS1000Invalido(f"indOpcCP deve ser 1 ou 2, recebido {self.ind_opc_cp}")
 
 		if self.ind_porte is not None and self.ind_porte != "S":
-			raise EsocialS1000Invalido(f"indPorte só aceita 'S' quando preenchido, recebido {self.ind_porte!r}")
+			raise EsocialS1000Invalido(
+				f"indPorte só aceita 'S' quando preenchido, recebido {self.ind_porte!r}"
+			)
 
 		if self.cnpj_efr is not None and len(self.cnpj_efr) != 14:
 			raise EsocialS1000Invalido(f"cnpjEFR deve ter 14 caracteres, recebido {self.cnpj_efr!r}")
@@ -221,7 +233,9 @@ class InfoCadastro:
 			)
 
 		if self.ind_pert_irrf is not None and self.ind_pert_irrf != "S":
-			raise EsocialS1000Invalido(f"indPertIRRF só aceita 'S' quando preenchido, recebido {self.ind_pert_irrf!r}")
+			raise EsocialS1000Invalido(
+				f"indPertIRRF só aceita 'S' quando preenchido, recebido {self.ind_pert_irrf!r}"
+			)
 
 
 def montar_inclusao(ide_periodo: IdePeriodo, info_cadastro: InfoCadastro | None = None) -> dict:

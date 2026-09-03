@@ -116,7 +116,9 @@ def ler_retorno_envio_lote(xml_resposta: str | bytes) -> RetornoEnvioLote:
 	no_status = _filho(corpo, "status")
 
 	if no_status is None:
-		raise EsocialRetornoInvalido("Resposta sem elemento 'status' — não é um retornoEnvioLoteEventos reconhecível")
+		raise EsocialRetornoInvalido(
+			"Resposta sem elemento 'status' — não é um retornoEnvioLoteEventos reconhecível"
+		)
 
 	return RetornoEnvioLote(status=_ler_status(no_status), dados_recepcao=_ler_dados_recepcao(corpo))
 

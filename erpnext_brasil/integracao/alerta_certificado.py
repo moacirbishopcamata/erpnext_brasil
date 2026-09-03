@@ -38,63 +38,11 @@ função separada, e um alerta sem destinatário é um alerta que não existe.
 from datetime import date
 
 import frappe
-from frappe import _
 
 from erpnext_brasil.fiscal.documento.validade_certificado import avaliar_validade, mensagem
+from erpnext_brasil.integracao.notificacao import notificar_responsaveis
 
-__all__ = ["verificar_transicao_da_reforma", "verificar_validade_dos_certificados"]
-
-_PAPEIS = ("Accounts Manager", "System Manager")
-
-
-def _destinatarios() -> list[str]:
-	"""E-mails dos usuários que devem receber o aviso, na ordem de preferência de
-	papel. Sem ninguém em nenhum dos papéis, devolve lista vazia — e quem chama
-	registra isso no log em vez de criar notificação órfã."""
-	for papel in _PAPEIS:
-		usuarios = frappe.get_all(
-			"Has Role",
-			filters={"role": papel, "parenttype": "User"},
-			pluck="parent",
-		)
-
-		ativos = [
-			usuario
-			for usuario in set(usuarios)
-			if frappe.db.get_value("User", usuario, "enabled")
-		]
-
-		if ativos:
-			return sorted(ativos)
-
-	return []
-
-
-def _notificar(company: str, texto: str) -> None:
-	destinatarios = _destinatarios()
-
-	if not destinatarios:
-		frappe.log_error(
-			title="Alerta de certificado A1 sem destinatário",
-			message=(
-				f"O certificado de {company} precisa de aviso, mas nenhum usuário ativo "
-				f"tem os papéis {list(_PAPEIS)} — o alerta não chegaria a ninguém."
-			),
-		)
-		return
-
-	for usuario in destinatarios:
-		frappe.get_doc(
-			{
-				"doctype": "Notification Log",
-				"subject": _("Certificado digital A1 — {0}").format(company),
-				"email_content": texto,
-				"for_user": usuario,
-				"type": "Alert",
-				"document_type": "Company",
-				"document_name": company,
-			}
-		).insert(ignore_permissions=True)
+__all__ = ["verificar_validade_dos_certificados"]
 
 
 def _empresas_com_certificado() -> list[str]:
@@ -138,7 +86,11 @@ def verificar_validade_dos_certificados(hoje: date | None = None) -> list[dict]:
 		avaliacao = avaliar_validade(expira.date(), hoje)
 
 		if avaliacao.deve_alertar:
-			_notificar(company, mensagem(avaliacao, company, expira.date()))
+			notificar_responsaveis(
+				company,
+				f"Certificado digital A1 — {company}",
+				mensagem(avaliacao, company, expira.date()),
+			)
 
 		resultado.append(
 			{
@@ -150,31 +102,3 @@ def verificar_validade_dos_certificados(hoje: date | None = None) -> list[dict]:
 		)
 
 	return resultado
-
-
-def verificar_transicao_da_reforma(hoje: date | None = None) -> dict:
-	"""Avisa quando o ano corrente passou do único ano com alíquotas de IBS/CBS embutidas.
-
-	A regra está em `fiscal/impostos/transicao_reforma.py`; aqui só se lê a data e se
-	notifica. Roda junto do alerta de certificado (mesma tarefa diária) porque as duas
-	respondem à mesma pergunta — "o que vai parar de funcionar em breve?" — e uma
-	segunda entrada no agendador para uma verificação de um `if` seria custo sem ganho.
-
-	Notifica **uma vez por dia enquanto durar**, sem marcos como o do certificado: aqui
-	não há contagem regressiva a comunicar, e o problema não se resolve sozinho com o
-	tempo — só com alguém informando as alíquotas vigentes.
-	"""
-	from erpnext_brasil.fiscal.impostos.transicao_reforma import avaliar_transicao
-
-	hoje = hoje or date.today()
-	situacao = avaliar_transicao(hoje.year)
-
-	if situacao.deve_alertar:
-		for company in frappe.get_all("Company", pluck="name"):
-			_notificar(company, situacao.mensagem)
-
-	return {
-		"ano": situacao.ano,
-		"aliquotas_embutidas": situacao.aliquotas_embutidas,
-		"notificou": situacao.deve_alertar,
-	}

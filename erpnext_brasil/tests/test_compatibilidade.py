@@ -178,9 +178,7 @@ class TestContraATabelaOficial(unittest.TestCase):
 	def test_pares_reais_sao_coerentes(self):
 		import pathlib
 
-		arquivo = pathlib.Path(
-			"C:/Users/ninte/.claude/jobs/3566b866/tmp/classtrib.bin"
-		)
+		arquivo = pathlib.Path("C:/Users/ninte/.claude/jobs/3566b866/tmp/classtrib.bin")
 
 		if not arquivo.exists():
 			self.skipTest("tabela oficial não disponível neste ambiente")
@@ -189,9 +187,7 @@ class TestContraATabelaOficial(unittest.TestCase):
 		from erpnext_brasil.fiscal.codigos.xlsx import ler_planilha
 
 		cst = {r.codigo: r for r in ler_cst(ler_planilha(arquivo, "xl/worksheets/sheet1.xml"))}
-		cclass = {
-			r.codigo: r for r in ler_cclasstrib(ler_planilha(arquivo, "xl/worksheets/sheet2.xml"))
-		}
+		cclass = {r.codigo: r for r in ler_cclasstrib(ler_planilha(arquivo, "xl/worksheets/sheet2.xml"))}
 
 		# Todo cClassTrib aplicável a NF-e deve passar quando informado com o seu
 		# próprio CST — se não passar, a validação está rejeitando combinação legítima.
@@ -200,9 +196,7 @@ class TestContraATabelaOficial(unittest.TestCase):
 				continue
 
 			with self.subTest(cclasstrib=registro.codigo):
-				self.assertEqual(
-					validar_classificacao(registro.cst, registro.codigo, cst, cclass), []
-				)
+				self.assertEqual(validar_classificacao(registro.cst, registro.codigo, cst, cclass), [])
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ Não há teste de conformidade contra `elementos_nfe.json` aqui pelo mesmo motiv
 """
 
 import unittest
+from dataclasses import FrozenInstanceError
 
 from erpnext_brasil.fiscal.documento.inutilizacao import (
 	CODIGO_SUCESSO_INUTILIZACAO,
@@ -181,9 +182,7 @@ class AssinadorFalso:
 
 		self.recebido = (xml, id_elemento)
 
-		return MaterialAssinatura(
-			digest="ZGlnZXN0", assinatura="YXNzaW5hdHVyYQ==", certificado="Y2VydA=="
-		)
+		return MaterialAssinatura(digest="ZGlnZXN0", assinatura="YXNzaW5hdHVyYQ==", certificado="Y2VydA==")
 
 
 class TestAssinarInutilizacao(unittest.TestCase):
@@ -240,7 +239,7 @@ class TestInterpretarRetornoInutilizacao(unittest.TestCase):
 	def test_retorno_e_congelado(self):
 		retorno = RetornoInutilizacao(cstat="102", motivo="x")
 
-		with self.assertRaises(Exception):
+		with self.assertRaises(FrozenInstanceError):
 			retorno.cstat = "999"
 
 

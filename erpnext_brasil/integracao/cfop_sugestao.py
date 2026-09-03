@@ -46,8 +46,8 @@ from erpnext_brasil.fiscal.cfop import (
 	FINALIDADE_COMERCIALIZACAO,
 	FINALIDADE_INDUSTRIALIZACAO,
 	cfop_compra,
-	cfop_retorno_de_industrializacao,
 	cfop_remessa_para_industrializacao,
+	cfop_retorno_de_industrializacao,
 	cfop_venda,
 )
 from erpnext_brasil.integracao.party import uf_da_parte
@@ -113,7 +113,9 @@ def sugerir_cfop_compra_venda(doc, method=None):
 			if producao_propria is None:
 				continue
 
-			linha.br_cfop_sugerido = cfop_venda(mesmo_estado=mesmo_estado, producao_propria=bool(producao_propria))
+			linha.br_cfop_sugerido = cfop_venda(
+				mesmo_estado=mesmo_estado, producao_propria=bool(producao_propria)
+			)
 		else:
 			finalidade_bruta = item.get("finalidade_compra")
 			finalidade = _MAPA_FINALIDADE_COMPRA.get(finalidade_bruta)

@@ -119,7 +119,10 @@ class TestLoteEventos(unittest.TestCase):
 
 		with self.assertRaises(EsocialLoteInvalido):
 			LoteEventos(
-				grupo=1, ide_empregador=self._empregador(), ide_transmissor=self._transmissor(), eventos=eventos
+				grupo=1,
+				ide_empregador=self._empregador(),
+				ide_transmissor=self._transmissor(),
+				eventos=eventos,
 			)
 
 	def test_lote_com_exatamente_50_eventos_e_valido(self):

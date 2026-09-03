@@ -119,8 +119,12 @@ def montar_i155(
 		if conta not in codigos:
 			raise ContaDesconhecida(f"Conta {conta!r} não existe em plano_de_contas.ARVORE")
 
-		debitos = sum((l.valor for l in lancamentos if l.conta_debito == conta), ZERO)
-		creditos = sum((l.valor for l in lancamentos if l.conta_credito == conta), ZERO)
+		debitos = sum(
+			(lancamento.valor for lancamento in lancamentos if lancamento.conta_debito == conta), ZERO
+		)
+		creditos = sum(
+			(lancamento.valor for lancamento in lancamentos if lancamento.conta_credito == conta), ZERO
+		)
 
 		inicial = saldos_iniciais.get(conta, SaldoInicial(ZERO, _DEVEDOR))
 		assinado_final = _assinado(inicial.valor, inicial.indicador) + debitos - creditos

@@ -4,6 +4,7 @@
 """Testes de `contabil/cnab240_retorno.py` — Segmentos T e U do retorno CNAB 240."""
 
 import unittest
+from dataclasses import FrozenInstanceError
 from datetime import date
 from decimal import Decimal
 
@@ -103,13 +104,15 @@ class TestDataclasses(unittest.TestCase):
 	def test_segmento_t_e_congelado(self):
 		segmento = SegmentoT(identificacao_titulo="1", codigo_movimento="06")
 
-		with self.assertRaises(Exception):
+		with self.assertRaises(FrozenInstanceError):
 			segmento.codigo_movimento = "03"
 
 	def test_segmento_u_e_congelado(self):
-		segmento = SegmentoU(codigo_movimento="06", valor_pago=Decimal("1.00"), data_ocorrencia=date(2026, 1, 1))
+		segmento = SegmentoU(
+			codigo_movimento="06", valor_pago=Decimal("1.00"), data_ocorrencia=date(2026, 1, 1)
+		)
 
-		with self.assertRaises(Exception):
+		with self.assertRaises(FrozenInstanceError):
 			segmento.valor_pago = Decimal("2.00")
 
 

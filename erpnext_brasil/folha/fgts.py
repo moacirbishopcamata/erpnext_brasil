@@ -49,8 +49,8 @@ from decimal import ROUND_HALF_UP, Decimal
 
 __all__ = [
 	"ALIQUOTA_APRENDIZ",
-	"ALIQUOTA_PADRAO",
 	"ALIQUOTA_MULTA_POR_MOTIVO",
+	"ALIQUOTA_PADRAO",
 	"FGTSInvalido",
 	"calcular_deposito_mensal",
 	"calcular_multa_rescisoria",

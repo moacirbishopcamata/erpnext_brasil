@@ -84,8 +84,11 @@ class TestMontarInfoFech(unittest.TestCase):
 
 	def test_campos_opcionais_ausentes_por_padrao(self):
 		info = InfoFechamento(
-			evt_remun=True, evt_pgtos=False, evt_com_prod=False,
-			evt_contrat_av_np=False, evt_info_compl_per=False,
+			evt_remun=True,
+			evt_pgtos=False,
+			evt_com_prod=False,
+			evt_contrat_av_np=False,
+			evt_info_compl_per=False,
 		)
 
 		grupo = montar_info_fech(info)
@@ -98,8 +101,11 @@ class TestMontarInfoFech(unittest.TestCase):
 		"""O campo que efetivamente dispara a geração da DCTFWeb -- não um arquivo
 		separado, ver docstring do módulo."""
 		info = InfoFechamento(
-			evt_remun=True, evt_pgtos=False, evt_com_prod=False,
-			evt_contrat_av_np=False, evt_info_compl_per=False,
+			evt_remun=True,
+			evt_pgtos=False,
+			evt_com_prod=False,
+			evt_contrat_av_np=False,
+			evt_info_compl_per=False,
 			trans_dctfweb=True,
 		)
 
@@ -111,8 +117,11 @@ class TestMontarInfoFech(unittest.TestCase):
 		"""None e True têm o mesmo efeito no XSD -- só False (\"N\") precisa aparecer
 		de fato para executar a regra de validação."""
 		info = InfoFechamento(
-			evt_remun=True, evt_pgtos=False, evt_com_prod=False,
-			evt_contrat_av_np=False, evt_info_compl_per=False,
+			evt_remun=True,
+			evt_pgtos=False,
+			evt_com_prod=False,
+			evt_contrat_av_np=False,
+			evt_info_compl_per=False,
 			nao_valid=False,
 		)
 
@@ -122,8 +131,11 @@ class TestMontarInfoFech(unittest.TestCase):
 
 	def test_nao_valid_none_nao_aparece(self):
 		info = InfoFechamento(
-			evt_remun=True, evt_pgtos=False, evt_com_prod=False,
-			evt_contrat_av_np=False, evt_info_compl_per=False,
+			evt_remun=True,
+			evt_pgtos=False,
+			evt_com_prod=False,
+			evt_contrat_av_np=False,
+			evt_info_compl_per=False,
 		)
 
 		self.assertNotIn("naoValid", montar_info_fech(info))

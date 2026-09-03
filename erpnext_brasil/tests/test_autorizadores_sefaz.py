@@ -33,9 +33,7 @@ class TestCoberturaDas27UFs(unittest.TestCase):
 	def test_dez_ufs_com_webservice_proprio(self):
 		proprias = [uf for uf, grupo in AUTORIZADOR_POR_UF.items() if grupo == "PROPRIO"]
 
-		self.assertEqual(
-			sorted(proprias), ["AM", "BA", "GO", "MG", "MS", "MT", "PE", "PR", "RS", "SP"]
-		)
+		self.assertEqual(sorted(proprias), ["AM", "BA", "GO", "MG", "MS", "MT", "PE", "PR", "RS", "SP"])
 
 	def test_apenas_ma_no_svan(self):
 		svan = [uf for uf, grupo in AUTORIZADOR_POR_UF.items() if grupo == "SVAN"]
@@ -116,9 +114,10 @@ class TestExcecaoDeConsultaCadastro(unittest.TestCase):
 				self.assertIsNotNone(endpoint(uf, "NfeConsultaCadastro"))
 
 	def test_as_onze_restantes_nao_resolvem(self):
-		restantes = set(
-			uf for uf, grupo in AUTORIZADOR_POR_UF.items() if grupo == "SVRS"
-		) - UFS_COM_CONSULTA_CADASTRO_NO_SVRS
+		restantes = (
+			set(uf for uf, grupo in AUTORIZADOR_POR_UF.items() if grupo == "SVRS")
+			- UFS_COM_CONSULTA_CADASTRO_NO_SVRS
+		)
 
 		self.assertEqual(len(restantes), 11)
 
@@ -135,9 +134,7 @@ class TestHomologacao(unittest.TestCase):
 	def test_ro_resolve_homologacao(self):
 		url = endpoint("RO", "NFeAutorizacao", ambiente="homologacao")
 
-		self.assertEqual(
-			url, "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx"
-		)
+		self.assertEqual(url, "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx")
 
 	def test_homologacao_do_svrs_troca_o_host_mas_preserva_o_caminho(self):
 		producao = endpoint("RO", "NfeStatusServico")
@@ -159,9 +156,7 @@ class TestHomologacao(unittest.TestCase):
 		for uf, (host_producao, host_homologacao) in casos.items():
 			with self.subTest(uf=uf):
 				self.assertIn(host_producao, endpoint(uf, "NFeAutorizacao"))
-				self.assertIn(
-					host_homologacao, endpoint(uf, "NFeAutorizacao", ambiente="homologacao")
-				)
+				self.assertIn(host_homologacao, endpoint(uf, "NFeAutorizacao", ambiente="homologacao"))
 
 	def test_todos_os_14_grupos_tem_homologacao_confirmada(self):
 		"""Os 10 próprios + SVAN + SVRS (autorizadores normais) + SVC-AN + SVC-RS
@@ -315,7 +310,8 @@ class TestContingenciaSVC(unittest.TestCase):
 		fonte: se a URL do SVRS mudar, o SVC-RS muda junto."""
 		self.assertIs(autorizadores_sefaz.ENDPOINTS["SVCRS"], autorizadores_sefaz.ENDPOINTS["SVRS"])
 		self.assertIs(
-			autorizadores_sefaz.ENDPOINTS_HOMOLOGACAO["SVCRS"], autorizadores_sefaz.ENDPOINTS_HOMOLOGACAO["SVRS"]
+			autorizadores_sefaz.ENDPOINTS_HOMOLOGACAO["SVCRS"],
+			autorizadores_sefaz.ENDPOINTS_HOMOLOGACAO["SVRS"],
 		)
 
 	def test_contingencia_com_modelo_65_levanta_erro(self):
@@ -325,9 +321,7 @@ class TestContingenciaSVC(unittest.TestCase):
 
 	def test_homologacao_em_contingencia(self):
 		producao = endpoint("SP", "NFeAutorizacao", modelo="55", contingencia=True)
-		homologacao = endpoint(
-			"SP", "NFeAutorizacao", ambiente="homologacao", modelo="55", contingencia=True
-		)
+		homologacao = endpoint("SP", "NFeAutorizacao", ambiente="homologacao", modelo="55", contingencia=True)
 
 		self.assertIn("sefazvirtual.fazenda.gov.br", producao)
 		self.assertIn("hom.sefazvirtual.fazenda.gov.br", homologacao)

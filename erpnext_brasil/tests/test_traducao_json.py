@@ -49,9 +49,7 @@ class TestExemploOficialDaAcbrApi(unittest.TestCase):
 	def test_atributo_de_negocio_vira_chave_comum(self):
 		arvore_xml = {"obsCont": [{"@xCampo": "xCampo", "xTexto": "xTexto"}]}
 
-		self.assertEqual(
-			para_json(arvore_xml), {"obsCont": [{"xCampo": "xCampo", "xTexto": "xTexto"}]}
-		)
+		self.assertEqual(para_json(arvore_xml), {"obsCont": [{"xCampo": "xCampo", "xTexto": "xTexto"}]})
 
 
 class TestAtributosDeInfraestrutura(unittest.TestCase):
@@ -65,9 +63,7 @@ class TestAtributosDeInfraestrutura(unittest.TestCase):
 		self.assertIn("ide", resultado["infNFe"])
 
 	def test_lista_de_atributos_de_infraestrutura(self):
-		self.assertEqual(
-			set(ATRIBUTOS_DE_INFRAESTRUTURA), {"@versao", "@Id", "@xmlns", "@nItem"}
-		)
+		self.assertEqual(set(ATRIBUTOS_DE_INFRAESTRUTURA), {"@versao", "@Id", "@xmlns", "@nItem"})
 
 	def test_preservados_quando_desligado(self):
 		arvore = {"infNFe": {"@versao": "4.00"}}

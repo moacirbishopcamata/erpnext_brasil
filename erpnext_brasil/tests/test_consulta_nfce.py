@@ -37,9 +37,7 @@ class TestRondonia(unittest.TestCase):
 	de referência — a mesma URL vale para os dois ambientes."""
 
 	def test_url_de_producao(self):
-		self.assertEqual(
-			url_qrcode("RO"), "http://www.nfce.sefin.ro.gov.br/consultanfce/consulta.jsp"
-		)
+		self.assertEqual(url_qrcode("RO"), "http://www.nfce.sefin.ro.gov.br/consultanfce/consulta.jsp")
 
 	def test_homologacao_igual_a_producao(self):
 		self.assertEqual(url_qrcode("RO", "producao"), url_qrcode("RO", "homologacao"))

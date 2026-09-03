@@ -42,7 +42,9 @@ class TestOcorrencia(unittest.TestCase):
 
 class TestStatusRetorno(unittest.TestCase):
 	def test_sucesso_puro(self):
-		status = StatusRetorno(cd_resposta=CODIGO_LOTE_RECEBIDO_SUCESSO, desc_resposta="Lote recebido com sucesso")
+		status = StatusRetorno(
+			cd_resposta=CODIGO_LOTE_RECEBIDO_SUCESSO, desc_resposta="Lote recebido com sucesso"
+		)
 
 		self.assertTrue(status.sucesso)
 		self.assertFalse(status.pendente)
@@ -164,7 +166,8 @@ class TestRetornoProcessamentoLote(unittest.TestCase):
 
 		with self.assertRaises(EsocialRetornoInvalido):
 			RetornoProcessamentoLote(
-				status=StatusRetorno(cd_resposta=CODIGO_LOTE_RECEBIDO_SUCESSO, desc_resposta="OK"), eventos=eventos
+				status=StatusRetorno(cd_resposta=CODIGO_LOTE_RECEBIDO_SUCESSO, desc_resposta="OK"),
+				eventos=eventos,
 			)
 
 

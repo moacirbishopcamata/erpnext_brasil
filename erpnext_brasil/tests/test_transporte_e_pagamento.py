@@ -130,9 +130,7 @@ class TestFormaOutros(unittest.TestCase):
 		self.assertEqual(ctx.exception.campo, "descricao")
 
 	def test_99_com_descricao_passa(self):
-		grupo = montar_pag(
-			[{"forma": "99", "valor": Decimal("10.00"), "descricao": "Permuta"}]
-		)["pag"]
+		grupo = montar_pag([{"forma": "99", "valor": Decimal("10.00"), "descricao": "Permuta"}])["pag"]
 
 		self.assertEqual(grupo["detPag"][0]["xPag"], "Permuta")
 
@@ -155,9 +153,7 @@ class TestCartao(unittest.TestCase):
 		self.assertEqual(card["cAut"], "123456")
 
 	def test_tipo_integracao_padrao(self):
-		grupo = montar_pag(
-			[{"forma": "03", "valor": Decimal("100.00"), "cartao": {}}]
-		)["pag"]
+		grupo = montar_pag([{"forma": "03", "valor": Decimal("100.00"), "cartao": {}}])["pag"]
 
 		self.assertEqual(grupo["detPag"][0]["card"]["tpIntegra"], "2")
 
@@ -183,9 +179,7 @@ class TestMultiplosPagamentosETroco(unittest.TestCase):
 		self.assertEqual(len(grupo["detPag"]), 2)
 
 	def test_troco(self):
-		grupo = montar_pag([{"forma": "01", "valor": Decimal("100.00")}], troco=Decimal("10.00"))[
-			"pag"
-		]
+		grupo = montar_pag([{"forma": "01", "valor": Decimal("100.00")}], troco=Decimal("10.00"))["pag"]
 
 		self.assertEqual(grupo["vTroco"], "10.00")
 
@@ -205,10 +199,7 @@ class TestConformidadeDeTags(unittest.TestCase):
 		import pathlib
 
 		manifesto = (
-			pathlib.Path(__file__).resolve().parents[1]
-			/ "fiscal"
-			/ "documento"
-			/ "elementos_nfe.json"
+			pathlib.Path(__file__).resolve().parents[1] / "fiscal" / "documento" / "elementos_nfe.json"
 		)
 		self.elementos = set(json.loads(manifesto.read_text(encoding="utf-8")))
 

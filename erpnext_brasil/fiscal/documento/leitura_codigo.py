@@ -90,14 +90,14 @@ def _chave_da_url(texto: str) -> str:
 def extrair_chave(leitura: str) -> str:
 	"""Devolve a chave de acesso de 44 dígitos a partir do texto lido.
 
-	Aceita as três formas que aparecem na prática:
+	    Aceita as três formas que aparecem na prática:
 
-    1. os 44 dígitos crus (leitor 1D no DANFE/DACTE/DAMDFE);
-	2. a chave formatada com espaços, como é impressa por extenso no DANFE
-	   (`3526 0111 2223 ...`) — copiada e colada à mão;
-	3. a URL inteira do QR Code da NFC-e (leitor 2D no DANFCe).
+	1. os 44 dígitos crus (leitor 1D no DANFE/DACTE/DAMDFE);
+	    2. a chave formatada com espaços, como é impressa por extenso no DANFE
+	       (`3526 0111 2223 ...`) — copiada e colada à mão;
+	    3. a URL inteira do QR Code da NFC-e (leitor 2D no DANFCe).
 
-	Sempre valida o resultado (layout e dígito verificador) antes de devolver.
+	    Sempre valida o resultado (layout e dígito verificador) antes de devolver.
 	"""
 	texto = (leitura or "").strip()
 

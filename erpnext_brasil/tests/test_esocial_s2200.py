@@ -139,13 +139,21 @@ class TestInfoContrato(unittest.TestCase):
 	def test_cod_categ_fora_de_3_digitos_e_erro(self):
 		with self.assertRaises(EsocialS2200Invalido):
 			InfoContrato(
-				cod_categ=99, nm_cargo="Analista", valor_salario=Decimal("3000.00"), unid_sal_fixo=1, tp_salario=1
+				cod_categ=99,
+				nm_cargo="Analista",
+				valor_salario=Decimal("3000.00"),
+				unid_sal_fixo=1,
+				tp_salario=1,
 			)
 
 	def test_salario_negativo_e_erro(self):
 		with self.assertRaises(EsocialS2200Invalido):
 			InfoContrato(
-				cod_categ=101, nm_cargo="Analista", valor_salario=Decimal("-1.00"), unid_sal_fixo=1, tp_salario=1
+				cod_categ=101,
+				nm_cargo="Analista",
+				valor_salario=Decimal("-1.00"),
+				unid_sal_fixo=1,
+				tp_salario=1,
 			)
 
 

@@ -53,7 +53,7 @@ Funções puras: nenhuma dependência do Frappe.
 
 from datetime import datetime
 
-__all__ = ["EsocialIdInvalido", "TIPO_INSCRICAO_CNPJ", "TIPO_INSCRICAO_CPF", "gerar_id_evento"]
+__all__ = ["TIPO_INSCRICAO_CNPJ", "TIPO_INSCRICAO_CPF", "EsocialIdInvalido", "gerar_id_evento"]
 
 TIPO_INSCRICAO_CNPJ = 1
 TIPO_INSCRICAO_CPF = 2

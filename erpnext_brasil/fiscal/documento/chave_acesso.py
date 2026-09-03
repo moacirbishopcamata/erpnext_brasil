@@ -162,9 +162,7 @@ def validar_chave(chave: str) -> str:
 		raise ChaveInvalida("Chave de acesso não informada", chave)
 
 	if len(limpa) != _TAMANHO:
-		raise ChaveInvalida(
-			f"A chave de acesso tem {_TAMANHO} caracteres, recebidos {len(limpa)}", chave
-		)
+		raise ChaveInvalida(f"A chave de acesso tem {_TAMANHO} caracteres, recebidos {len(limpa)}", chave)
 
 	if not _PADRAO.match(limpa):
 		raise ChaveInvalida(

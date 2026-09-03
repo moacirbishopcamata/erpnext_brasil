@@ -155,9 +155,8 @@ Ambos já eram genéricos (não hardcodam `NAMESPACE_NFE`, só leem o que o dici
 Funções puras: nenhuma dependência do Frappe.
 """
 
-from dataclasses import dataclass, field
-
 import re
+from dataclasses import dataclass, field
 
 from erpnext_brasil.fiscal.documento.chave_acesso import ler_chave, validar_chave
 from erpnext_brasil.fiscal.documento.evento import EventoInvalido, assinar_evento
@@ -224,8 +223,11 @@ TIPO_COMPONENTE_FRETE = "04"
 TIPO_COMPONENTE_OUTROS = "99"
 
 _COMPONENTES_PAGAMENTO_VALIDOS = {
-	TIPO_COMPONENTE_VALE_PEDAGIO, TIPO_COMPONENTE_IMPOSTOS, TIPO_COMPONENTE_DESPESAS,
-	TIPO_COMPONENTE_FRETE, TIPO_COMPONENTE_OUTROS,
+	TIPO_COMPONENTE_VALE_PEDAGIO,
+	TIPO_COMPONENTE_IMPOSTOS,
+	TIPO_COMPONENTE_DESPESAS,
+	TIPO_COMPONENTE_FRETE,
+	TIPO_COMPONENTE_OUTROS,
 }
 
 INDICADOR_PAGAMENTO_A_VISTA = "0"
@@ -238,7 +240,9 @@ TIPO_ANTECIPACAO_NAO_PERMITE = "0"
 TIPO_ANTECIPACAO_PERMITE = "1"
 TIPO_ANTECIPACAO_PERMITE_COM_CONFIRMACAO = "2"
 _TIPOS_ANTECIPACAO_VALIDOS = {
-	TIPO_ANTECIPACAO_NAO_PERMITE, TIPO_ANTECIPACAO_PERMITE, TIPO_ANTECIPACAO_PERMITE_COM_CONFIRMACAO,
+	TIPO_ANTECIPACAO_NAO_PERMITE,
+	TIPO_ANTECIPACAO_PERMITE,
+	TIPO_ANTECIPACAO_PERMITE_COM_CONFIRMACAO,
 }
 _VERSAO_LEIAUTE_MDFE = "3.00"
 
@@ -250,8 +254,34 @@ JUSTIFICATIVA_MAXIMA_MDFE = 255
 # `TCodUfIBGE_EX` — as 27 UFs brasileiras mais "99" para Exterior (ver docstring do
 # módulo). Confirmado em `tiposGeralMDFe_v3.00.xsd`.
 _UFS_VALIDAS_ENCERRAMENTO_MDFE = {
-	"11", "12", "13", "14", "15", "16", "17", "21", "22", "23", "24", "25", "26", "27",
-	"28", "29", "31", "32", "33", "35", "41", "42", "43", "50", "51", "52", "53", "99",
+	"11",
+	"12",
+	"13",
+	"14",
+	"15",
+	"16",
+	"17",
+	"21",
+	"22",
+	"23",
+	"24",
+	"25",
+	"26",
+	"27",
+	"28",
+	"29",
+	"31",
+	"32",
+	"33",
+	"35",
+	"41",
+	"42",
+	"43",
+	"50",
+	"51",
+	"52",
+	"53",
+	"99",
 }
 
 INDICADOR_ENCERRAMENTO_POR_TERCEIRO = "1"
@@ -468,8 +498,7 @@ class DocumentoIncluido:
 	def __post_init__(self):
 		if not (2 <= len(self.nome_municipio_descarga) <= 60):
 			raise EventoInvalido(
-				f"xMunDescarga deve ter de 2 a 60 caracteres, recebido "
-				f"{self.nome_municipio_descarga!r}",
+				f"xMunDescarga deve ter de 2 a 60 caracteres, recebido {self.nome_municipio_descarga!r}",
 				"nome_municipio_descarga",
 			)
 
@@ -618,8 +647,7 @@ class ComponentePagamento:
 	def __post_init__(self):
 		if self.tipo not in _COMPONENTES_PAGAMENTO_VALIDOS:
 			raise EventoInvalido(
-				f"tpComp deve ser um de {sorted(_COMPONENTES_PAGAMENTO_VALIDOS)}, "
-				f"recebido {self.tipo!r}",
+				f"tpComp deve ser um de {sorted(_COMPONENTES_PAGAMENTO_VALIDOS)}, recebido {self.tipo!r}",
 				"tipo",
 			)
 
@@ -644,9 +672,7 @@ class ParcelaPagamento:
 
 	def __post_init__(self):
 		if not (1 <= self.numero <= 999):
-			raise EventoInvalido(
-				f"nParcela deve estar entre 1 e 999, recebido {self.numero}", "numero"
-			)
+			raise EventoInvalido(f"nParcela deve estar entre 1 e 999, recebido {self.numero}", "numero")
 
 
 def montar_parcela_pagamento(parcela: ParcelaPagamento) -> dict:
@@ -712,9 +738,7 @@ def montar_inf_banc(info: InfoBancaria) -> dict:
 		return {"infBanc": {"CNPJIPEF": cnpj}}
 
 	if not (2 <= len(info.chave_pix) <= 60):
-		raise EventoInvalido(
-			f"PIX deve ter de 2 a 60 caracteres, recebido {info.chave_pix!r}", "chave_pix"
-		)
+		raise EventoInvalido(f"PIX deve ter de 2 a 60 caracteres, recebido {info.chave_pix!r}", "chave_pix")
 
 	return {"infBanc": {"PIX": info.chave_pix}}
 
@@ -754,21 +778,15 @@ class InfoPagamento:
 		identificadores = [bool(self.cpf), bool(self.cnpj), bool(self.id_estrangeiro)]
 
 		if sum(identificadores) != 1:
-			raise EventoInvalido(
-				"informe exatamente um entre cpf, cnpj e id_estrangeiro", "cpf"
-			)
+			raise EventoInvalido("informe exatamente um entre cpf, cnpj e id_estrangeiro", "cpf")
 
 		a_prazo = self.indicador_pagamento == INDICADOR_PAGAMENTO_A_PRAZO
 
 		if self.valor_adiantamento is not None and not a_prazo:
-			raise EventoInvalido(
-				"vAdiant só é usado em pagamento à Prazo (indPag=1)", "valor_adiantamento"
-			)
+			raise EventoInvalido("vAdiant só é usado em pagamento à Prazo (indPag=1)", "valor_adiantamento")
 
 		if self.parcelas and not a_prazo:
-			raise EventoInvalido(
-				"infPrazo só é informado em pagamento à Prazo (indPag=1)", "parcelas"
-			)
+			raise EventoInvalido("infPrazo só é informado em pagamento à Prazo (indPag=1)", "parcelas")
 
 		if self.tipo_antecipacao is not None and self.tipo_antecipacao not in _TIPOS_ANTECIPACAO_VALIDOS:
 			raise EventoInvalido(
@@ -789,9 +807,7 @@ def montar_inf_pag(pagamento: InfoPagamento) -> dict:
 
 	if pagamento.nome is not None:
 		if not (2 <= len(pagamento.nome) <= 60):
-			raise EventoInvalido(
-				f"xNome deve ter de 2 a 60 caracteres, recebido {pagamento.nome!r}", "nome"
-			)
+			raise EventoInvalido(f"xNome deve ter de 2 a 60 caracteres, recebido {pagamento.nome!r}", "nome")
 
 		grupo["xNome"] = pagamento.nome
 
@@ -857,9 +873,7 @@ def montar_evento_pagamento_operacao_mdfe(
 		)
 
 	if not re.match(r"^[0-9]{5}$", numero_viagem or ""):
-		raise EventoInvalido(
-			f"nroViagem deve ter 5 dígitos, recebido {numero_viagem!r}", "numero_viagem"
-		)
+		raise EventoInvalido(f"nroViagem deve ter 5 dígitos, recebido {numero_viagem!r}", "numero_viagem")
 
 	if not pagamentos:
 		raise EventoInvalido("infPag precisa de ao menos um pagamento", "pagamentos")
@@ -934,9 +948,7 @@ def montar_evento_alteracao_pagamento_servico_mdfe(
 		raise EventoInvalido(f"CNPJ do autor do evento inválido: {e}", "cnpj_autor") from e
 
 	inf_evento = {
-		"@Id": _formatar_id_mdfe(
-			chave, TIPO_EVENTO_ALTERACAO_PAGAMENTO_SERVICO_MDFE, numero_sequencia
-		),
+		"@Id": _formatar_id_mdfe(chave, TIPO_EVENTO_ALTERACAO_PAGAMENTO_SERVICO_MDFE, numero_sequencia),
 		"cOrgao": lida.uf,
 		"tpAmb": ambiente,
 		"CNPJ": cnpj,
@@ -962,9 +974,7 @@ def montar_env_evento_mdfe(eventos: list[dict], id_lote: str) -> dict:
 		raise EventoInvalido("O lote de eventos precisa de ao menos um evento", "eventos")
 
 	if len(eventos) > 20:
-		raise EventoInvalido(
-			f"Um lote de eventos admite no máximo 20, recebidos {len(eventos)}", "eventos"
-		)
+		raise EventoInvalido(f"Um lote de eventos admite no máximo 20, recebidos {len(eventos)}", "eventos")
 
 	if not (id_lote or "").strip():
 		raise EventoInvalido("idLote é obrigatório", "id_lote")

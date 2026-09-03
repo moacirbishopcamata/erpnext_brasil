@@ -132,7 +132,9 @@ class TestCdata(unittest.TestCase):
 			Cdata("algo]]>que fecharia a secao no meio")
 
 	def test_cdata_dentro_de_arvore_maior(self):
-		xml = para_xml({"infNFeSupl": {"@versao": "4.00", "qrCode": Cdata("http://x"), "urlChave": "http://y"}})
+		xml = para_xml(
+			{"infNFeSupl": {"@versao": "4.00", "qrCode": Cdata("http://x"), "urlChave": "http://y"}}
+		)
 
 		self.assertIn("<qrCode><![CDATA[http://x]]></qrCode>", xml)
 		self.assertIn("<urlChave>http://y</urlChave>", xml)
@@ -168,9 +170,7 @@ class TestSignedInfo(unittest.TestCase):
 	def test_duas_transformacoes_na_ordem_do_perfil(self):
 		transformacoes = self.bloco["Reference"]["Transforms"]["Transform"]
 
-		self.assertEqual(
-			[t["@Algorithm"] for t in transformacoes], [ALGORITMO_TRANSFORMACAO, ALGORITMO_C14N]
-		)
+		self.assertEqual([t["@Algorithm"] for t in transformacoes], [ALGORITMO_TRANSFORMACAO, ALGORITMO_C14N])
 
 	def test_uri_aponta_para_o_id(self):
 		self.assertEqual(self.bloco["Reference"]["@URI"], "#NFe123")
@@ -180,9 +180,7 @@ class TestSignedInfo(unittest.TestCase):
 			montar_signed_info("NFe123", "")
 
 	def test_ordem_dos_elementos(self):
-		self.assertEqual(
-			list(self.bloco), ["CanonicalizationMethod", "SignatureMethod", "Reference"]
-		)
+		self.assertEqual(list(self.bloco), ["CanonicalizationMethod", "SignatureMethod", "Reference"])
 
 
 class TestSignature(unittest.TestCase):
@@ -199,9 +197,7 @@ class TestSignature(unittest.TestCase):
 		)
 
 	def test_certificado_embutido(self):
-		self.assertEqual(
-			self.bloco["KeyInfo"]["X509Data"]["X509Certificate"], MATERIAL.certificado
-		)
+		self.assertEqual(self.bloco["KeyInfo"]["X509Data"]["X509Certificate"], MATERIAL.certificado)
 
 	def test_assinatura_vazia_e_erro(self):
 		with self.assertRaises(AssinaturaInvalida):

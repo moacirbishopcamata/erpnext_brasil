@@ -58,9 +58,7 @@ def _abrir_pkcs12(pfx: bytes, senha: str):
 		raise AssinaturaInvalida("Arquivo de certificado vazio")
 
 	try:
-		chave, certificado, _ = pkcs12.load_key_and_certificates(
-			pfx, (senha or "").encode("utf-8")
-		)
+		chave, certificado, _ = pkcs12.load_key_and_certificates(pfx, (senha or "").encode("utf-8"))
 	except ValueError as e:
 		# A biblioteca não distingue senha errada de arquivo corrompido; a mensagem
 		# cobre os dois sem afirmar qual é, porque afirmar errado desorienta.
@@ -110,9 +108,7 @@ def carregar_certificado(pfx: bytes, senha: str):
 		)
 
 	if inicia is not None and inicia > agora:
-		raise CertificadoExpirado(
-			f"O certificado só passa a valer em {inicia:%d/%m/%Y}."
-		)
+		raise CertificadoExpirado(f"O certificado só passa a valer em {inicia:%d/%m/%Y}.")
 
 	return chave, certificado
 
@@ -154,9 +150,7 @@ class AssinadorLocal:
 		return MaterialAssinatura(
 			digest=digest,
 			assinatura=base64.b64encode(assinatura).decode("ascii"),
-			certificado=base64.b64encode(
-				self._certificado.public_bytes(Encoding.DER)
-			).decode("ascii"),
+			certificado=base64.b64encode(self._certificado.public_bytes(Encoding.DER)).decode("ascii"),
 		)
 
 	@staticmethod

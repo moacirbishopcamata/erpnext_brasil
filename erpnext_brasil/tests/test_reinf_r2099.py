@@ -108,8 +108,13 @@ class TestMontarInfoFechReinf(unittest.TestCase):
 		grupo = montar_info_fech_reinf(info)
 
 		for campo in (
-			"evtServTm", "evtServPr", "evtAssDespRec", "evtAssDespRep",
-			"evtComProd", "evtCPRB", "evtAquis",
+			"evtServTm",
+			"evtServPr",
+			"evtAssDespRec",
+			"evtAssDespRep",
+			"evtComProd",
+			"evtCPRB",
+			"evtAquis",
 		):
 			self.assertIn(campo, grupo)
 			self.assertEqual(grupo[campo], "N")

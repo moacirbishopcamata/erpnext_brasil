@@ -35,7 +35,11 @@ from datetime import datetime
 from pathlib import Path
 
 from erpnext_brasil.fiscal.documento.chave_acesso import ler_chave
-from erpnext_brasil.fiscal.documento.porta import RespostaTransmissao, ResultadoConsulta, ResultadoInutilizacao
+from erpnext_brasil.fiscal.documento.porta import (
+	RespostaTransmissao,
+	ResultadoConsulta,
+	ResultadoInutilizacao,
+)
 from erpnext_brasil.integracao.assinador_local import AssinadorLocal, carregar_certificado
 from erpnext_brasil.integracao.autorizacao_sefaz import consultar_situacao, enviar_autorizacao
 from erpnext_brasil.integracao.contexto_sefaz import ContextoSefaz
@@ -157,7 +161,9 @@ class TransporteSefaz:
 		chave (posições 21-22), mesma razão de `transmitir`."""
 		return consultar_situacao(chave_acesso, self._contexto())
 
-	def _enviar_evento(self, evento: dict, chave_acesso: str, protocolo_padrao: str = "") -> RespostaTransmissao:
+	def _enviar_evento(
+		self, evento: dict, chave_acesso: str, protocolo_padrao: str = ""
+	) -> RespostaTransmissao:
 		"""Delega a `eventos_sefaz.enviar_evento` (extraído por tamanho de arquivo).
 		Modelo lido da chave, mesma razão de `transmitir`."""
 		return enviar_evento(

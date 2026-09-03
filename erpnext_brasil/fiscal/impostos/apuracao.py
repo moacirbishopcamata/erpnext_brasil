@@ -76,13 +76,7 @@ class ItemFiscal:
 		É a base de partida de tudo. O IPI **não** entra aqui — ele é calculado sobre
 		esta base e depois, conforme a operação, pode ou não se somar à do ICMS.
 		"""
-		return (
-			self.valor_produtos
-			+ self.frete
-			+ self.seguro
-			+ self.outras_despesas
-			- self.descontos
-		)
+		return self.valor_produtos + self.frete + self.seguro + self.outras_despesas - self.descontos
 
 
 @dataclass(frozen=True)
@@ -130,9 +124,7 @@ def apurar(item: ItemFiscal, operacao: Operacao | None = None) -> ApuracaoItem:
 		outras_despesas=item.outras_despesas,
 		descontos=item.descontos,
 		destinatario_contribuinte=operacao.destinatario_contribuinte,
-		destinado_a_industrializacao_ou_comercio=(
-			operacao.destinado_a_industrializacao_ou_comercio
-		),
+		destinado_a_industrializacao_ou_comercio=(operacao.destinado_a_industrializacao_ou_comercio),
 	)
 
 	# 2. Base do ICMS: o valor da operação, mais o IPI quando ele compõe.

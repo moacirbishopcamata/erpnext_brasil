@@ -45,9 +45,7 @@ class TestExemploReal(unittest.TestCase):
 		# fator 3026 na base antiga corresponde a uma data anterior a 2025 — usamos a
 		# base antiga diretamente aqui só para reconstituir o exemplo publicado.
 		data_vencimento = DATA_BASE_ANTIGA + timedelta(days=3026)
-		barcode = montar_codigo_barras(
-			self.CODIGO_BANCO, Decimal("32.80"), data_vencimento, self.CAMPO_LIVRE
-		)
+		barcode = montar_codigo_barras(self.CODIGO_BANCO, Decimal("32.80"), data_vencimento, self.CAMPO_LIVRE)
 
 		self.assertEqual(barcode, self.BARCODE_ESPERADO)
 

@@ -62,7 +62,9 @@ class TestGerarIdEvento(unittest.TestCase):
 
 	def test_sequencial_zero_e_erro(self):
 		with self.assertRaises(EsocialIdInvalido):
-			gerar_id_evento(TIPO_INSCRICAO_CNPJ, "12345678000199", datetime(2026, 1, 15, 13, 42, 47), sequencial=0)
+			gerar_id_evento(
+				TIPO_INSCRICAO_CNPJ, "12345678000199", datetime(2026, 1, 15, 13, 42, 47), sequencial=0
+			)
 
 	def test_sequencial_acima_de_99999_e_erro(self):
 		with self.assertRaises(EsocialIdInvalido):

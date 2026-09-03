@@ -46,15 +46,27 @@ _CNPJ_VALIDO = "11222333000181"
 
 def _chave_mdfe() -> str:
 	return montar_chave(
-		uf="35", ano_mes="2609", cnpj=_CNPJ_VALIDO, modelo="58", serie="001",
-		numero="000000001", tipo_emissao="1", codigo_numerico="12345678",
+		uf="35",
+		ano_mes="2609",
+		cnpj=_CNPJ_VALIDO,
+		modelo="58",
+		serie="001",
+		numero="000000001",
+		tipo_emissao="1",
+		codigo_numerico="12345678",
 	)
 
 
 def _chave_nfe() -> str:
 	return montar_chave(
-		uf="35", ano_mes="2609", cnpj=_CNPJ_VALIDO, modelo="55", serie="001",
-		numero="000000001", tipo_emissao="1", codigo_numerico="12345678",
+		uf="35",
+		ano_mes="2609",
+		cnpj=_CNPJ_VALIDO,
+		modelo="55",
+		serie="001",
+		numero="000000001",
+		tipo_emissao="1",
+		codigo_numerico="12345678",
 	)
 
 
@@ -64,9 +76,7 @@ class AssinadorFalso:
 
 	def assinar(self, xml: bytes, id_elemento: str):
 		self.recebido = (xml, id_elemento)
-		return MaterialAssinatura(
-			digest="ZGlnZXN0", assinatura="YXNzaW5hdHVyYQ==", certificado="Y2VydA=="
-		)
+		return MaterialAssinatura(digest="ZGlnZXN0", assinatura="YXNzaW5hdHVyYQ==", certificado="Y2VydA==")
 
 
 class TestMontarEventoCancelamentoMdfe(unittest.TestCase):
@@ -306,9 +316,7 @@ class TestMontarEventoInclusaoCondutorMdfe(unittest.TestCase):
 		)
 
 	def test_tp_evento_e_110114(self):
-		self.assertEqual(
-			self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_INCLUSAO_CONDUTOR_MDFE
-		)
+		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_INCLUSAO_CONDUTOR_MDFE)
 		self.assertEqual(TIPO_EVENTO_INCLUSAO_CONDUTOR_MDFE, "110114")
 
 	def test_desc_evento_sem_acento(self):
@@ -361,9 +369,7 @@ class TestMontarEventoInclusaoDfeMdfe(unittest.TestCase):
 		)
 
 	def test_tp_evento_e_110115(self):
-		self.assertEqual(
-			self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_INCLUSAO_DFE_MDFE
-		)
+		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_INCLUSAO_DFE_MDFE)
 		self.assertEqual(TIPO_EVENTO_INCLUSAO_DFE_MDFE, "110115")
 
 	def test_campos_de_carregamento(self):
@@ -438,9 +444,7 @@ class TestMontarEventoConfirmacaoServicoMdfe(unittest.TestCase):
 		)
 
 	def test_tp_evento_e_110117(self):
-		self.assertEqual(
-			self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_CONFIRMACAO_SERVICO_MDFE
-		)
+		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_CONFIRMACAO_SERVICO_MDFE)
 		self.assertEqual(TIPO_EVENTO_CONFIRMACAO_SERVICO_MDFE, "110117")
 
 	def test_so_tem_nprot(self):
@@ -544,9 +548,7 @@ class TestMontarEventoPagamentoOperacaoMdfe(unittest.TestCase):
 	def test_tp_evento_e_110116(self):
 		"""Achado real: preenche o número que a confirmação do serviço (110117) não
 		usa -- a numeração não é contígua nem alfabética por nome de arquivo."""
-		self.assertEqual(
-			self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_PAGAMENTO_OPERACAO_MDFE
-		)
+		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_PAGAMENTO_OPERACAO_MDFE)
 		self.assertEqual(TIPO_EVENTO_PAGAMENTO_OPERACAO_MDFE, "110116")
 
 	def test_inf_viagens(self):

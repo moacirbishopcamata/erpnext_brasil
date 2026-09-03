@@ -253,7 +253,9 @@ def gerar_lancamentos_venda(apuracao: ApuracaoDocumento, *, historico: str = "Ve
 	for conta_debito, conta_credito, valor in deducoes:
 		if valor:
 			lancamentos.append(
-				Lancamento(conta_debito=conta_debito, conta_credito=conta_credito, valor=valor, historico=historico)
+				Lancamento(
+					conta_debito=conta_debito, conta_credito=conta_credito, valor=valor, historico=historico
+				)
 			)
 
 	# Pós-condição: o que entra em Clientes (débito) é exatamente o total do documento
@@ -261,7 +263,9 @@ def gerar_lancamentos_venda(apuracao: ApuracaoDocumento, *, historico: str = "Ve
 	# passa direto por fora dela. Cada `Lancamento` já é balanceado por construção (um
 	# valor, um débito, um crédito); o que precisa de verificação é que a composição do
 	# conjunto não perdeu nem inventou centavo em relação à apuração de origem.
-	debito_clientes = sum((l.valor for l in lancamentos if l.conta_debito == "Clientes"), ZERO)
+	debito_clientes = sum(
+		(lancamento.valor for lancamento in lancamentos if lancamento.conta_debito == "Clientes"), ZERO
+	)
 
 	assert debito_clientes == apuracao.total_documento - total_is, (
 		"Débito em Clientes não fecha com o total do documento — receita reconhecida "
@@ -337,8 +341,12 @@ def gerar_lancamentos_compra(
 	# Pós-condição: o custo líquido que sobra em Estoques (débito inicial menos as
 	# reclassificações de crédito) é sempre o valor da nota menos o que foi recuperado —
 	# nunca "o que sobrou por acaso" da soma dos lançamentos.
-	debito_estoques = sum((l.valor for l in lancamentos if l.conta_debito == "Estoques"), ZERO)
-	credito_estoques = sum((l.valor for l in lancamentos if l.conta_credito == "Estoques"), ZERO)
+	debito_estoques = sum(
+		(lancamento.valor for lancamento in lancamentos if lancamento.conta_debito == "Estoques"), ZERO
+	)
+	credito_estoques = sum(
+		(lancamento.valor for lancamento in lancamentos if lancamento.conta_credito == "Estoques"), ZERO
+	)
 
 	assert debito_estoques - credito_estoques == valor_total_nota - total_creditos, (
 		"Custo líquido em Estoques não fecha com nota menos créditos recuperados"

@@ -136,13 +136,13 @@ def montar_identificacao_0000(
 def montar_participante_0150(doctype: str, nome: str, address: str = "") -> Participante:
 	"""Monta `Participante` (registro `0150`) a partir de um `Customer` ou `Supplier`.
 
-	`address` é opcional: sem ele, os campos de endereço saem vazios — que é o
-	comportamento correto, já que `END`/`NUM`/`COMPL`/`BAIRRO` são "obrigatórios quando
-	houver" no layout, não obrigatórios sempre.
+	    `address` é opcional: sem ele, os campos de endereço saem vazios — que é o
+	    comportamento correto, já que `END`/`NUM`/`COMPL`/`BAIRRO` são "obrigatórios quando
+	    houver" no layout, não obrigatórios sempre.
 
-    O CPF/CNPJ vem de `tax_id` (campo nativo, onde este projeto sempre o guarda) e é
-	classificado pelo comprimento: 14 dígitos é CNPJ, 11 é CPF. Sem `tax_id`, os dois
-	campos ficam vazios — participante estrangeiro é caso válido no layout.
+	O CPF/CNPJ vem de `tax_id` (campo nativo, onde este projeto sempre o guarda) e é
+	    classificado pelo comprimento: 14 dígitos é CNPJ, 11 é CPF. Sem `tax_id`, os dois
+	    campos ficam vazios — participante estrangeiro é caso válido no layout.
 	"""
 	if doctype not in ("Customer", "Supplier"):
 		raise ValueError(f"participante do 0150 é Customer ou Supplier, recebido {doctype!r}")

@@ -127,9 +127,7 @@ def montar_bloco_9(contagem_por_registro: dict[str, int]) -> list[dict]:
 		raise EfdInvalido(f"registros com contagem menor que 1 na entrada: {invalidos}")
 
 	if not contagem_por_registro:
-		raise EfdInvalido(
-			"a contagem de entrada está vazia — um arquivo EFD tem, no mínimo, o Bloco 0"
-		)
+		raise EfdInvalido("a contagem de entrada está vazia — um arquivo EFD tem, no mínimo, o Bloco 0")
 
 	linhas_dos_demais_blocos = sum(contagem_por_registro.values())
 	tipos_fora_do_bloco_9 = len(contagem_por_registro)

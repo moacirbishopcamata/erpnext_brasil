@@ -50,9 +50,7 @@ def namespace_operacao(servico: str) -> str:
 	operacao = OPERACAO_SOAP.get(servico)
 
 	if not operacao:
-		raise EnvelopeSoapInvalido(
-			f"Serviço {servico!r} não tem operação SOAP confirmada em OPERACAO_SOAP"
-		)
+		raise EnvelopeSoapInvalido(f"Serviço {servico!r} não tem operação SOAP confirmada em OPERACAO_SOAP")
 
 	return f"{_NAMESPACE_WSDL_BASE}/{operacao}"
 

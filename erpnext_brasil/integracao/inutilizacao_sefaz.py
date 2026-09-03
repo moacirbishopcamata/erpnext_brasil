@@ -63,7 +63,9 @@ def enviar_inutilizacao(
 	url = endpoint(contexto.uf, "NfeInutilizacao", ambiente=contexto.ambiente, modelo=modelo)
 
 	if not url:
-		raise TransporteIndisponivel(f"Não há endpoint de NfeInutilizacao confirmado para a UF {contexto.uf!r}")
+		raise TransporteIndisponivel(
+			f"Não há endpoint de NfeInutilizacao confirmado para a UF {contexto.uf!r}"
+		)
 
 	xml_interno = para_xml(assinada)
 	soap = montar_envelope("NfeInutilizacao", xml_interno)
@@ -81,9 +83,7 @@ def enviar_inutilizacao(
 
 	from datetime import datetime
 
-	recebido_em = (
-		datetime.fromisoformat(resultado.data_registro) if resultado.data_registro else None
-	)
+	recebido_em = datetime.fromisoformat(resultado.data_registro) if resultado.data_registro else None
 
 	return ResultadoInutilizacao(
 		codigo=resultado.cstat,

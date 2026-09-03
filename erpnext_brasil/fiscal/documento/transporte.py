@@ -78,8 +78,7 @@ def montar_transp(
 	"""
 	if modalidade_frete not in MODALIDADES_FRETE:
 		raise TransporteInvalido(
-			f"Modalidade de frete deve ser uma de {sorted(MODALIDADES_FRETE)}, "
-			f"recebida {modalidade_frete!r}",
+			f"Modalidade de frete deve ser uma de {sorted(MODALIDADES_FRETE)}, recebida {modalidade_frete!r}",
 			"modalidade_frete",
 		)
 

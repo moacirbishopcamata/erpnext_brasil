@@ -97,6 +97,7 @@ de dados do XML final. Este módulo só resolve a primeira.
 Funções puras: nenhuma dependência do Frappe.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -140,7 +141,14 @@ _TIPO_DEDUCAO = "4"
 _TIPO_DEBITO_ESPECIAL = "5"
 
 _TIPOS_VALIDOS = frozenset(
-	{_TIPO_OUTROS_DEBITOS, _TIPO_ESTORNO_CREDITO, _TIPO_OUTROS_CREDITOS, _TIPO_ESTORNO_DEBITO, _TIPO_DEDUCAO, _TIPO_DEBITO_ESPECIAL}
+	{
+		_TIPO_OUTROS_DEBITOS,
+		_TIPO_ESTORNO_CREDITO,
+		_TIPO_OUTROS_CREDITOS,
+		_TIPO_ESTORNO_DEBITO,
+		_TIPO_DEDUCAO,
+		_TIPO_DEBITO_ESPECIAL,
+	}
 )
 
 
@@ -190,7 +198,7 @@ class Ajuste:
 		return self.codigo[POSICAO_TIPO]
 
 
-def montar_e111(ajustes: list[Ajuste]) -> list[dict]:
+def montar_e111(ajustes: Sequence[Ajuste]) -> list[dict]:
 	"""Uma linha E111 por `Ajuste` — ordem de campos oficial do Guia Prático EFD."""
 	return [
 		{"REG": "E111", "COD_AJ_APUR": a.codigo, "DESCR_COMPL_AJ": a.descricao, "VL_AJ_APUR": a.valor}
@@ -198,11 +206,11 @@ def montar_e111(ajustes: list[Ajuste]) -> list[dict]:
 	]
 
 
-def _somar_por_tipo(ajustes: list[Ajuste], tipo: str) -> Decimal:
+def _somar_por_tipo(ajustes: Sequence[Ajuste], tipo: str) -> Decimal:
 	return sum((a.valor for a in ajustes if a.tipo == tipo), ZERO)
 
 
-def montar_e110(apuracao: ApuracaoPeriodo, ajustes: list[Ajuste] = ()) -> dict:
+def montar_e110(apuracao: ApuracaoPeriodo, ajustes: Sequence[Ajuste] = ()) -> dict:
 	"""Campos do registro E110, na ordem oficial do Guia Prático EFD-ICMS/IPI.
 
 	Pré-condição: `apuracao.tributo` precisa ser `"ICMS"` — E110 é o registro de
@@ -326,7 +334,7 @@ class AjusteIpi:
 		raise EfdInvalido(f"COD_AJ {self.codigo!r} (100) não existe na tabela da RFB — reservado")
 
 
-def montar_e530(ajustes: list[AjusteIpi]) -> list[dict]:
+def montar_e530(ajustes: Sequence[AjusteIpi]) -> list[dict]:
 	"""Uma linha E530 por `AjusteIpi` — ordem de campos oficial do Guia Prático EFD."""
 	return [
 		{
@@ -342,7 +350,7 @@ def montar_e530(ajustes: list[AjusteIpi]) -> list[dict]:
 	]
 
 
-def montar_e520(apuracao: ApuracaoPeriodo, ajustes: list[AjusteIpi] = ()) -> dict:
+def montar_e520(apuracao: ApuracaoPeriodo, ajustes: Sequence[AjusteIpi] = ()) -> dict:
 	"""Campos do registro E520 ("Apuração do IPI"), na ordem oficial do Guia Prático.
 
 	Pré-condição: `apuracao.tributo` precisa ser `"IPI"` — E520 é o registro de

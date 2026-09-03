@@ -26,7 +26,11 @@ def d(v: str) -> Decimal:
 class TestIdeEvento(unittest.TestCase):
 	def _valido(self, **overrides) -> dict:
 		base = dict(
-			ind_retif=1, per_apur="2026-01", tp_amb=AMBIENTE_PRODUCAO, proc_emi=1, ver_proc="ERPNextBrasil-1.0"
+			ind_retif=1,
+			per_apur="2026-01",
+			tp_amb=AMBIENTE_PRODUCAO,
+			proc_emi=1,
+			ver_proc="ERPNextBrasil-1.0",
 		)
 		base.update(overrides)
 

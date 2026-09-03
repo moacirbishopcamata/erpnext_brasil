@@ -114,9 +114,7 @@ class TestMontarQrcodeOffline(unittest.TestCase):
 	def test_dig_hex_nao_decodifica_o_base64_primeiro(self):
 		"""A pegadinha: digHex é o base64 em si, caractere a caractere em hex — não o
 		digest binário que o base64 representa."""
-		url = montar_qrcode_offline(
-			CHAVE, "1", "1", "x", URL_BASE, self.DATA_EMISSAO, Decimal("1.00"), "AB"
-		)
+		url = montar_qrcode_offline(CHAVE, "1", "1", "x", URL_BASE, self.DATA_EMISSAO, Decimal("1.00"), "AB")
 
 		# 'A' = 0x41, 'B' = 0x42 — literal, não o byte que "AB" decodificaria em base64.
 		self.assertIn("|4142|", url)

@@ -167,12 +167,12 @@ class TestArquivoCompleto(unittest.TestCase):
 	def test_encerramentos_de_bloco_batem_com_as_linhas_do_bloco(self):
 		real = Counter(linha["REG"] for linha in self.arquivo)
 
-		fecha_0 = next(l for l in self.arquivo if l["REG"] == "0990")
+		fecha_0 = next(linha for linha in self.arquivo if linha["REG"] == "0990")
 		linhas_do_bloco_0 = sum(qtd for reg, qtd in real.items() if reg.startswith("0"))
 
 		self.assertEqual(int(fecha_0["QTD_LIN_0"]), linhas_do_bloco_0)
 
-		fecha_c = next(l for l in self.arquivo if l["REG"] == "C990")
+		fecha_c = next(linha for linha in self.arquivo if linha["REG"] == "C990")
 		linhas_do_bloco_c = sum(qtd for reg, qtd in real.items() if reg.startswith("C"))
 
 		self.assertEqual(int(fecha_c["QTD_LIN_C"]), linhas_do_bloco_c)

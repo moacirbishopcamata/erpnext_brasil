@@ -112,9 +112,7 @@ def referencia_do_id(id_elemento: str) -> str:
 		raise AssinaturaInvalida("O elemento a assinar precisa de um Id")
 
 	if identificador.startswith("#"):
-		raise AssinaturaInvalida(
-			f"Informe o Id sem o prefixo '#', recebido {id_elemento!r}"
-		)
+		raise AssinaturaInvalida(f"Informe o Id sem o prefixo '#', recebido {id_elemento!r}")
 
 	return f"#{identificador}"
 
@@ -159,8 +157,7 @@ def montar_signature(id_elemento: str, material: MaterialAssinatura) -> dict:
 
 	if not (material.certificado or "").strip():
 		raise AssinaturaInvalida(
-			"O certificado precisa acompanhar a assinatura: sem ele a SEFAZ não tem como "
-			"validar quem assinou"
+			"O certificado precisa acompanhar a assinatura: sem ele a SEFAZ não tem como validar quem assinou"
 		)
 
 	return {

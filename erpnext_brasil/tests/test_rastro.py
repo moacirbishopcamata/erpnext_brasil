@@ -121,7 +121,7 @@ class TestMontarProdComRastro(unittest.TestCase):
 			lotes=[lote(numero_lote="L1"), lote(numero_lote="L2")],
 		)
 
-		self.assertEqual([l["nLote"] for l in grupo["rastro"]], ["L1", "L2"])
+		self.assertEqual([item["nLote"] for item in grupo["rastro"]], ["L1", "L2"])
 
 	def test_mais_de_quinhentos_lotes_e_erro(self):
 		lotes = [lote(numero_lote=f"L{n}") for n in range(MAXIMO_LOTES_POR_ITEM + 1)]
@@ -153,10 +153,7 @@ class TestConformidadeDeTags(unittest.TestCase):
 		import pathlib
 
 		manifesto = (
-			pathlib.Path(__file__).resolve().parents[1]
-			/ "fiscal"
-			/ "documento"
-			/ "elementos_nfe.json"
+			pathlib.Path(__file__).resolve().parents[1] / "fiscal" / "documento" / "elementos_nfe.json"
 		)
 		self.elementos = set(json.loads(manifesto.read_text(encoding="utf-8")))
 

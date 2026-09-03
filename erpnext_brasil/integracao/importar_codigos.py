@@ -186,10 +186,7 @@ def importar_classificacao_ibs_cbs(file_url: str, versao: str | None = None) -> 
 
 	gravados_cst = _gravar_registros(
 		CST_IBS_CBS,
-		[
-			(r.codigo, r.descricao or r.codigo, {"indicadores": r.indicadores})
-			for r in registros_cst
-		],
+		[(r.codigo, r.descricao or r.codigo, {"indicadores": r.indicadores}) for r in registros_cst],
 	)
 	gravados_cclass = _gravar_registros(
 		CLASSIFICACAO_TRIBUTARIA,

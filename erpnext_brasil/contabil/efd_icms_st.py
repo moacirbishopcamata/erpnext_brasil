@@ -59,6 +59,7 @@ responsabilidade de `efd_icms_ipi.py` (a serialização é `contabil/sped_texto.
 Funções puras: nenhuma dependência do Frappe.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -71,8 +72,8 @@ from erpnext_brasil.contabil.efd_icms_ipi import (
 )
 
 __all__ = [
-	"ApuracaoSt",
 	"AjusteSt",
+	"ApuracaoSt",
 	"montar_e200",
 	"montar_e210",
 	"montar_e220",
@@ -192,7 +193,7 @@ def montar_e200(uf: str, data_inicial: str, data_final: str) -> dict:
 	return {"REG": "E200", "UF": uf.upper(), "DT_INI": data_inicial, "DT_FIN": data_final}
 
 
-def montar_e220(ajustes: list[AjusteSt]) -> list[dict]:
+def montar_e220(ajustes: Sequence[AjusteSt]) -> list[dict]:
 	"""Uma linha E220 por `AjusteSt` — mesma forma do E111, campos do layout oficial."""
 	return [
 		{"REG": "E220", "COD_AJ_APUR": a.codigo, "DESCR_COMPL_AJ": a.descricao, "VL_AJ_APUR": a.valor}
@@ -200,22 +201,22 @@ def montar_e220(ajustes: list[AjusteSt]) -> list[dict]:
 	]
 
 
-def _somar_por_tipo(ajustes: list[AjusteSt], tipo: str) -> Decimal:
+def _somar_por_tipo(ajustes: Sequence[AjusteSt], tipo: str) -> Decimal:
 	return sum((a.valor for a in ajustes if a.tipo == tipo), ZERO)
 
 
-def montar_e210(apuracao: ApuracaoSt, ajustes: list[AjusteSt] = ()) -> dict:
+def montar_e210(apuracao: ApuracaoSt, ajustes: Sequence[AjusteSt] = ()) -> dict:
 	"""Campos do registro E210, na ordem do layout.
 
-	`IND_MOV_ST` é derivado, não parâmetro: "sem operações" é exatamente o caso em que
-	nenhum valor e nenhum ajuste foi informado — deixar o chamador declarar isso em
-	paralelo aos valores permitiria os dois divergirem (mesma razão de `AjusteIpi`
-	derivar `IND_AJ` do próprio código, em `efd_icms_ipi.py`).
+	    `IND_MOV_ST` é derivado, não parâmetro: "sem operações" é exatamente o caso em que
+	    nenhum valor e nenhum ajuste foi informado — deixar o chamador declarar isso em
+	    paralelo aos valores permitiria os dois divergirem (mesma razão de `AjusteIpi`
+	    derivar `IND_AJ` do próprio código, em `efd_icms_ipi.py`).
 
-    `VL_SLD_DEV_ANT_ST` é "saldo devedor **antes** das deduções" — por isso as deduções
-	(`VL_DEDUCOES_ST`) entram só no campo seguinte (`VL_ICMS_RECOL_ST = 11 - 12`), não na
-	composição do saldo. Débito especial (`DEB_ESP_ST`) fica fora da conta toda: é valor
-	extra-apuração, recolhido à parte — mesmo tratamento que `DEB_ESP` já tem no E110.
+	`VL_SLD_DEV_ANT_ST` é "saldo devedor **antes** das deduções" — por isso as deduções
+	    (`VL_DEDUCOES_ST`) entram só no campo seguinte (`VL_ICMS_RECOL_ST = 11 - 12`), não na
+	    composição do saldo. Débito especial (`DEB_ESP_ST`) fica fora da conta toda: é valor
+	    extra-apuração, recolhido à parte — mesmo tratamento que `DEB_ESP` já tem no E110.
 	"""
 	ajustes = list(ajustes)
 

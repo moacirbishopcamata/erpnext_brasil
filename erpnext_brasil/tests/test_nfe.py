@@ -13,7 +13,6 @@ import unittest
 from datetime import datetime
 
 from erpnext_brasil.fiscal.documento.chave_acesso import ler_chave, validar_chave
-from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.documento.nfe import (
 	MODELO_NFCE,
 	NAMESPACE_NFE,
@@ -23,14 +22,15 @@ from erpnext_brasil.fiscal.documento.nfe import (
 	Emitente,
 	Identificacao,
 	NFeInvalida,
-	ativar_contingencia_svc,
 	assinar_nfe,
+	ativar_contingencia_svc,
 	montar_dest,
 	montar_emit,
 	montar_ide,
 	montar_infnfe,
 	montar_nfe,
 )
+from erpnext_brasil.fiscal.documento.serializacao import para_xml
 
 EMISSAO = datetime(2026, 8, 24, 14, 30, 0)
 
@@ -291,17 +291,13 @@ class TestDestinatario(unittest.TestCase):
 		self.assertNotIn("CPF", grupo)
 
 	def test_pessoa_fisica_usa_cpf(self):
-		grupo = montar_dest(
-			destinatario(cnpj_cpf="111.444.777-35", indicador_ie="9", inscricao_estadual="")
-		)
+		grupo = montar_dest(destinatario(cnpj_cpf="111.444.777-35", indicador_ie="9", inscricao_estadual=""))
 
 		self.assertIn("CPF", grupo)
 		self.assertNotIn("CNPJ", grupo)
 
 	def test_estrangeiro(self):
-		grupo = montar_dest(
-			destinatario(cnpj_cpf="", identificacao_estrangeiro="EX123", indicador_ie="9")
-		)
+		grupo = montar_dest(destinatario(cnpj_cpf="", identificacao_estrangeiro="EX123", indicador_ie="9"))
 
 		self.assertEqual(grupo["idEstrangeiro"], "EX123")
 
@@ -381,9 +377,7 @@ class AssinadorFalso:
 
 		self.recebido = (xml, id_elemento)
 
-		return MaterialAssinatura(
-			digest="ZGlnZXN0", assinatura="YXNzaW5hdHVyYQ==", certificado="Y2VydA=="
-		)
+		return MaterialAssinatura(digest="ZGlnZXN0", assinatura="YXNzaW5hdHVyYQ==", certificado="Y2VydA==")
 
 
 class TestAssinarNFe(unittest.TestCase):
@@ -426,10 +420,7 @@ class TestConformidadeDeTags(unittest.TestCase):
 		import pathlib
 
 		manifesto = (
-			pathlib.Path(__file__).resolve().parents[1]
-			/ "fiscal"
-			/ "documento"
-			/ "elementos_nfe.json"
+			pathlib.Path(__file__).resolve().parents[1] / "fiscal" / "documento" / "elementos_nfe.json"
 		)
 		self.elementos = set(json.loads(manifesto.read_text(encoding="utf-8")))
 
@@ -464,9 +455,7 @@ class TestConformidadeDeTags(unittest.TestCase):
 		self.assertEqual(desconhecidas, set(), f"tags fora do layout: {sorted(desconhecidas)}")
 
 	def test_tags_do_destinatario_estrangeiro_existem(self):
-		grupo = montar_dest(
-			destinatario(cnpj_cpf="", identificacao_estrangeiro="EX1", indicador_ie="9")
-		)
+		grupo = montar_dest(destinatario(cnpj_cpf="", identificacao_estrangeiro="EX1", indicador_ie="9"))
 
 		self.assertEqual(self._tags(grupo) - self.elementos, set())
 

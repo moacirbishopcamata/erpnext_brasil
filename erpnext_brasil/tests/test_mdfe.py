@@ -77,7 +77,9 @@ class TestMontarInfdoc(unittest.TestCase):
 
 	def test_varios_municipios_preserva_ordem(self):
 		m1 = MunicipioDescarga(codigo="3550308", nome="São Paulo", chaves_nfe=[_chave("55", "000000001")])
-		m2 = MunicipioDescarga(codigo="3304557", nome="Rio de Janeiro", chaves_nfe=[_chave("55", "000000002")])
+		m2 = MunicipioDescarga(
+			codigo="3304557", nome="Rio de Janeiro", chaves_nfe=[_chave("55", "000000002")]
+		)
 
 		infmun = montar_infdoc([m1, m2])["infDoc"]["infMunDescarga"]
 
@@ -114,9 +116,7 @@ class AssinadorFalso:
 	def assinar(self, xml: bytes, id_elemento: str):
 		self.recebido = (xml, id_elemento)
 
-		return MaterialAssinatura(
-			digest="ZGlnZXN0", assinatura="YXNzaW5hdHVyYQ==", certificado="Y2VydA=="
-		)
+		return MaterialAssinatura(digest="ZGlnZXN0", assinatura="YXNzaW5hdHVyYQ==", certificado="Y2VydA==")
 
 
 def _chave_mdfe() -> str:
@@ -458,9 +458,7 @@ class TestMontarInfmdfe(unittest.TestCase):
 	def test_grupos_obrigatorios_na_ordem_do_xsd(self):
 		infmdfe = montar_infmdfe(self.ide, self.emit, self.infmodal, self.infdoc, self.tot)
 
-		self.assertEqual(
-			list(infmdfe.keys()), ["ide", "emit", "infModal", "infDoc", "tot"]
-		)
+		self.assertEqual(list(infmdfe.keys()), ["ide", "emit", "infModal", "infDoc", "tot"])
 
 	def test_grupos_opcionais_entram_na_posicao_certa(self):
 		seg = montar_seg([Seguro(responsavel=RESPONSAVEL_SEGURO_EMITENTE)])
@@ -468,8 +466,14 @@ class TestMontarInfmdfe(unittest.TestCase):
 		lacres = montar_lacres(["ABC123"])
 
 		infmdfe = montar_infmdfe(
-			self.ide, self.emit, self.infmodal, self.infdoc, self.tot,
-			seg=seg, prod_pred=prod_pred, lacres=lacres,
+			self.ide,
+			self.emit,
+			self.infmodal,
+			self.infdoc,
+			self.tot,
+			seg=seg,
+			prod_pred=prod_pred,
+			lacres=lacres,
 		)
 
 		self.assertEqual(

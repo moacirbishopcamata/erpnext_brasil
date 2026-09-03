@@ -295,8 +295,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"read_only": 1,
 				"no_copy": 1,
 				"description": (
-					"Linhas marcadas são reescritas a cada validação; linhas manuais são "
-					"preservadas."
+					"Linhas marcadas são reescritas a cada validação; linhas manuais são preservadas."
 				),
 			}
 		]

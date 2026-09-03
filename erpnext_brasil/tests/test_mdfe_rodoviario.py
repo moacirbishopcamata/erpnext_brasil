@@ -93,9 +93,7 @@ class TestMontarVeiculoTracao(unittest.TestCase):
 		self.assertEqual(com_carroceria["tpCar"], CARROCERIA_FECHADA_BAU)
 
 	def test_varios_condutores(self):
-		grupo = montar_veiculo_tracao(
-			_veiculo_tracao(condutores=[_condutor(nome="A"), _condutor(nome="B")])
-		)
+		grupo = montar_veiculo_tracao(_veiculo_tracao(condutores=[_condutor(nome="A"), _condutor(nome="B")]))
 
 		self.assertEqual(len(grupo["condutor"]), 2)
 

@@ -107,9 +107,7 @@ def _grupo_icms_integral(apuracao: ApuracaoItem, cst: str) -> dict:
 def _grupo_icms_reduzido(apuracao: ApuracaoItem, cst: str = "20") -> dict:
 	"""ICMS20 — redução de base. `pRedBC` é obrigatório nesta variante."""
 	if apuracao.item.reducao_icms <= 0:
-		raise ImpostoInvalido(
-			"ICMS20 exige percentual de redução de base maior que zero", "reducao_icms"
-		)
+		raise ImpostoInvalido("ICMS20 exige percentual de redução de base maior que zero", "reducao_icms")
 
 	return {
 		"orig": "0",
@@ -186,9 +184,7 @@ def _grupo_cofins(apuracao: ApuracaoItem) -> dict:
 	}
 
 
-def _grupo_issqn(
-	base: Decimal, aliquota: Decimal, municipio: str, item_lista_servico: str
-) -> dict:
+def _grupo_issqn(base: Decimal, aliquota: Decimal, municipio: str, item_lista_servico: str) -> dict:
 	"""ISSQN — para item de serviço. Mutuamente exclusivo com ICMS no mesmo item."""
 	if not municipio:
 		raise ImpostoInvalido("Município de incidência do ISSQN é obrigatório", "municipio")
@@ -270,22 +266,21 @@ def montar_imposto_item(
 ) -> dict:
 	"""Monta o grupo `imposto` de um item.
 
-	`cst_icms` e `csosn` são mutuamente exclusivos: regime normal informa CST, Simples
-	Nacional informa CSOSN. Informar ISSQN torna o item de serviço, e é incompatível com
-	ICMS/IPI no mesmo item — mercadoria e serviço não se misturam no mesmo detalhe.
+	    `cst_icms` e `csosn` são mutuamente exclusivos: regime normal informa CST, Simples
+	    Nacional informa CSOSN. Informar ISSQN torna o item de serviço, e é incompatível com
+	    ICMS/IPI no mesmo item — mercadoria e serviço não se misturam no mesmo detalhe.
 
-	`icms_uf_dest` (saída de `montar_icms_uf_dest`) entra como `ICMSUFDest`, **dentro**
-	do grupo `ICMS` — irmão de `ICMS00`/`ICMSSN101`/etc, não fora dele (confirmado
-	contra o caminho oficial `det/imposto/ICMS/ICMSUFDest`, não um grupo separado no
-	nível de `imposto`). Incompatível com ISSQN pela mesma razão que ICMS em si é.
+	    `icms_uf_dest` (saída de `montar_icms_uf_dest`) entra como `ICMSUFDest`, **dentro**
+	    do grupo `ICMS` — irmão de `ICMS00`/`ICMSSN101`/etc, não fora dele (confirmado
+	    contra o caminho oficial `det/imposto/ICMS/ICMSUFDest`, não um grupo separado no
+	    nível de `imposto`). Incompatível com ISSQN pela mesma razão que ICMS em si é.
 
-	O grupo IBS/CBS entra sempre que a apuração o tiver calculado, independente do item
-    ser mercadoria ou serviço: a reforma tributária alcança os dois.
+	    O grupo IBS/CBS entra sempre que a apuração o tiver calculado, independente do item
+	ser mercadoria ou serviço: a reforma tributária alcança os dois.
 	"""
 	if icms_uf_dest and issqn:
 		raise ImpostoInvalido(
-			"Item de serviço (ISSQN) não tem ICMSUFDest: mercadoria e serviço não se "
-			"misturam no mesmo item",
+			"Item de serviço (ISSQN) não tem ICMSUFDest: mercadoria e serviço não se misturam no mesmo item",
 			"icms_uf_dest",
 		)
 	if cst_icms and csosn:
@@ -293,8 +288,7 @@ def montar_imposto_item(
 
 	if issqn and (cst_icms or csosn):
 		raise ImpostoInvalido(
-			"Item de serviço (ISSQN) não tem ICMS: mercadoria e serviço não se misturam "
-			"no mesmo item",
+			"Item de serviço (ISSQN) não tem ICMS: mercadoria e serviço não se misturam no mesmo item",
 			"issqn",
 		)
 
@@ -312,8 +306,7 @@ def montar_imposto_item(
 		grupo["ICMS"] = {f"ICMS{cst_icms}": _grupo_icms_isento_ou_nao_tributado(cst_icms)}
 	else:
 		raise ImpostoInvalido(
-			f"CST de ICMS {cst_icms!r} não é montado por este módulo — ver docstring "
-			"para o escopo coberto",
+			f"CST de ICMS {cst_icms!r} não é montado por este módulo — ver docstring para o escopo coberto",
 			"cst_icms",
 		)
 

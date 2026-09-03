@@ -76,8 +76,7 @@ class EsocialSoapInvalido(ValueError):
 def _dados_do_servico(servico: str) -> tuple[str, str, str]:
 	if servico not in _SERVICOS:
 		raise EsocialSoapInvalido(
-			f"Serviço {servico!r} não tem envelope SOAP confirmado — serviços conhecidos: "
-			f"{sorted(_SERVICOS)}"
+			f"Serviço {servico!r} não tem envelope SOAP confirmado — serviços conhecidos: {sorted(_SERVICOS)}"
 		)
 
 	return _SERVICOS[servico]

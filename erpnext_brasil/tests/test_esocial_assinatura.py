@@ -36,9 +36,7 @@ class TestMontarSignedInfo(unittest.TestCase):
 	def test_usa_os_algoritmos_sha256_nao_sha1(self):
 		signed_info = montar_signed_info("ID1", "digestFake==")
 
-		self.assertEqual(
-			signed_info["SignedInfo"]["SignatureMethod"]["@Algorithm"], ALGORITMO_ASSINATURA
-		)
+		self.assertEqual(signed_info["SignedInfo"]["SignatureMethod"]["@Algorithm"], ALGORITMO_ASSINATURA)
 		self.assertIn("sha256", ALGORITMO_ASSINATURA)
 		self.assertIn("sha256", ALGORITMO_DIGEST)
 		self.assertNotIn("sha1", ALGORITMO_ASSINATURA)
@@ -73,9 +71,7 @@ class TestMontarSignature(unittest.TestCase):
 
 		self.assertIn("SignedInfo", signature["Signature"])
 		self.assertEqual(signature["Signature"]["SignatureValue"], "assinaturaFake==")
-		self.assertEqual(
-			signature["Signature"]["KeyInfo"]["X509Data"]["X509Certificate"], "certFake=="
-		)
+		self.assertEqual(signature["Signature"]["KeyInfo"]["X509Data"]["X509Certificate"], "certFake==")
 
 	def test_assinatura_vazia_e_erro(self):
 		with self.assertRaises(AssinaturaInvalida):

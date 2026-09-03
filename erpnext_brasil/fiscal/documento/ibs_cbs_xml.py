@@ -88,9 +88,7 @@ def grupo_ibscbs_item(
 		raise ValueError(f"CST do IBS/CBS deve ter exatamente 3 dígitos, recebido {cst!r}")
 
 	if not formato_valido_cclasstrib(classificacao_tributaria):
-		raise ValueError(
-			f"cClassTrib deve ter exatamente 6 dígitos, recebido {classificacao_tributaria!r}"
-		)
+		raise ValueError(f"cClassTrib deve ter exatamente 6 dígitos, recebido {classificacao_tributaria!r}")
 
 	return {
 		"IBSCBS": {

@@ -56,7 +56,8 @@ def _mapear_resultado(resultado: RetornoAutorizacao) -> RespostaTransmissao:
 		)
 
 	return RespostaTransmissao(
-		codigo=resultado.cstat_nfe or resultado.cstat_lote, mensagem=resultado.motivo_nfe or resultado.motivo_lote
+		codigo=resultado.cstat_nfe or resultado.cstat_lote,
+		mensagem=resultado.motivo_nfe or resultado.motivo_lote,
 	)
 
 
@@ -152,9 +153,7 @@ def consultar_situacao(chave_acesso: str, contexto: ContextoSefaz) -> ResultadoC
 	tp_amb = "1" if contexto.ambiente == "producao" else "2"
 	modelo = ler_chave(chave_acesso).modelo
 
-	resultado = _enviar(
-		"NfeConsultaProtocolo", montar_cons_sit_nfe(chave_acesso, tp_amb), modelo, contexto
-	)
+	resultado = _enviar("NfeConsultaProtocolo", montar_cons_sit_nfe(chave_acesso, tp_amb), modelo, contexto)
 
 	return ResultadoConsulta(
 		codigo=resultado.cstat_nfe or resultado.cstat_lote,

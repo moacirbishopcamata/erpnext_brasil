@@ -138,7 +138,9 @@ class IdeEvento:
 
 	def __post_init__(self):
 		if self.ind_retif not in (1, 2):
-			raise EsocialInvalido(f"indRetif deve ser 1 (original) ou 2 (retificação), recebido {self.ind_retif}")
+			raise EsocialInvalido(
+				f"indRetif deve ser 1 (original) ou 2 (retificação), recebido {self.ind_retif}"
+			)
 
 		if self.ind_retif == 2 and not self.nr_recibo:
 			raise EsocialInvalido("nrRecibo é obrigatório quando indRetif=2 (retificação)")
@@ -161,7 +163,9 @@ class IdeEvento:
 			)
 
 		if self.tp_amb not in (AMBIENTE_PRODUCAO, AMBIENTE_PRODUCAO_RESTRITA):
-			raise EsocialInvalido(f"tpAmb deve ser 1 (Produção) ou 2 (Produção Restrita), recebido {self.tp_amb}")
+			raise EsocialInvalido(
+				f"tpAmb deve ser 1 (Produção) ou 2 (Produção Restrita), recebido {self.tp_amb}"
+			)
 
 		validar_digito_unico(self.proc_emi, "procEmi")
 
@@ -221,7 +225,9 @@ class ItemRemuneracao:
 			raise EsocialInvalido(f"codRubr deve ter entre 1 e 30 caracteres, recebido {self.cod_rubr!r}")
 
 		if self.ide_tab_rubr is not None and not (1 <= len(self.ide_tab_rubr) <= 8):
-			raise EsocialInvalido(f"ideTabRubr deve ter entre 1 e 8 caracteres, recebido {self.ide_tab_rubr!r}")
+			raise EsocialInvalido(
+				f"ideTabRubr deve ter entre 1 e 8 caracteres, recebido {self.ide_tab_rubr!r}"
+			)
 
 		if self.qtd_rubr is not None and self.fator_rubr is not None and self.vr_unit is not None:
 			calculado = _arredondar(self.qtd_rubr * self.fator_rubr * self.vr_unit)
@@ -275,10 +281,14 @@ class IdeTrabalhador:
 
 	def __post_init__(self):
 		if not self.cpf_trab.isdigit() or len(self.cpf_trab) != 11:
-			raise EsocialInvalido(f"cpfTrab deve ter exatamente 11 dígitos numéricos, recebido {self.cpf_trab!r}")
+			raise EsocialInvalido(
+				f"cpfTrab deve ter exatamente 11 dígitos numéricos, recebido {self.cpf_trab!r}"
+			)
 
 		if self.nis_trab is not None and (not self.nis_trab.isdigit() or len(self.nis_trab) != 11):
-			raise EsocialInvalido(f"nisTrab deve ter exatamente 11 dígitos numéricos, recebido {self.nis_trab!r}")
+			raise EsocialInvalido(
+				f"nisTrab deve ter exatamente 11 dígitos numéricos, recebido {self.nis_trab!r}"
+			)
 
 
 @dataclass(frozen=True)
@@ -325,7 +335,9 @@ class IdeEstabLot:
 		_validar_nr_insc(self.nr_insc)
 
 		if not (1 <= len(self.cod_lotacao) <= 30):
-			raise EsocialInvalido(f"codLotacao deve ter entre 1 e 30 caracteres, recebido {self.cod_lotacao!r}")
+			raise EsocialInvalido(
+				f"codLotacao deve ter entre 1 e 30 caracteres, recebido {self.cod_lotacao!r}"
+			)
 
 		if not self.remun_per_apur:
 			raise EsocialInvalido("ideEstabLot precisa de ao menos um remunPerApur")
@@ -351,7 +363,9 @@ class InfoPerApur:
 			raise EsocialInvalido("infoPerApur precisa de ao menos um ideEstabLot")
 
 		if len(self.ide_estab_lot) > 24:
-			raise EsocialInvalido(f"ideEstabLot aceita no máximo 24 ocorrências, recebido {len(self.ide_estab_lot)}")
+			raise EsocialInvalido(
+				f"ideEstabLot aceita no máximo 24 ocorrências, recebido {len(self.ide_estab_lot)}"
+			)
 
 
 @dataclass(frozen=True)

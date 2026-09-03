@@ -59,9 +59,7 @@ class TestCamadaPura(unittest.TestCase):
 	def test_nao_depende_da_camada_de_integracao(self):
 		"""A dependência aponta em uma direção só: integração conhece fiscal, não o inverso."""
 		violacoes = [
-			p.relative_to(RAIZ).as_posix()
-			for p in _modulos(PURO)
-			if _importa(p, "erpnext_brasil.integracao")
+			p.relative_to(RAIZ).as_posix() for p in _modulos(PURO) if _importa(p, "erpnext_brasil.integracao")
 		]
 
 		self.assertEqual(violacoes, [], "dependência invertida entre as camadas")

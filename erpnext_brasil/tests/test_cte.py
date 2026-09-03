@@ -96,7 +96,15 @@ class TestMontarIcmsUfFim(unittest.TestCase):
 			aliquota_interna_destino=Decimal("0.19"),
 		)
 
-		for campo in ("vBCUFFim", "pFCPUFFim", "pICMSUFFim", "pICMSInter", "vFCPUFFim", "vICMSUFFim", "vICMSUFIni"):
+		for campo in (
+			"vBCUFFim",
+			"pFCPUFFim",
+			"pICMSUFFim",
+			"pICMSInter",
+			"vFCPUFFim",
+			"vICMSUFFim",
+			"vICMSUFIni",
+		):
 			self.assertIn(campo, grupo)
 
 		for campo_nfe in ("vBCUFDest", "pICMSUFDest", "vICMSUFDest"):
@@ -399,9 +407,7 @@ class AssinadorFalso:
 	def assinar(self, xml: bytes, id_elemento: str):
 		self.recebido = (xml, id_elemento)
 
-		return MaterialAssinatura(
-			digest="ZGlnZXN0", assinatura="YXNzaW5hdHVyYQ==", certificado="Y2VydA=="
-		)
+		return MaterialAssinatura(digest="ZGlnZXN0", assinatura="YXNzaW5hdHVyYQ==", certificado="Y2VydA==")
 
 
 def _cte_minimo() -> dict:

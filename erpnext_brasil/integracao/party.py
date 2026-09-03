@@ -77,7 +77,9 @@ def uf_da_parte(doc) -> str | None:
 	from frappe.contacts.doctype.address.address import get_default_address
 
 	if doc.doctype == "Company":
-		estado = frappe.db.get_value("Address", {"is_your_company_address": 1, "link_name": doc.name}, "state")
+		estado = frappe.db.get_value(
+			"Address", {"is_your_company_address": 1, "link_name": doc.name}, "state"
+		)
 	else:
 		endereco = get_default_address(doc.doctype, doc.name) if doc.name else None
 		estado = frappe.db.get_value("Address", endereco, "state") if endereco else None

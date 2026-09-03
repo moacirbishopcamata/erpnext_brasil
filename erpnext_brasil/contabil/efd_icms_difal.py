@@ -76,6 +76,7 @@ identificador de layout SPED é ASCII, e a escolha aqui é consistente com
 Funções puras: nenhuma dependência do Frappe.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass, fields
 from decimal import Decimal
 
@@ -211,7 +212,7 @@ def montar_e300(uf: str, data_inicial: str, data_final: str) -> dict:
 	return {"REG": "E300", "UF": uf.upper(), "DT_INI": data_inicial, "DT_FIN": data_final}
 
 
-def montar_e311(ajustes: list[AjusteDifal]) -> list[dict]:
+def montar_e311(ajustes: Sequence[AjusteDifal]) -> list[dict]:
 	"""Uma linha E311 por `AjusteDifal` — mesma forma de E111/E220."""
 	return [
 		{"REG": "E311", "COD_AJ_APUR": a.codigo, "DESCR_COMPL_AJ": a.descricao, "VL_AJ_APUR": a.valor}
@@ -219,7 +220,7 @@ def montar_e311(ajustes: list[AjusteDifal]) -> list[dict]:
 	]
 
 
-def _somar_por_tipo(ajustes: list[AjusteDifal], tipo: str) -> Decimal:
+def _somar_por_tipo(ajustes: Sequence[AjusteDifal], tipo: str) -> Decimal:
 	return sum((a.valor for a in ajustes if a.tipo == tipo), ZERO)
 
 
@@ -253,7 +254,7 @@ def _montar_metade(
 	return devedor, recolher, credor_transportar
 
 
-def montar_e310(apuracao: ApuracaoDifal, ajustes: list[AjusteDifal] = ()) -> dict:
+def montar_e310(apuracao: ApuracaoDifal, ajustes: Sequence[AjusteDifal] = ()) -> dict:
 	"""Campos do registro E310 (versão vigente, a partir de 01/01/2017), na ordem do
 	layout — 22 campos, sendo dois blocos de 10 com a mesma estrutura (DIFAL e FCP).
 
@@ -319,7 +320,11 @@ def montar_e310(apuracao: ApuracaoDifal, ajustes: list[AjusteDifal] = ()) -> dic
 
 	# "Sem operações" é exatamente "nenhum valor informado" — derivado dos campos já
 	# montados, sem uma segunda lista de valores que pudesse divergir desta.
-	tem_movimento = any(valor != ZERO for chave, valor in campos.items() if chave.startswith("VL_") or chave.startswith("DEB_"))
+	tem_movimento = any(
+		valor != ZERO
+		for chave, valor in campos.items()
+		if chave.startswith("VL_") or chave.startswith("DEB_")
+	)
 	campos["IND_MOV_FCP_DIFAL"] = IND_MOV_COM_OPERACOES if tem_movimento else IND_MOV_SEM_OPERACOES
 
 	return campos

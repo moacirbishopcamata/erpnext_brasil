@@ -97,11 +97,7 @@ def csc_da_empresa(company: str) -> tuple[str, str]:
 	csc = (documento.get_password("br_csc_nfce", raise_exception=False) or "").strip()
 
 	if not csc_id or not csc:
-		faltando = [
-			nome
-			for nome, valor in (("CSCId", csc_id), ("CSC", csc))
-			if not valor
-		]
+		faltando = [nome for nome, valor in (("CSCId", csc_id), ("CSC", csc)) if not valor]
 
 		raise ConfiguracaoFiscalAusente(
 			f"Company {company!r} não tem {' e '.join(faltando)} configurado(s) — "
@@ -160,9 +156,7 @@ def transmissor_esocial_da_empresa(company: str) -> str:
 	`tax_id` da própria `Company` — assim quem chama nunca precisa tratar o caso
 	comum como exceção.
 	"""
-	dados = frappe.db.get_value(
-		"Company", company, ["br_esocial_transmissor", "tax_id"], as_dict=True
-	)
+	dados = frappe.db.get_value("Company", company, ["br_esocial_transmissor", "tax_id"], as_dict=True)
 
 	transmissor = (dados.get("br_esocial_transmissor") or "").strip()
 
@@ -176,6 +170,4 @@ def classificacao_tributaria_esocial(company: str) -> str:
 	a mensagem específica daquele registro — não cabe a este módulo duplicar a
 	validação do domínio.
 	"""
-	return (
-		frappe.db.get_value("Company", company, "br_esocial_classificacao_tributaria") or ""
-	).strip()
+	return (frappe.db.get_value("Company", company, "br_esocial_classificacao_tributaria") or "").strip()

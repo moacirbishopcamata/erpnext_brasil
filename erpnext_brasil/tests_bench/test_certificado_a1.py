@@ -65,9 +65,7 @@ class _LimpaCamposDaCompanyMixin:
 
 	def setUp(self):
 		self.company = _primeira_company()
-		self._originais = frappe.db.get_value(
-			"Company", self.company, list(_CAMPOS_TOCADOS), as_dict=True
-		)
+		self._originais = frappe.db.get_value("Company", self.company, list(_CAMPOS_TOCADOS), as_dict=True)
 		self._arquivos_criados: list[str] = []
 
 	def tearDown(self):

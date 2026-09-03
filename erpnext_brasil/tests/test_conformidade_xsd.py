@@ -119,9 +119,9 @@ class TestFormatoDosValores(unittest.TestCase):
 
 	def setUp(self):
 		resultado = calcular_ibs_cbs(Decimal("1000.00"), ano=2026)
-		self.grupo = grupo_ibscbs_item(resultado, cst="000", classificacao_tributaria="000001")[
-			"IBSCBS"
-		]["gIBSCBS"]
+		self.grupo = grupo_ibscbs_item(resultado, cst="000", classificacao_tributaria="000001")["IBSCBS"][
+			"gIBSCBS"
+		]
 
 	def test_aliquota_com_quatro_decimais(self):
 		for caminho in (("gIBSUF", "pIBSUF"), ("gIBSMun", "pIBSMun"), ("gCBS", "pCBS")):

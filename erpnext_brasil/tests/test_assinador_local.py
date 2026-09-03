@@ -114,7 +114,9 @@ class TestAssinarDeVerdade(unittest.TestCase):
 
 		self.pfx = _gerar_pfx()
 		self.assinador = AssinadorLocal(self.pfx, "teste123")
-		self.xml = b'<NFe xmlns="http://www.portalfiscal.inf.br/nfe"><infNFe Id="NFe123"><a>1</a></infNFe></NFe>'
+		self.xml = (
+			b'<NFe xmlns="http://www.portalfiscal.inf.br/nfe"><infNFe Id="NFe123"><a>1</a></infNFe></NFe>'
+		)
 
 	def test_material_tem_as_tres_partes(self):
 		material = self.assinador.assinar(self.xml, "NFe123")
@@ -135,9 +137,9 @@ class TestAssinarDeVerdade(unittest.TestCase):
 
 		material = self.assinador.assinar(self.xml, "NFe123")
 
-		chave_publica, certificado = pkcs12.load_key_and_certificates(
-			self.pfx, b"teste123"
-		)[1].public_key(), None
+		# Só a chave pública interessa aqui: é com ela que se verifica a assinatura.
+		# A versão anterior desempacotava um `certificado` que nunca era usado.
+		chave_publica = pkcs12.load_key_and_certificates(self.pfx, b"teste123")[1].public_key()
 
 		signed_info = montar_signed_info("NFe123", material.digest)
 		xml_signed_info = para_xml(signed_info, namespace="http://www.w3.org/2000/09/xmldsig#")
@@ -158,7 +160,9 @@ class TestAssinarDeVerdade(unittest.TestCase):
 			self.fail("A assinatura produzida não confere com a chave pública do certificado")
 
 	def test_digest_muda_se_o_conteudo_mudar(self):
-		outro_xml = b'<NFe xmlns="http://www.portalfiscal.inf.br/nfe"><infNFe Id="NFe123"><a>2</a></infNFe></NFe>'
+		outro_xml = (
+			b'<NFe xmlns="http://www.portalfiscal.inf.br/nfe"><infNFe Id="NFe123"><a>2</a></infNFe></NFe>'
+		)
 
 		digest1 = self.assinador.assinar(self.xml, "NFe123").digest
 		digest2 = self.assinador.assinar(outro_xml, "NFe123").digest

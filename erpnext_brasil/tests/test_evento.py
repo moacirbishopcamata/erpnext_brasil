@@ -13,8 +13,8 @@ pacote de leiaute principal da NF-e, e o evento de cancelamento é um pacote de 
 à parte — rodar a conformidade contra o manifesto errado acusaria falso positivo.
 """
 
-import re
 import unittest
+from dataclasses import FrozenInstanceError
 
 from erpnext_brasil.fiscal.documento.chave_acesso import montar_chave
 from erpnext_brasil.fiscal.documento.estado import JUSTIFICATIVA_MAXIMA, JUSTIFICATIVA_MINIMA
@@ -230,9 +230,7 @@ class TestCartaDeCorrecao(unittest.TestCase):
 		self.assertEqual(list(det), ["@versao", "descEvento", "xCorrecao", "xCondUso"])
 
 	def test_desc_evento_fixo(self):
-		self.assertEqual(
-			correcao()["evento"]["infEvento"]["detEvento"]["descEvento"], "Carta de Correção"
-		)
+		self.assertEqual(correcao()["evento"]["infEvento"]["detEvento"]["descEvento"], "Carta de Correção")
 
 	def test_xconduso_e_sempre_o_texto_fixo(self):
 		det = correcao()["evento"]["infEvento"]["detEvento"]
@@ -358,7 +356,7 @@ class TestInterpretarRetornoEvento(unittest.TestCase):
 	def test_retornoevento_e_congelado(self):
 		retorno = RetornoEvento(cstat_lote="128", motivo_lote="x")
 
-		with self.assertRaises(Exception):
+		with self.assertRaises(FrozenInstanceError):
 			retorno.cstat_lote = "999"
 
 
@@ -374,9 +372,7 @@ class AssinadorFalso:
 
 		self.recebido = (xml, id_elemento)
 
-		return MaterialAssinatura(
-			digest="ZGlnZXN0", assinatura="YXNzaW5hdHVyYQ==", certificado="Y2VydA=="
-		)
+		return MaterialAssinatura(digest="ZGlnZXN0", assinatura="YXNzaW5hdHVyYQ==", certificado="Y2VydA==")
 
 
 class TestAssinarEvento(unittest.TestCase):

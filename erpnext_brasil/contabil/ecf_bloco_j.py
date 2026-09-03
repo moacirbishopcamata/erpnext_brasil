@@ -87,9 +87,7 @@ def montar_j050(data_alteracao: str, arvore: tuple[tuple[str, Conta], ...] = ARV
 	return [{**linha, "REG": "J050"} for linha in montar_i050(data_alteracao, arvore)]
 
 
-def montar_j051(
-	mapeamentos: list, arvore: tuple[tuple[str, Conta], ...] = ARVORE
-) -> list[tuple[str, dict]]:
+def montar_j051(mapeamentos: list, arvore: tuple[tuple[str, Conta], ...] = ARVORE) -> list[tuple[str, dict]]:
 	"""Monta o registro `J051` — delega inteiramente a `ecd_i050.montar_i051`, só
 	trocando `REG` de `"I051"` para `"J051"` (ver docstring do módulo). Mesma
 	semântica de aninhamento por posição: cada `(nome_da_conta, linha)` precisa ser

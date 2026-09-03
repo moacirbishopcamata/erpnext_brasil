@@ -83,9 +83,7 @@ class TestICMSReduzido(unittest.TestCase):
 		self.assertEqual(bloco["vBC"], "700.00")
 
 	def test_sem_reducao_e_erro(self):
-		item = ItemFiscal(
-			valor_produtos=Decimal("1000.00"), aliquota_icms=Decimal("0.18")
-		)
+		item = ItemFiscal(valor_produtos=Decimal("1000.00"), aliquota_icms=Decimal("0.18"))
 		apurada = apurar(item)
 
 		with self.assertRaises(ImpostoInvalido) as ctx:
@@ -96,9 +94,7 @@ class TestICMSReduzido(unittest.TestCase):
 
 class TestICMSIsentoNaoTributado(unittest.TestCase):
 	def test_sem_base_nem_aliquota(self):
-		grupo = montar_imposto_item(apuracao(aliquota_icms=Decimal("0")), cst_icms="40")[
-			"imposto"
-		]
+		grupo = montar_imposto_item(apuracao(aliquota_icms=Decimal("0")), cst_icms="40")["imposto"]
 
 		icms40 = grupo["ICMS"]["ICMS40"]
 		self.assertEqual(set(icms40), {"orig", "CST"})
@@ -238,10 +234,7 @@ class TestConformidadeDeTags(unittest.TestCase):
 		import pathlib
 
 		manifesto = (
-			pathlib.Path(__file__).resolve().parents[1]
-			/ "fiscal"
-			/ "documento"
-			/ "elementos_nfe.json"
+			pathlib.Path(__file__).resolve().parents[1] / "fiscal" / "documento" / "elementos_nfe.json"
 		)
 		self.elementos = set(json.loads(manifesto.read_text(encoding="utf-8")))
 

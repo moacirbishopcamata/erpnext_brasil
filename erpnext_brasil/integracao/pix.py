@@ -29,9 +29,7 @@ from erpnext_brasil.contabil.pix import PixInvalido, montar_payload
 
 
 @frappe.whitelist()
-def gerar_payload_pix(
-	company: str, cidade: str, valor: str | None = None, txid: str | None = None
-) -> str:
+def gerar_payload_pix(company: str, cidade: str, valor: str | None = None, txid: str | None = None) -> str:
 	"""Monta o payload Pix ("Copia e Cola") da empresa — `Company.chave_pix` precisa
 	estar cadastrada. `valor` chega como string (convenção de método whitelisted do
 	Frappe, que não distingue `Decimal` na chamada) e é convertido aqui, não em
@@ -42,9 +40,7 @@ def gerar_payload_pix(
 
 	if not chave:
 		frappe.throw(
-			_("A empresa {0} não tem Chave Pix cadastrada (campo 'Chave Pix' em Company).").format(
-				company
-			),
+			_("A empresa {0} não tem Chave Pix cadastrada (campo 'Chave Pix' em Company).").format(company),
 			title=_("Pix não configurado"),
 		)
 

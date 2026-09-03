@@ -118,8 +118,22 @@ def apurar_periodo(
 	do lançamento e a apuração do período, evitando um segundo jeito de identificar
 	"isto é um lançamento de ICMS" que pudesse divergir do primeiro.
 	"""
-	debitos = sum((l.valor for l in lancamentos if l.conta_credito == f"{tributo} a Recolher"), ZERO)
-	creditos = sum((l.valor for l in lancamentos if l.conta_debito == f"{tributo} a Recuperar"), ZERO)
+	debitos = sum(
+		(
+			lancamento.valor
+			for lancamento in lancamentos
+			if lancamento.conta_credito == f"{tributo} a Recolher"
+		),
+		ZERO,
+	)
+	creditos = sum(
+		(
+			lancamento.valor
+			for lancamento in lancamentos
+			if lancamento.conta_debito == f"{tributo} a Recuperar"
+		),
+		ZERO,
+	)
 
 	return ApuracaoPeriodo(
 		tributo=tributo, debitos=debitos, creditos=creditos, saldo_credor_anterior=saldo_credor_anterior

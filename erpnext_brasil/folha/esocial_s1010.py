@@ -110,7 +110,9 @@ class IdeRubrica:
 
 	def __post_init__(self):
 		if not (1 <= len(self.cod_rubr) <= 30):
-			raise EsocialS1010Invalido(f"codRubr deve ter entre 1 e 30 caracteres, recebido {self.cod_rubr!r}")
+			raise EsocialS1010Invalido(
+				f"codRubr deve ter entre 1 e 30 caracteres, recebido {self.cod_rubr!r}"
+			)
 
 		if not (1 <= len(self.ide_tab_rubr) <= 8):
 			raise EsocialS1010Invalido(
@@ -143,7 +145,9 @@ class DadosRubrica:
 
 	def __post_init__(self):
 		if not (1 <= len(self.dsc_rubr) <= 100):
-			raise EsocialS1010Invalido(f"dscRubr deve ter entre 1 e 100 caracteres, recebido {self.dsc_rubr!r}")
+			raise EsocialS1010Invalido(
+				f"dscRubr deve ter entre 1 e 100 caracteres, recebido {self.dsc_rubr!r}"
+			)
 
 		if not self.nat_rubr:
 			raise EsocialS1010Invalido("natRubr não pode ser vazio")
@@ -152,16 +156,22 @@ class DadosRubrica:
 			raise EsocialS1010Invalido(f"tpRubr deve ser 1, 2, 3 ou 4, recebido {self.tp_rubr}")
 
 		if self.cod_inc_cp not in CODIGOS_INCIDENCIA_CP:
-			raise EsocialS1010Invalido(f"codIncCP {self.cod_inc_cp!r} não está na tabela de domínio conhecida")
+			raise EsocialS1010Invalido(
+				f"codIncCP {self.cod_inc_cp!r} não está na tabela de domínio conhecida"
+			)
 
 		if not (0 <= self.cod_inc_irrf <= 9999):
 			raise EsocialS1010Invalido(f"codIncIRRF deve ter de 1 a 4 dígitos, recebido {self.cod_inc_irrf}")
 
 		if self.cod_inc_fgts not in CODIGOS_INCIDENCIA_FGTS:
-			raise EsocialS1010Invalido(f"codIncFGTS {self.cod_inc_fgts!r} não está na tabela de domínio conhecida")
+			raise EsocialS1010Invalido(
+				f"codIncFGTS {self.cod_inc_fgts!r} não está na tabela de domínio conhecida"
+			)
 
 		if self.cod_inc_cprp is not None and self.cod_inc_cprp not in CODIGOS_INCIDENCIA_CPRP:
-			raise EsocialS1010Invalido(f"codIncCPRP {self.cod_inc_cprp!r} não está na tabela de domínio conhecida")
+			raise EsocialS1010Invalido(
+				f"codIncCPRP {self.cod_inc_cprp!r} não está na tabela de domínio conhecida"
+			)
 
 		if self.cod_inc_pis_pasep is not None and self.cod_inc_pis_pasep not in CODIGOS_INCIDENCIA_PIS_PASEP:
 			raise EsocialS1010Invalido(

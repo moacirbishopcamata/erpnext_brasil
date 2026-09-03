@@ -12,12 +12,12 @@ from erpnext_brasil.fiscal.cte import MODAL_AEREO, MODAL_RODOVIARIO, NAMESPACE_C
 from erpnext_brasil.fiscal.documento.assinatura import MaterialAssinatura
 from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, montar_chave
 from erpnext_brasil.fiscal.documento.evento_cte import (
-	JUSTIFICATIVA_MAXIMA_CTE,
-	JUSTIFICATIVA_MINIMA_CTE,
 	DESC_EVENTO_GTV,
 	ESPECIE_GTV_CHEQUE,
 	ESPECIE_GTV_NUMERARIO,
 	INDICADOR_DESACORDO_OPERACAO,
+	JUSTIFICATIVA_MAXIMA_CTE,
+	JUSTIFICATIVA_MINIMA_CTE,
 	MOTIVO_INSUCESSO_ENDERECO_INEXISTENTE,
 	MOTIVO_INSUCESSO_OUTROS,
 	MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO,
@@ -45,10 +45,10 @@ from erpnext_brasil.fiscal.documento.evento_cte import (
 	calcular_hash_entrega,
 	montar_env_evento_cte,
 	montar_evento_cancelamento_comprovante_entrega_cte,
+	montar_evento_cancelamento_cte,
 	montar_evento_cancelamento_insucesso_entrega_cte,
 	montar_evento_cancelamento_prestacao_desacordo_cte,
 	montar_evento_comprovante_entrega_cte,
-	montar_evento_cancelamento_cte,
 	montar_evento_correcao_cte,
 	montar_evento_epec_cte,
 	montar_evento_gtv_cte,
@@ -65,8 +65,14 @@ _CNPJ_VALIDO = "11222333000181"
 
 def _chave_cte() -> str:
 	return montar_chave(
-		uf="35", ano_mes="2608", cnpj=_CNPJ_VALIDO, modelo="57", serie="001",
-		numero="000000001", tipo_emissao="1", codigo_numerico="12345678",
+		uf="35",
+		ano_mes="2608",
+		cnpj=_CNPJ_VALIDO,
+		modelo="57",
+		serie="001",
+		numero="000000001",
+		tipo_emissao="1",
+		codigo_numerico="12345678",
 	)
 
 
@@ -76,9 +82,7 @@ class AssinadorFalso:
 
 	def assinar(self, xml: bytes, id_elemento: str):
 		self.recebido = (xml, id_elemento)
-		return MaterialAssinatura(
-			digest="ZGlnZXN0", assinatura="YXNzaW5hdHVyYQ==", certificado="Y2VydA=="
-		)
+		return MaterialAssinatura(digest="ZGlnZXN0", assinatura="YXNzaW5hdHVyYQ==", certificado="Y2VydA==")
 
 
 class TestMontarEventoCancelamentoCte(unittest.TestCase):
@@ -117,9 +121,7 @@ class TestMontarEventoCancelamentoCte(unittest.TestCase):
 		self.assertTrue(id_elemento.endswith("001"))
 
 	def test_tp_evento_e_o_mesmo_da_nfe(self):
-		self.assertEqual(
-			self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_CANCELAMENTO_CTE
-		)
+		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_CANCELAMENTO_CTE)
 		self.assertEqual(TIPO_EVENTO_CANCELAMENTO_CTE, "110111")
 
 	def test_namespace_e_o_do_cte(self):
@@ -316,7 +318,9 @@ class TestMontarEventoCorrecaoCte(unittest.TestCase):
 	def test_numero_item_alterado_fora_do_intervalo_levanta_erro(self):
 		with self.assertRaises(EventoInvalido):
 			CorrecaoCte(
-				grupo_alterado="det", campo_alterado="xProd", valor_alterado="X",
+				grupo_alterado="det",
+				campo_alterado="xProd",
+				valor_alterado="X",
 				numero_item_alterado=0,
 			)
 
@@ -342,8 +346,14 @@ def _montar_inf_correcao_publica(correcao: CorrecaoCte) -> dict:
 
 def _chave_nfe() -> str:
 	return montar_chave(
-		uf="35", ano_mes="2608", cnpj=_CNPJ_VALIDO, modelo="55", serie="001",
-		numero="000000001", tipo_emissao="1", codigo_numerico="12345678",
+		uf="35",
+		ano_mes="2608",
+		cnpj=_CNPJ_VALIDO,
+		modelo="55",
+		serie="001",
+		numero="000000001",
+		tipo_emissao="1",
+		codigo_numerico="12345678",
 	)
 
 
@@ -354,9 +364,7 @@ class TestCalcularHashEntrega(unittest.TestCase):
 		chave = _chave_cte()
 		imagem = "aW1hZ2VtLWZha2U="
 
-		esperado = base64.b64encode(hashlib.sha1((chave + imagem).encode("utf-8")).digest()).decode(
-			"ascii"
-		)
+		esperado = base64.b64encode(hashlib.sha1((chave + imagem).encode("utf-8")).digest()).decode("ascii")
 
 		self.assertEqual(calcular_hash_entrega(chave, imagem), esperado)
 
@@ -388,9 +396,7 @@ class TestMontarEventoComprovanteEntregaCte(unittest.TestCase):
 		)
 
 	def test_tp_evento_e_codigo_proprio_sem_equivalente_na_nfe(self):
-		self.assertEqual(
-			self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE
-		)
+		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE)
 		self.assertEqual(TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE, "110180")
 
 	def test_campos_basicos(self):
@@ -453,9 +459,7 @@ class TestMontarEventoComprovanteEntregaCte(unittest.TestCase):
 			chaves_nfe_entregues=[chave_nfe],
 		)
 
-		self.assertEqual(
-			evento["evento"]["infEvento"]["detEvento"]["infEntrega"], [{"chNFe": chave_nfe}]
-		)
+		self.assertEqual(evento["evento"]["infEvento"]["detEvento"]["infEntrega"], [{"chNFe": chave_nfe}])
 
 	def test_infentrega_recusa_chave_que_nao_e_de_nfe(self):
 		with self.assertRaises(EventoInvalido):
@@ -509,9 +513,9 @@ class TestTomadorEpec(unittest.TestCase):
 
 class TestMontarTomadorEpec(unittest.TestCase):
 	def test_cnpj_valido_monta_grupo_cnpj(self):
-		grupo = montar_tomador_epec(
-			TomadorEpec(papel=TOMADOR_EPEC_OUTROS, uf="SP", cnpj_cpf=_CNPJ_VALIDO)
-		)["toma4"]
+		grupo = montar_tomador_epec(TomadorEpec(papel=TOMADOR_EPEC_OUTROS, uf="SP", cnpj_cpf=_CNPJ_VALIDO))[
+			"toma4"
+		]
 
 		self.assertEqual(grupo["toma"], TOMADOR_EPEC_OUTROS)
 		self.assertEqual(grupo["CNPJ"], _CNPJ_VALIDO)
@@ -530,7 +534,9 @@ class TestMontarTomadorEpec(unittest.TestCase):
 	def test_ie_opcional(self):
 		grupo = montar_tomador_epec(
 			TomadorEpec(
-				papel=TOMADOR_EPEC_OUTROS, uf="SP", cnpj_cpf=_CNPJ_VALIDO,
+				papel=TOMADOR_EPEC_OUTROS,
+				uf="SP",
+				cnpj_cpf=_CNPJ_VALIDO,
 				inscricao_estadual="123456789",
 			)
 		)["toma4"]
@@ -764,9 +770,7 @@ class TestMontarEventoInsucessoEntregaCte(unittest.TestCase):
 		)
 
 	def test_tp_evento_e_110190(self):
-		self.assertEqual(
-			self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_INSUCESSO_ENTREGA_CTE
-		)
+		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_INSUCESSO_ENTREGA_CTE)
 		self.assertEqual(TIPO_EVENTO_INSUCESSO_ENTREGA_CTE, "110190")
 
 	def test_desc_evento_e_campos_basicos(self):
@@ -1143,9 +1147,7 @@ class TestMontarEventoPrestacaoDesacordoCte(unittest.TestCase):
 
 	def test_tp_evento_e_610110_fora_da_familia_110xxx(self):
 		"""Achado real: primeiro tpEvento fora do padrão 110xxx desta frente."""
-		self.assertEqual(
-			self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_PRESTACAO_DESACORDO_CTE
-		)
+		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_PRESTACAO_DESACORDO_CTE)
 		self.assertEqual(TIPO_EVENTO_PRESTACAO_DESACORDO_CTE, "610110")
 		self.assertFalse(TIPO_EVENTO_PRESTACAO_DESACORDO_CTE.startswith("110"))
 
@@ -1239,9 +1241,7 @@ class TestMontarEventoRegistroMultimodalCte(unittest.TestCase):
 	def test_tp_evento_e_110160_de_volta_ao_padrao_110xxx(self):
 		"""Achado real: volta ao padrão 110xxx -- não segue a exceção 610xxx do
 		evento anterior (prestação em desacordo)."""
-		self.assertEqual(
-			self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_REGISTRO_MULTIMODAL_CTE
-		)
+		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_REGISTRO_MULTIMODAL_CTE)
 		self.assertEqual(TIPO_EVENTO_REGISTRO_MULTIMODAL_CTE, "110160")
 
 	def test_desc_evento_tem_uma_unica_grafia(self):

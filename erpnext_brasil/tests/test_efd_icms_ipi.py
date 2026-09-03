@@ -192,7 +192,9 @@ class TestMontarE110ComAjustes(unittest.TestCase):
 		saldo apurado, conforme a definição oficial do campo."""
 		apuracao = ApuracaoPeriodo(tributo="ICMS", debitos=d("1000.00"), creditos=d("400.00"))
 		sem_ajuste = montar_e110(apuracao, [])
-		com_debito_especial = montar_e110(apuracao, [Ajuste(codigo="MG050001", descricao="", valor=d("999.00"))])
+		com_debito_especial = montar_e110(
+			apuracao, [Ajuste(codigo="MG050001", descricao="", valor=d("999.00"))]
+		)
 
 		self.assertEqual(sem_ajuste["VL_ICMS_RECOLHER"], com_debito_especial["VL_ICMS_RECOLHER"])
 
@@ -223,7 +225,16 @@ class TestMontarE520(unittest.TestCase):
 
 		self.assertEqual(
 			campos,
-			["REG", "VL_SD_ANT_IPI", "VL_DEB_IPI", "VL_CRED_IPI", "VL_OD_IPI", "VL_OC_IPI", "VL_SC_IPI", "VL_SD_IPI"],
+			[
+				"REG",
+				"VL_SD_ANT_IPI",
+				"VL_DEB_IPI",
+				"VL_CRED_IPI",
+				"VL_OD_IPI",
+				"VL_OC_IPI",
+				"VL_SC_IPI",
+				"VL_SD_IPI",
+			],
 		)
 
 	def test_reg_e_fixo(self):

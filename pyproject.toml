@@ -31,7 +31,12 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["F", "E", "W", "I", "UP", "B", "RUF"]
-ignore = ["E501", "W191", "E101", "B904", "RUF001"]
+# RUF001/002/003 são a mesma regra ("caractere ambíguo") aplicada a string, docstring e
+# comentário. A prosa deste projeto é em português e usa tipografia de verdade: o `×` de
+# "NF-e × CT-e" e o travessão `—` são escolhas deliberadas, não `x` e `-` digitados
+# errado. Ignorar só RUF001 e deixar as duas irmãs ativas seria incoerente — a mesma
+# frase passaria numa string e falharia numa docstring.
+ignore = ["E501", "W191", "E101", "B904", "RUF001", "RUF002", "RUF003"]
 
 [tool.ruff.format]
 quote-style = "double"

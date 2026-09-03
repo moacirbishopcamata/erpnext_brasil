@@ -306,9 +306,7 @@ def montar_env_evento(eventos: list[dict], id_lote: str) -> dict:
 		raise EventoInvalido("O lote de eventos precisa de ao menos um evento", "eventos")
 
 	if len(eventos) > 20:
-		raise EventoInvalido(
-			f"Um lote de eventos admite no máximo 20, recebidos {len(eventos)}", "eventos"
-		)
+		raise EventoInvalido(f"Um lote de eventos admite no máximo 20, recebidos {len(eventos)}", "eventos")
 
 	if not (id_lote or "").strip():
 		raise EventoInvalido("idLote é obrigatório", "id_lote")

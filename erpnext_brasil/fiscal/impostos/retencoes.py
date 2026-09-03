@@ -29,8 +29,8 @@ from decimal import Decimal
 from erpnext_brasil.fiscal.impostos.icms import arredondar
 
 __all__ = [
-	"ALIQUOTA_COFINS",
 	"ALIQUOTA_CCSL",
+	"ALIQUOTA_COFINS",
 	"ALIQUOTA_CSRF",
 	"ALIQUOTA_INSS",
 	"ALIQUOTA_IRRF_SERVICOS",

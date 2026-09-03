@@ -52,8 +52,8 @@ __all__ = [
 	"Emitente",
 	"Identificacao",
 	"NFeInvalida",
-	"ativar_contingencia_svc",
 	"assinar_nfe",
+	"ativar_contingencia_svc",
 	"montar_dest",
 	"montar_emit",
 	"montar_ide",
@@ -145,15 +145,13 @@ class Identificacao:
 
 		if _SEQUENCIA_TRIVIAL.match(limpar(self.codigo_numerico)):
 			raise NFeInvalida(
-				"O código numérico (cNF) não pode ter todos os dígitos iguais — "
-				"rejeição 897, regra B03-10",
+				"O código numérico (cNF) não pode ter todos os dígitos iguais — rejeição 897, regra B03-10",
 				"codigo_numerico",
 			)
 
 		if self.modelo not in (MODELO_NFE, MODELO_NFCE):
 			raise NFeInvalida(
-				f"Modelo deve ser {MODELO_NFE} (NF-e) ou {MODELO_NFCE} (NFC-e), "
-				f"recebido {self.modelo!r}",
+				f"Modelo deve ser {MODELO_NFE} (NF-e) ou {MODELO_NFCE} (NFC-e), recebido {self.modelo!r}",
 				"modelo",
 			)
 
@@ -214,9 +212,7 @@ def ativar_contingencia_svc(
 	grupo = UF_CONTINGENCIA_SVC.get(sigla or "")
 
 	if grupo is None:
-		raise NFeInvalida(
-			f"UF de código {identificacao.uf!r} não consta no mapa de contingência SVC", "uf"
-		)
+		raise NFeInvalida(f"UF de código {identificacao.uf!r} não consta no mapa de contingência SVC", "uf")
 
 	tipo_emissao = TIPO_EMISSAO_SVCAN if grupo == "SVCAN" else TIPO_EMISSAO_SVCRS
 
@@ -348,9 +344,7 @@ def montar_dest(destinatario: Destinatario) -> dict:
 		)
 
 	if not tem_documento and not tem_estrangeiro:
-		raise NFeInvalida(
-			"Destinatário precisa de CNPJ, CPF ou identificação de estrangeiro", "cnpj_cpf"
-		)
+		raise NFeInvalida("Destinatário precisa de CNPJ, CPF ou identificação de estrangeiro", "cnpj_cpf")
 
 	grupo: dict = {}
 
@@ -374,9 +368,7 @@ def montar_dest(destinatario: Destinatario) -> dict:
 	# A IE só é informada quando o destinatário é contribuinte; informá-la para isento
 	# ou não contribuinte é rejeição.
 	if destinatario.indicador_ie == "1":
-		grupo["IE"] = _obrigatorio(
-			destinatario.inscricao_estadual, "Inscrição Estadual do destinatário"
-		)
+		grupo["IE"] = _obrigatorio(destinatario.inscricao_estadual, "Inscrição Estadual do destinatário")
 
 	if destinatario.suframa:
 		grupo["ISUF"] = destinatario.suframa
@@ -412,8 +404,7 @@ def montar_infnfe(
 	# não é nosso; falhar alto e pedir ao chamador é a alternativa correta.
 	if not transp:
 		raise NFeInvalida(
-			"O grupo transp é obrigatório — use montar_transp('9', ...) quando não há "
-			"transporte a relatar",
+			"O grupo transp é obrigatório — use montar_transp('9', ...) quando não há transporte a relatar",
 			"transp",
 		)
 
@@ -441,9 +432,7 @@ def montar_infnfe(
 	if chave[-1] != calcular_dv(chave[:-1]):
 		raise NFeInvalida("Inconsistência interna: o dígito da chave não confere", "chave")
 
-	detalhes = [
-		{"@nItem": str(indice), **item} for indice, item in enumerate(itens, start=1)
-	]
+	detalhes = [{"@nItem": str(indice), **item} for indice, item in enumerate(itens, start=1)]
 
 	corpo = {
 		"@versao": versao,

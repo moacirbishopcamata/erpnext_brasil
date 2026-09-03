@@ -106,10 +106,14 @@ class IdeEvento:
 			raise ReinfInvalido("nrRecibo é obrigatório quando indRetif=2 (retificação)")
 
 		if len(self.per_apur) != 7:
-			raise ReinfInvalido(f"perApur deve ter 7 caracteres (formato AAAA-MM), recebido {self.per_apur!r}")
+			raise ReinfInvalido(
+				f"perApur deve ter 7 caracteres (formato AAAA-MM), recebido {self.per_apur!r}"
+			)
 
 		if self.tp_amb not in (AMBIENTE_PRODUCAO, AMBIENTE_PRODUCAO_RESTRITA):
-			raise ReinfInvalido(f"tpAmb deve ser 1 (Produção) ou 2 (Produção Restrita), recebido {self.tp_amb}")
+			raise ReinfInvalido(
+				f"tpAmb deve ser 1 (Produção) ou 2 (Produção Restrita), recebido {self.tp_amb}"
+			)
 
 		if self.proc_emi not in (1, 2):
 			raise ReinfInvalido(f"procEmi deve ser 1 ou 2 neste evento, recebido {self.proc_emi}")

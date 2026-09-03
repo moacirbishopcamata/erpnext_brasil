@@ -39,12 +39,19 @@ usuário confiaria e perderia o prazo. Registrado como pendência em
 `docs/leitor-codigo-e-alertas.md`, com a divergência documentada.
 """
 
+from datetime import date
+
 import frappe
 from frappe import _
 
 from erpnext_brasil.contabil.prontidao_fiscal import verificar_empresa, verificar_item
+from erpnext_brasil.integracao.notificacao import notificar_responsaveis
 
-__all__ = ["avisar_ambiente_de_homologacao", "verificar_prontidao_efd"]
+__all__ = [
+	"avisar_ambiente_de_homologacao",
+	"verificar_prontidao_efd",
+	"verificar_transicao_da_reforma",
+]
 
 _AMBIENTE_PRODUCAO = "Produção"
 
@@ -88,12 +95,15 @@ def verificar_prontidao_efd(company: str, limite_de_itens: int = 500) -> dict:
 	usuário quer as primeiras pendências rápido, não esperar a base inteira. O retorno
 	diz se houve corte, para não passar a falsa impressão de que o resto está limpo.
 	"""
-	dados = frappe.db.get_value(
-		"Company",
-		company,
-		["tax_id", "inscricao_estadual", "br_efd_perfil", "br_efd_atividade", "br_efd_versao_leiaute"],
-		as_dict=True,
-	) or {}
+	dados = (
+		frappe.db.get_value(
+			"Company",
+			company,
+			["tax_id", "inscricao_estadual", "br_efd_perfil", "br_efd_atividade", "br_efd_versao_leiaute"],
+			as_dict=True,
+		)
+		or {}
+	)
 
 	endereco = frappe.db.get_value(
 		"Address",
@@ -125,6 +135,42 @@ def verificar_prontidao_efd(company: str, limite_de_itens: int = 500) -> dict:
 		"bloqueios": sum(1 for p in pendencias if p["bloqueia"]),
 		"itens_verificados": min(len(itens), limite_de_itens),
 		"truncado": truncado,
+	}
+
+
+def verificar_transicao_da_reforma(hoje: date | None = None) -> dict:
+	"""Avisa quando o ano corrente passou do único ano com alíquotas de IBS/CBS embutidas.
+
+	Mora aqui, e não em `alerta_certificado.py`, porque é alerta de **risco fiscal** —
+	nada tem a ver com certificado digital. A primeira versão ficou lá por conveniência
+	(era onde o envio de notificação existia), o que era acoplamento por acaso histórico:
+	corrigido extraindo o envio para `integracao/notificacao.py`, que é de quem os dois
+	dependem agora.
+
+	A regra de *quando* está em `fiscal/impostos/transicao_reforma.py`, pura e testável
+	sem bench; aqui só se lê a data e se notifica.
+
+	Notifica **uma vez por dia enquanto durar**, sem marcos como os do certificado: não
+	há contagem regressiva a comunicar, e o problema não se resolve sozinho com o tempo
+	— só com alguém informando as alíquotas vigentes.
+	"""
+	from erpnext_brasil.fiscal.impostos.transicao_reforma import avaliar_transicao
+
+	hoje = hoje or date.today()
+	situacao = avaliar_transicao(hoje.year)
+
+	if situacao.deve_alertar:
+		for company in frappe.get_all("Company", pluck="name"):
+			notificar_responsaveis(
+				company,
+				f"Reforma tributária — alíquotas de {situacao.ano}",
+				situacao.mensagem,
+			)
+
+	return {
+		"ano": situacao.ano,
+		"aliquotas_embutidas": situacao.aliquotas_embutidas,
+		"notificou": situacao.deve_alertar,
 	}
 
 

@@ -157,7 +157,9 @@ class TestMontarEventoS1000(unittest.TestCase):
 			InfoCadastro(class_trib="03", ind_des_folha=0, ind_opt_reg_eletron=1),
 		)
 
-		evento = montar_evento_s1000("ID11234567890123456789012345678901", ide_evento, ide_empregador, info_empregador)
+		evento = montar_evento_s1000(
+			"ID11234567890123456789012345678901", ide_evento, ide_empregador, info_empregador
+		)
 
 		raiz = evento["eSocial"]["evtInfoEmpregador"]
 		self.assertEqual(raiz["Id"], "ID11234567890123456789012345678901")

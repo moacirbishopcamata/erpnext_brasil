@@ -54,9 +54,7 @@ def _contas_configuradas(empresa: str) -> dict[str, str]:
 
 	valores = frappe.db.get_value("Company", empresa, list(nomes.values()), as_dict=True) or {}
 
-	return {
-		tributo: valores.get(campo) for tributo, campo in nomes.items() if valores.get(campo)
-	}
+	return {tributo: valores.get(campo) for tributo, campo in nomes.items() if valores.get(campo)}
 
 
 def apurar_impostos(doc, method=None):

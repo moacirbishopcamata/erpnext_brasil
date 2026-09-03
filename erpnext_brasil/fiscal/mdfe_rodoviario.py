@@ -76,12 +76,20 @@ CARROCERIA_PORTA_CONTAINER = "04"
 CARROCERIA_SIDER = "05"
 
 _RODADOS_VALIDOS = {
-	RODADO_TRUCK, RODADO_TOCO, RODADO_CAVALO_MECANICO,
-	RODADO_VAN, RODADO_UTILITARIO, RODADO_OUTROS,
+	RODADO_TRUCK,
+	RODADO_TOCO,
+	RODADO_CAVALO_MECANICO,
+	RODADO_VAN,
+	RODADO_UTILITARIO,
+	RODADO_OUTROS,
 }
 _CARROCERIAS_VALIDAS = {
-	CARROCERIA_NAO_APLICAVEL, CARROCERIA_ABERTA, CARROCERIA_FECHADA_BAU,
-	CARROCERIA_PORTA_CONTAINER, CARROCERIA_GRANELEIRA, CARROCERIA_SIDER,
+	CARROCERIA_NAO_APLICAVEL,
+	CARROCERIA_ABERTA,
+	CARROCERIA_FECHADA_BAU,
+	CARROCERIA_PORTA_CONTAINER,
+	CARROCERIA_GRANELEIRA,
+	CARROCERIA_SIDER,
 }
 
 
@@ -121,9 +129,7 @@ def _validar_tara(tara: str) -> str:
 	valor = (tara or "").strip()
 
 	if not (valor == "0" or (valor.isdigit() and valor[0] != "0")):
-		raise MdfeRodoviarioInvalido(
-			f"tara deve ser '0' ou um número sem zero à esquerda, recebido {tara!r}"
-		)
+		raise MdfeRodoviarioInvalido(f"tara deve ser '0' ou um número sem zero à esquerda, recebido {tara!r}")
 
 	return valor
 

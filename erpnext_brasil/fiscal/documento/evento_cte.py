@@ -246,11 +246,11 @@ from erpnext_brasil.fiscal.validators import validar_cnpj, validar_cpf_cnpj
 
 __all__ = [
 	"DESC_EVENTO_GTV",
+	"DESC_EVENTO_REGISTRO_MULTIMODAL",
 	"ESPECIE_GTV_CHEQUE",
 	"ESPECIE_GTV_MOEDA",
 	"ESPECIE_GTV_NUMERARIO",
 	"ESPECIE_GTV_OUTROS",
-	"DESC_EVENTO_REGISTRO_MULTIMODAL",
 	"INDICADOR_DESACORDO_OPERACAO",
 	"JUSTIFICATIVA_MAXIMA_CTE",
 	"JUSTIFICATIVA_MINIMA_CTE",
@@ -324,7 +324,10 @@ ESPECIE_GTV_MOEDA = "3"
 ESPECIE_GTV_OUTROS = "4"
 
 _ESPECIES_GTV_VALIDAS = {
-	ESPECIE_GTV_NUMERARIO, ESPECIE_GTV_CHEQUE, ESPECIE_GTV_MOEDA, ESPECIE_GTV_OUTROS,
+	ESPECIE_GTV_NUMERARIO,
+	ESPECIE_GTV_CHEQUE,
+	ESPECIE_GTV_MOEDA,
+	ESPECIE_GTV_OUTROS,
 }
 
 # Achado real: primeiro tpEvento fora da família "110xxx" desta frente -- ver docstring.
@@ -352,8 +355,10 @@ MOTIVO_INSUCESSO_ENDERECO_INEXISTENTE = "3"
 MOTIVO_INSUCESSO_OUTROS = "4"
 
 _MOTIVOS_INSUCESSO_VALIDOS = {
-	MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO, MOTIVO_INSUCESSO_RECUSA_RECEBEDOR,
-	MOTIVO_INSUCESSO_ENDERECO_INEXISTENTE, MOTIVO_INSUCESSO_OUTROS,
+	MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO,
+	MOTIVO_INSUCESSO_RECUSA_RECEBEDOR,
+	MOTIVO_INSUCESSO_ENDERECO_INEXISTENTE,
+	MOTIVO_INSUCESSO_OUTROS,
 }
 
 # `xJustMotivo` do evIECTe usa TString (15-256), não TJust (15-255, usada em cancelamento/
@@ -370,16 +375,23 @@ TOMADOR_EPEC_DESTINATARIO = "3"
 TOMADOR_EPEC_OUTROS = "4"
 
 _TOMADORES_EPEC_VALIDOS = {
-	TOMADOR_EPEC_REMETENTE, TOMADOR_EPEC_EXPEDIDOR, TOMADOR_EPEC_RECEBEDOR,
-	TOMADOR_EPEC_DESTINATARIO, TOMADOR_EPEC_OUTROS,
+	TOMADOR_EPEC_REMETENTE,
+	TOMADOR_EPEC_EXPEDIDOR,
+	TOMADOR_EPEC_RECEBEDOR,
+	TOMADOR_EPEC_DESTINATARIO,
+	TOMADOR_EPEC_OUTROS,
 }
 
 # `modal` do EPEC — mesmas seis opções de `fiscal.cte.MODAL_*`, reaproveitadas por valor
 # (não pelo nome do módulo, para este arquivo não depender de um `_MODAIS_VALIDOS`
 # privado de outro módulo).
 _MODAIS_VALIDOS_EPEC = {
-	MODAL_RODOVIARIO, MODAL_AEREO, MODAL_AQUAVIARIO,
-	MODAL_FERROVIARIO, MODAL_DUTOVIARIO, MODAL_MULTIMODAL,
+	MODAL_RODOVIARIO,
+	MODAL_AEREO,
+	MODAL_AQUAVIARIO,
+	MODAL_FERROVIARIO,
+	MODAL_DUTOVIARIO,
+	MODAL_MULTIMODAL,
 }
 _VERSAO_LEIAUTE_CTE = "4.00"
 
@@ -729,8 +741,7 @@ class TomadorEpec:
 	def __post_init__(self):
 		if self.papel not in _TOMADORES_EPEC_VALIDOS:
 			raise EventoInvalido(
-				f"toma do EPEC deve ser um de {sorted(_TOMADORES_EPEC_VALIDOS)}, "
-				f"recebido {self.papel!r}",
+				f"toma do EPEC deve ser um de {sorted(_TOMADORES_EPEC_VALIDOS)}, recebido {self.papel!r}",
 				"papel",
 			)
 
@@ -865,9 +876,7 @@ def _montar_evento_cancelamento_protocolo(
 	protocolo_evento_limpo = (protocolo_evento_cancelado or "").strip()
 
 	if not protocolo_evento_limpo:
-		raise EventoInvalido(
-			"O protocolo do evento a cancelar é obrigatório", "protocolo_evento_cancelado"
-		)
+		raise EventoInvalido("O protocolo do evento a cancelar é obrigatório", "protocolo_evento_cancelado")
 
 	if not (1 <= numero_sequencia <= 20):
 		raise EventoInvalido(
@@ -1018,9 +1027,7 @@ def montar_evento_insucesso_entrega_cte(
 				"justificativa_motivo",
 			)
 	elif texto_justificativa:
-		raise EventoInvalido(
-			"xJustMotivo só é aceito quando tpMotivo=4 (Outros)", "justificativa_motivo"
-		)
+		raise EventoInvalido("xJustMotivo só é aceito quando tpMotivo=4 (Outros)", "justificativa_motivo")
 
 	if not (1 <= numero_sequencia <= 20):
 		raise EventoInvalido(
@@ -1091,8 +1098,7 @@ class EspecieGtv:
 	def __post_init__(self):
 		if self.tipo_especie not in _ESPECIES_GTV_VALIDAS:
 			raise EventoInvalido(
-				f"tpEspecie deve ser um de {sorted(_ESPECIES_GTV_VALIDAS)}, "
-				f"recebido {self.tipo_especie!r}",
+				f"tpEspecie deve ser um de {sorted(_ESPECIES_GTV_VALIDAS)}, recebido {self.tipo_especie!r}",
 				"tipo_especie",
 			)
 
@@ -1377,9 +1383,7 @@ def montar_evento_cancelamento_prestacao_desacordo_cte(
 		raise EventoInvalido(f"CNPJ do autor do evento inválido: {e}", "cnpj_autor") from e
 
 	inf_evento = {
-		"@Id": _formatar_id_cte(
-			chave, TIPO_EVENTO_CANCELAMENTO_PRESTACAO_DESACORDO_CTE, numero_sequencia
-		),
+		"@Id": _formatar_id_cte(chave, TIPO_EVENTO_CANCELAMENTO_PRESTACAO_DESACORDO_CTE, numero_sequencia),
 		"cOrgao": lida.uf,
 		"tpAmb": ambiente,
 		"CNPJ": cnpj,
@@ -1420,9 +1424,7 @@ def montar_evento_registro_multimodal_cte(
 
 	texto_registro = (registro or "").strip()
 
-	if not (
-		XREGISTRO_MINIMO_MULTIMODAL_CTE <= len(texto_registro) <= XREGISTRO_MAXIMO_MULTIMODAL_CTE
-	):
+	if not (XREGISTRO_MINIMO_MULTIMODAL_CTE <= len(texto_registro) <= XREGISTRO_MAXIMO_MULTIMODAL_CTE):
 		raise EventoInvalido(
 			f"xRegistro deve ter de {XREGISTRO_MINIMO_MULTIMODAL_CTE} a "
 			f"{XREGISTRO_MAXIMO_MULTIMODAL_CTE} caracteres, recebidos {len(texto_registro)}",
@@ -1475,9 +1477,7 @@ def montar_env_evento_cte(eventos: list[dict], id_lote: str) -> dict:
 		raise EventoInvalido("O lote de eventos precisa de ao menos um evento", "eventos")
 
 	if len(eventos) > 20:
-		raise EventoInvalido(
-			f"Um lote de eventos admite no máximo 20, recebidos {len(eventos)}", "eventos"
-		)
+		raise EventoInvalido(f"Um lote de eventos admite no máximo 20, recebidos {len(eventos)}", "eventos")
 
 	if not (id_lote or "").strip():
 		raise EventoInvalido("idLote é obrigatório", "id_lote")

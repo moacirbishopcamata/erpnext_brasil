@@ -40,7 +40,16 @@ def _calculo_faixa_a_faixa(salario: Decimal) -> Decimal:
 
 class TestCalcularInss(unittest.TestCase):
 	def test_bate_com_calculo_faixa_a_faixa(self):
-		for salario in ("1000.00", "1621.00", "2000.00", "2902.84", "3500.00", "4354.27", "6000.00", "8475.55"):
+		for salario in (
+			"1000.00",
+			"1621.00",
+			"2000.00",
+			"2902.84",
+			"3500.00",
+			"4354.27",
+			"6000.00",
+			"8475.55",
+		):
 			with self.subTest(salario=salario):
 				esperado = _calculo_faixa_a_faixa(d(salario))
 				obtido = calcular_inss(d(salario))

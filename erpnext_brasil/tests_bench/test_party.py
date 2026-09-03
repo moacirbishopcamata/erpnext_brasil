@@ -31,7 +31,7 @@ o `insert()` devolveu — mesma disciplina que achou os dois bugs de
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from erpnext_brasil.integracao.party import validar_codigo_municipio, validar_ncm, validar_tax_id
+from erpnext_brasil.integracao.party import validar_codigo_municipio, validar_tax_id
 
 
 class _EmpresaBrasileiraMixin:

@@ -48,7 +48,9 @@ class _AssinadorFalso:
 	def assinar(self, xml: bytes, id_elemento: str) -> MaterialAssinatura:
 		self.chamadas.append((xml, id_elemento))
 
-		return MaterialAssinatura(digest="digestFalso==", assinatura="assinaturaFalsa==", certificado="certFalso==")
+		return MaterialAssinatura(
+			digest="digestFalso==", assinatura="assinaturaFalsa==", certificado="certFalso=="
+		)
 
 
 def _arvore_minima(id_evento: str = "ID1234567890") -> dict:

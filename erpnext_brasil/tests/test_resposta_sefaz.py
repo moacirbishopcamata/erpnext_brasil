@@ -71,18 +71,14 @@ class TestArmadilhaDosDoisCstat(unittest.TestCase):
 		self.assertEqual(resultado.motivo_nfe, "Falha no schema XML")
 
 	def test_lote_processado_e_nota_denegada(self):
-		resultado = interpretar_autorizacao(
-			_resposta(inf_prot=_prot_nfe(cstat="110", motivo="Uso Denegado"))
-		)
+		resultado = interpretar_autorizacao(_resposta(inf_prot=_prot_nfe(cstat="110", motivo="Uso Denegado")))
 
 		self.assertTrue(resultado.denegado)
 		self.assertFalse(resultado.autorizado)
 
 	def test_cstat_do_lote_nao_e_confundido_com_o_da_nota(self):
 		"""Os dois números aparecem no mesmo documento; a leitura não pode pegar o errado."""
-		resultado = interpretar_autorizacao(
-			_resposta(cstat_lote="104", inf_prot=_prot_nfe(cstat="100"))
-		)
+		resultado = interpretar_autorizacao(_resposta(cstat_lote="104", inf_prot=_prot_nfe(cstat="100")))
 
 		self.assertNotEqual(resultado.cstat_lote, resultado.cstat_nfe)
 		self.assertEqual(resultado.cstat_lote, "104")

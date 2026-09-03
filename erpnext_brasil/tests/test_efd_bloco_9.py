@@ -83,41 +83,43 @@ class TestContagemAutoReferente(unittest.TestCase):
 
 	def test_o_9900_totaliza_a_si_mesmo(self):
 		"""O ponto exato onde a conta erra sozinha."""
-		linha = next(l for l in self.linhas if l.get("REG_BLC") == "9900")
+		linha = next(linha for linha in self.linhas if linha.get("REG_BLC") == "9900")
 
 		self.assertEqual(linha["QTD_REG_BLC"], "11")
 
 	def test_o_9900_totaliza_os_demais_registros_do_bloco_9(self):
-		por_registro = {l["REG_BLC"]: l["QTD_REG_BLC"] for l in self.linhas if l["REG"] == "9900"}
+		por_registro = {
+			linha["REG_BLC"]: linha["QTD_REG_BLC"] for linha in self.linhas if linha["REG"] == "9900"
+		}
 
 		self.assertEqual(por_registro["9001"], "1")
 		self.assertEqual(por_registro["9990"], "1")
 		self.assertEqual(por_registro["9999"], "1")
 
 	def test_quantidade_de_linhas_do_bloco_9(self):
-		encerramento = next(l for l in self.linhas if l["REG"] == "9990")
+		encerramento = next(linha for linha in self.linhas if linha["REG"] == "9990")
 
 		self.assertEqual(encerramento["QTD_LIN_9"], "13")
 
 	def test_quantidade_de_linhas_do_arquivo(self):
-		fim = next(l for l in self.linhas if l["REG"] == "9999")
+		fim = next(linha for linha in self.linhas if linha["REG"] == "9999")
 
 		self.assertEqual(fim["QTD_LIN"], "21")
 
 	def test_o_total_do_arquivo_bate_com_a_contagem_real(self):
 		"""Pós-condição de verdade: o `9999` tem de bater com a soma das linhas dos
 		demais blocos mais as linhas do Bloco 9 efetivamente produzidas."""
-		fim = next(l for l in self.linhas if l["REG"] == "9999")
+		fim = next(linha for linha in self.linhas if linha["REG"] == "9999")
 
 		linhas_reais = sum(self.contagem.values()) + len(self.linhas)
 
 		self.assertEqual(int(fim["QTD_LIN"]), linhas_reais)
 
 	def test_o_total_do_bloco_9_bate_com_as_linhas_produzidas(self):
-		encerramento = next(l for l in self.linhas if l["REG"] == "9990")
+		encerramento = next(linha for linha in self.linhas if linha["REG"] == "9990")
 
 		# O 9999 é nível 0 (do arquivo), não pertence ao Bloco 9.
-		linhas_do_bloco = len([l for l in self.linhas if l["REG"] != "9999"])
+		linhas_do_bloco = len([linha for linha in self.linhas if linha["REG"] != "9999"])
 
 		self.assertEqual(int(encerramento["QTD_LIN_9"]), linhas_do_bloco)
 
@@ -127,7 +129,7 @@ class TestContagemAutoReferente(unittest.TestCase):
 		self.assertEqual(self.linhas[-1]["REG"], "9999")
 
 	def test_linhas_9900_em_ordem_deterministica(self):
-		codigos = [l["REG_BLC"] for l in self.linhas if l["REG"] == "9900"]
+		codigos = [linha["REG_BLC"] for linha in self.linhas if linha["REG"] == "9900"]
 
 		self.assertEqual(codigos, sorted(codigos))
 
@@ -137,7 +139,7 @@ class TestContagemComRepeticao(unittest.TestCase):
 		"""Vinte notas: `C100` aparece 20 vezes, mas é **um** tipo (uma linha 9900)."""
 		linhas = montar_bloco_9({"0000": 1, "0001": 1, "0990": 1, "C001": 1, "C100": 20, "C990": 1})
 
-		por_registro = {l["REG_BLC"]: l["QTD_REG_BLC"] for l in linhas if l["REG"] == "9900"}
+		por_registro = {linha["REG_BLC"]: linha["QTD_REG_BLC"] for linha in linhas if linha["REG"] == "9900"}
 
 		self.assertEqual(por_registro["C100"], "20")
 		self.assertEqual(por_registro["9900"], "10")  # 6 tipos + 4 do Bloco 9
@@ -146,7 +148,7 @@ class TestContagemComRepeticao(unittest.TestCase):
 		contagem = {"0000": 1, "0001": 1, "0990": 1, "C001": 1, "C100": 20, "C990": 1}
 		linhas = montar_bloco_9(contagem)
 
-		fim = next(l for l in linhas if l["REG"] == "9999")
+		fim = next(linha for linha in linhas if linha["REG"] == "9999")
 
 		self.assertEqual(int(fim["QTD_LIN"]), sum(contagem.values()) + len(linhas))
 

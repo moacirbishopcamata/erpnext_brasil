@@ -13,13 +13,21 @@ from decimal import Decimal
 
 from erpnext_brasil.contabil.ecd_i050 import MapeamentoReferencial
 from erpnext_brasil.contabil.ecd_i150 import SaldoInicial, montar_i155
-from erpnext_brasil.contabil.ecf_bloco_k import montar_k001, montar_k155, montar_k156, montar_k990
+from erpnext_brasil.contabil.ecf_bloco_k import (
+	ContaDesconhecida,
+	montar_k001,
+	montar_k155,
+	montar_k156,
+	montar_k990,
+)
 from erpnext_brasil.contabil.lancamento import Lancamento
 
 LANCAMENTOS = [
 	Lancamento(
-		conta_debito="Clientes", conta_credito="Receita Bruta de Vendas e Serviços",
-		valor=Decimal("100.00"), historico="Venda",
+		conta_debito="Clientes",
+		conta_credito="Receita Bruta de Vendas e Serviços",
+		valor=Decimal("100.00"),
+		historico="Venda",
 	)
 ]
 
@@ -80,7 +88,7 @@ class TestMontarK156(unittest.TestCase):
 		linhas_k156 = montar_k156(LANCAMENTOS, mapeamentos)
 
 		linha_clientes = next(
-			l for l in linhas_i155 if l["VL_SLD_FIN"] == linhas_k156[0]["VL_SLD_FIN"]
+			linha for linha in linhas_i155 if linha["VL_SLD_FIN"] == linhas_k156[0]["VL_SLD_FIN"]
 		)
 		self.assertEqual(linhas_k156[0]["VL_DEB"], linha_clientes["VL_DEB"])
 		self.assertEqual(linhas_k156[0]["IND_VL_SLD_INICIAL"], linha_clientes["IND_DC_INI"])
@@ -94,7 +102,7 @@ class TestMontarK156(unittest.TestCase):
 	def test_conta_desconhecida_levanta_erro(self):
 		mapeamentos = [MapeamentoReferencial(conta="Conta Inexistente", codigo_referencial="9.99")]
 
-		with self.assertRaises(Exception):
+		with self.assertRaises(ContaDesconhecida):
 			montar_k156(LANCAMENTOS, mapeamentos)
 
 

@@ -110,14 +110,10 @@ class TestMontarEvtRemun(unittest.TestCase):
 		)
 		item = ItemRemuneracao(cod_rubr="9001", vr_rubr=Decimal("100.00"))
 		remun = RemunPerApur(itens_remun=(item,))
-		estab_lot = IdeEstabLot(
-			tp_insc=1, nr_insc="12345678000199", cod_lotacao="1", remun_per_apur=(remun,)
-		)
+		estab_lot = IdeEstabLot(tp_insc=1, nr_insc="12345678000199", cod_lotacao="1", remun_per_apur=(remun,))
 		dm_dev = DmDev(ide_dm_dev="1", cod_categ=101, info_per_apur=InfoPerApur(ide_estab_lot=(estab_lot,)))
 
-		arvore = montar_evt_remun(
-			"ID1", ide_evento, ide_empregador, ide_trabalhador, (dm_dev,)
-		)
+		arvore = montar_evt_remun("ID1", ide_evento, ide_empregador, ide_trabalhador, (dm_dev,))
 		xml = para_xml(arvore)
 
 		self.assertIn("<nmTrab>Maria Silva</nmTrab>", xml)
@@ -136,9 +132,7 @@ class TestMontarEvtRemun(unittest.TestCase):
 		ide_trabalhador = IdeTrabalhador(cpf_trab="12345678901")
 		item = ItemRemuneracao(cod_rubr="9001", vr_rubr=Decimal("100.00"))
 		remun = RemunPerApur(itens_remun=(item,))
-		estab_lot = IdeEstabLot(
-			tp_insc=1, nr_insc="12345678000199", cod_lotacao="1", remun_per_apur=(remun,)
-		)
+		estab_lot = IdeEstabLot(tp_insc=1, nr_insc="12345678000199", cod_lotacao="1", remun_per_apur=(remun,))
 		info_per_apur = InfoPerApur(ide_estab_lot=(estab_lot,))
 		dm_dev_1 = DmDev(ide_dm_dev="1", cod_categ=101, info_per_apur=info_per_apur)
 		dm_dev_2 = DmDev(ide_dm_dev="2", cod_categ=101, info_per_apur=info_per_apur)

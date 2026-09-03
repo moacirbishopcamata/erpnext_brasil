@@ -22,7 +22,9 @@ def d(v: str) -> Decimal:
 
 
 def lancamento(conta_debito: str, conta_credito: str, valor: str, historico: str = "teste") -> Lancamento:
-	return Lancamento(conta_debito=conta_debito, conta_credito=conta_credito, valor=d(valor), historico=historico)
+	return Lancamento(
+		conta_debito=conta_debito, conta_credito=conta_credito, valor=d(valor), historico=historico
+	)
 
 
 class TestMontarI200I250(unittest.TestCase):
@@ -36,7 +38,9 @@ class TestMontarI200I250(unittest.TestCase):
 		self.assertEqual(len(pares), 2)
 
 	def test_i200_tem_reg_num_dt_vl_ind(self):
-		pares = montar_i200_i250([lancamento("Clientes", "Receita Bruta de Vendas e Serviços", "1000.00")], DATA)
+		pares = montar_i200_i250(
+			[lancamento("Clientes", "Receita Bruta de Vendas e Serviços", "1000.00")], DATA
+		)
 		i200, _partidas = pares[0]
 
 		self.assertEqual(list(i200), ["REG", "NUM_LCTO", "DT_LCTO", "VL_LCTO", "IND_LCTO"])
@@ -98,7 +102,8 @@ class TestMontarI200I250(unittest.TestCase):
 
 	def test_historico_propaga_para_o_campo_hist(self):
 		_i200, partidas = montar_i200_i250(
-			[lancamento("Clientes", "Receita Bruta de Vendas e Serviços", "1000.00", historico="NF-e 123")], DATA
+			[lancamento("Clientes", "Receita Bruta de Vendas e Serviços", "1000.00", historico="NF-e 123")],
+			DATA,
 		)[0]
 
 		self.assertEqual(partidas[0]["HIST"], "NF-e 123")
@@ -106,7 +111,9 @@ class TestMontarI200I250(unittest.TestCase):
 
 	def test_conta_desconhecida_levanta_erro(self):
 		with self.assertRaises(ContaDesconhecida):
-			montar_i200_i250([lancamento("Conta Inventada", "Receita Bruta de Vendas e Serviços", "1.00")], DATA)
+			montar_i200_i250(
+				[lancamento("Conta Inventada", "Receita Bruta de Vendas e Serviços", "1.00")], DATA
+			)
 
 	def test_lista_vazia_devolve_lista_vazia(self):
 		self.assertEqual(montar_i200_i250([], DATA), [])

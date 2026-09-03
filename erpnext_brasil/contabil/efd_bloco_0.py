@@ -60,14 +60,14 @@ from decimal import Decimal
 from erpnext_brasil.contabil.efd_icms_ipi import EfdInvalido
 
 __all__ = [
+	"ATIVIDADE_INDUSTRIAL",
+	"ATIVIDADE_OUTROS",
 	"FINALIDADE_ORIGINAL",
 	"FINALIDADE_SUBSTITUTO",
 	"PERFIS",
 	"TIPOS_ITEM",
-	"ATIVIDADE_INDUSTRIAL",
-	"ATIVIDADE_OUTROS",
-	"Item",
 	"Identificacao",
+	"Item",
 	"Participante",
 	"montar_0000",
 	"montar_0001",
@@ -162,9 +162,7 @@ class Identificacao:
 			raise EfdInvalido(f"UF deve ter 2 letras, recebido {self.uf!r}")
 
 		if len(self.codigo_municipio) != 7 or not self.codigo_municipio.isdigit():
-			raise EfdInvalido(
-				f"COD_MUN deve ter 7 dígitos (tabela IBGE), recebido {self.codigo_municipio!r}"
-			)
+			raise EfdInvalido(f"COD_MUN deve ter 7 dígitos (tabela IBGE), recebido {self.codigo_municipio!r}")
 
 		if not self.nome:
 			raise EfdInvalido("NOME não pode ser vazio")
@@ -243,9 +241,7 @@ class Item:
 			raise EfdInvalido("UNID_INV não pode ser vazio — é o que amarra o item ao registro 0190")
 
 		if self.tipo not in TIPOS_ITEM:
-			raise EfdInvalido(
-				f"TIPO_ITEM deve ser um de {sorted(TIPOS_ITEM)}, recebido {self.tipo!r}"
-			)
+			raise EfdInvalido(f"TIPO_ITEM deve ser um de {sorted(TIPOS_ITEM)}, recebido {self.tipo!r}")
 
 		if self.codigo_ncm and (len(self.codigo_ncm) != 8 or not self.codigo_ncm.isdigit()):
 			raise EfdInvalido(f"COD_NCM deve ter 8 dígitos quando informado, recebido {self.codigo_ncm!r}")
@@ -335,8 +331,7 @@ def montar_0990(quantidade_linhas: int) -> dict:
 	convenção de `ecf_bloco_0.montar_0990`. A contagem **inclui** o próprio `0990`."""
 	if quantidade_linhas < 2:
 		raise EfdInvalido(
-			"o Bloco 0 tem no mínimo duas linhas (0000/0001 e o próprio 0990), "
-			f"recebido {quantidade_linhas}"
+			f"o Bloco 0 tem no mínimo duas linhas (0000/0001 e o próprio 0990), recebido {quantidade_linhas}"
 		)
 
 	return {"REG": "0990", "QTD_LIN_0": str(quantidade_linhas)}

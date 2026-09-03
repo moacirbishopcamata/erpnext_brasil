@@ -64,12 +64,12 @@ from dataclasses import dataclass
 from erpnext_brasil.folha.esocial_consulta import protocolo_e_valido
 
 __all__ = [
+	"CODIGOS_SUCESSO",
 	"CODIGO_ERRO_PREENCHIMENTO",
 	"CODIGO_ERRO_SERVIDOR",
 	"CODIGO_LOTE_JA_RECEBIDO_EM_FILA",
 	"CODIGO_LOTE_RECEBIDO_COM_ADVERTENCIAS",
 	"CODIGO_LOTE_RECEBIDO_SUCESSO",
-	"CODIGOS_SUCESSO",
 	"LIMITE_MAXIMO_EVENTOS_NO_RETORNO",
 	"TIPO_OCORRENCIA_AVISO",
 	"TIPO_OCORRENCIA_ERRO",
@@ -117,7 +117,9 @@ class Ocorrencia:
 
 	def __post_init__(self):
 		if self.tipo not in (TIPO_OCORRENCIA_ERRO, TIPO_OCORRENCIA_AVISO):
-			raise EsocialRetornoInvalido(f"tipo de ocorrência deve ser 1 (erro) ou 2 (aviso), recebido {self.tipo}")
+			raise EsocialRetornoInvalido(
+				f"tipo de ocorrência deve ser 1 (erro) ou 2 (aviso), recebido {self.tipo}"
+			)
 
 		if len(self.descricao) > _TAMANHO_MAXIMO_DESCRICAO:
 			raise EsocialRetornoInvalido(f"descricao excede {_TAMANHO_MAXIMO_DESCRICAO} caracteres")

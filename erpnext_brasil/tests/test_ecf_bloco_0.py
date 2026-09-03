@@ -58,8 +58,13 @@ class TestMontarZeroZeroZeroUm(unittest.TestCase):
 class TestMontarZeroZeroTresZero(unittest.TestCase):
 	def test_campos_basicos(self):
 		dados = DadosCadastrais(
-			natureza_juridica="2062", cnae_fiscal="4711301", endereco="Rua Teste",
-			numero="100", bairro="Centro", uf="RO", codigo_municipio="1100015",
+			natureza_juridica="2062",
+			cnae_fiscal="4711301",
+			endereco="Rua Teste",
+			numero="100",
+			bairro="Centro",
+			uf="RO",
+			codigo_municipio="1100015",
 			cep="76801000",
 		)
 

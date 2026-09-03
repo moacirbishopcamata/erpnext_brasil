@@ -52,9 +52,7 @@ ORIGENS_MERCADORIA = opcoes_select(ORIGEM_MERCADORIA)
 # escritas separadamente, um valor aceito no Select seria recusado na montagem do
 # arquivo (ou vice-versa), e ninguém descobriria até o Fisco recusar. Mesmo motivo de
 # `ORIGENS_MERCADORIA` sair da tabela normativa em vez de ser redigitada aqui.
-TIPOS_ITEM_EFD = "\n".join(
-	["", *(f"{codigo} - {titulo}" for codigo, titulo in TIPOS_ITEM.items())]
-)
+TIPOS_ITEM_EFD = "\n".join(["", *(f"{codigo} - {titulo}" for codigo, titulo in TIPOS_ITEM.items())])
 
 # Modelo do documento fiscal → campo da Company que guarda a série padrão dele. Mora
 # aqui, junto das definições de campo, e não em `integracao/configuracao_fiscal.py`,

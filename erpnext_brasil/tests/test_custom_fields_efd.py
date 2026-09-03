@@ -32,9 +32,7 @@ def _campo(doctype: str, fieldname: str) -> dict:
 class TestTipoItemNaoDiverge(unittest.TestCase):
 	def test_o_select_oferece_exatamente_os_codigos_que_o_registro_aceita(self):
 		"""A costura que importa: tela e arquivo saem da mesma tabela."""
-		codigos_do_select = {
-			linha.split(" - ", 1)[0] for linha in TIPOS_ITEM_EFD.split("\n") if linha
-		}
+		codigos_do_select = {linha.split(" - ", 1)[0] for linha in TIPOS_ITEM_EFD.split("\n") if linha}
 
 		self.assertEqual(codigos_do_select, set(TIPOS_ITEM))
 
