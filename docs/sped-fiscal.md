@@ -220,10 +220,62 @@ RFB), cruzada com descrições de TOTVS/Senior que concordam quanto ao propósit
 registro e à relação E220 → E210. Só o tamanho/estrutura do `COD_AJ_APUR` tem
 confirmação oficial (ver seção acima).
 
-## Ainda por implementar
+## E300/E310/E311 (DIFAL e FCP): a terceira e última apuração do bloco E
 
-- **Registros E300/E310 (ICMS-DIFAL)** — apuração distinta, não coberta; DIFAL em
-  particular já é gap deliberado desde `imposto_item.py`.
+Ver `contabil/efd_icms_difal.py`. Fecha o bloco E de apuração: operações próprias
+(E110), ICMS-ST (E210) e agora DIFAL/FCP da EC 87/2015 (E310).
+
+**A versão do E310 importa.** Existe uma anterior, válida até 31/12/2016, **sem** a
+metade do FCP. Este módulo implementa a vigente (a partir de 01/01/2017), com 22 campos:
+dois blocos de 10 estruturalmente idênticos (DIFAL nos campos 3-12, FCP nos 13-22) mais
+`REG` e `IND_MOV_FCP_DIFAL`. Os dois blocos usam a mesma função interna, chamada duas
+vezes — não duas cópias que divergiriam na primeira manutenção.
+
+### Achado real: três registros de apuração, três tratamentos de estorno
+
+O tipo de divergência que só aparece lendo o layout de cada registro, nunca supondo por
+analogia entre irmãos:
+
+| Registro | Estorno de crédito | Estorno de débito |
+|---|---|---|
+| E110 (próprias) | campo dedicado `VL_ESTORNOS_CRED` | campo dedicado `VL_ESTORNOS_DEB` |
+| E210 (ST) | **não existe campo** (tipo recusado) | **não existe campo** (tipo recusado) |
+| E310 (DIFAL/FCP) | somado em `VL_OUT_DEB_DIFAL` | somado em `VL_OUT_CRED_DIFAL` |
+
+No E310 isso é o rótulo oficial do campo, não interpretação: `VL_OUT_DEB_DIFAL` é
+"Outros débitos **e estornos de créditos**".
+
+### Achado real: o E311 fecha a tabela do 3º caractere do `COD_AJ_APUR`
+
+`efd_icms_ipi.py` modelou o 3º caractere como tributo (`0` = ICMS próprio),
+`efd_icms_st.py` acrescentou `1` = ICMS-ST, e o E311 confirma `2` = DIFAL/FCP — a fonte
+lista os códigos `20`-`25` (o par 3º+4º caractere) como outros débitos / estorno de
+créditos / outros créditos / estorno de débitos / deduções / débito especial. A mesma
+tabela de seis tipos no 4º caractere vale para as três apurações; é o 3º que diz de qual
+apuração o código é. Cada um dos três módulos recusa código que não seja o seu.
+
+### Divergência declarada: no E310 a dedução excedente não levanta erro
+
+`montar_e110`/`montar_e210` levantam `EfdInvalido` quando a dedução supera o saldo
+devedor, porque para aqueles dois não havia fonte confirmando o tratamento. Para o E310
+há: a fórmula oficial do campo 10 é "se (08 - 09) ≥ 0, então 10 = (08-09); senão 10 =
+0". Implementado como a fonte manda; a divergência entre os três registros fica
+registrada em vez de uniformizada por gosto.
+
+### Fora de escopo declarado: roteamento de ajuste para a metade FCP
+
+A fonte confirma que o E311 discrimina quatro campos da metade **DIFAL**
+(`VL_OUT_CRED_DIFAL`, `VL_OUT_DEB_DIFAL`, `VL_DEDUCOES_DIFAL`, `DEB_ESP_DIFAL`), mas
+**não** confirma se (e como) um código do E311 se dirige à metade **FCP**. Por isso os
+quatro campos equivalentes do FCP são parâmetros explícitos de `ApuracaoDifal`, não
+derivados de ajuste — inventar uma regra de roteamento sem fonte seria o erro que este
+projeto evita.
+
+**Nível de confiança**: layout e fórmulas vêm de fonte secundária
+(`vriconsulting.com.br`, guias 235/258/237, que reproduzem o Guia Prático da RFB). O
+site oficial da RFB recusou conexão nesta rodada.
+
+## Ainda por implementar
 - **E230/E240 (detalhamento dos ajustes de ST) e E250 (guias de recolhimento da ST)** —
   o E250 exige dado de guia/pagamento (número, vencimento, banco) que este projeto não
   modela; o E230 detalha processo judicial/fiscal por trás do ajuste, mesma categoria de
@@ -245,6 +297,9 @@ confirmação oficial (ver seção acima).
   `montar_e520`, `montar_e530`; camada pura, sem Frappe, testável sem bench.
 - `contabil/efd_icms_st.py` — `ApuracaoSt`, `AjusteSt`, `montar_e200`, `montar_e210`,
   `montar_e220` (apuração do ICMS-ST); mesma camada pura.
+- `contabil/efd_icms_difal.py` — `ApuracaoDifal`, `AjusteDifal`, `montar_e300`,
+  `montar_e310`, `montar_e311` (apuração do DIFAL e do FCP, EC 87/2015); mesma camada
+  pura.
 
 ## Fontes
 

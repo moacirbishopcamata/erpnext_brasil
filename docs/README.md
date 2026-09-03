@@ -23,7 +23,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [lancamentos-contabeis.md](lancamentos-contabeis.md) | Partidas dobradas de uma venda: por que IPI não passa pela receita (DL 1.598/77), tratamento provisório de IBS/CBS e sua fase de teste sem recolhimento real |
 | [apuracao-periodica.md](apuracao-periodica.md) | Fechamento periódico de ICMS/IPI: não cumulatividade (Art. 155/153 CF), saldo a recolher × saldo credor a transportar |
 | [sped-fiscal.md](sped-fiscal.md) | EFD-ICMS/IPI: por que o livro em papel foi dispensado (Ajuste SINIEF 02/09), layout dos registros E110 (ICMS) e E520 (IPI), escopo sem ajuste de apuração |
-| [sped-fiscal.md#e200e210e220](sped-fiscal.md) | ICMS-ST na EFD (E200/E210/E220) e a correção do `COD_AJ_APUR` (8 caracteres, não 4 — rejeitava todo código real); achado de que a apuração da ST não tem campo de estorno |
+| [sped-fiscal.md#e200e210e220](sped-fiscal.md) | ICMS-ST (E200/E210/E220), DIFAL/FCP (E300/E310/E311) e a correção do `COD_AJ_APUR` (8 caracteres, não 4 — rejeitava todo código real); achado de que os três registros de apuração tratam estorno de três jeitos diferentes |
 | [efd-contribuicoes.md](efd-contribuicoes.md) | EFD-Contribuições: registros M200/M210 (PIS) e M600/M610 (Cofins) — mesmo layout confirmado entre os dois, fórmulas citadas literalmente |
 | [reinf-r2099.md](reinf-r2099.md) | R-2099 (Fechamento do EFD-Reinf): segundo gatilho da DCTFWeb, achado real de que não tem `transDCTFWeb` (diferente do S-1299), `ideEvento` genuinamente diferente do R-4020 |
 | [reinf-r4020.md](reinf-r4020.md) | EFD-Reinf R-4020: retenções de IRRF/CSLL/Cofins/PIS-Pasep sobre pagamento a PJ, irmão do eSocial mas com `procEmi` de domínio diferente |
