@@ -108,13 +108,15 @@ provada de ponta a ponta com assinatura real verificada), o envelope SOAP
 sentido) a estrutura do S-2200/Admissão (`docs/rh-esocial-s2200.md`, com três
 níveis de confiança por campo declarados explicitamente) e o S-2299/Desligamento
 (`docs/rh-esocial-s2299.md` — reaproveita de verdade o `DmDev` do S-1200 para as
-verbas rescisórias) estão implementados. Falta: o envio HTTP de verdade
-(`requests.post` com o certificado como client cert TLS, cabeçalhos
+verbas rescisórias) e o S-1000/cadastro do empregador (`docs/rh-esocial-s1000.md` —
+achado real: `ideEvento` deste evento é o mais simples de todos, sem
+`indRetif`/`nrRecibo`; a operação inclusão/alteração/exclusão é um `xs:choice` real
+do XSD, modelado como três funções separadas) estão implementados. Falta: o envio
+HTTP de verdade (`requests.post` com o certificado como client cert TLS, cabeçalhos
 `Content-Type`/`SOAPAction`, equivalente ao `_enviar` de
 `integracao/autorizacao_sefaz.py` da NF-e), o polling de lote pendente
-(`cdResposta=203`), o schema de `RetornoEvento.xml_retorno` e a Tabela 19 de motivos
-de desligamento (nenhum dos dois localizado nas fontes consultadas), e o cadastro do
-empregador S-1000.
+(`cdResposta=203`), e o schema de `RetornoEvento.xml_retorno` e a Tabela 19 de
+motivos de desligamento (nenhum dos dois localizado nas fontes consultadas).
 
 ## Fontes
 
