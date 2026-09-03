@@ -131,6 +131,33 @@ que é como um alerta morre.
 Cada pendência diz **onde resolver** na tela ("Empresa > EFD-ICMS/IPI"), não o nome
 interno do campo: quem lê precisa saber para onde ir.
 
+### 3. Virada de fase da reforma tributária (segunda rodada da auditoria)
+
+O achado mais grave das duas auditorias, e o único que **também exigiu corrigir código**,
+não só avisar.
+
+`ibs_cbs.py` embute alíquotas de um único ano: 2026, o ano-teste (1% no total). Isso está
+certo — as de 2027 em diante dependem de lei ainda por fixar. O perigo estava no
+**padrão**: `Operacao.ano` nasce valendo o ano-teste, e `operacao_de_documento` usava
+esse padrão quando o documento não tinha ano de competência preenchido.
+
+Consequência em 2027: documento sem aquele campo seria apurado com **1%**, enquanto a CBS
+plena já vale e PIS/COFINS já foram extintos. Erro silencioso, de valor grande, e **para
+menos** — o tipo que só aparece numa fiscalização.
+
+Duas correções:
+
+1. **`_ano_da_operacao` passou a usar o ano do próprio documento** (`posting_date` ou
+   `transaction_date`) quando o campo está vazio, em vez do ano-teste fixo. Com isso, um
+   documento de 2027 pede as alíquotas de 2027 e `aliquotas_do_ano` **falha alto** — que
+   é o comportamento correto, e já existia; só nunca era alcançado. Em 2026 nada muda: o
+   ano do documento **é** o ano-teste, e há teste garantindo isso.
+2. **Alerta diário** (`verificar_transicao_da_reforma`) para avisar na virada do ano, não
+   na primeira nota que o usuário tentar emitir.
+
+O alerta também dispara para ano **anterior** a 2026, por motivo oposto: IBS/CBS não
+existiam, então é sinal de ano digitado errado.
+
 ### O que deliberadamente NÃO virou alerta: prazos das obrigações acessórias
 
 Seria o alerta mais óbvio de um ERP fiscal — e foi deixado de fora de propósito. Ao

@@ -78,6 +78,11 @@ def apurar_impostos(doc, method=None):
 			"br_regime_pis_cofins",
 			"br_ano_competencia",
 			"br_excluir_icms_pis_cofins",
+			# A data entra para que `mapeamento._ano_da_operacao` use o ano do próprio
+			# documento quando `br_ano_competencia` estiver vazio, em vez do ano-teste
+			# fixo da reforma — ver a correção registrada lá.
+			"posting_date",
+			"transaction_date",
 		)
 	}
 

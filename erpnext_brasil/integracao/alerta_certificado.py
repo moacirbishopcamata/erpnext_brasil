@@ -42,7 +42,7 @@ from frappe import _
 
 from erpnext_brasil.fiscal.documento.validade_certificado import avaliar_validade, mensagem
 
-__all__ = ["verificar_validade_dos_certificados"]
+__all__ = ["verificar_transicao_da_reforma", "verificar_validade_dos_certificados"]
 
 _PAPEIS = ("Accounts Manager", "System Manager")
 
@@ -150,3 +150,31 @@ def verificar_validade_dos_certificados(hoje: date | None = None) -> list[dict]:
 		)
 
 	return resultado
+
+
+def verificar_transicao_da_reforma(hoje: date | None = None) -> dict:
+	"""Avisa quando o ano corrente passou do único ano com alíquotas de IBS/CBS embutidas.
+
+	A regra está em `fiscal/impostos/transicao_reforma.py`; aqui só se lê a data e se
+	notifica. Roda junto do alerta de certificado (mesma tarefa diária) porque as duas
+	respondem à mesma pergunta — "o que vai parar de funcionar em breve?" — e uma
+	segunda entrada no agendador para uma verificação de um `if` seria custo sem ganho.
+
+	Notifica **uma vez por dia enquanto durar**, sem marcos como o do certificado: aqui
+	não há contagem regressiva a comunicar, e o problema não se resolve sozinho com o
+	tempo — só com alguém informando as alíquotas vigentes.
+	"""
+	from erpnext_brasil.fiscal.impostos.transicao_reforma import avaliar_transicao
+
+	hoje = hoje or date.today()
+	situacao = avaliar_transicao(hoje.year)
+
+	if situacao.deve_alertar:
+		for company in frappe.get_all("Company", pluck="name"):
+			_notificar(company, situacao.mensagem)
+
+	return {
+		"ano": situacao.ano,
+		"aliquotas_embutidas": situacao.aliquotas_embutidas,
+		"notificou": situacao.deve_alertar,
+	}

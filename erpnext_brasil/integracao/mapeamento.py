@@ -117,6 +117,35 @@ def item_fiscal_de_linha(linha: dict) -> ItemFiscal:
 	)
 
 
+def _ano_da_operacao(documento: dict) -> int:
+	"""Ano de competência: o informado, o do próprio documento, ou o padrão — nessa ordem.
+
+	**Correção de risco silencioso (2026-09-03).** Antes, campo vazio caía direto no
+	padrão de `Operacao.ano`, que é o ano-teste da reforma (2026). Em 2027 isso apuraria
+	o documento com a alíquota-teste de 1% enquanto a CBS plena já vale e PIS/COFINS já
+	foram extintos — errado, para menos, e em silêncio.
+
+	Usar a data do próprio documento faz o caso futuro **falhar alto**:
+	`ibs_cbs.aliquotas_do_ano` recusa ano sem alíquota embutida, com a mensagem que diz o
+	que fazer. Em 2026 nada muda — o ano do documento é o ano-teste.
+	"""
+	informado = documento.get("br_ano_competencia")
+
+	if informado:
+		return int(informado)
+
+	data = documento.get("posting_date") or documento.get("transaction_date")
+
+	if data:
+		# `posting_date` chega como `date` do Frappe ou como texto "AAAA-MM-DD"; as duas
+		# formas dão o ano — objeto pelo atributo, texto pelos quatro primeiros dígitos.
+		ano = getattr(data, "year", None)
+
+		return ano if ano is not None else int(str(data)[:4])
+
+	return Operacao.ano
+
+
 def operacao_de_documento(documento: dict) -> Operacao:
 	"""Monta a `Operacao` a partir do cabeçalho do documento.
 
@@ -131,9 +160,7 @@ def operacao_de_documento(documento: dict) -> Operacao:
 			documento.get("br_destinado_a_revenda", True)
 		),
 		regime_pis_cofins=documento.get("br_regime_pis_cofins") or "cumulativo",
-		ano=int(documento["br_ano_competencia"])
-		if documento.get("br_ano_competencia")
-		else Operacao.ano,
+		ano=_ano_da_operacao(documento),
 		excluir_icms_de_pis_cofins=bool(documento.get("br_excluir_icms_pis_cofins", True)),
 	)
 
