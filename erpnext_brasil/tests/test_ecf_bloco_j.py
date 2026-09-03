@@ -9,8 +9,15 @@ do módulo -- J050 não reimplementa nada, só troca o REG do que a ECD já prod
 
 import unittest
 
-from erpnext_brasil.contabil.ecd_i050 import montar_i050
-from erpnext_brasil.contabil.ecf_bloco_j import montar_j001, montar_j050, montar_j990
+from erpnext_brasil.contabil.ecd_i050 import MapeamentoReferencial, montar_i050, montar_i051
+from erpnext_brasil.contabil.ecf_bloco_j import (
+	CentroCusto,
+	montar_j001,
+	montar_j050,
+	montar_j051,
+	montar_j100,
+	montar_j990,
+)
 from erpnext_brasil.contabil.plano_de_contas import listar_nomes
 
 DATA = "01012026"
@@ -44,6 +51,39 @@ class TestMontarJ050(unittest.TestCase):
 		grupos do Art. 178/187 -- nunca '05'/'09'."""
 		for linha in montar_j050(DATA):
 			self.assertIn(linha["COD_NAT"], ("01", "02", "03", "04"))
+
+
+class TestMontarJ051(unittest.TestCase):
+	def test_j051_e_i051_com_reg_trocado(self):
+		"""Mesmo achado do J050: J051 é I051 com REG trocado."""
+		conta = listar_nomes()[0]
+		mapeamentos = [
+			MapeamentoReferencial(conta=conta, codigo_referencial="1.01.01.01", centro_custo="001")
+		]
+
+		pares_i051 = montar_i051(mapeamentos)
+		pares_j051 = montar_j051(mapeamentos)
+
+		for (nome_i, linha_i), (nome_j, linha_j) in zip(pares_i051, pares_j051, strict=True):
+			self.assertEqual(nome_i, nome_j)
+			self.assertEqual(linha_j["REG"], "J051")
+			for campo in ("COD_CCUS", "COD_CTA_REF"):
+				self.assertEqual(linha_j[campo], linha_i[campo])
+
+
+class TestMontarJ100(unittest.TestCase):
+	def test_um_item_por_centro_de_custo(self):
+		centros = [CentroCusto(codigo="001", nome="Administrativo"), CentroCusto(codigo="002", nome="Vendas")]
+
+		linhas = montar_j100(centros, DATA)
+
+		self.assertEqual(len(linhas), 2)
+		self.assertEqual(
+			linhas[0], {"REG": "J100", "DT_ALT": DATA, "COD_CCUS": "001", "CCUS": "Administrativo"}
+		)
+
+	def test_lista_vazia(self):
+		self.assertEqual(montar_j100([], DATA), [])
 
 
 class TestMontarJ990(unittest.TestCase):

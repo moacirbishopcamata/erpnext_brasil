@@ -21,17 +21,32 @@ no plano de contas (`plano_de_contas.ARVORE` só tem os quatro grupos do Art. 17
 6.404/76), então o subconjunto que `montar_i050` produz (`01`-`04`) é sempre um valor válido
 dentro do domínio mais amplo do `J050` — testado (`test_cod_nat_fica_dentro_do_subconjunto_01_a_04`).
 
-## O que ficou de fora deste primeiro incremento
+## `J051` implementado em seguida — mesmo achado de reuso do `J050`
 
-- `J051` (mapeamento para o Plano de Contas Referencial da RFB) — mesma decisão de escopo já
-  tomada para `ecd_i051.montar_i051`: só o De-Para que o contribuinte escolher informar.
-- `J053` (subcontas correlatas) e `J100` (centro de custos) — grupos que este projeto não
-  modela ainda (sem conceito de centro de custo em `plano_de_contas.py`).
+Confirmado na mesma fonte: `J051` (mapeamento para o Plano de Contas Referencial da RFB) tem
+exatamente os mesmos três campos, na mesma ordem, que `ecd_i050.montar_i051` já produz —
+`REG`, `COD_CCUS`, `COD_CTA_REF`. `montar_j051` delega inteiramente a `montar_i051`, mesma
+disciplina do `J050`.
+
+## `J053` fora de escopo — achado real, não a mesma decisão do `J051`
+
+`J053` (subcontas correlatas — `REG`, `COD_IDT`, `COD_CNT_CORR`, `NAT_SUB_CNT`) **não** tem
+equivalente na ECD: é específico de reorganização societária (empresas incorporadas/
+fundidas), conceito que este projeto não modela. Continua fora de escopo.
+
+## `J100` implementado como registro novo e mínimo
+
+`J100` (centro de custos — `REG`, `DT_ALT`, `COD_CCUS`, `CCUS`) é só um cadastro de
+código+nome, sem cálculo. Em vez de esperar `plano_de_contas.py` ganhar o conceito de centro
+de custo, `CentroCusto` nasceu como tipo autocontido deste módulo — fecha a lacuna que fazia
+`MapeamentoReferencial.centro_custo` (`ecd_i050.py`) referenciar um código sem nenhum
+registro que o declarasse.
 
 ## Arquivos
 
-- `erpnext_brasil/contabil/ecf_bloco_j.py` — `montar_j001`, `montar_j050`, `montar_j990`.
-- `erpnext_brasil/tests/test_ecf_bloco_j.py` — 6 testes.
+- `erpnext_brasil/contabil/ecf_bloco_j.py` — `montar_j001`, `montar_j050`, `montar_j051`,
+  `CentroCusto`/`montar_j100`, `montar_j990`.
+- `erpnext_brasil/tests/test_ecf_bloco_j.py` — 9 testes.
 
 ## Fontes
 

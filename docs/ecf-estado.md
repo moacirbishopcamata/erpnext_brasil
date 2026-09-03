@@ -32,27 +32,28 @@ A fonte lista `COD_NAT` do `J050` com seis valores (`01`-Ativo, `02`-Passivo, `0
 "outras" no plano de contas (só os quatro grupos do Art. 178/187), então o subconjunto que
 `montar_i050` produz continua válido dentro do domínio mais amplo do `J050`.
 
+## Bloco J fechado — `J051`/`J100` implementados em seguida ao `J050`
+
+`J051` (mapeamento referencial) reaproveita `montar_i051` — mesmo achado de reuso do
+`J050`. `J100` (centro de custos) ganhou um tipo próprio, mínimo, sem esperar
+`plano_de_contas.py` ganhar esse conceito. `J053` (subcontas correlatas) fica fora de
+escopo — achado real, não tem equivalente na ECD (é específico de reorganização
+societária). Ver `docs/ecf-bloco-j.md` para o detalhe completo.
+
 ## O que ainda falta investigar/implementar, em ordem de proximidade com o que já existe
 
-1. **`J051`/`J053`/`J100`** — mapeamento referencial, subcontas correlatas, centro de custos.
-   Mesma decisão de escopo do `I051` (só o De-Para que o contribuinte informar).
-2. **Bloco K** (saldos das contas contábeis) — também "importado direto da ECD" segundo a
+1. **Bloco K** (saldos das contas contábeis) — também "importado direto da ECD" segundo a
    mesma fonte; candidato natural a reuso de `ecd_i200`/`ecd_i250` (lançamentos já modelados),
    não investigado a fundo ainda.
-3. **Bloco 0** — abertura/identificação, mesma convenção de `0000`/`0010` já vista em
+2. **Bloco 0** — abertura/identificação, mesma convenção de `0000`/`0010` já vista em
    DeSTDA/EFD-Reinf; não investigado campo a campo ainda.
-4. **Blocos L/M/N** — o núcleo do Lucro Real (e-LALUR/e-LACS, cálculo de IRPJ/CSLL). Não
+3. **Blocos L/M/N** — o núcleo do Lucro Real (e-LALUR/e-LACS, cálculo de IRPJ/CSLL). Não
    dimensionado — provavelmente o maior bloco sozinho, dependente de regras de ajuste fiscal
    (adições/exclusões ao lucro líquido) que este projeto não modela ainda.
-5. **Bloco P** (Lucro Presumido) — regime tributário mais simples que o Lucro Real, candidato a
+4. **Bloco P** (Lucro Presumido) — regime tributário mais simples que o Lucro Real, candidato a
    vir antes de L/M/N se a maioria dos usuários-alvo deste app estiver no Simples/Presumido.
-6. **Bloco Y** (incluindo `Y730`, novo no Leiaute 12) — informações econômicas gerais e
+5. **Bloco Y** (incluindo `Y730`, novo no Leiaute 12) — informações econômicas gerais e
    rastreabilidade de incentivos fiscais.
-
-## Nada além do Bloco J implementado nesta rodada
-
-Este documento é levantamento geral; `docs/ecf-bloco-j.md` documenta o incremento de código
-real feito na mesma investigação (o Bloco J, por já ter reuso direto e testado contra a ECD).
 
 ## Fontes
 
