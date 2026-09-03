@@ -1,0 +1,195 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "naming_series:",
+ "creation": "2026-09-03 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "secao_envio",
+  "company",
+  "grupo",
+  "ambiente",
+  "coluna_envio",
+  "protocolo_envio",
+  "enviado_em",
+  "secao_resultado",
+  "situacao",
+  "codigo_resposta",
+  "descricao_resposta",
+  "coluna_resultado",
+  "processado_em",
+  "tentativas_de_consulta",
+  "secao_eventos",
+  "eventos",
+  "secao_xml",
+  "xml_enviado",
+  "xml_retorno"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Série",
+   "options": "LOTE-ESOC-.YYYY.-",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "secao_envio",
+   "fieldtype": "Section Break",
+   "label": "Envio"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Empresa",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "description": "Grupo de eventos do envelope de lote (atributo `grupo`).",
+   "fieldname": "grupo",
+   "fieldtype": "Int",
+   "label": "Grupo"
+  },
+  {
+   "description": "Domínio próprio do eSocial: produção restrita, não homologação como na SEFAZ.",
+   "fieldname": "ambiente",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Ambiente",
+   "options": "Produção restrita\nProdução",
+   "reqd": 1
+  },
+  {
+   "fieldname": "coluna_envio",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "'A.B.' + 19 dígitos. É a única forma de consultar o resultado depois.",
+   "fieldname": "protocolo_envio",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Protocolo de Envio",
+   "length": 30
+  },
+  {
+   "fieldname": "enviado_em",
+   "fieldtype": "Datetime",
+   "label": "Enviado em"
+  },
+  {
+   "fieldname": "secao_resultado",
+   "fieldtype": "Section Break",
+   "label": "Resultado"
+  },
+  {
+   "fieldname": "situacao",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Situação",
+   "options": "Enviado\nEm processamento\nProcessado\nRejeitado",
+   "reqd": 1
+  },
+  {
+   "description": "cdResposta: 201/202 sucesso, 203 em fila, 301/401 erro.",
+   "fieldname": "codigo_resposta",
+   "fieldtype": "Int",
+   "label": "Código de Resposta"
+  },
+  {
+   "fieldname": "descricao_resposta",
+   "fieldtype": "Small Text",
+   "label": "Descrição da Resposta"
+  },
+  {
+   "fieldname": "coluna_resultado",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "processado_em",
+   "fieldtype": "Datetime",
+   "label": "Processado em"
+  },
+  {
+   "description": "Quantas vezes já se consultou este protocolo aguardando decisão.",
+   "fieldname": "tentativas_de_consulta",
+   "fieldtype": "Int",
+   "label": "Tentativas de Consulta"
+  },
+  {
+   "fieldname": "secao_eventos",
+   "fieldtype": "Section Break",
+   "label": "Eventos"
+  },
+  {
+   "fieldname": "eventos",
+   "fieldtype": "Table",
+   "label": "Eventos do Lote",
+   "options": "Evento do Lote eSocial"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "secao_xml",
+   "fieldtype": "Section Break",
+   "label": "XML"
+  },
+  {
+   "fieldname": "xml_enviado",
+   "fieldtype": "Code",
+   "label": "XML Enviado",
+   "options": "XML"
+  },
+  {
+   "fieldname": "xml_retorno",
+   "fieldtype": "Code",
+   "label": "XML de Retorno",
+   "options": "XML"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-03 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Registros Fiscais",
+ "name": "Lote eSocial",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

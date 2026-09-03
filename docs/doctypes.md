@@ -81,11 +81,52 @@ oferecem exatamente as opções que a regra aceita. Sem isso, o usuário escolhe
 uma situação que o código recusa — e pareceria bug do sistema, não configuração
 inconsistente. Verifica também que o DocType **não** migrou para o módulo `Fiscal`.
 
+## `Lote eSocial` (+ `Evento do Lote eSocial`)
+
+Segundo DocType, e aqui a falta de persistência não era só perda de histórico — era
+**perda funcional**.
+
+O eSocial responde `cdResposta=203` ("lote já recebido, em fila") quando ainda não
+terminou de processar; a resposta definitiva só se obtém consultando depois, com o
+`protocoloEnvio`. `transmissao_esocial.enviar_lote` faz esse polling dentro da mesma
+chamada — mas se esgotar as tentativas, ele levanta `TransporteIndisponivel` e **o
+protocolo se perde**. Com ele, some a única forma de descobrir o que aconteceu com
+aquela folha de pagamento. O lote vira um envio que ninguém sabe se foi aceito.
+
+### A invariante que define o registro
+
+`situacao = "Em processamento"` **exige** o protocolo. Sem ele, o lote fica
+inconsultável para sempre — o pior estado possível deste registro, e exatamente o que
+ele existe para impedir. `test_em_processamento_sem_protocolo_e_erro` trava isso.
+
+O formato do protocolo (`A.B.` + 19 dígitos) é validado reaproveitando
+`esocial_consulta.protocolo_e_valido`, que já o conhecia: protocolo mal gravado é lote
+inconsultável, que é o mesmo problema por outro caminho.
+
+### O ambiente aqui não é o da SEFAZ
+
+`Produção restrita`, não `Homologação` — domínio próprio do eSocial, como já registrado
+em `docs/efd-configuracoes.md`. O `Select` do DocType **não oferece** "Homologação", e há
+teste garantindo: oferecer levaria alguém a gravar um valor que a regra recusa.
+
+### `situacao_para_codigo`: a tradução mora num lugar só
+
+Quem chama a transmissão não deveria precisar saber que `203` significa "Em
+processamento". A função traduz o `cdResposta` na situação, e mantém a disciplina de
+`esocial_retorno.StatusRetorno`: código **desconhecido** vira "Rejeitado", nunca sucesso
+— "não é sucesso nem pendência confirmada" é, na prática, algo que precisa de atenção
+humana.
+
+### Tabela filha: um resultado por evento
+
+`Evento do Lote eSocial` guarda o `Id` de 36 caracteres (que casa o resultado com o
+evento enviado), se foi duplicado, e o `retornoEvento` **sem interpretação** — o schema
+por dentro dele não foi localizado em fonte, e isso já estava registrado em
+`esocial_retorno.RetornoEvento`. O teste confere que o campo comporta os 36 caracteres.
+
 ## Próximos DocTypes, quando houver consumidor
 
 Mesma disciplina: só quando o dado tiver vida própria e alguém for lê-lo.
 
-- **Lote eSocial** — protocolo de envio, estado do polling (`cdResposta=203`), retorno por
-  evento. `transmissao_esocial.py` já produz esse dado e hoje ele se perde.
 - **Arquivo SPED gerado** — período, tipo (EFD/ECD/ECF), hash, quem gerou. Hoje o arquivo
   é montado e devolvido, sem registro de que foi entregue.

@@ -1,0 +1,61 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-09-03 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "id_evento",
+  "tipo_evento",
+  "evento_duplicado",
+  "xml_retorno"
+ ],
+ "fields": [
+  {
+   "description": "O `Id` de 36 caracteres gerado no envio — é o que casa este resultado com o evento transmitido.",
+   "fieldname": "id_evento",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Id do Evento",
+   "length": 36,
+   "reqd": 1
+  },
+  {
+   "description": "S-1200, S-2200, S-1299...",
+   "fieldname": "tipo_evento",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Tipo do Evento",
+   "length": 10
+  },
+  {
+   "description": "O eSocial já tinha recebido este evento antes (reenvio).",
+   "fieldname": "evento_duplicado",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Duplicado"
+  },
+  {
+   "description": "Conteúdo de `retornoEvento`, guardado sem interpretação: o schema por dentro dele não foi localizado em fonte (ver esocial_retorno.RetornoEvento).",
+   "fieldname": "xml_retorno",
+   "fieldtype": "Code",
+   "label": "XML de Retorno",
+   "options": "XML"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-09-03 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Registros Fiscais",
+ "name": "Evento do Lote eSocial",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}
