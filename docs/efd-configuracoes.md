@@ -72,6 +72,49 @@ Decisões registradas:
 - **`data_inicial`/`data_final`/`finalidade` continuam parâmetros explícitos** — são
   decisões de cada entrega, não dado cadastral estável.
 
+## Auditoria das demais configurações (2026-09-03)
+
+Pergunta do usuário: "existem mais configurações a serem criadas?". Auditados todos os
+documentos eletrônicos implementados contra os campos existentes. As que faltavam, todas
+com consumidor real no código puro, ficam em `integracao/configuracao_fiscal.py`:
+
+| Campo | DocType | Consumidor | Observação |
+|---|---|---|---|
+| `br_csc_nfce` (Password) | Company | `qrcode_nfce.montar_qrcode_online` | **Segredo** — ver abaixo |
+| `br_csc_id_nfce` | Company | idem | Público (aparece na URL do QR Code), por isso `Data` |
+| `br_rntrc` | Company | `cte_rodoviario`, `mdfe_rodoviario` | `ISENTO` é valor válido |
+| `br_serie_nfe` / `br_serie_nfce` / `br_serie_cte` / `br_serie_mdfe` | Company | `chave_acesso.montar_chave`, transporte | Estável por estabelecimento |
+| `br_esocial_classificacao_tributaria` | Company | `esocial_s1000.InfoCadastro` | Tabela 08 do eSocial |
+| `br_esocial_transmissor` | Company | `esocial_lote.IdeTransmissorLote` | Vazio = o próprio empregador |
+| `br_esocial_ambiente` | Company | `esocial_lote`, `transmissao_esocial` | Domínio próprio — ver abaixo |
+
+### O CSC é segredo, e por isso é `Password`
+
+O Código de Segurança do Contribuinte é compartilhado com a SEFAZ, participa só do hash
+do QR Code e **nunca** aparece na URL impressa no cupom. Em campo `Data` ficaria legível
+em tela, em export e no log de alteração; `Password` faz o Frappe criptografar — mesmo
+tratamento já dado à senha do certificado A1. Foi a lacuna mais grave da auditoria: sem
+ele, emitir NFC-e exigiria datilografar o segredo a cada emissão.
+
+`tests/test_custom_fields_efd.py` trava isso com teste: `br_csc_nfce` **tem** de ser
+`Password`, e `br_csc_id_nfce` **não** (esconder um dado público seria ruído).
+
+### O ambiente do eSocial é campo separado do da SEFAZ, de propósito
+
+`br_ambiente_sefaz` é produção/homologação; o eSocial tem domínio próprio
+(produção/produção **restrita**). Não são o mesmo conceito com nomes diferentes, e um
+site pode estar homologando NF-e enquanto já opera em produção no eSocial — um campo só
+obrigaria os dois a andarem juntos, o que a realidade não garante. Os dois nascem
+apontando para o ambiente de teste, e há teste garantindo isso.
+
+### A série tem uma fonte só, conferida pela suíte pura
+
+`SERIE_POR_MODELO` (modelo → campo) mora em `setup/custom_fields.py`, junto das
+definições de campo, e `integracao/configuracao_fiscal.py` lê por ele. Assim a suíte
+pura consegue conferir que todo campo referenciado existe de verdade — se o mapa
+vivesse no lado do Frappe, um nome errado devolveria vazio para sempre sem ninguém
+perceber.
+
 ## O que ainda não é configurável
 
 - **`COD_PAIS` do participante** é fixado em `01058` (Brasil) por enquanto. A tabela de
@@ -80,3 +123,11 @@ Decisões registradas:
   campo novo. Registrado como lacuna, não escondido.
 - **Códigos de ajuste por UF** (`COD_AJ_APUR`, tabela 5.1.1 de cada SEFAZ) continuam
   vindo prontos de quem chama, como já registrado em `docs/sped-fiscal.md`.
+- **Dados bancários do boleto** (carteira, convênio, código do cedente): `boleto.py`
+  deliberadamente não modela o `campo_livre` — cada banco tem o seu layout, e o módulo
+  recebe os 25 caracteres já prontos. Criar campos de cadastro sem nenhum código que os
+  leia seria estrutura sem uso, o mesmo critério que manteve `0005`/`0100` fora do
+  Bloco 0. Quando houver um gerador de `campo_livre` por banco, os campos vêm junto.
+- **`verProc`** (versão do processo emissor, na NF-e e no eSocial): é a versão **deste
+  app**, não do cliente — sai de `erpnext_brasil.__version__`. Virar campo editável
+  permitiria declarar uma versão diferente da que realmente gerou o arquivo.

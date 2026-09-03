@@ -16,7 +16,11 @@ dá para testá-lo na suíte pura.
 import unittest
 
 from erpnext_brasil.contabil.efd_bloco_0 import TIPOS_ITEM, Item
-from erpnext_brasil.setup.custom_fields import TIPOS_ITEM_EFD, get_custom_fields
+from erpnext_brasil.setup.custom_fields import (
+	SERIE_POR_MODELO,
+	TIPOS_ITEM_EFD,
+	get_custom_fields,
+)
 
 
 def _campo(doctype: str, fieldname: str) -> dict:
@@ -77,6 +81,57 @@ class TestCamposDaCompanyParaORegistro0000(unittest.TestCase):
 		campo = _campo("Company", "br_efd_versao_leiaute")
 
 		self.assertEqual(campo["fieldtype"], "Data")
+
+
+class TestSegredosSaoCampoPassword(unittest.TestCase):
+	"""Segredo em campo `Data` fica legível em tela, export e log de alteração."""
+
+	def test_csc_da_nfce_e_password(self):
+		campo = _campo("Company", "br_csc_nfce")
+
+		self.assertEqual(campo["fieldtype"], "Password")
+
+	def test_senha_do_certificado_e_password(self):
+		"""Regressão: o tratamento do CSC segue o que o certificado A1 já fazia."""
+		campo = _campo("Company", "br_senha_certificado_a1")
+
+		self.assertEqual(campo["fieldtype"], "Password")
+
+	def test_o_identificador_do_csc_nao_e_segredo(self):
+		"""O CSCId aparece na URL do QR Code — não é segredo, e virar Password
+		esconderia à toa um dado público."""
+		campo = _campo("Company", "br_csc_id_nfce")
+
+		self.assertEqual(campo["fieldtype"], "Data")
+
+
+class TestAmbientesSaoCamposSeparados(unittest.TestCase):
+	def test_sefaz_e_esocial_tem_campos_e_dominios_proprios(self):
+		"""Não são o mesmo conceito com nomes diferentes: a SEFAZ tem
+		produção/homologação, o eSocial tem produção/produção restrita."""
+		sefaz = _campo("Company", "br_ambiente_sefaz")
+		esocial = _campo("Company", "br_esocial_ambiente")
+
+		self.assertNotEqual(sefaz["options"], esocial["options"])
+		self.assertIn("Homologação", sefaz["options"])
+		self.assertIn("Produção restrita", esocial["options"])
+
+	def test_ambos_tem_o_padrao_seguro(self):
+		"""Nenhum dos dois nasce apontando para produção."""
+		self.assertEqual(_campo("Company", "br_ambiente_sefaz")["default"], "Homologação")
+		self.assertEqual(_campo("Company", "br_esocial_ambiente")["default"], "Produção restrita")
+
+
+class TestSeriesPorModelo(unittest.TestCase):
+	def test_existe_um_campo_de_serie_para_cada_modelo_lido_pela_integracao(self):
+		"""A costura: `SERIE_POR_MODELO` mapeia modelo → campo, e
+		`integracao/configuracao_fiscal.py` lê por ele. Se um campo do mapa não
+		existisse, a leitura devolveria vazio para sempre sem ninguém perceber."""
+		campos = {campo["fieldname"] for campo in get_custom_fields()["Company"]}
+
+		for modelo, fieldname in SERIE_POR_MODELO.items():
+			with self.subTest(modelo=modelo):
+				self.assertIn(fieldname, campos)
 
 
 if __name__ == "__main__":

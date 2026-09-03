@@ -56,6 +56,18 @@ TIPOS_ITEM_EFD = "\n".join(
 	["", *(f"{codigo} - {titulo}" for codigo, titulo in TIPOS_ITEM.items())]
 )
 
+# Modelo do documento fiscal → campo da Company que guarda a série padrão dele. Mora
+# aqui, junto das definições de campo, e não em `integracao/configuracao_fiscal.py`,
+# porque é a mesma classe de dado: "qual campo guarda o quê". Assim a suíte pura
+# consegue conferir que todo campo referenciado existe de verdade — se o mapa vivesse
+# no lado do Frappe, um nome errado devolveria vazio para sempre, sem ninguém perceber.
+SERIE_POR_MODELO = {
+	"55": "br_serie_nfe",
+	"65": "br_serie_nfce",
+	"57": "br_serie_cte",
+	"58": "br_serie_mdfe",
+}
+
 
 def _campos_de_parte(insert_after: str) -> list[dict]:
 	"""Campos comuns a Customer e Supplier.
@@ -266,6 +278,139 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"description": (
 					"Campo SUFRAMA do registro 0000. A Company não tinha este campo (só "
 					"Customer/Supplier tinham) e a EFD o exige de quem é inscrito."
+				),
+			},
+			{
+				"fieldname": "secao_nfce",
+				"label": "NFC-e (Código de Segurança do Contribuinte)",
+				"fieldtype": "Section Break",
+				"insert_after": "suframa",
+				"collapsible": 1,
+			},
+			{
+				"fieldname": "br_csc_id_nfce",
+				"label": "Identificador do CSC (CSCId)",
+				"fieldtype": "Data",
+				"insert_after": "secao_nfce",
+				"description": (
+					"Identificador do CSC cadastrado na SEFAZ. Entra no QR Code sem zeros à "
+					"esquerda, mesmo que o cadastro os exiba."
+				),
+			},
+			{
+				"fieldname": "br_csc_nfce",
+				"label": "CSC (Código de Segurança do Contribuinte)",
+				"fieldtype": "Password",
+				"insert_after": "br_csc_id_nfce",
+				"description": (
+					"Segredo compartilhado com a SEFAZ, como uma senha: participa só do hash "
+					"do QR Code e NUNCA aparece na URL impressa. Campo Password para o "
+					"Frappe guardar criptografado, mesmo tratamento da senha do certificado."
+				),
+			},
+			{
+				"fieldname": "secao_transporte",
+				"label": "Transporte (CT-e / MDF-e)",
+				"fieldtype": "Section Break",
+				"insert_after": "br_csc_nfce",
+				"collapsible": 1,
+			},
+			{
+				"fieldname": "br_rntrc",
+				"label": "RNTRC",
+				"fieldtype": "Data",
+				"insert_after": "secao_transporte",
+				"description": (
+					"Registro Nacional de Transportadores Rodoviários de Carga (ANTT), 8 "
+					"dígitos. Exigido pelo modal rodoviário do CT-e e do MDF-e. Transportador "
+					"dispensado usa o literal 'ISENTO'."
+				),
+			},
+			{
+				"fieldname": "secao_series",
+				"label": "Séries dos documentos fiscais",
+				"fieldtype": "Section Break",
+				"insert_after": "br_rntrc",
+				"collapsible": 1,
+			},
+			{
+				"fieldname": "br_serie_nfe",
+				"label": "Série da NF-e",
+				"fieldtype": "Data",
+				"insert_after": "secao_series",
+				"description": "Série padrão deste estabelecimento para o modelo 55.",
+			},
+			{
+				"fieldname": "br_serie_nfce",
+				"label": "Série da NFC-e",
+				"fieldtype": "Data",
+				"insert_after": "br_serie_nfe",
+				"description": "Série padrão deste estabelecimento para o modelo 65.",
+			},
+			{
+				"fieldname": "coluna_series",
+				"fieldtype": "Column Break",
+				"insert_after": "br_serie_nfce",
+			},
+			{
+				"fieldname": "br_serie_cte",
+				"label": "Série do CT-e",
+				"fieldtype": "Data",
+				"insert_after": "coluna_series",
+				"description": "Série padrão deste estabelecimento para o modelo 57.",
+			},
+			{
+				"fieldname": "br_serie_mdfe",
+				"label": "Série do MDF-e",
+				"fieldtype": "Data",
+				"insert_after": "br_serie_cte",
+				"description": "Série padrão deste estabelecimento para o modelo 58.",
+			},
+			{
+				"fieldname": "secao_esocial",
+				"label": "eSocial / EFD-Reinf",
+				"fieldtype": "Section Break",
+				"insert_after": "br_serie_mdfe",
+				"collapsible": 1,
+			},
+			{
+				"fieldname": "br_esocial_classificacao_tributaria",
+				"label": "Classificação Tributária (eSocial)",
+				"fieldtype": "Data",
+				"insert_after": "secao_esocial",
+				"description": (
+					"Campo classTrib do evento S-1000, 2 dígitos da Tabela 08 do eSocial. "
+					"Define como o empregador é tributado e condiciona vários outros campos "
+					"do próprio S-1000."
+				),
+			},
+			{
+				"fieldname": "br_esocial_transmissor",
+				"label": "CNPJ do Transmissor (eSocial)",
+				"fieldtype": "Data",
+				"insert_after": "br_esocial_classificacao_tributaria",
+				"description": (
+					"ideTransmissor do envelope de lote. Em branco, o próprio empregador "
+					"transmite; preencha só quando um terceiro (ex.: escritório contábil) "
+					"centraliza o envio."
+				),
+			},
+			{
+				"fieldname": "coluna_esocial",
+				"fieldtype": "Column Break",
+				"insert_after": "br_esocial_transmissor",
+			},
+			{
+				"fieldname": "br_esocial_ambiente",
+				"label": "Ambiente eSocial",
+				"fieldtype": "Select",
+				"options": "\nProdução\nProdução restrita",
+				"default": "Produção restrita",
+				"insert_after": "coluna_esocial",
+				"description": (
+					"Domínio PRÓPRIO do eSocial (tpAmb 1/2), NÃO o mesmo da SEFAZ — lá é "
+					"produção/homologação. Campo separado de propósito: um site pode estar "
+					"homologando a NF-e e já em produção no eSocial, ou o contrário."
 				),
 			},
 		],
