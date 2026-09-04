@@ -1,4 +1,4 @@
-# Precificação, rastreabilidade e gestão de custos
+# Precificação, custos, lucratividade, perdas e rastreabilidade
 
 Três pedidos do usuário em sequência: "analise Precificação", "rastreabilidade fiscal,
 existe? senão implementar", "gestão de custos (fixos, temporais, móveis, por demanda
@@ -120,9 +120,116 @@ comprador e a destinação do item**. O projeto já tem as peças (`br_regime_pi
 `finalidade_compra`, `origem_mercadoria`, apuração por item) — falta o módulo que
 decide quanto do documento vira custo e quanto vira crédito.
 
-**Pendência registrada com escopo definido**: `contabil/custo_aquisicao.py`, com fonte a
-verificar (RIR/2018 e a legislação de PIS/COFINS não cumulativo) antes de escrever
-código — mesma disciplina de sempre.
+**Implementado** em `contabil/custo_aquisicao.py`, com fonte verificada: **RIR/2018, art.
+301, §3º** — "os impostos recuperáveis por meio de créditos na escrita fiscal não
+integram o custo de aquisição".
+
+`custo_de_aquisicao(valor_mercadoria, tributos, frete, seguro, outras_despesas,
+descontos)` devolve `ResultadoCusto` com `custo`, `creditos` e `creditos_por_tributo`.
+Cada tributo entra como `TributoDaAquisicao(nome, valor, recuperavel, por_dentro)`.
+
+Duas decisões que o teste-âncora prova:
+
+- **`recuperavel` é informado, não deduzido do nome.** O mesmo ICMS é recuperável para
+  uma empresa e não para outra; deduzir aqui exigiria conhecer regime e destinação, que
+  são decisão da camada de integração.
+- **`por_dentro` muda o sinal da conta.** ICMS/PIS/COFINS já estão no valor da
+  mercadoria — somá-los dobraria o imposto. **IPI é por fora** e soma ao total pago.
+  Tratar os dois igual erra o custo nos dois sentidos, e foi exatamente o erro que a
+  primeira versão deste módulo cometeu antes do teste pegá-lo.
+
+Pós-condição verificada em teste: `custo + créditos == total pago`. Se não fechasse,
+algum valor teria sumido ou sido contado duas vezes — e um erro assim se propaga para a
+margem e para o preço sem dar sinal nenhum.
+
+**Atecnia declarada**: o §3º fala em *impostos*; PIS e COFINS são tecnicamente
+*contribuições*. O módulo segue a interpretação sistemática (inclui as contribuições,
+porque a razão da regra vale igualmente), e registra na própria docstring que a letra do
+dispositivo é mais estreita. Divergência declarada, não silenciosa.
+
+## Lucratividade: "quanto lucrei?" tem três respostas, e duas estão erradas
+
+`contabil/lucratividade.py`, fonte: **Art. 187 da Lei 6.404/76**, que fixa a ordem da DRE:
+
+```
+    Receita Bruta
+(−) Deduções (devoluções, abatimentos, impostos sobre vendas)
+=   Receita Líquida
+(−) Custo das Mercadorias e Serviços Vendidos
+=   Lucro Bruto
+(−) Despesas operacionais
+=   Resultado Operacional
+```
+
+`plano_de_contas.py` já registrava que **Receita Líquida e Lucro Bruto são subtotais
+calculados, não contas próprias**; este módulo é o cálculo que faltava.
+
+O erro que a ordem legal evita: **margem calculada sobre a receita bruta dá número maior
+e falso**, porque os impostos sobre vendas ainda estão lá dentro e não são receita de
+ninguém — são repasse. Empresa que fatura R$ 1.000 com R$ 265 de imposto e R$ 600 de
+custo tem margem bruta de **18,4%** (135 ÷ 735), não 13,5% (135 ÷ 1.000) nem 40%.
+
+### O achado do teste de costura
+
+Escrever o teste que ligava `precificacao` a `lucratividade` "falhou" — e a falha era um
+achado conceitual, não um bug: **precificar com margem de 20% produz 24,4% de margem
+bruta apurada** quando o imposto é 18%. As duas estão certas; o denominador é que muda
+(preço/receita bruta lá, receita líquida aqui).
+
+A resposta não foi escolher uma: foi **nomear as duas**. `margem_bruta` (sobre a líquida,
+a do Art. 187) e `margem_bruta_sobre_faturamento` (sobre a bruta, a que a precificação
+usa). Ter as duas nomeadas impede a comparação errada — que é como se conclui que a
+margem melhorou quando só mudou a régua. `carga_sobre_faturamento` fica separada de
+ambas: é o tamanho do repasse, o número que o empresário chama de "imposto que pago", e
+não é margem nenhuma.
+
+Prejuízo é resultado válido (lucro pode ser negativo). Dedução maior que a receita bruta
+**não é**: receita líquida negativa não descreve operação real, é erro de lançamento, e
+falha alto.
+
+## Gestão de perdas: uma perda de R$ 1.000 não custa R$ 1.000
+
+`contabil/perdas.py`, fonte: **LC 87/1996 (Lei Kandir), art. 21** — manda estornar o
+crédito de ICMS quando a mercadoria "vier a perecer, deteriorar-se ou extraviar-se".
+
+Quem compra credita porque vai tributar a saída. Quando a mercadoria **não sai**, o
+pressuposto do crédito deixa de existir e o crédito tomado tem de ser **estornado**.
+Consequência: o custo real da perda é o valor do estoque **mais** o crédito devolvido.
+Sistema que só dá baixa contábil subestima o prejuízo e deixa passivo fiscal para trás —
+R$ 1.000 de estoque com R$ 272,50 de crédito tomado custa R$ 1.272,50.
+
+`apurar_perda(valor_do_estoque, tipo, creditos_tomados)` devolve `ResultadoPerda` com as
+duas parcelas separadas e `estornos_por_tributo` discriminado (quem lança precisa saber
+qual crédito devolver, não só o total).
+
+### A exceção que muda o número
+
+**Quebra normal do processo** — evaporação, aparagem, resíduo previsível — **não estorna**:
+a mercadoria não deixou de ser usada na atividade tributada, ela foi consumida por ela.
+Integra o custo de produção.
+
+A distinção **não é de tamanho, é de natureza**, e por isso a classificação não é feita
+pelo módulo: depende do processo de cada empresa e, em dúvida, do Fisco estadual. Dos
+seis tipos declarados (`TIPO_QUEBRA_NORMAL`, `TIPO_VENCIMENTO`, `TIPO_DETERIORACAO`,
+`TIPO_FURTO_OU_ROUBO`, `TIPO_SINISTRO`, `TIPO_INVENTARIO`), só o primeiro preserva o
+crédito — e há teste que falha se alguém acrescentar outro sem pensar.
+
+### A simetria compra ↔ perda
+
+Estorna-se **exatamente** o que se creditou. `creditos_tomados` recebe o
+`creditos_por_tributo` que `custo_de_aquisicao` devolveu, e há teste de costura provando
+que `custo_total_da_perda == total_pago` da compra original. Não é coincidência: é a
+mesma nota vista pelos dois lados.
+
+### Fora de escopo, declarado
+
+- **Percentuais de quebra tolerada por UF ou produto** — alguns regulamentos estaduais
+  fixam limites; variam por estado e produto, e inventar número seria criar regra fiscal
+  sem fonte.
+- **Dedutibilidade da perda no IRPJ** — matéria de apuração de lucro real (laudo,
+  comunicação), não desta baixa.
+- **Registro da perda no Bloco K da EFD** — consumidor natural disto, já na lista de
+  pendências de `docs/sped-fiscal.md`.
 
 ### Custeio por absorção não é escolha
 
