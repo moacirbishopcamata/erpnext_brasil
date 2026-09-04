@@ -112,10 +112,13 @@ __all__ = [
 	"Ajuste",
 	"AjusteIpi",
 	"EfdInvalido",
+	"montar_e001",
+	"montar_e100",
 	"montar_e110",
 	"montar_e111",
 	"montar_e520",
 	"montar_e530",
+	"montar_e990",
 ]
 
 ZERO = Decimal("0.00")
@@ -204,6 +207,77 @@ def montar_e111(ajustes: Sequence[Ajuste]) -> list[dict]:
 		{"REG": "E111", "COD_AJ_APUR": a.codigo, "DESCR_COMPL_AJ": a.descricao, "VL_AJ_APUR": a.valor}
 		for a in ajustes
 	]
+
+
+def montar_e001() -> dict:
+	"""Abertura do Bloco E.
+
+	Não recebe `bool`, ao contrário de `montar_0001`, `montar_c001` e `montar_h001`: o
+	Guia Prático dá ao `IND_MOV` deste registro **"Valor Válido: [0]"** — só o zero. O
+	bloco de apuração do ICMS não pode ser declarado vazio, porque `E100` e `E110` são
+	sempre obrigatórios, e o `E500` também quando o contribuinte é industrial ou
+	equiparado.
+
+	Registro de abertura de bloco parece intercambiável entre blocos e não é. Aceitar um
+	`tem_dados=False` aqui produziria um arquivo que o montador aceita e o PVA rejeita —
+	por isso a assinatura torna o erro impossível em vez de validá-lo depois.
+	"""
+	return {"REG": "E001", "IND_MOV": "0"}
+
+
+def montar_e100(data_inicial: str, data_final: str) -> dict:
+	"""Período da apuração do ICMS — registro `E100`, 3 campos.
+
+	Existe porque a validação de `montar_e990` (mínimo de quatro linhas) expôs que este
+	projeto montava um Bloco E **sem o E100**, que o guia declara obrigatório junto com o
+	E110. Um bloco assim é aceito por qualquer montador e rejeitado pelo PVA — a lacuna
+	só apareceu quando o encerramento passou a exigir a contagem correta.
+
+	Datas no formato `ddmmaaaa`, a mesma convenção do `0000` (que também as recebe como
+	texto já formatado). O guia exige que os períodos cubram todo o intervalo da
+	escrituração **sem lacuna nem sobreposição**; essa é uma regra entre múltiplos `E100`
+	e o `0000`, que quem monta o arquivo tem de garantir — aqui fica a checagem que cabe
+	num registro só: início não pode ser depois do fim.
+	"""
+	for nome, valor in (("DT_INI", data_inicial), ("DT_FIN", data_final)):
+		if len(valor) != 8 or not valor.isdigit():
+			raise EfdInvalido(f"{nome} deve ter 8 dígitos no formato ddmmaaaa, recebido {valor!r}")
+
+	if _ordenavel(data_inicial) > _ordenavel(data_final):
+		raise EfdInvalido(
+			f"DT_INI ({data_inicial}) é posterior a DT_FIN ({data_final}): "
+			"o período de apuração não pode terminar antes de começar"
+		)
+
+	return {"REG": "E100", "DT_INI": data_inicial, "DT_FIN": data_final}
+
+
+def _ordenavel(data_ddmmaaaa: str) -> str:
+	"""`ddmmaaaa` reordenado para `aaaammdd`, que compara como texto na ordem certa.
+
+	Comparar `ddmmaaaa` diretamente daria "31012026" > "01022026" — o dia mandando mais
+	que o ano, o tipo de erro que passa em quase todo teste e falha na virada do mês.
+	"""
+	return data_ddmmaaaa[4:] + data_ddmmaaaa[2:4] + data_ddmmaaaa[:2]
+
+
+def montar_e990(quantidade_linhas: int) -> dict:
+	"""Encerramento do Bloco E, com a contagem de linhas do próprio bloco.
+
+	"A quantidade de linhas a ser informada deve considerar também os próprios registros
+	de abertura e encerramento do bloco" — o guia é explícito aqui, e é desta frase que
+	sai a mesma convenção adotada nos demais encerramentos deste projeto.
+
+	O mínimo é quatro: `E001`, `E100`, `E110` e o próprio `E990`. Não é o mesmo mínimo dos
+	outros blocos (dois), porque este bloco não pode ser vazio — ver `montar_e001`.
+	"""
+	if quantidade_linhas < 4:
+		raise EfdInvalido(
+			"o Bloco E tem no mínimo quatro linhas (E001, E100, E110 obrigatórios e o próprio "
+			f"E990), recebido {quantidade_linhas}"
+		)
+
+	return {"REG": "E990", "QTD_LIN_E": str(quantidade_linhas)}
 
 
 def _somar_por_tipo(ajustes: Sequence[Ajuste], tipo: str) -> Decimal:

@@ -423,6 +423,104 @@ linhas de cada bloco. Nenhum teste anterior cruzava os quatro módulos do EFD co
 serializador — cada um estava testado sozinho, e é exatamente aí que a contagem de um
 arquivo inteiro pode sair errada com todas as peças individualmente corretas.
 
+## Bloco H (inventário) e o par `E001`/`E990`
+
+Fonte: **Guia Prático EFD-ICMS/IPI versão 3.2.1 (28/10/2025)**, páginas 250-251 e
+260-264. Desta vez o `sped.rfb.gov.br` respondeu — as versões anteriores deste projeto
+tiveram de recorrer a cópias publicadas por SEFAZ estaduais porque o site oficial
+recusava conexão. O PDF (360 páginas) foi baixado e lido localmente, não resumido por
+ferramenta.
+
+### O achado: o mesmo item tem dois valores certos e diferentes
+
+O `H010` tem `VL_ITEM` (campo 06) **e** `VL_ITEM_IR` (campo 11). O guia explica a
+diferença no próprio campo 11:
+
+> "o valor do ICMS recuperável mediante crédito na escrita fiscal do adquirente ... não
+> integra o custo de aquisição para efeito do Imposto de Renda ... Tratamento idêntico
+> deve ser aplicado ao PIS-Pasep e à Cofins não cumulativos ... Observe-se, porém, que
+> **as legislações do IPI e do ICMS não contemplam essas exclusões**."
+
+Ou seja, o **mesmo item, no mesmo arquivo, no mesmo dia**, tem dois valores legítimos:
+`VL_ITEM` inclui o tributo recuperável (ótica ICMS/IPI) e `VL_ITEM_IR` o exclui (ótica do
+IR). Informar o mesmo número nos dois é o erro natural de quem não sabe que a diferença
+existe — e é caro, porque distorce o custo dos estoques na apuração do lucro real.
+
+É exatamente a regra do RIR/2018 art. 301, §3º que `contabil/custo_aquisicao.py` já
+implementava, agora confirmada por uma segunda fonte oficial e independente. `custo` é o
+valor para o IR, `custo + creditos` é o valor pela ótica do ICMS/IPI, e há teste de
+costura provando que os dois módulos concordam — a mesma nota vista pelas duas
+legislações. O módulo **não deduz** um do outro: a exclusão depende de recuperabilidade,
+que depende de regime e destinação.
+
+### O segundo achado: `E001` não é `H001`
+
+Registro de abertura de bloco parece intercambiável e não é:
+
+| Registro | `IND_MOV` — valores válidos |
+|---|---|
+| `0001`, `C001`, `H001` | `[0, 1]` — o bloco pode ser declarado vazio |
+| **`E001`** | **`[0]`** — só isso |
+
+O bloco de apuração do ICMS **nunca pode ser vazio**, porque `E100`/`E110` são sempre
+obrigatórios (e `E500` também, para industrial ou equiparado). Copiar a validação de um
+para o outro produz um arquivo que o montador aceita e o PVA rejeita.
+
+A resposta não foi validar o `bool` e recusá-lo: `montar_e001()` **não recebe parâmetro
+nenhum**, o que torna o erro impossível de escrever em vez de detectá-lo depois. Pelo
+mesmo motivo `montar_e990` exige no mínimo **quatro** linhas (`E001`, `E100`, `E110` e ele
+próprio), enquanto os demais encerramentos aceitam duas.
+
+Mais um caso da regra que este projeto já aprendeu várias vezes: **nunca assumir por
+analogia entre registros irmãos**.
+
+### O terceiro achado, que veio de graça: faltava o `E100`
+
+`montar_e990` exige no mínimo **quatro** linhas, porque `E001`, `E100`, `E110` e ele
+próprio são todos obrigatórios. Ao ligar essa validação ao teste de arquivo completo, ela
+falhou — e a falha estava certa: **o projeto montava um Bloco E sem o `E100`**, o registro
+que informa o período da apuração.
+
+Ninguém tinha percebido porque cada `montar_*` estava correto isoladamente; só a contagem
+do bloco inteiro revelou o registro ausente. Um arquivo assim é aceito por qualquer
+montador e rejeitado pelo PVA. A resposta não foi baixar o mínimo para três — seria
+afrouxar uma validação correta para acomodar uma lacuna real: foi escrever `montar_e100`.
+
+O `E100` trouxe seu próprio detalhe: comparar datas em `ddmmaaaa` **como texto** daria
+`"31012026" > "01022026"` — o dia pesando mais que o mês, erro que passa em quase todo
+teste e falha exatamente na virada. `_ordenavel` reordena para `aaaammdd` antes de
+comparar, e há teste com um período que atravessa a virada do mês.
+
+O teste de arquivo completo agora monta o Bloco E inteiro (`E001`/`E100`/`E110`/`E990`) e
+o Bloco H, e confere os quatro encerramentos de bloco contra as linhas reais.
+
+### As validações cruzadas, que falham alto
+
+O guia impõe regras **entre** registros, não dentro de um — e é por isso que existe
+`montar_bloco_h`, que monta o bloco inteiro em vez de deixar o encadeamento por conta de
+quem chama:
+
+- **`VL_INV` = soma dos `VL_ITEM`.** O total é **calculado**, não recebido: pedi-lo de
+  quem chama abriria a porta para um total que não bate com os itens.
+- **`VL_INV = 0` proíbe `H010`** — "atribuir valor Zero ao inventário significa escriturar
+  sem estoque".
+- **`IND_PROP` 1 ou 2 exige `COD_PART`** — item em posse de terceiro sem dizer de quem é
+  informação pela metade.
+- **`VL_FCP` não pode superar `VL_ICMS_ST`** no `H030`: o campo 04 já contém a parcela do
+  FCP e o 05 a destaca de dentro dele. Somar os dois contaria o FCP duas vezes.
+- **`MOT_INV = 06` é recusado** por `montar_bloco_h`, porque exige um `H030` por item que
+  essa função não monta. Recusar é melhor que devolver um bloco incompleto com cara de
+  pronto.
+
+### Fora de escopo, declarado
+
+- **Quais itens entram no inventário** — depende do saldo em estoque na data; é a camada
+  de integração que lê o ERPNext.
+- **A obrigação de fevereiro** (repetir na EFD de fevereiro o inventário de 31/12 já
+  apresentado em dezembro ou janeiro) e o **inventário mensal do CNAE 4681-8/01 e
+  4681-8/02** (combustíveis) — são regras de *quando* entregar, não de *como* montar, e
+  pertencem a `contabil/prontidao_fiscal.py`.
+
 ## Ainda por implementar
 - **E230/E240 (detalhamento dos ajustes de ST) e E250 (guias de recolhimento da ST)** —
   o E250 exige dado de guia/pagamento (número, vencimento, banco) que este projeto não
@@ -435,10 +533,15 @@ arquivo inteiro pode sair errada com todas as peças individualmente corretas.
   `C110`/`C111`-`C114`, `C120`, `C176`, `C195`/`C197`) — o `C170` é dispensado justamente
   no caso mais comum (NF-e de emissão própria), e os demais dependem de dado externo
   (norma legal, processo, ajuste por UF).
-- **Blocos D, H, K, 1** do EFD (documentos fiscais de serviço/transporte, inventário,
-  controle da produção, outras informações).
-- **Abertura/encerramento do Bloco E** (`E001`/`E990`) — os registros de apuração já
-  existem, falta o par que delimita o bloco; trivial, mas ainda não escrito.
+- **Blocos D, K, 1** do EFD (documentos fiscais de serviço/transporte, controle da
+  produção, outras informações).
+- ~~Bloco H (inventário)~~ — **feito em 2026-09-03**, ver seção acima.
+- ~~Abertura/encerramento do Bloco E (`E001`/`E990`)~~ — **feito em 2026-09-03**; o
+  `E001` reservava uma armadilha, ver seção acima.
+- **`H020`/`H030` montados, mas sem montador de bloco que os posicione.** `montar_bloco_h`
+  cobre o caso comum (`MOT_INV = 01`) e **recusa** o `MOT_INV = 06`, que exige um `H030`
+  por item; os registros existem e são testados, falta o encadeamento das duas situações
+  especiais, que depende de dado por item que a integração ainda não fornece.
 - ~~Bloco 9 (controle e encerramento do arquivo)~~ — **feito em 2026-09-03**, ver seção
   acima.
 - ~~Bloco C (núcleo: `C001`/`C100`/`C190`/`C990`)~~ — **feito em 2026-09-03**, ver seção
@@ -469,6 +572,10 @@ arquivo inteiro pode sair errada com todas as peças individualmente corretas.
 - `contabil/efd_bloco_9.py` — `montar_9001`, `montar_9900`, `montar_9990`, `montar_9999`
   e `montar_bloco_9` (a contagem auto-referente resolvida em um lugar só); mesma camada
   pura.
+- `contabil/efd_bloco_h.py` — `ItemInventario`, `montar_h001`, `montar_h005`,
+  `montar_h010`, `montar_h020`, `montar_h030`, `montar_h990` e `montar_bloco_h`
+  (inventário, com as validações cruzadas do guia); mesma camada pura. `montar_e001` e
+  `montar_e990` ficam em `efd_icms_ipi.py`, junto dos demais registros do Bloco E.
 
 ## Fontes
 
@@ -482,3 +589,8 @@ arquivo inteiro pode sair errada com todas as peças individualmente corretas.
   oficial (`sped.rfb.gov.br`) inacessível às ferramentas de busca no momento; confirmado
   em guia técnico especializado (`vriconsulting.com.br`) com descrição campo a campo,
   corroborado por busca cruzada — consultado em 2026-08-30.
+- **Guia Prático EFD-ICMS/IPI versão 3.2.1 (28/10/2025)** — layout do Bloco H e do par
+  `E001`/`E990`. **Fonte primária**, desta vez acessível: PDF de 360 páginas baixado de
+  `sped.rfb.gov.br` e lido localmente, campo a campo, sem intermediário. Uma cópia da
+  versão 3.1.9 publicada pelo CONFAZ (`confaz.fazenda.gov.br`) foi baixada em paralelo e
+  serviu de contraprova — consultado em 2026-09-03.

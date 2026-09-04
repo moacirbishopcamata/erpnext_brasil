@@ -16,6 +16,7 @@ ninguém contou as linhas de verdade.
 
 import unittest
 from collections import Counter
+from datetime import date
 from decimal import Decimal as d
 
 from erpnext_brasil.contabil.apuracao_periodo import ApuracaoPeriodo
@@ -43,7 +44,13 @@ from erpnext_brasil.contabil.efd_bloco_c import (
 	montar_c190,
 	montar_c990,
 )
-from erpnext_brasil.contabil.efd_icms_ipi import montar_e110
+from erpnext_brasil.contabil.efd_bloco_h import ItemInventario, montar_bloco_h
+from erpnext_brasil.contabil.efd_icms_ipi import (
+	montar_e001,
+	montar_e100,
+	montar_e110,
+	montar_e990,
+)
 from erpnext_brasil.contabil.sped_texto import montar_linha
 from erpnext_brasil.fiscal.documento.chave_acesso import montar_chave
 
@@ -123,11 +130,28 @@ def _montar_arquivo() -> list[dict]:
 	]
 	bloco_c.append(montar_c990(len(bloco_c) + 1))
 
-	# O Bloco E ainda não tem abertura/encerramento próprios implementados; a apuração
-	# entra sozinha, o que é suficiente para provar a contagem do Bloco 9.
-	bloco_e = [montar_e110(ApuracaoPeriodo(tributo="ICMS", debitos=d("175.00"), creditos=d("0.00")))]
+	bloco_e = [
+		montar_e001(),
+		montar_e100("01012026", "31012026"),
+		montar_e110(ApuracaoPeriodo(tributo="ICMS", debitos=d("175.00"), creditos=d("0.00"))),
+	]
+	bloco_e.append(montar_e990(len(bloco_e) + 1))
 
-	demais_blocos = bloco_0 + bloco_c + bloco_e
+	bloco_h = montar_bloco_h(
+		date(2026, 1, 31),
+		[
+			ItemInventario(
+				codigo_item="PROD001",
+				unidade="UN",
+				quantidade=d("10.000"),
+				valor_unitario=d("82.000000"),
+				valor_item=d("1000.00"),
+				valor_item_ir=d("820.00"),
+			)
+		],
+	)
+
+	demais_blocos = bloco_0 + bloco_c + bloco_e + bloco_h
 	contagem = Counter(linha["REG"] for linha in demais_blocos)
 
 	return demais_blocos + montar_bloco_9(dict(contagem))
@@ -176,6 +200,30 @@ class TestArquivoCompleto(unittest.TestCase):
 		linhas_do_bloco_c = sum(qtd for reg, qtd in real.items() if reg.startswith("C"))
 
 		self.assertEqual(int(fecha_c["QTD_LIN_C"]), linhas_do_bloco_c)
+
+		fecha_e = next(linha for linha in self.arquivo if linha["REG"] == "E990")
+		linhas_do_bloco_e = sum(qtd for reg, qtd in real.items() if reg.startswith("E"))
+
+		self.assertEqual(int(fecha_e["QTD_LIN_E"]), linhas_do_bloco_e)
+
+		fecha_h = next(linha for linha in self.arquivo if linha["REG"] == "H990")
+		linhas_do_bloco_h = sum(qtd for reg, qtd in real.items() if reg.startswith("H"))
+
+		self.assertEqual(int(fecha_h["QTD_LIN_H"]), linhas_do_bloco_h)
+
+	def test_o_bloco_e_tem_os_registros_obrigatorios(self):
+		"""E100 e E110 são sempre exigidos — o que a validação do E990 expôs que
+		faltava."""
+		registros = [linha["REG"] for linha in self.arquivo if linha["REG"].startswith("E")]
+
+		self.assertEqual(registros, ["E001", "E100", "E110", "E990"])
+
+	def test_o_inventario_leva_os_dois_valores_do_item(self):
+		"""O arquivo carrega o valor pela ótica do ICMS e pela do IR, diferentes."""
+		h010 = next(linha for linha in self.arquivo if linha["REG"] == "H010")
+
+		self.assertEqual(h010["VL_ITEM"], d("1000.00"))
+		self.assertEqual(h010["VL_ITEM_IR"], d("820.00"))
 
 	def test_serializa_em_texto_sped(self):
 		texto = "\n".join(montar_linha(linha) for linha in self.arquivo)
