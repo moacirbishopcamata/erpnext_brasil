@@ -1,0 +1,59 @@
+# CI do erpnext_brasil.
+#
+# Roda o que este projeto consegue rodar **sem bench**: a suíte pura (2.292 testes) e os
+# padrões de código. É de propósito que não há job de bench aqui — montar site, MariaDB e
+# Redis no CI é trabalho real, e prometer uma checagem que não existe é pior que declarar
+# a lacuna. Ela está registrada em `docs/gaps.md`, seção 2.
+#
+# A arquitetura é o que torna isso possível: `fiscal/`, `contabil/` e `folha/` não importam
+# `frappe`, e `tests/test_arquitetura.py` falha se alguém quebrar essa regra. Por isso a
+# maior parte do projeto se testa com um `pip install ruff` e nada mais.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    name: Suíte pura
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Rodar a suíte
+        run: python -m unittest discover -s erpnext_brasil/tests -t .
+
+  padroes:
+    name: Padrões de código
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar ruff
+        run: pip install ruff
+
+      # A configuração vive em `pyproject.toml`: linha de 110, tabulação, aspas duplas —
+      # as mesmas do erpnext, para que quem vem de lá não estranhe.
+      - name: ruff check
+        run: ruff check erpnext_brasil/
+
+      - name: ruff format
+        run: ruff format --check erpnext_brasil/
