@@ -6,3 +6,7 @@
 # O mesmo vale para arquivos que o Frappe lê como configuração.
 *.json text eol=lf
 *.py text eol=lf
+
+# JavaScript do Desk: o `bench build` concatena os arquivos do app, e misturar fins de
+# linha entre eles produz diff ruidoso onde nada mudou de verdade.
+*.js text eol=lf

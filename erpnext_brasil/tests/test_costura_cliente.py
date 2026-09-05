@@ -36,6 +36,30 @@ def _sem_comentarios(fonte: str) -> str:
 	return re.sub(r"//.*", "", sem_bloco)
 
 
+def _bloco(fonte: str, cabecalho: str) -> str:
+	"""O corpo da função/método que começa em `cabecalho`, por chaves balanceadas.
+
+	Existe porque medir `assertIn` sobre o arquivo inteiro deixa de provar qualquer coisa
+	assim que um segundo botão entra no mesmo `.js`: `br_chave_acesso` passaria a aparecer
+	por causa do botão de cancelamento, e o teste da condição do botão de emissão ficaria
+	verde sem condição nenhuma. É a mesma armadilha que `_sem_comentarios` resolve do outro
+	lado — asserção que mede texto demais.
+	"""
+	inicio = fonte.index(cabecalho)
+	profundidade = 0
+
+	for posicao in range(fonte.index("{", inicio), len(fonte)):
+		if fonte[posicao] == "{":
+			profundidade += 1
+		elif fonte[posicao] == "}":
+			profundidade -= 1
+
+			if profundidade == 0:
+				return fonte[inicio : posicao + 1]
+
+	raise AssertionError(f"bloco {cabecalho!r} não fecha")
+
+
 def _metodos_chamados() -> set[str]:
 	chamados: set[str] = set()
 
@@ -92,31 +116,86 @@ class TestMetodosChamadosPeloCliente(unittest.TestCase):
 				self.assertIn(arquivo.name, hooks)
 
 
-class TestBotaoDeEmissao(unittest.TestCase):
+class TestBotoesFiscais(unittest.TestCase):
+	"""Três botões dividem `emissao_nfe.js`, então cada asserção mede a sua fatia.
+
+	Antes do cancelamento este arquivo tinha um botão só, e `assertIn` sobre o texto
+	inteiro bastava. Deixou de bastar no instante em que o segundo botão citou
+	`br_chave_acesso`: o teste da condição do primeiro continuaria verde mesmo se a
+	condição sumisse. Ver `_bloco`.
+	"""
+
 	def _fonte(self) -> str:
 		return (RAIZ / "public" / "js" / "emissao_nfe.js").read_text(encoding="utf-8")
+
+	def _refresh(self) -> str:
+		return _sem_comentarios(_bloco(self._fonte(), "refresh(frm) {"))
 
 	def test_so_aparece_em_documento_efetivado(self):
 		"""Rascunho não tem NF-e a emitir: o número seria consumido por algo que ainda
 		pode mudar."""
-		self.assertIn("docstatus !== 1", self._fonte())
+		self.assertIn("docstatus !== 1", self._refresh())
 
-	def test_nao_aparece_se_ja_ha_chave_de_acesso(self):
+	def test_a_emissao_depende_de_nao_haver_chave_de_acesso(self):
 		"""Documento com chave já foi emitido — reemitir queimaria outro número."""
-		self.assertIn("br_chave_acesso", self._fonte())
+		refresh = self._refresh()
+		guarda = refresh.index("!frm.doc.br_chave_acesso")
+
+		self.assertLess(guarda, refresh.index("Emitir NF-e"))
+
+	def test_os_eventos_dependem_de_haver_chave_de_acesso(self):
+		"""Sem nota autorizada não há evento a enviar; o botão convidaria a uma recusa."""
+		refresh = self._refresh()
+		guarda = refresh.index("!frm.doc.br_chave_acesso")
+
+		for rotulo in ("Cancelar NF-e", "Carta de Correção"):
+			with self.subTest(botao=rotulo):
+				self.assertLess(guarda, refresh.index(rotulo))
 
 	def test_pede_confirmacao_antes_de_emitir(self):
 		"""Emitir é irreversível: o número é consumido mesmo se a SEFAZ recusar."""
-		self.assertIn("frappe.confirm", self._fonte())
+		self.assertIn("frappe.confirm", _bloco(self._fonte(), "function confirmar_e_emitir"))
 
 	def test_a_confirmacao_diz_o_ambiente(self):
 		"""A diferença entre homologação e produção é a diferença entre um teste e um
 		documento que existe perante o Fisco."""
-		self.assertIn("br_ambiente_sefaz", self._fonte())
+		self.assertIn("br_ambiente_sefaz", _bloco(self._fonte(), "function confirmar_e_emitir"))
 
-	def test_congela_a_tela_durante_a_transmissao(self):
-		"""Sem `freeze`, o segundo clique consome outro número."""
-		self.assertIn("freeze: true", self._fonte())
+	def test_pede_confirmacao_antes_de_cancelar(self):
+		"""Cancelamento homologado não se desfaz, e a nota não volta a valer."""
+		self.assertIn("frappe.confirm", _bloco(self._fonte(), "function pedir_justificativa_e_cancelar"))
+
+	def test_a_justificativa_e_conferida_antes_de_transmitir(self):
+		"""Espelho do limite do XSD: dizer a regra antes evita descobri-la por rejeição.
+		Quem valida de verdade é `montar_evento_cancelamento`, no domínio puro."""
+		from erpnext_brasil.fiscal.documento.evento import JUSTIFICATIVA_MINIMA
+
+		bloco = _bloco(self._fonte(), "function pedir_justificativa_e_cancelar")
+
+		self.assertIn(f"JUSTIFICATIVA_MINIMA = {JUSTIFICATIVA_MINIMA}", self._fonte())
+		self.assertIn("< JUSTIFICATIVA_MINIMA", bloco)
+
+	def test_o_texto_da_correcao_e_conferido_antes_de_transmitir(self):
+		from erpnext_brasil.fiscal.documento.evento import CORRECAO_MINIMA
+
+		bloco = _bloco(self._fonte(), "function pedir_texto_e_corrigir")
+
+		self.assertIn(f"CORRECAO_MINIMA = {CORRECAO_MINIMA}", self._fonte())
+		self.assertIn("< CORRECAO_MINIMA", bloco)
+
+	def test_o_dialogo_avisa_que_a_carta_substitui_a_anterior(self):
+		"""Regra de negócio da SEFAZ: quem envia só a correção nova apaga as antigas da
+		vista. Este diálogo é o único lugar onde dá para saber isso a tempo."""
+		bloco = _sem_comentarios(_bloco(self._fonte(), "function pedir_texto_e_corrigir"))
+
+		self.assertIn("substitui a anterior", bloco)
+
+	def test_toda_chamada_a_sefaz_congela_a_tela(self):
+		"""Sem `freeze`, o segundo clique transmite de novo — outro número na emissão,
+		outro evento no cancelamento."""
+		for funcao in ("function emitir", "function cancelar", "function corrigir"):
+			with self.subTest(funcao=funcao):
+				self.assertIn("freeze: true", _bloco(self._fonte(), funcao))
 
 
 class TestTelaDeGeracaoDoEfd(unittest.TestCase):

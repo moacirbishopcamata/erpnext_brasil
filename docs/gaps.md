@@ -342,19 +342,24 @@ A ordem não é por tamanho, é por **quanto cada item destrava do que já está
 
 ### O que sobrou, em ordem
 
-1. **Interface do usuário.** `emitir_nfe` existe e nada o chama de uma tela. É o maior gap
-   de uso que restou — botão no `Sales Invoice`, painel de transmissão, tela de SPED.
+1. **Interface do usuário.** Emissão, cancelamento, carta de correção e geração do EFD já
+   têm botão. O que falta é **painel**: uma tela que mostre a situação fiscal de um
+   documento sem obrigar o usuário a procurar na lista de `Transmissao Fiscal`.
 2. **Teste de bench dos módulos ligados em `hooks.py`.** O bench subiu em 2026-09-04 e já
    achou dois bugs reais no primeiro `migrate` (controller ausente e nome de classe que
    fazia o Frappe apagar o DocType em silêncio). Faltam os testes que gravam e releem
    documento.
-3. **Camada que lê o site para os blocos D/E/H/K.** O **C** ficou pronto em 2026-09-05
-   (`integracao/efd_escrituracao.py`), e `integracao/geracao_efd.py` já gera um arquivo —
-   **parcial e declarado como tal**, no retorno e na docstring: sem D/E/H/K e sem os
-   cadastros do Bloco 0, serve para conferir a montagem no PVA, não para transmitir.
-   O leiaute dos quatro já existe em `contabil/`; falta só quem os leia do site.
-4. **DocType de eventos do documento** (cancelamento, CC-e, EPEC), hoje espremidos em
-   `Transmissao Fiscal`.
+3. **Camada que lê o site para o bloco D.** C, E, H e K ficaram prontos em 2026-09-05
+   (`efd_escrituracao`, `efd_apuracao`, `efd_inventario`, `efd_producao`). O **D**
+   continua aberto por motivo estrutural, não por falta de tempo: **nenhum DocType do
+   ERPNext guarda documento de transporte**, então não há o que ler. Enquanto isso,
+   `geracao_efd` declara o arquivo como parcial no retorno e na docstring.
+4. ~~**Acionar cancelamento e CC-e**~~ — **feito** em 2026-09-05
+   (`integracao/eventos_nfe.py` mais os dois botões em `emissao_nfe.js`). Era o mesmo
+   gap da emissão do outro lado: cadeia completa, testada, e inalcançável de uma tela.
+   Ver [cancelamento-e-carta-de-correcao.md](cancelamento-e-carta-de-correcao.md).
+   **Um DocType próprio para eventos segue não sendo necessário**: `Transmissao Fiscal`
+   já distingue por `tipo`, e criar outro duplicaria o mesmo registro.
 5. **Transmissão exercitada contra a SEFAZ de verdade**, que depende de certificado A1
    real em homologação.
 
