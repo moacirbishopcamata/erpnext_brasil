@@ -93,14 +93,15 @@ class TestAvisoDeArquivoParcial(unittest.TestCase):
 		raise AssertionError("BLOCOS_SEM_LEITURA_DO_SITE não encontrada")
 
 	def test_os_blocos_ausentes_sao_os_que_nao_tem_leitura_do_site(self):
-		self.assertEqual(self._blocos_ausentes(), ("D", "H", "K"))
+		self.assertEqual(self._blocos_ausentes(), ("D", "K"))
 
 	def test_os_blocos_com_leitura_do_site_nao_estao_entre_os_ausentes(self):
-		"""C (`efd_escrituracao`) e E (`efd_apuracao`) já são lidos do site."""
+		"""C, E e H já são lidos do site."""
 		ausentes = self._blocos_ausentes()
 
-		self.assertNotIn("C", ausentes)
-		self.assertNotIn("E", ausentes)
+		for bloco in ("C", "E", "H"):
+			with self.subTest(bloco=bloco):
+				self.assertNotIn(bloco, ausentes)
 
 	def test_o_bloco_e_nunca_pode_faltar(self):
 		"""É o único que não admite ser declarado vazio — `montar_e001` só aceita "0".
