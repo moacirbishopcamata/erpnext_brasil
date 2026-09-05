@@ -191,8 +191,16 @@ depois, virou o padrão de `transp`/`pag`. **`emitir_nfe` passou a ser chamável
 `(doctype, name)`** — os três grupos derivam do documento, e os parâmetros continuam para
 quem precise sobrescrever.
 
-Sobram **dois**: `ecf_dados_empresa` e `efd_dados_cadastrais`, ambos esperando o mesmo
-gerador de arquivo que junte os blocos já implementados do EFD e da ECF.
+Sobram **dois**: `ecf_dados_empresa` e `efd_dados_cadastrais`.
+
+`contabil/efd_arquivo.py` (2026-09-04) resolveu metade do que faltava — a montagem do
+arquivo EFD inteiro, do `0000` ao `9999`, existia **só dentro de um teste**. Lógica que só
+vive em teste é lógica que ninguém pode usar; foi promovida a módulo, e o teste passou a
+exercitá-la em vez de reimplementá-la.
+
+O que ainda falta para desorfanar os dois é a **camada que lê o site**: produzir os blocos
+C, D, E, H e K a partir de `Sales Invoice`, `Stock Ledger Entry` e afins.
+`efd_dados_cadastrais` já cobre o Bloco 0; os demais não têm equivalente.
 
 Higiene aplicada no mesmo passo: a tabela sigla→código IBGE das UFs vivia em
 `fiscal/documento/inutilizacao.py`, com um comentário afirmando que a conversão "só é

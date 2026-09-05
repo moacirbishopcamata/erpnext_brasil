@@ -20,6 +20,7 @@ from datetime import date
 from decimal import Decimal as d
 
 from erpnext_brasil.contabil.apuracao_periodo import ApuracaoPeriodo
+from erpnext_brasil.contabil.efd_arquivo import montar_arquivo_efd
 from erpnext_brasil.contabil.efd_bloco_0 import (
 	ATIVIDADE_INDUSTRIAL,
 	Identificacao,
@@ -32,7 +33,6 @@ from erpnext_brasil.contabil.efd_bloco_0 import (
 	montar_0200,
 	montar_0990,
 )
-from erpnext_brasil.contabil.efd_bloco_9 import montar_bloco_9
 from erpnext_brasil.contabil.efd_bloco_c import (
 	EMISSAO_PROPRIA,
 	MODELO_NFE,
@@ -151,10 +151,9 @@ def _montar_arquivo() -> list[dict]:
 		],
 	)
 
-	demais_blocos = bloco_0 + bloco_c + bloco_e + bloco_h
-	contagem = Counter(linha["REG"] for linha in demais_blocos)
-
-	return demais_blocos + montar_bloco_9(dict(contagem))
+	# Desde 2026-09-04 a montagem vive em `contabil/efd_arquivo.py`. Antes existia só
+	# aqui — lógica que só vive em teste é lógica que ninguém pode usar.
+	return montar_arquivo_efd({"0": bloco_0, "C": bloco_c, "E": bloco_e, "H": bloco_h})
 
 
 class TestArquivoCompleto(unittest.TestCase):

@@ -668,6 +668,10 @@ problema não existe.
   `montar_h010`, `montar_h020`, `montar_h030`, `montar_h990` e `montar_bloco_h`
   (inventário, com as validações cruzadas do guia); mesma camada pura. `montar_e001` e
   `montar_e990` ficam em `efd_icms_ipi.py`, junto dos demais registros do Bloco E.
+- `contabil/efd_arquivo.py` — `montar_arquivo_efd` e `serializar_arquivo_efd`: juntam os
+  blocos na ordem do leiaute, conferem que cada registro pertence ao bloco em que foi
+  declarado e derivam a contagem do Bloco 9 das linhas reais. A montagem vivia só dentro
+  de `tests/test_efd_arquivo_completo.py` até 2026-09-04.
 - `contabil/efd_bloco_k.py` — `EstoqueEscriturado`, `MovimentacaoInterna`,
   `ItemProduzido`, `InsumoConsumido`, `arredondar_quantidade`, `validar_tipo_do_item`,
   `montar_k001`, `montar_k010`, `montar_k100`, `montar_k200`, `montar_k220`,
