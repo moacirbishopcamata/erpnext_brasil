@@ -41,7 +41,6 @@ erro para quem clicou, citando o registro onde os detalhes ficaram.
 
 O que ainda **não** está aqui, e por quê
 ------------------------------------------------
-- **`transp` e `pag` vêm de quem chama.** Obrigatórios no XSD, afirmam fatos da operação.
 - **Contingência.** `ativar_contingencia_svc` existe no módulo puro; decidir *quando*
   entrar em contingência depende de detectar indisponibilidade, que é outra frente.
 
@@ -64,9 +63,11 @@ from erpnext_brasil.integracao.certificado_a1 import (
 	ambiente_sefaz_da_empresa,
 	carregar_certificado_da_empresa,
 )
+from erpnext_brasil.integracao.cobranca_documento import montar_cobranca_do_documento
 from erpnext_brasil.integracao.configuracao_fiscal import serie_padrao
 from erpnext_brasil.integracao.nfe_documento import montar_nfe_do_documento
 from erpnext_brasil.integracao.numeracao_fiscal import numero_do_documento
+from erpnext_brasil.integracao.transporte_pagamento import pag_do_documento, transp_do_documento
 from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
 
 __all__ = ["AMBIENTE_POR_CHAVE", "emitir_nfe", "situacao_da_resposta"]
@@ -115,8 +116,18 @@ def _registrar(doc, arvore: dict, resposta, ambiente: str, chave: str) -> str:
 
 
 @frappe.whitelist()
-def emitir_nfe(doctype: str, name: str, transp: dict, pag: dict, cobr: dict | None = None) -> dict:
+def emitir_nfe(
+	doctype: str,
+	name: str,
+	transp: dict | None = None,
+	pag: dict | None = None,
+	cobr: dict | None = None,
+) -> dict:
 	"""Monta, assina, transmite e registra a NF-e de um documento do ERPNext.
+
+	Chamável só com `doctype` e `name`: os três grupos são derivados do próprio documento
+	quando não informados. Continuam como parâmetro para quem precise sobrescrever — uma
+	tela que pergunte o frete ao usuário, por exemplo.
 
 	Devolve `{"situacao", "chave_acesso", "protocolo", "registro"}`. Rejeição e denegação
 	**também** são gravadas antes de virarem erro — ver docstring do módulo.
@@ -131,6 +142,25 @@ def emitir_nfe(doctype: str, name: str, transp: dict, pag: dict, cobr: dict | No
 	# Fica na mesma transação do request, para que a trava da linha do contador só solte
 	# quando o documento estiver gravado — ver `numeracao_fiscal`.
 	numero_do_documento(doc, MODELO_NFE, serie)
+
+	# A cobrança é **derivada**, não recebida: as duplicatas saem do `Payment Schedule`,
+	# que já é o parcelamento acordado. Diferente de `transp` e `pag`, aqui não há
+	# afirmação a inventar — ou o documento tem parcelas, ou não tem, e
+	# `montar_cobranca_do_documento` devolve `None` no segundo caso. O parâmetro segue
+	# existindo para quem precise sobrescrever.
+	if cobr is None:
+		cobr = montar_cobranca_do_documento(doc)
+
+	# `transp` e `pag` também derivam do documento quando não vêm prontos. A diferença é
+	# que a derivação deles **pode falhar alto**: `transp_do_documento` recusa documento
+	# sem modalidade de frete escolhida, porque "sem ocorrência de transporte" é afirmação,
+	# não padrão. É o comportamento certo — melhor recusar aqui, com mensagem que diz o
+	# campo, do que declarar ao Fisco algo que ninguém disse.
+	if transp is None:
+		transp = transp_do_documento(doc)
+
+	if pag is None:
+		pag = pag_do_documento(doc)
 
 	arvore = montar_nfe_do_documento(
 		doc,

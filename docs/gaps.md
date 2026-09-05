@@ -184,6 +184,16 @@ Nem citados em `hooks.py`, nem importados por outro módulo, nem expostos por
 | `efd_dados_cadastrais` | Bloco 0 do EFD a partir do site | sem gerador de arquivo EFD |
 | `rastreabilidade` | liga `Batch` ao grupo `rastro` | depende de 1.3 |
 
+**Atualização de 2026-09-04**: com `emitir_nfe` pronto, quatro dos seis deixaram de ser
+órfãos — `cobranca_documento` e `rastreabilidade` entraram na montagem (duplicatas e grupo
+`rastro`), e `configuracao_fiscal` já era usado pela série. `transporte_pagamento`, escrito
+depois, virou o padrão de `transp`/`pag`. **`emitir_nfe` passou a ser chamável só com
+`(doctype, name)`** — os três grupos derivam do documento, e os parâmetros continuam para
+quem precise sobrescrever.
+
+Sobram **dois**: `ecf_dados_empresa` e `efd_dados_cadastrais`, ambos esperando o mesmo
+gerador de arquivo que junte os blocos já implementados do EFD e da ECF.
+
 Higiene aplicada no mesmo passo: a tabela sigla→código IBGE das UFs vivia em
 `fiscal/documento/inutilizacao.py`, com um comentário afirmando que a conversão "só é
 necessária aqui". Deixou de ser verdade quando o `ide` passou a precisar dela — foi

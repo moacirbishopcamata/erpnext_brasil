@@ -66,6 +66,7 @@ from erpnext_brasil.fiscal.documento.nfe import (
 from erpnext_brasil.fiscal.documento.produto import montar_icmstot, montar_prod
 from erpnext_brasil.fiscal.impostos.apuracao import apurar_documento
 from erpnext_brasil.integracao.mapeamento import item_fiscal_de_linha, operacao_de_documento
+from erpnext_brasil.integracao.rastreabilidade import montar_rastro_da_linha
 from erpnext_brasil.setup.custom_fields import CRT_POR_REGIME, INDICADOR_IE_POR_ROTULO
 
 __all__ = ["DadosInsuficientes", "montar_nfe_do_documento"]
@@ -235,6 +236,11 @@ def _itens(doc):
 			valor_unitario=linha.get("rate"),
 			valor_total=linha.get("amount"),
 			cest=str(item.get("cest") or "").strip(),
+			# Rastreabilidade: `montar_rastro_da_linha` devolve lista vazia quando a linha
+			# não tem lote, que é o caso da maioria dos produtos. Passar a lista vazia é o
+			# mesmo que não passar — `montar_prod` omite o grupo, e ausência de rastro não
+			# é erro, é a norma.
+			lotes=montar_rastro_da_linha(linha),
 		)
 
 		produtos.append(prod)
