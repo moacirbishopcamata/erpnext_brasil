@@ -28,9 +28,12 @@ No `Sales Invoice` efetivado, menu **Brasil**:
 
 | Botão | Aparece quando | Pergunta |
 |---|---|---|
-| **Emitir NF-e** | ainda **não** há chave de acesso | confirma o ambiente |
-| **Cancelar NF-e** | **há** chave de acesso | justificativa (15 a 256), depois confirma |
-| **Carta de Correção** | **há** chave de acesso | texto da correção (15 a 1000) |
+| **Emitir NF-e** | não há documento perante o Fisco | confirma o ambiente |
+| **Cancelar NF-e** | a nota **vale** (autorizada) | justificativa (15 a 256), depois confirma |
+| **Carta de Correção** | a nota **vale** (autorizada) | texto da correção (15 a 1000) |
+
+Quem decide isso é a situação fiscal lida do servidor, não o campo `br_chave_acesso` — ver
+[A situação fiscal na tela](#a-situação-fiscal-na-tela) abaixo.
 
 Os limites aparecem no diálogo, mas quem valida é o domínio puro
 (`fiscal/documento/evento.py`) — o aviso na tela é espelho da regra do XSD, nunca a única
@@ -88,6 +91,53 @@ sumisse.
 Corrigido com `_bloco()`, que fatia a função pelo balanceamento de chaves e mede só a parte
 que interessa. É a mesma família de `_sem_comentarios()` — asserção que mede texto demais
 passa a valer por acidente.
+
+## A situação fiscal na tela
+
+Emitir, cancelar e corrigir produziam registros que ninguém via sem abrir a lista de
+`Transmissao Fiscal`. Depois de um cancelamento, a nota **continuava parecendo autorizada**
+no formulário — e a tela seguia oferecendo "Cancelar NF-e" para algo já cancelado.
+
+Agora o formulário pergunta a situação ao servidor
+(`integracao.situacao_fiscal.situacao_fiscal`), mostra um indicador colorido, e decide os
+botões por ela.
+
+| Situação | Indicador | O que a tela oferece |
+|---|---|---|
+| Não emitido | cinza | **Emitir NF-e** |
+| Rejeitado | laranja | **Emitir NF-e** (o número continua disponível) |
+| Autorizado | verde | **Cancelar NF-e**, **Carta de Correção** |
+| Denegado | vermelho | nada — o número foi consumido |
+| Cancelado | vermelho | nada |
+
+### ⚠️ "O registro mais recente" é a implementação errada
+
+Um documento acumula registros de tipos diferentes, e cada tipo tem a **sua** noção de
+situação. Uma carta de correção homologada é gravada como `Autorizado` — porque o *evento*
+foi autorizado. Ler o registro mais recente faria uma CC-e **ressuscitar na tela uma nota
+cancelada**.
+
+A situação do documento depende do **tipo** de cada registro, não da ordem de chegada:
+cancelamento homologado vence tudo, carta de correção não muda situação nenhuma, e um
+cancelamento *rejeitado* não cancela coisa alguma.
+
+Por isso a regra vive em `fiscal/documento/situacao_fiscal.py`, pura e testada sem bench —
+`test_carta_de_correcao_nao_reautoriza_documento_cancelado` é a asserção-âncora. A
+precedência está declarada como **dado** (`SITUACOES_DO_DOCUMENTO`, em ordem crescente de
+quão definitiva é), não espalhada em `if`.
+
+### Denegado não é rejeitado
+
+Rejeitado significa "tente de novo": a SEFAZ não recebeu o documento e o número continua
+disponível. Denegado significa que o documento **existe** e o número foi consumido por
+irregularidade do destinatário. Por isso a tela oferece emitir no primeiro caso e não no
+segundo — oferecer ali seria convidar a uma rejeição garantida.
+
+### O que a leitura deliberadamente não traz
+
+`CAMPOS_LIDOS` não inclui os XML. Um `Transmissao Fiscal` guarda o enviado e o de retorno,
+centenas de KB cada; trazê-los a cada `refresh` de formulário transformaria um indicador em
+transferência de megabytes por clique.
 
 ## O que **não** está aqui, declarado
 

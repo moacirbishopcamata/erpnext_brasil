@@ -136,21 +136,48 @@ class TestBotoesFiscais(unittest.TestCase):
 		pode mudar."""
 		self.assertIn("docstatus !== 1", self._refresh())
 
-	def test_a_emissao_depende_de_nao_haver_chave_de_acesso(self):
-		"""Documento com chave já foi emitido — reemitir queimaria outro número."""
-		refresh = self._refresh()
-		guarda = refresh.index("!frm.doc.br_chave_acesso")
+	def _area_fiscal(self) -> str:
+		return _sem_comentarios(_bloco(self._fonte(), "function montar_area_fiscal"))
 
-		self.assertLess(guarda, refresh.index("Emitir NF-e"))
-
-	def test_os_eventos_dependem_de_haver_chave_de_acesso(self):
-		"""Sem nota autorizada não há evento a enviar; o botão convidaria a uma recusa."""
+	def test_a_tela_pergunta_a_situacao_ao_servidor(self):
+		"""`br_chave_acesso` diz que houve emissão e nada além: continua preenchido depois
+		do cancelamento. Decidir por ele oferecia cancelar o que já estava cancelado."""
 		refresh = self._refresh()
-		guarda = refresh.index("!frm.doc.br_chave_acesso")
+
+		self.assertIn("situacao_fiscal", refresh)
+		self.assertNotIn("br_chave_acesso", refresh)
+
+	def test_a_emissao_depende_de_nao_haver_documento_perante_o_fisco(self):
+		"""Denegado conta como existente: o número foi consumido, e reemitir com ele é
+		rejeição garantida."""
+		area = self._area_fiscal()
+
+		self.assertLess(area.index("!situacao.emitido"), area.index("Emitir NF-e"))
+
+	def test_os_eventos_dependem_de_o_documento_valer(self):
+		"""Cancelar o que já está cancelado, ou corrigir o que foi denegado, é recusa
+		certa da SEFAZ."""
+		area = self._area_fiscal()
+		guarda = area.index("!situacao.vale")
 
 		for rotulo in ("Cancelar NF-e", "Carta de Correção"):
 			with self.subTest(botao=rotulo):
-				self.assertLess(guarda, refresh.index(rotulo))
+				self.assertLess(guarda, area.index(rotulo))
+
+	def test_a_situacao_aparece_como_indicador(self):
+		"""Sem isto o usuário não tem como saber que a nota deixou de valer."""
+		self.assertIn("add_indicator", self._area_fiscal())
+
+	def test_toda_situacao_do_dominio_tem_cor_declarada(self):
+		"""Situação sem cor cai no cinza — aceitável —, mas uma que o domínio produz e a
+		tela não conhece seria um estado invisível."""
+		from erpnext_brasil.fiscal.documento.situacao_fiscal import SITUACOES_DO_DOCUMENTO
+
+		cores = _bloco(self._fonte(), "const COR_DA_SITUACAO")
+
+		for situacao in SITUACOES_DO_DOCUMENTO:
+			with self.subTest(situacao=situacao):
+				self.assertIn(situacao, cores)
 
 	def test_pede_confirmacao_antes_de_emitir(self):
 		"""Emitir é irreversível: o número é consumido mesmo se a SEFAZ recusar."""

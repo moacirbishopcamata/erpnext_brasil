@@ -41,35 +41,79 @@
 const JUSTIFICATIVA_MINIMA = 15;
 const CORRECAO_MINIMA = 15;
 
+// Cor do indicador por situação. O vocabulário vem de
+// `fiscal/documento/situacao_fiscal.py`; uma situação nova que não apareça aqui cai no
+// cinza, que é o certo — melhor "não sei dizer" do que uma cor que afirme o que não foi
+// verificado.
+const COR_DA_SITUACAO = {
+	"Não emitido": "gray",
+	Rejeitado: "orange",
+	Autorizado: "green",
+	Denegado: "red",
+	Cancelado: "red",
+};
+
 frappe.ui.form.on("Sales Invoice", {
 	refresh(frm) {
 		if (frm.doc.docstatus !== 1) {
 			return;
 		}
 
-		if (!frm.doc.br_chave_acesso) {
-			frm.add_custom_button(
-				__("Emitir NF-e"),
-				() => confirmar_e_emitir(frm),
-				__("Brasil"),
-			);
-
-			return;
-		}
-
-		frm.add_custom_button(
-			__("Cancelar NF-e"),
-			() => pedir_justificativa_e_cancelar(frm),
-			__("Brasil"),
-		);
-
-		frm.add_custom_button(
-			__("Carta de Correção"),
-			() => pedir_texto_e_corrigir(frm),
-			__("Brasil"),
-		);
+		// A situação vem do servidor, não de `br_chave_acesso`. O campo local diz que
+		// houve emissão e nada além: uma nota cancelada continua com a chave preenchida,
+		// e decidir por ele oferecia "Cancelar NF-e" para algo já cancelado.
+		frappe.call({
+			method: "erpnext_brasil.integracao.situacao_fiscal.situacao_fiscal",
+			args: { doctype: frm.doctype, name: frm.docname },
+			callback(resposta) {
+				if (resposta.message) {
+					montar_area_fiscal(frm, resposta.message);
+				}
+			},
+		});
 	},
 });
+
+function montar_area_fiscal(frm, situacao) {
+	frm.dashboard.add_indicator(
+		__("NF-e: {0}", [__(situacao.situacao)]),
+		COR_DA_SITUACAO[situacao.situacao] || "gray",
+	);
+
+	if (situacao.cartas_de_correcao > 0) {
+		frm.dashboard.add_indicator(
+			__("Cartas de correção: {0}", [situacao.cartas_de_correcao]),
+			"blue",
+		);
+	}
+
+	// Só se emite o que ainda não existe perante o Fisco. Denegado conta como existente:
+	// o número foi consumido, e reemitir com ele é impossível — oferecer o botão ali
+	// convidaria a uma rejeição garantida.
+	if (!situacao.emitido) {
+		frm.add_custom_button(__("Emitir NF-e"), () => confirmar_e_emitir(frm), __("Brasil"));
+
+		return;
+	}
+
+	// Evento só faz sentido sobre documento que vale: cancelar o que já está cancelado, ou
+	// corrigir o que foi denegado, é recusa certa da SEFAZ.
+	if (!situacao.vale) {
+		return;
+	}
+
+	frm.add_custom_button(
+		__("Cancelar NF-e"),
+		() => pedir_justificativa_e_cancelar(frm),
+		__("Brasil"),
+	);
+
+	frm.add_custom_button(
+		__("Carta de Correção"),
+		() => pedir_texto_e_corrigir(frm),
+		__("Brasil"),
+	);
+}
 
 function pedir_justificativa_e_cancelar(frm) {
 	frappe.prompt(
