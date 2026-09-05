@@ -132,6 +132,23 @@ implementação.
 monte, assine, transmita e grave o resultado no DocType `Transmissao Fiscal` que já
 existe. É o menor incremento que transforma tudo o que está pronto em algo utilizável.
 
+**Estado em 2026-09-04**: metade feita. `integracao/nfe_documento.py` já mapeia um
+documento do ERPNext para a árvore da NF-e — endereços, emitente, destinatário, `ide`,
+itens com `prod` e `imposto`, totais —, reaproveitando a mesma apuração do `validate` em
+vez de reler os campos gravados. Falta o **orquestrador**: carregar certificado, assinar,
+transmitir via `enviar_autorizacao` e gravar em `Transmissao Fiscal`.
+
+Dois gaps nasceram desse trabalho e ficam declarados:
+
+- **Controle de numeração sequencial por série.** `br_numero_nfe` existe e é lido, mas
+  nada o aloca. A SEFAZ exige numeração sequencial sem lacuna por série — é problema de
+  concorrência (dois usuários emitindo ao mesmo tempo), não de formato, e merece
+  tratamento próprio.
+- **`transp` e `pag` vêm de quem chama.** São obrigatórios no XSD e descrevem fatos da
+  operação (houve frete? como se pagou?) que o mapeador se recusa a inventar. Falta a
+  camada que os deriva do documento — provavelmente de `Payment Schedule` e dos campos de
+  frete que já existem por linha.
+
 ### 1.4 Seis módulos de integração inalcançáveis
 
 Nem citados em `hooks.py`, nem importados por outro módulo, nem expostos por
@@ -145,6 +162,12 @@ Nem citados em `hooks.py`, nem importados por outro módulo, nem expostos por
 | `ecf_dados_empresa` | dados cadastrais para a ECF | sem gerador de arquivo ECF |
 | `efd_dados_cadastrais` | Bloco 0 do EFD a partir do site | sem gerador de arquivo EFD |
 | `rastreabilidade` | liga `Batch` ao grupo `rastro` | depende de 1.3 |
+
+Higiene aplicada no mesmo passo: a tabela sigla→código IBGE das UFs vivia em
+`fiscal/documento/inutilizacao.py`, com um comentário afirmando que a conversão "só é
+necessária aqui". Deixou de ser verdade quando o `ide` passou a precisar dela — foi
+extraída para `fiscal/codigos/uf.py`, e o teste usa `assertIs` (não `assertEqual`) para
+garantir que existe **um** objeto, não duas cópias que hoje coincidem.
 
 `importar_codigos` e `pix` também não estão em `hooks.py`, mas **são** alcançáveis por
 whitelist — não entram nesta lista.

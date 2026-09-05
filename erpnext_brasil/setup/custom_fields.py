@@ -37,6 +37,26 @@ INDICADORES_IE = "\n".join(
 	]
 )
 
+# Rótulo do Select → código do leiaute. Moram aqui, ao lado da lista de opções que os
+# origina, e não na camada de integração, pelo mesmo motivo de `SERIE_POR_MODELO`: assim a
+# suíte pura consegue conferir que toda opção oferecida na tela tem tradução. Se vivessem
+# do lado do Frappe, uma opção nova sem tradução só apareceria como erro na emissão, no
+# cliente.
+INDICADOR_IE_POR_ROTULO = {
+	"Contribuinte ICMS": "1",
+	"Contribuinte isento de Inscrição no cadastro de Contribuintes": "2",
+	"Não Contribuinte": "9",
+}
+"""`indIEDest` da NF-e: 1 = contribuinte, 2 = isento, 9 = não contribuinte."""
+
+CRT_POR_REGIME = {
+	"Simples Nacional": "1",
+	"Simples Nacional - MEI": "1",
+	"Simples Nacional - excesso de sublimite de receita bruta": "2",
+	"Regime Normal": "3",
+}
+"""`CRT` da NF-e. O MEI não tem código próprio no leiaute — é Simples Nacional."""
+
 # Finalidade da compra do item, para decidir CFOP (`fiscal/cfop.py`) — não confundir
 # com `br_destinado_a_revenda`/`Operacao.destinado_a_industrializacao_ou_comercio`,
 # que decide se o IPI compõe a base do ICMS (consumo final × não consumo final), um
@@ -200,6 +220,18 @@ def _campos_de_apuracao_do_documento() -> list[dict]:
 				"Campo natOp da NF-e/CT-e, máximo de 60 caracteres (verificado nos XSD "
 				"oficiais). Sugerido a partir do CFOP quando vazio — a sugestão nunca "
 				"sobrescreve o que você gravou."
+			),
+		},
+		{
+			"fieldname": "br_numero_nfe",
+			"label": "Número da NF-e",
+			"fieldtype": "Data",
+			"read_only": 1,
+			"insert_after": "br_chave_acesso",
+			"description": (
+				"nNF do leiaute. Preenchido na emissão. O controle de numeração sequencial "
+				"por série é exigência da SEFAZ e ainda não está implementado — gap "
+				"declarado em docs/gaps.md."
 			),
 		},
 		{

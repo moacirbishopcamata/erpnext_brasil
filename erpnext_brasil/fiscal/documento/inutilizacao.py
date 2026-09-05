@@ -55,6 +55,7 @@ Funções puras: nenhuma dependência do Frappe.
 
 from dataclasses import dataclass
 
+from erpnext_brasil.fiscal.codigos.uf import CODIGO_UF_POR_SIGLA
 from erpnext_brasil.fiscal.documento.assinatura import Assinador, montar_signature
 from erpnext_brasil.fiscal.documento.nfe import NAMESPACE_NFE
 from erpnext_brasil.fiscal.documento.resposta_sefaz import RespostaSefazInvalida
@@ -86,15 +87,10 @@ CODIGOS_UF_IBGE = frozenset(
 	}
 )  # fmt: skip
 
-# Sigla → código: o resto do app (autorizadores_sefaz, `TransporteSefaz._uf`) trabalha
-# com a sigla ("RO"), mas `cUF` do layout exige o código IBGE ("11") — conversão só
-# necessária aqui, porque só a inutilização carrega esse campo no corpo do documento.
-CODIGO_UF_POR_SIGLA = {
-	"RO": "11", "AC": "12", "AM": "13", "RR": "14", "PA": "15", "AP": "16", "TO": "17",
-	"MA": "21", "PI": "22", "CE": "23", "RN": "24", "PB": "25", "PE": "26", "AL": "27",
-	"SE": "28", "BA": "29", "MG": "31", "ES": "32", "RJ": "33", "SP": "35", "PR": "41",
-	"SC": "42", "RS": "43", "MS": "50", "MT": "51", "GO": "52", "DF": "53",
-}  # fmt: skip
+# A tabela vivia aqui, com um comentário dizendo que a conversão "só é necessária aqui,
+# porque só a inutilização carrega esse campo no corpo do documento". Deixou de ser verdade
+# quando a montagem passou a precisar do `cUF` do `ide` — mudou-se para
+# `fiscal/codigos/uf.py`, e o nome continua importável daqui por compatibilidade.
 
 MODELOS_VALIDOS = frozenset({"55", "65"})
 

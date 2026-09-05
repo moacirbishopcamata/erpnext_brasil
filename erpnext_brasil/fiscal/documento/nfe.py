@@ -31,6 +31,7 @@ Regras de validação implementadas
 Funções puras: nenhuma dependência do Frappe.
 """
 
+import random
 import re
 from dataclasses import dataclass, field, replace
 from datetime import datetime
@@ -59,6 +60,7 @@ __all__ = [
 	"montar_ide",
 	"montar_infnfe",
 	"montar_nfe",
+	"sortear_codigo_numerico",
 ]
 
 NAMESPACE_NFE = "http://www.portalfiscal.inf.br/nfe"
@@ -102,6 +104,31 @@ def _obrigatorio(valor, campo: str) -> str:
 		raise NFeInvalida(f"O campo {campo} é obrigatório na NF-e", campo)
 
 	return texto
+
+
+DIGITOS_DO_CODIGO_NUMERICO = 8
+
+
+def sortear_codigo_numerico(numero: str) -> str:
+	"""`cNF`: oito dígitos que não repetem o `nNF` nem são todos iguais.
+
+	As duas restrições são da rejeição 897 (regra B03-10), e `Identificacao.validar`
+	confere de novo — este gerador existe para não produzir o que aquela validação
+	recusaria, não para substituí-la.
+
+	Sortear não é inventar dado de negócio: o leiaute pede um número cuja única exigência
+	é ser ruído. Pedi-lo ao usuário transferiria uma restrição de formato a quem não tem
+	como respondê-la.
+	"""
+	proibido = (numero or "").lstrip("0") or "0"
+
+	for _ in range(100):
+		candidato = f"{random.randrange(10**DIGITOS_DO_CODIGO_NUMERICO):08d}"
+
+		if candidato.lstrip("0") != proibido and len(set(candidato)) > 1:
+			return candidato
+
+	raise NFeInvalida("não foi possível sortear um cNF válido em 100 tentativas", "codigo_numerico")
 
 
 def _natureza(valor) -> str:
