@@ -13,6 +13,10 @@ required_apps = ["frappe/erpnext"]
 app_include_css = "/assets/erpnext_brasil/css/desk_transitions.css"
 app_include_js = "/assets/erpnext_brasil/js/desk_transitions.js"
 
+# `doctype_js` em vez de `app_include_js` para o botão de emissão: ele só faz sentido num
+# DocType, e carregar em toda página do Desk seria peso morto em 99% das telas.
+doctype_js = {"Sales Invoice": "public/js/emissao_nfe.js"}
+
 # O bloco fiscal roda sem RH nenhum instalado — `hrms` não é obrigatório. Este hook só
 # tem efeito quando `hrms` também está instalado: é ele quem lê `regional_overrides`
 # (via `hrms.allow_regional`), erpnext_brasil não precisa verificar a presença dele
