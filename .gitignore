@@ -2,3 +2,16 @@ __pycache__/
 *.pyc
 *.egg-info/
 .venv/
+
+# Certificados digitais e chaves privadas — nunca versionados.
+# O A1 é anexado à Company e a senha vive em campo Password (criptografado pelo Frappe).
+*.pfx
+*.p12
+*.pem
+*.key
+*.crt
+*.cer
+
+# Configuração local de site/bench (contém senha de banco e chave de criptografia)
+site_config.json
+common_site_config.json

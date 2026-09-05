@@ -1,0 +1,102 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:{company}-{modelo}-{serie}",
+ "creation": "2026-09-04 00:00:00.000000",
+ "description": "Contador do último número emitido por empresa, modelo e série. Uma linha por combinação — é ela que a alocação trava.",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "company",
+  "modelo",
+  "serie",
+  "coluna_contador",
+  "ultimo_numero",
+  "alocado_em"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Empresa",
+   "options": "Company",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "description": "55 = NF-e, 65 = NFC-e, 57 = CT-e, 58 = MDF-e.",
+   "fieldname": "modelo",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Modelo",
+   "length": 2,
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "description": "Formato do XML: \"0\" ou 1 a 999, sem zero à esquerda. Não confundir com o SER do registro D100 do SPED, que exige três posições.",
+   "fieldname": "serie",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Série",
+   "length": 3,
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "coluna_contador",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Último número efetivamente alocado. O próximo a emitir é este mais um — a sequência não pula, porque lacuna exige inutilização de faixa.",
+   "fieldname": "ultimo_numero",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Último Número",
+   "reqd": 1
+  },
+  {
+   "fieldname": "alocado_em",
+   "fieldtype": "Datetime",
+   "label": "Última Alocação",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-04 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Registros Fiscais",
+ "name": "Numeracao Fiscal",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "share": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

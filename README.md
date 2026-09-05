@@ -3,6 +3,31 @@
 Localização fiscal brasileira para o ERPNext, distribuída como **app Frappe separado** —
 o ERPNext nunca é forkado nem editado.
 
+## ⚠️ Aviso de responsabilidade
+
+**Este software é fornecido "COMO ESTÁ", sem garantia de espécie alguma.** Os autores e
+contribuidores **não se responsabilizam** por qualquer dano, prejuízo, multa, autuação,
+tributo recolhido a menor ou a maior, documento fiscal rejeitado, obrigação acessória
+entregue com erro ou fora do prazo, nem por qualquer outra consequência decorrente do uso
+deste módulo — direta ou indiretamente.
+
+Isso não é formalidade jurídica copiada de um modelo. É o resumo honesto de um risco real:
+
+- **A responsabilidade fiscal é sempre do contribuinte.** Quem emite o documento e entrega
+  a obrigação responde por ela perante o Fisco, independentemente do software usado.
+- **A legislação tributária brasileira muda constantemente** — leiautes, alíquotas,
+  códigos, prazos e a própria Reforma Tributária em transição. Um trecho correto hoje pode
+  estar errado no mês que vem, e nenhum software acompanha isso sozinho.
+- **Este projeto documenta o que verificou e o que não verificou.** As docstrings citam a
+  fonte de cada regra, e `docs/gaps.md` lista o que está declaradamente incompleto. Leia
+  antes de confiar.
+- **Homologue antes de produção.** Emita em ambiente de homologação, confira os valores com
+  seu contador e valide os arquivos no PVA antes de usar em operação real.
+
+Se você precisa de garantia contratual sobre conformidade fiscal, contrate um fornecedor
+que a ofereça. Este projeto é software livre sob licença MIT, e a MIT existe justamente
+para deixar claro que não há garantia.
+
 ## Por que app separado
 
 O `erpnext/regional/` mantém hoje apenas seis países; a localização indiana, que era a
@@ -485,4 +510,7 @@ verdade (`integracao/`, que fala com `frappe.get_doc`/banco) — ver
 
 ## Licença
 
-MIT — ver [`license.txt`](license.txt).
+MIT — ver [`LICENSE`](LICENSE).
+
+A licença MIT permite uso comercial, modificação e redistribuição, **e não oferece
+garantia nenhuma** — ver o aviso de responsabilidade no início deste arquivo.

@@ -41,10 +41,6 @@ erro para quem clicou, citando o registro onde os detalhes ficaram.
 
 O que ainda **não** está aqui, e por quê
 ------------------------------------------------
-- **Numeração sequencial por série.** `br_numero_nfe` é lido pelo mapeador e nada o aloca.
-  A SEFAZ exige sequência sem lacuna por série — é problema de concorrência (dois usuários
-  emitindo ao mesmo tempo), não de formato. Um `MAX(numero)+1` aqui produziria duplicidade
-  sob carga, calada.
 - **`transp` e `pag` vêm de quem chama.** Obrigatórios no XSD, afirmam fatos da operação.
 - **Contingência.** `ativar_contingencia_svc` existe no módulo puro; decidir *quando*
   entrar em contingência depende de detectar indisponibilidade, que é outra frente.
@@ -70,6 +66,7 @@ from erpnext_brasil.integracao.certificado_a1 import (
 )
 from erpnext_brasil.integracao.configuracao_fiscal import serie_padrao
 from erpnext_brasil.integracao.nfe_documento import montar_nfe_do_documento
+from erpnext_brasil.integracao.numeracao_fiscal import numero_do_documento
 from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
 
 __all__ = ["AMBIENTE_POR_CHAVE", "emitir_nfe", "situacao_da_resposta"]
@@ -128,9 +125,16 @@ def emitir_nfe(doctype: str, name: str, transp: dict, pag: dict, cobr: dict | No
 	doc.check_permission("submit")
 
 	ambiente = ambiente_sefaz_da_empresa(doc.company)
+	serie = serie_padrao(doc.company, MODELO_NFE)
+
+	# Aloca antes de montar: o `nNF` entra na chave de acesso, que é derivada do `ide`.
+	# Fica na mesma transação do request, para que a trava da linha do contador só solte
+	# quando o documento estiver gravado — ver `numeracao_fiscal`.
+	numero_do_documento(doc, MODELO_NFE, serie)
+
 	arvore = montar_nfe_do_documento(
 		doc,
-		serie=serie_padrao(doc.company, MODELO_NFE),
+		serie=serie,
 		ambiente=ambiente,
 		transp=transp,
 		pag=pag,
