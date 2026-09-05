@@ -8,6 +8,7 @@ Fecha o último trecho da cadeia do SPED, que existia inteira em pedaços incomu
 ```text
 efd_dados_cadastrais   Bloco 0 a partir da Company e do Address
 efd_escrituracao       Bloco C a partir dos documentos do período
+efd_apuracao           Bloco E: débitos e créditos de ICMS do período
 efd_arquivo            junta os blocos, calcula o Bloco 9, serializa
 Arquivo SPED           guarda o texto, o hash e o período
 ```
@@ -25,11 +26,13 @@ inventar critério.
 
 O que ainda **não** entra no arquivo
 --------------------------------------------
-Blocos **D** (serviço de transporte), **E** (apuração), **H** (inventário) e **K**
-(produção) têm o leiaute implementado em `contabil/`, e **nenhum tem ainda quem os leia do
-site** — o equivalente de `efd_escrituracao` para cada um. O arquivo gerado aqui é,
-portanto, **incompleto para entrega**: serve para conferir a montagem e o Bloco C contra o
-PVA, não para transmitir.
+Blocos **D** (serviço de transporte), **H** (inventário) e **K** (produção) têm o leiaute
+implementado em `contabil/` e **ainda não têm quem os leia do site** — o equivalente de
+`efd_escrituracao` para cada um. O arquivo gerado aqui é, portanto, **incompleto para
+entrega**: serve para conferir a montagem contra o PVA, não para transmitir.
+
+O **Bloco E** deixou de estar nessa lista em 2026-09-05 (`integracao/efd_apuracao.py`) —
+e era o mais urgente dos quatro, porque é o único que não admite ser declarado vazio.
 
 Isso está dito também na mensagem de retorno, e não só aqui: quem clica precisa saber o
 que recebeu. Prometer arquivo entregável e devolver parcial seria o tipo de silêncio que
@@ -47,12 +50,13 @@ from erpnext_brasil.contabil.efd_bloco_0 import (
 	montar_0001,
 	montar_0990,
 )
+from erpnext_brasil.integracao.efd_apuracao import bloco_e_do_periodo
 from erpnext_brasil.integracao.efd_dados_cadastrais import montar_identificacao_0000
 from erpnext_brasil.integracao.efd_escrituracao import bloco_c_do_periodo
 
 __all__ = ["BLOCOS_SEM_LEITURA_DO_SITE", "gerar_efd"]
 
-BLOCOS_SEM_LEITURA_DO_SITE = ("D", "E", "H", "K")
+BLOCOS_SEM_LEITURA_DO_SITE = ("D", "H", "K")
 """Blocos com leiaute pronto e sem quem os leia do site — ver docstring do módulo."""
 
 
@@ -84,12 +88,15 @@ def gerar_efd(company: str, address: str, data_inicial: str, data_final: str) ->
 	"""Gera o arquivo do período e cria o `Arquivo SPED` correspondente.
 
 	Devolve `{"registro", "linhas", "blocos_ausentes", "aviso"}`. O aviso não é decoração:
-	o arquivo ainda não tem os blocos D/E/H/K, e quem clica precisa saber disso antes de
-	tentar transmitir.
+	o arquivo ainda não tem os blocos D/H/K nem os cadastros do Bloco 0, e quem clica
+	precisa saber disso antes de tentar transmitir.
 	"""
 	blocos = {
 		"0": _bloco_zero(company, address, data_inicial, data_final),
 		"C": bloco_c_do_periodo(company, data_inicial, data_final),
+		# O Bloco E entra sempre: é o único que não admite ser declarado vazio, e sem ele
+		# nenhum EFD é aceito.
+		"E": bloco_e_do_periodo(company, data_inicial, data_final),
 	}
 
 	linhas = montar_arquivo_efd(blocos)

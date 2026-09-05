@@ -93,11 +93,22 @@ class TestAvisoDeArquivoParcial(unittest.TestCase):
 		raise AssertionError("BLOCOS_SEM_LEITURA_DO_SITE não encontrada")
 
 	def test_os_blocos_ausentes_sao_os_que_nao_tem_leitura_do_site(self):
-		self.assertEqual(self._blocos_ausentes(), ("D", "E", "H", "K"))
+		self.assertEqual(self._blocos_ausentes(), ("D", "H", "K"))
 
-	def test_o_bloco_c_nao_esta_entre_os_ausentes(self):
-		"""É o único que tem leitura do site — `efd_escrituracao`."""
-		self.assertNotIn("C", self._blocos_ausentes())
+	def test_os_blocos_com_leitura_do_site_nao_estao_entre_os_ausentes(self):
+		"""C (`efd_escrituracao`) e E (`efd_apuracao`) já são lidos do site."""
+		ausentes = self._blocos_ausentes()
+
+		self.assertNotIn("C", ausentes)
+		self.assertNotIn("E", ausentes)
+
+	def test_o_bloco_e_nunca_pode_faltar(self):
+		"""É o único que não admite ser declarado vazio — `montar_e001` só aceita "0".
+
+		Por isso ele foi o primeiro dos quatro a ganhar leitura do site: sem ele nenhum
+		EFD é aceito, enquanto D/H/K ausentes apenas tornam o arquivo incompleto.
+		"""
+		self.assertIn('"E": bloco_e_do_periodo', _FONTE)
 
 	def test_o_retorno_carrega_o_aviso(self):
 		self.assertIn('"aviso"', _FONTE)
