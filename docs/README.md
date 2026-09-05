@@ -16,6 +16,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [transmissao-documento-fiscal.md](transmissao-documento-fiscal.md) | Opções de transporte (ACBrLib × ACBr API) e a fronteira de licença |
 | [transporte-nativo-sefaz.md](transporte-nativo-sefaz.md) | Decisão de falar direto com a SEFAZ; tabela de autorizadores por UF (RO confirmado) |
 | [inutilizacao-nfe.md](inutilizacao-nfe.md) | Inutilização de faixa de numeração: por que é operação à parte, `@Id`, `cUF` × sigla |
+| [multi-tenant.md](multi-tenant.md) | Multi-site (um banco por cliente) × multiempresa (uma `Company` por CNPJ), a distinção que decide tudo; como o Frappe resolve o site pelo `Host`; por que a configuração fiscal por `Company` faz multiempresa funcionar sem alterar o app; e o alerta do certificado A1 compartilhar a chave de criptografia do site |
 | [hospedagem-demonstracao.md](hospedagem-demonstracao.md) | Opções gratuitas para **demonstrar** o app: Codespaces (recomendado), Gitpod, Oracle Always Free (cota cortada pela metade em jun/2026); por que Frappe Cloud e AWS free tier não servem; e por que demo não é produção fiscal |
 | [ambiente-dev-bench.md](ambiente-dev-bench.md) | Bench Frappe local (Windows 11 + WSL2 + Docker): decisões, obstáculos e como reproduzir; Memurai/MariaDB nativos como alternativa ainda não testada |
 | [integracao-party-bench.md](integracao-party-bench.md) | Testes reais (bench) de `integracao/party.py`: achado de que a Company padrão do site pode mascarar `_pais_e_brasil()`, e um CNPJ com dígitos repetidos que passou na validação |
