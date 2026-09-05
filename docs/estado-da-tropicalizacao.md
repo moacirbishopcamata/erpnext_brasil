@@ -68,36 +68,45 @@ Atualizado em 2026-09-03, versão `0.133.0`.
 Esta é a parte honesta do documento. O app calcula, monta, assina e transmite; o que
 falta é sobretudo **onde guardar o resultado** e **como o usuário opera isso**.
 
-### 1. DocTypes próprios — a lacuna estrutural
+> ⚠️ **Este documento estava desatualizado em dois pontos até 2026-09-04**, e o registro
+> fica aqui porque a lição vale: documento de estado envelhece mais rápido que código, e
+> um mapa errado é pior que mapa nenhum. As duas afirmações abaixo eram falsas quando a
+> varredura de `gaps.md` as encontrou.
 
-O app hoje **não tem nenhum DocType próprio**. Só acrescenta campos customizados a
-DocTypes do ERPNext. Isso basta enquanto o dado é atributo de um documento existente
-(`br_chave_acesso` numa Sales Invoice), e **não basta** para o que tem vida própria:
+### 1. ~~DocTypes próprios~~ — **resolvido**
 
-- o **XML** autorizado (não é um campo, é um arquivo com histórico);
-- os **eventos** de um documento (cancelamento, CC-e, EPEC) — vários por documento, cada
-  um com seu protocolo e data;
-- o **lote do eSocial** (protocolo de envio, retorno por evento, estado do polling);
-- o **arquivo SPED gerado** (período, tipo, hash, quem gerou, quando).
+Dizia-se aqui que "o app não tem nenhum DocType próprio". Tem **cinco**:
 
-Sem isso, transmitir de verdade não tem onde registrar o que aconteceu. **É a próxima
-frente estrutural.**
+| DocType | Guarda |
+|---|---|
+| `Transmissao Fiscal` | o que a SEFAZ respondeu, com os dois XML |
+| `Lote eSocial` + `Evento do Lote eSocial` | protocolo, retorno por evento, polling |
+| `Arquivo SPED` | período, tipo, hash, quem gerou |
+| `Numeracao Fiscal` | contador sequencial por empresa/modelo/série |
 
-### 2. Tradução (`locale/`) — infraestrutura ausente
+Falta ainda o DocType de **eventos do documento** (cancelamento, CC-e, EPEC) — hoje eles
+cabem em `Transmissao Fiscal`, que tem campo `tipo`, mas um evento tem dados próprios que
+o registro genérico não modela.
 
-O código nasce em português (regra do projeto), então não há o que traduzir *do* inglês.
-Mas o app não tem `locale/` nenhum, e por isso:
+### 2. ~~Tradução (`locale/`)~~ — **resolvido**
 
-- não participa do mecanismo de tradução do Frappe (que hoje usa gettext `.po`);
-- não pode **completar nem corrigir** a tradução pt-BR do ERPNext core onde ela erra ou
-  omite termo fiscal brasileiro;
-- não tem como oferecer o app em outro idioma, se um dia for o caso.
+Dizia-se aqui que "o app não tem `locale/` nenhum". Tem `locale/pt_BR.po`, com correções
+da tradução do ERPNext core (`Tax ID` → "CPF/CNPJ", `Fixed Asset` → "Imobilizado",
+`Cost of Goods Sold` → "Custo dos Produtos Vendidos"). Ver `docs/traducao.md`.
 
-### 3. Interface do usuário
+O que **continua** verdade: os outros 257 erros de tradução do core pertencem ao Crowdin
+deles, não a este app.
 
-Não há tela própria: nem botão "Emitir NF-e" num Sales Invoice, nem painel de status de
-transmissão, nem tela de geração de SPED. Tudo é chamável por código. O gap do PDV
-(mostrar o QR Code do Pix na tela de pagamento) está levantado em `pix.md`.
+### 3. Interface do usuário — **a lacuna real que sobrou**
+
+Continua sendo o maior gap de uso. Desde 2026-09-04 existe
+`integracao/emissao_nfe.emitir_nfe(doctype, name)`, exposto por `@frappe.whitelist()` e
+chamável só com o documento — mas **não há botão que o chame**. Falta:
+
+- botão "Emitir NF-e" no `Sales Invoice`, com o retorno mostrado ao usuário;
+- painel de status de transmissão (o dado existe em `Transmissao Fiscal`; falta a tela);
+- tela de geração de SPED (`contabil/efd_arquivo.py` monta o arquivo; falta acionar);
+- QR Code do Pix no PDV, levantado em `pix.md`.
 
 ### 4. Transmissão de verdade, exercitada
 

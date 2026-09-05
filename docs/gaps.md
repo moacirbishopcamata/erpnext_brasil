@@ -325,15 +325,30 @@ A ordem não é por tamanho, é por **quanto cada item destrava do que já está
 
 1. ~~**1.1, 1.2 e 1.2-bis**~~ — **feito**. 31 campos criados; três hooks já ligados
    deixaram de ser inertes, incluindo a apuração de impostos inteira.
-2. **1.3** — o método `emitir_nfe`. Destrava a cadeia inteira de emissão e, de quebra,
-   quatro dos seis módulos órfãos.
-3. **Teste de bench dos sete módulos ligados em `hooks.py`** — para que a classe de erro
-   dos itens 1.1/1.2 não volte a passar despercebida.
-4. **Gerador de arquivo EFD/ECF** — junta blocos já implementados (0, C, D, E, H, K, 9) e
-   destrava os dois módulos órfãos restantes.
-5. **5.1** — limite de 60 caracteres do `natOp` (barato e verificado) e o campo de
-   natureza da operação; a sugestão automática fica bloqueada pelo gap 4.1.
-6. Limpeza das listas de pendência e do `estado-da-tropicalizacao.md`.
+2. ~~**1.3** — o método `emitir_nfe`~~ — **feito**. Chamável só com `(doctype, name)`;
+   destravou quatro dos seis órfãos.
+3. ~~**Gerador de arquivo EFD**~~ — **feito** (`contabil/efd_arquivo.py`). A montagem
+   vivia só dentro de um teste.
+4. ~~**5.1** — `natOp`~~ — **feito**: limite de 60 verificado nos XSD da NF-e **e** do
+   CT-e, campo no DocType e sugestão por CFOP.
+5. ~~Limpeza do `estado-da-tropicalizacao.md`~~ — **feito**: dizia que o app não tinha
+   DocType próprio (tem cinco) nem `locale/` (tem). Documento de estado envelhece mais
+   rápido que código, e mapa errado é pior que mapa nenhum.
+
+### O que sobrou, em ordem
+
+1. **Interface do usuário.** `emitir_nfe` existe e nada o chama de uma tela. É o maior gap
+   de uso que restou — botão no `Sales Invoice`, painel de transmissão, tela de SPED.
+2. **Teste de bench dos módulos ligados em `hooks.py`.** O bench subiu em 2026-09-04 e já
+   achou dois bugs reais no primeiro `migrate` (controller ausente e nome de classe que
+   fazia o Frappe apagar o DocType em silêncio). Faltam os testes que gravam e releem
+   documento.
+3. **Camada que lê o site para o EFD.** Produzir os blocos C/D/E/H/K a partir de
+   `Sales Invoice` e `Stock Ledger Entry` — o que desorfana os dois módulos restantes.
+4. **DocType de eventos do documento** (cancelamento, CC-e, EPEC), hoje espremidos em
+   `Transmissao Fiscal`.
+5. **Transmissão exercitada contra a SEFAZ de verdade**, que depende de certificado A1
+   real em homologação.
 
 ## Método
 
