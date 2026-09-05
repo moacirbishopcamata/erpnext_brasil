@@ -29,6 +29,7 @@ from erpnext_brasil.fiscal.impostos.icms import arredondar
 __all__ = [
 	"ALIQUOTAS_CUMULATIVO",
 	"ALIQUOTAS_NAO_CUMULATIVO",
+	"REGIMES_VALIDOS",
 	"ResultadoContribuicao",
 	"aliquotas_do_regime",
 	"base_de_calculo",
@@ -43,6 +44,18 @@ _REGIMES = {
 	"cumulativo": ALIQUOTAS_CUMULATIVO,
 	"nao_cumulativo": ALIQUOTAS_NAO_CUMULATIVO,
 }
+
+REGIMES_VALIDOS = tuple(_REGIMES)
+"""Os valores que `aliquotas_do_regime` aceita, na ordem em que foram declarados.
+
+Exposto porque o Select de `br_regime_pis_cofins` grava **exatamente esta string**, sem
+rótulo intermediário: o valor gravado vai direto para `_REGIMES[regime]`. Um Select
+montado à parte com "Não cumulativo" gravaria uma chave que este dicionário não tem, e o
+erro só apareceria na primeira apuração de quem escolhesse essa opção.
+
+Derivar a lista daqui é o mesmo princípio de `ORIGENS_MERCADORIA` e `TIPOS_ITEM_EFD` em
+`setup/custom_fields.py`: uma fonte, não duas que divergem na primeira alteração.
+"""
 
 
 @dataclass(frozen=True)

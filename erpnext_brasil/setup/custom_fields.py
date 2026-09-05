@@ -14,6 +14,7 @@ definições sem duplicar, o que torna seguro rodar a cada `bench migrate`.
 
 from erpnext_brasil.contabil.efd_bloco_0 import TIPOS_ITEM
 from erpnext_brasil.fiscal.codigos.tabelas import ORIGEM_MERCADORIA, opcoes_select
+from erpnext_brasil.fiscal.impostos.pis_cofins import REGIMES_VALIDOS
 
 REGIMES_TRIBUTARIOS = "\n".join(
 	[
@@ -116,9 +117,260 @@ def _campos_de_parte(insert_after: str) -> list[dict]:
 	]
 
 
+DOCUMENTOS_COM_CHAVE_DE_ACESSO = (
+	"Sales Invoice",
+	"Delivery Note",
+	"Purchase Invoice",
+	"Purchase Receipt",
+)
+"""Os quatro DocTypes em que `chave_acesso_documento.validar_chave_acesso` está ligado.
+
+A lista existe aqui, e não só em `hooks.py`, porque o hook lê `doc.get("br_chave_acesso")`
+e **retorna cedo quando o campo não existe** — sem erro, sem aviso. Enquanto o campo não
+era declarado, a validação nunca rodava em site real, e o teste puro não pegava porque
+monta o campo por conta própria. Manter as duas listas juntas é o que impede a regressão.
+"""
+
+DOCUMENTOS_COM_CFOP_SUGERIDO = (
+	"Sales Order Item",
+	"Sales Invoice Item",
+	"Delivery Note Item",
+	"Purchase Order Item",
+	"Purchase Invoice Item",
+	"Purchase Receipt Item",
+	"Subcontracting Order Item",
+	"Subcontracting Receipt Item",
+)
+"""Os DocTypes filhos em que `cfop_sugestao` escreve `br_cfop_sugerido`.
+
+Mesma armadilha do campo acima, com um agravante: atribuir atributo não declarado num
+`Document` do Frappe **não levanta erro** — o valor some no save. A sugestão era
+recalculada a cada `validate` e descartada.
+"""
+
+
+REGIMES_PIS_COFINS = "\n".join(["", *REGIMES_VALIDOS])
+"""Os dois valores que `fiscal/impostos/pis_cofins.py` aceita, escritos como ele os lê.
+
+Sem rótulo bonito de propósito: o valor gravado é consumido direto por
+`ALIQUOTAS_POR_REGIME[regime]`, e um Select com "Não cumulativo" gravaria uma chave que
+aquele dicionário não tem. Se um dia a tela pedir rótulo, o lugar de traduzir é a camada
+de tradução, não o valor gravado.
+"""
+
+DOCUMENTOS_COM_APURACAO = (
+	"Sales Invoice",
+	"Delivery Note",
+	"Purchase Invoice",
+	"Purchase Receipt",
+)
+"""Os DocTypes em que `documento.apurar_impostos` está ligado no `validate`."""
+
+LINHAS_COM_APURACAO = tuple(f"{doctype} Item" for doctype in DOCUMENTOS_COM_APURACAO)
+
+
+def _campos_de_apuracao_do_documento() -> list[dict]:
+	"""Os seis campos de cabeçalho que `mapeamento.operacao_de_documento` lê.
+
+	**Nenhum deles existia até a varredura de 2026-09-04** (ver `docs/gaps.md`). O hook
+	`apurar_impostos` estava ligado, rodava a cada gravação, e lia seis campos ausentes —
+	`doc.get` devolvia `None` para todos, e a apuração saía com alíquota zero em silêncio.
+	"""
+	return [
+		{
+			"fieldname": "br_apurar_impostos",
+			"label": "Apurar impostos brasileiros",
+			"fieldtype": "Check",
+			"default": "1",
+			"insert_after": "secao_fiscal_br",
+			"description": (
+				"Desmarque para documento importado de terceiro, que já traz os impostos do "
+				"emitente — recalcular sobre eles produziria valores que não conferem com o "
+				"XML recebido."
+			),
+		},
+		{
+			"fieldname": "br_indicador_ie",
+			"label": "Indicador de IE do Destinatário",
+			"fieldtype": "Select",
+			"options": INDICADORES_IE,
+			"insert_after": "br_apurar_impostos",
+			"description": "Mesmo campo que alimenta o indIEDest da NF-e; decide se o destinatário é contribuinte.",
+		},
+		{
+			"fieldname": "br_regime_pis_cofins",
+			"label": "Regime de PIS/COFINS",
+			"fieldtype": "Select",
+			"options": REGIMES_PIS_COFINS,
+			"default": "cumulativo",
+			"insert_after": "br_indicador_ie",
+			"description": (
+				"Cumulativo (0,65% e 3,00%, sem crédito) é típico do Lucro Presumido; não "
+				"cumulativo (1,65% e 7,60%, com crédito) é do Lucro Real."
+			),
+		},
+		{
+			"fieldname": "br_destinado_a_revenda",
+			"label": "Destinado a industrialização ou comércio",
+			"fieldtype": "Check",
+			"default": "1",
+			"insert_after": "br_regime_pis_cofins",
+			"description": (
+				"Decide se o IPI compõe a base do ICMS. Eixo diferente de "
+				"`finalidade_compra` do Item, que decide CFOP — ver docs/pcp-estado.md."
+			),
+		},
+		{
+			"fieldname": "br_excluir_icms_pis_cofins",
+			"label": "Excluir ICMS da base de PIS/COFINS",
+			"fieldtype": "Check",
+			"default": "1",
+			"insert_after": "br_destinado_a_revenda",
+			"description": "Tese do século (RE 574.706); marcado por padrão porque é o entendimento vinculante.",
+		},
+		{
+			"fieldname": "br_ano_competencia",
+			"label": "Ano de competência (reforma)",
+			"fieldtype": "Int",
+			"insert_after": "br_excluir_icms_pis_cofins",
+			"description": (
+				"Só para forçar um ano diferente do da própria data do documento. Vazio é o "
+				"caso normal — ver a correção de risco silencioso em mapeamento._ano_da_operacao."
+			),
+		},
+	]
+
+
+def _campos_de_apuracao_da_linha() -> list[dict]:
+	"""Os 13 campos de entrada e 10 de saída que a apuração usa em cada linha de item.
+
+	Os de saída são **somente leitura**: são resultado calculado, e deixá-los editáveis
+	convidaria a corrigir o número em vez de corrigir a alíquota que o produziu.
+	"""
+	entradas = [
+		("br_aliquota_icms", "Alíquota ICMS (%)", "Percent"),
+		("br_reducao_icms", "Redução da base de ICMS (%)", "Percent"),
+		("br_aliquota_ipi", "Alíquota IPI (%)", "Percent"),
+		("br_aliquota_ibs_uf", "Alíquota IBS estadual (%)", "Percent"),
+		("br_aliquota_ibs_mun", "Alíquota IBS municipal (%)", "Percent"),
+		("br_aliquota_cbs", "Alíquota CBS (%)", "Percent"),
+		("br_imposto_seletivo", "Imposto Seletivo", "Currency"),
+		("br_frete", "Frete", "Currency"),
+		("br_seguro", "Seguro", "Currency"),
+		("br_outras_despesas", "Outras despesas", "Currency"),
+		("br_desconto_incondicional", "Desconto incondicional", "Currency"),
+		("br_cst_ibs_cbs", "CST IBS/CBS", "Data"),
+		("br_cclasstrib", "cClassTrib", "Data"),
+	]
+
+	saidas = [
+		("br_base_icms", "Base do ICMS", "Currency"),
+		("br_valor_icms", "Valor do ICMS", "Currency"),
+		("br_valor_ipi", "Valor do IPI", "Currency"),
+		("br_ipi_na_base_icms", "IPI na base do ICMS", "Check"),
+		("br_base_pis_cofins", "Base de PIS/COFINS", "Currency"),
+		("br_valor_pis", "Valor do PIS", "Currency"),
+		("br_valor_cofins", "Valor da COFINS", "Currency"),
+		("br_base_ibs_cbs", "Base de IBS/CBS", "Currency"),
+		("br_valor_ibs", "Valor do IBS", "Currency"),
+		("br_valor_cbs", "Valor da CBS", "Currency"),
+	]
+
+	campos: list[dict] = [
+		{
+			"fieldname": "secao_apuracao_br",
+			"label": "Tributos (Brasil)",
+			"fieldtype": "Section Break",
+			"insert_after": "br_cfop_sugerido",
+			"collapsible": 1,
+		}
+	]
+
+	anterior = "secao_apuracao_br"
+
+	for nome, rotulo, tipo in entradas:
+		campos.append(
+			{
+				"fieldname": nome,
+				"label": rotulo,
+				"fieldtype": tipo,
+				"insert_after": anterior,
+			}
+		)
+		anterior = nome
+
+	campos.append(
+		{
+			"fieldname": "coluna_apuracao_br",
+			"label": "",
+			"fieldtype": "Column Break",
+			"insert_after": anterior,
+		}
+	)
+	anterior = "coluna_apuracao_br"
+
+	for nome, rotulo, tipo in saidas:
+		campos.append(
+			{
+				"fieldname": nome,
+				"label": rotulo,
+				"fieldtype": tipo,
+				"insert_after": anterior,
+				"read_only": 1,
+			}
+		)
+		anterior = nome
+
+	return campos
+
+
+def _campo_chave_de_acesso() -> list[dict]:
+	return [
+		{
+			"fieldname": "secao_fiscal_br",
+			"label": "Dados Fiscais (Brasil)",
+			"fieldtype": "Section Break",
+			"insert_after": "company",
+			"collapsible": 1,
+		},
+		{
+			"fieldname": "br_chave_acesso",
+			"label": "Chave de Acesso",
+			"fieldtype": "Data",
+			"insert_after": "secao_fiscal_br",
+			"length": 44,
+			"description": (
+				"44 dígitos. Validada (inclusive o dígito verificador) e normalizada — a "
+				"máscara é removida na gravação. Preenchida à mão para documento de "
+				"terceiro; o preenchimento automático após autorização depende do "
+				"orquestrador de emissão, ainda não implementado (ver docs/gaps.md)."
+			),
+		},
+	]
+
+
+def _campo_cfop_sugerido() -> list[dict]:
+	return [
+		{
+			"fieldname": "br_cfop_sugerido",
+			"label": "CFOP Sugerido",
+			"fieldtype": "Data",
+			"insert_after": "item_code",
+			"length": 4,
+			"read_only": 1,
+			"allow_on_submit": 0,
+			"description": (
+				"Recalculado a cada gravação a partir da UF das partes e da classificação "
+				"do Item. Somente leitura de propósito: é sugestão derivada, não escolha do "
+				"usuário — quem discorda muda a classificação do Item, não este campo."
+			),
+		}
+	]
+
+
 def get_custom_fields() -> dict[str, list[dict]]:
 	"""Devolve o mapa {DocType: [definições de campo]} aplicado na instalação."""
-	return {
+	campos: dict[str, list[dict]] = {
 		"Company": [
 			{
 				"fieldname": "secao_fiscal_br",
@@ -553,3 +805,19 @@ def get_custom_fields() -> dict[str, list[dict]]:
 			},
 		],
 	}
+
+	for doctype in DOCUMENTOS_COM_CHAVE_DE_ACESSO:
+		campos[doctype] = _campo_chave_de_acesso()
+
+	for doctype in DOCUMENTOS_COM_APURACAO:
+		campos[doctype].extend(_campos_de_apuracao_do_documento())
+
+	for doctype in DOCUMENTOS_COM_CFOP_SUGERIDO:
+		campos[doctype] = _campo_cfop_sugerido()
+
+	# Depois do CFOP sugerido de propósito: os campos de apuração se ancoram nele
+	# (`insert_after`), então a ordem de criação importa.
+	for doctype in LINHAS_COM_APURACAO:
+		campos[doctype].extend(_campos_de_apuracao_da_linha())
+
+	return campos
