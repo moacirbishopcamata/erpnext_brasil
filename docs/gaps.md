@@ -157,10 +157,18 @@ Dois gaps nasceram desse trabalho e ficam declarados:
   nada o aloca. A SEFAZ exige numeração sequencial sem lacuna por série — é problema de
   concorrência (dois usuários emitindo ao mesmo tempo), não de formato, e merece
   tratamento próprio.
-- **`transp` e `pag` vêm de quem chama.** São obrigatórios no XSD e descrevem fatos da
-  operação (houve frete? como se pagou?) que o mapeador se recusa a inventar. Falta a
-  camada que os deriva do documento — provavelmente de `Payment Schedule` e dos campos de
-  frete que já existem por linha.
+- ~~**`transp` e `pag` vêm de quem chama.**~~ **Feito**:
+  `integracao/transporte_pagamento.py` os deriva do documento. A distinção que guia o
+  módulo é entre **derivar** (ler um fato registrado) e **adivinhar**: `modFrete="9"` não
+  é "nada informado", é a afirmação de que não houve ocorrência de transporte, e por isso
+  `br_modalidade_frete` **não tem padrão** — sem escolha, falha alto. `pag` cai em `90`
+  (sem pagamento) apenas quando o total é zero, o único caso em que a ausência é dedutível
+  do próprio documento.
+
+  `Mode of Payment` do ERPNext é cadastro livre e `tPag` é tabela fechada de 15 códigos.
+  Nome desconhecido cai em `99` (Outros), que é código **válido** — diz "houve pagamento,
+  de forma que a tabela não distingue". Chutar `01` (Dinheiro) é que seria desonesto. Quem
+  quer precisão preenche `br_tpag` no `Mode of Payment`.
 
 ### 1.4 Seis módulos de integração inalcançáveis
 

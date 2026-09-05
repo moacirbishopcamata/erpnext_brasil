@@ -29,6 +29,8 @@ from erpnext_brasil.setup.custom_fields import (
 	CRT_POR_REGIME,
 	INDICADOR_IE_POR_ROTULO,
 	INDICADORES_IE,
+	MODALIDADES_FRETE,
+	OPCOES_MODALIDADE_FRETE,
 	REGIMES_TRIBUTARIOS,
 )
 
@@ -139,6 +141,28 @@ class TestCodigosDeUf(unittest.TestCase):
 		from erpnext_brasil.fiscal.documento.inutilizacao import CODIGO_UF_POR_SIGLA as DA_INUTILIZACAO
 
 		self.assertIs(DA_INUTILIZACAO, CODIGO_UF_POR_SIGLA)
+
+
+class TestModalidadeDeFrete(unittest.TestCase):
+	"""`modFrete` — o domínio de 2018 da NF-e, que não é o do D100 do EFD."""
+
+	def test_as_opcoes_saem_do_mapa_que_as_traduz(self):
+		"""Duas listas escritas à mão é como uma opção nova fica sem tradução."""
+		self.assertEqual(_opcoes(OPCOES_MODALIDADE_FRETE), set(MODALIDADES_FRETE))
+
+	def test_o_dominio_e_o_da_nfe_de_2018(self):
+		self.assertEqual(set(MODALIDADES_FRETE.values()), {"0", "1", "2", "3", "4", "9"})
+
+	def test_nao_e_o_dominio_do_d100(self):
+		"""O `D100` do EFD ficou na tabela de 2012, sem os códigos 3 e 4."""
+		from erpnext_brasil.contabil.efd_bloco_d import IND_FRT_VALIDOS_D100
+
+		self.assertNotEqual(set(MODALIDADES_FRETE.values()), IND_FRT_VALIDOS_D100)
+		self.assertTrue({"3", "4"}.isdisjoint(IND_FRT_VALIDOS_D100))
+
+	def test_sem_ocorrencia_de_transporte_e_o_nove(self):
+		"""Afirmação sobre a operação — por isso o campo não tem padrão."""
+		self.assertEqual(MODALIDADES_FRETE["Sem ocorrência de transporte"], "9")
 
 
 if __name__ == "__main__":

@@ -57,6 +57,26 @@ CRT_POR_REGIME = {
 }
 """`CRT` da NF-e. O MEI não tem código próprio no leiaute — é Simples Nacional."""
 
+# Rótulo do Select → `modFrete` da NF-e. Mora aqui, junto das demais tabelas de tradução,
+# porque a camada de integração importa `frappe` e a suíte pura não a alcançaria — mesmo
+# motivo de `INDICADOR_IE_POR_ROTULO` e `SERIE_POR_MODELO`.
+#
+# Este é o domínio de 2018 do `C100`/NF-e, com os códigos 3 e 4. **Não** é o do `D100` do
+# EFD, que ficou em [0,1,2,9] — ver `contabil/efd_bloco_d.py`.
+MODALIDADES_FRETE = {
+	"Contratação do frete por conta do Remetente (CIF)": "0",
+	"Contratação do frete por conta do Destinatário (FOB)": "1",
+	"Contratação do frete por conta de Terceiros": "2",
+	"Transporte próprio por conta do Remetente": "3",
+	"Transporte próprio por conta do Destinatário": "4",
+	"Sem ocorrência de transporte": "9",
+}
+
+OPCOES_MODALIDADE_FRETE = "\n".join(["", *MODALIDADES_FRETE])
+"""Derivado do mapa acima: escrever a lista duas vezes é como uma opção nova fica sem
+tradução."""
+
+
 # Finalidade da compra do item, para decidir CFOP (`fiscal/cfop.py`) — não confundir
 # com `br_destinado_a_revenda`/`Operacao.destinado_a_industrializacao_ou_comercio`,
 # que decide se o IPI compõe a base do ICMS (consumo final × não consumo final), um
@@ -233,6 +253,25 @@ def _campos_de_apuracao_do_documento() -> list[dict]:
 				"por série é exigência da SEFAZ e ainda não está implementado — gap "
 				"declarado em docs/gaps.md."
 			),
+		},
+		{
+			"fieldname": "br_modalidade_frete",
+			"label": "Modalidade do Frete",
+			"fieldtype": "Select",
+			"options": OPCOES_MODALIDADE_FRETE,
+			"insert_after": "br_numero_nfe",
+			"description": (
+				'modFrete da NF-e. Sem padrão de propósito: "sem ocorrência de transporte" '
+				"é uma afirmação sobre a operação, não a ausência de resposta."
+			),
+		},
+		{
+			"fieldname": "br_transportadora",
+			"label": "Transportadora",
+			"fieldtype": "Link",
+			"options": "Supplier",
+			"insert_after": "br_modalidade_frete",
+			"description": "Opcional. Preenche o grupo transporta da NF-e quando informada.",
 		},
 		{
 			"fieldname": "br_indicador_ie",
@@ -850,6 +889,21 @@ def get_custom_fields() -> dict[str, list[dict]]:
 			},
 		],
 	}
+
+	campos["Mode of Payment"] = [
+		{
+			"fieldname": "br_tpag",
+			"label": "Código tPag (NF-e)",
+			"fieldtype": "Data",
+			"length": 2,
+			"insert_after": "type",
+			"description": (
+				"Código da tabela fechada do leiaute (01 Dinheiro, 15 Boleto, 17 PIX…). "
+				"Vazio cai na tradução por nome e, não havendo, em 99 (Outros) — que é "
+				"código válido, não erro."
+			),
+		}
+	]
 
 	for doctype in DOCUMENTOS_COM_CHAVE_DE_ACESSO:
 		campos[doctype] = _campo_chave_de_acesso()
