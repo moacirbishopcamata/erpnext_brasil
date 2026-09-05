@@ -189,6 +189,25 @@ class CteInvalido(ValueError):
 		self.campo = campo
 
 
+def _natureza(valor) -> str:
+	"""`natOp` do CT-e — mesmo limite da NF-e, **verificado**, não assumido por analogia.
+
+	O `cteTiposBasico_v4.00.xsd` foi baixado e lido: as quatro ocorrências de `natOp` no
+	schema (CT-e, CT-e OS, GTV-e e o grupo de substituição) declaram todas `minLength 1`
+	e `maxLength 60`, iguais às do `leiauteNFe_v4.00.xsd`.
+
+	A verificação não era dispensável: este projeto já foi mordido várias vezes por supor
+	que documentos irmãos compartilham domínio (`procEmi` do CT-e × MDF-e, `IND_FRT` do
+	C100 × D100, `IND_MOV` do E001 × H001). Coincidirem é conclusão, não ponto de partida.
+	"""
+	from erpnext_brasil.fiscal.natureza_operacao import NaturezaInvalida, validar_natureza
+
+	try:
+		return validar_natureza(str(valor or ""))
+	except NaturezaInvalida as e:
+		raise CteInvalido(str(e), "natureza_operacao") from e
+
+
 @dataclass(frozen=True)
 class IdentificacaoCte:
 	"""Dados que identificam o documento — origem do grupo `ide`.

@@ -15,6 +15,7 @@ definições sem duplicar, o que torna seguro rodar a cada `bench migrate`.
 from erpnext_brasil.contabil.efd_bloco_0 import TIPOS_ITEM
 from erpnext_brasil.fiscal.codigos.tabelas import ORIGEM_MERCADORIA, opcoes_select
 from erpnext_brasil.fiscal.impostos.pis_cofins import REGIMES_VALIDOS
+from erpnext_brasil.fiscal.natureza_operacao import TAMANHO_MAXIMO as TAMANHO_MAXIMO_NATUREZA
 
 REGIMES_TRIBUTARIOS = "\n".join(
 	[
@@ -190,11 +191,23 @@ def _campos_de_apuracao_do_documento() -> list[dict]:
 			),
 		},
 		{
+			"fieldname": "br_natureza_operacao",
+			"label": "Natureza da Operação",
+			"fieldtype": "Data",
+			"length": TAMANHO_MAXIMO_NATUREZA,
+			"insert_after": "br_apurar_impostos",
+			"description": (
+				"Campo natOp da NF-e/CT-e, máximo de 60 caracteres (verificado nos XSD "
+				"oficiais). Sugerido a partir do CFOP quando vazio — a sugestão nunca "
+				"sobrescreve o que você gravou."
+			),
+		},
+		{
 			"fieldname": "br_indicador_ie",
 			"label": "Indicador de IE do Destinatário",
 			"fieldtype": "Select",
 			"options": INDICADORES_IE,
-			"insert_after": "br_apurar_impostos",
+			"insert_after": "br_natureza_operacao",
 			"description": "Mesmo campo que alimenta o indIEDest da NF-e; decide se o destinatário é contribuinte.",
 		},
 		{

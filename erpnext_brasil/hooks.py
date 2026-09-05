@@ -71,6 +71,9 @@ for _doctype in (
 			"erpnext_brasil.integracao.validacao_fiscal.validar_classificacao_dos_itens",
 			"erpnext_brasil.integracao.documento.apurar_impostos",
 			"erpnext_brasil.integracao.cfop_sugestao.sugerir_cfop_compra_venda",
+			# Depois do CFOP, nunca antes: a natureza é sugerida a partir do código que a
+			# linha acima acabou de determinar.
+			"erpnext_brasil.integracao.natureza_sugestao.sugerir_natureza_operacao",
 			"erpnext_brasil.integracao.chave_acesso_documento.validar_chave_acesso",
 		],
 		# Em `on_submit`, não em `validate`: o aviso de ambiente de teste só faz sentido

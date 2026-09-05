@@ -104,6 +104,21 @@ def _obrigatorio(valor, campo: str) -> str:
 	return texto
 
 
+def _natureza(valor) -> str:
+	"""`natOp` com o limite de 60 caracteres do XSD, não só a checagem de vazio.
+
+	Até a varredura de 2026-09-04 este campo passava por `_obrigatorio`, que só recusa
+	vazio. Uma natureza mais longa era montada, assinada, transmitida — e recusada pela
+	SEFAZ no fim da cadeia, que é o pior momento possível para descobrir.
+	"""
+	from erpnext_brasil.fiscal.natureza_operacao import NaturezaInvalida, validar_natureza
+
+	try:
+		return validar_natureza(str(valor or ""))
+	except NaturezaInvalida as e:
+		raise NFeInvalida(str(e), "natureza_operacao") from e
+
+
 @dataclass(frozen=True)
 class Identificacao:
 	"""Dados que identificam o documento — origem do grupo `ide` e da chave."""
@@ -271,7 +286,7 @@ def montar_ide(identificacao: Identificacao, chave: str) -> dict:
 	grupo = {
 		"cUF": identificacao.uf,
 		"cNF": str(identificacao.codigo_numerico).rjust(8, "0"),
-		"natOp": _obrigatorio(identificacao.natureza_operacao, "natureza da operação"),
+		"natOp": _natureza(identificacao.natureza_operacao),
 		"mod": identificacao.modelo,
 		"serie": str(identificacao.serie).lstrip("0") or "0",
 		"nNF": str(identificacao.numero).lstrip("0") or "0",
