@@ -132,7 +132,20 @@ implementação.
 monte, assine, transmita e grave o resultado no DocType `Transmissao Fiscal` que já
 existe. É o menor incremento que transforma tudo o que está pronto em algo utilizável.
 
-**Estado em 2026-09-04**: metade feita. `integracao/nfe_documento.py` já mapeia um
+**Estado em 2026-09-04**: **feito**. `integracao/emissao_nfe.py` expõe
+`emitir_nfe(doctype, name, transp, pag, cobr)` como `@frappe.whitelist()`, e é o primeiro
+caminho pelo qual a cadeia inteira pode ser acionada num site real. Grava `Transmissao
+Fiscal` em **todos** os desfechos — inclusive rejeição e denegação — antes de o erro subir
+para quem clicou, porque emissão que falha sem rastro obriga o usuário a adivinhar o que a
+SEFAZ respondeu.
+
+Duas decisões que mereciam registro: o `ContextoSefaz` **não** é montado aqui (a primeira
+versão o fazia; a docstring de `contexto_sefaz.py` diz que só `TransporteSefaz` monta,
+porque é ele que cria e limpa os PEM temporários do TLS mútuo), e a UF e o CNPJ do envio
+saem da **própria árvore** assinada, não de uma segunda leitura da `Company` — reler
+abriria a hipótese de a nota ir para a SEFAZ errada se o cadastro mudasse no meio.
+
+O mapeamento (metade anterior). `integracao/nfe_documento.py` já mapeia um
 documento do ERPNext para a árvore da NF-e — endereços, emitente, destinatário, `ide`,
 itens com `prod` e `imposto`, totais —, reaproveitando a mesma apuração do `validate` em
 vez de reler os campos gravados. Falta o **orquestrador**: carregar certificado, assinar,
