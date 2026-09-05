@@ -521,6 +521,98 @@ quem chama:
   4681-8/02** (combustíveis) — são regras de *quando* entregar, não de *como* montar, e
   pertencem a `contabil/prontidao_fiscal.py`.
 
+## Bloco K (controle da produção e do estoque)
+
+Núcleo implementado: `K001`, `K010`, `K100`, `K200`, `K220`, `K230`, `K235`, `K990`.
+Mesma fonte primária do Bloco H — Guia Prático 3.2.1, páginas 264-273.
+
+### Achado 1: "quantidade" tem precisão diferente dentro do mesmo bloco
+
+| Registro | Campo | Decimais |
+|---|---|---|
+| `K200` (saldo) | `QTD` | **3** |
+| `K220` (movimentação) | `QTD_ORI`, `QTD_DEST` | **6** |
+| `K230` (produção) | `QTD_ENC` | **6** |
+| `K235` (consumo) | `QTD` | **6** |
+
+O mesmo conceito — quantidade da mercadoria, na mesma unidade de controle de estoque do
+`0200` — declarado com **o dobro de casas** na movimentação e metade no saldo. Não são
+blocos diferentes nem versões diferentes do leiaute: são registros irmãos, no mesmo bloco,
+no mesmo arquivo.
+
+Isso importa porque o guia manda o `K200` ser **derivado** dos apontamentos:
+
+```text
+Estoque final = estoque inicial + entradas/produção/movimentação interna
+                                − saídas/consumo/movimentação interna
+```
+
+Somar valores de seis casas e gravar em três é **arredondamento, não truncamento**, e
+fazê-lo implicitamente a cada chamada é como um saldo passa a não fechar com a
+movimentação que o produziu, por diferenças de centésimo de milésimo que ninguém procura.
+`arredondar_quantidade(quantidade, casas)` torna a conversão explícita e única.
+
+### Achado 2: cada registro aceita um conjunto próprio de tipos de item
+
+| Registro | Tipos aceitos (`TIPO_ITEM` do `0200`) |
+|---|---|
+| `K200` | 00, 01, 02, 03, 04, 05, **06**, 10 |
+| `K220` | 00, 01, 02, 03, 04, 05, 10 |
+| `K230` | **só 03 e 04** |
+| `K235` | 00, 01, 02, 03, 04, 05, 10 |
+
+Nenhum aceita "qualquer item do `0200`", e o **produto intermediário (tipo 06)** é a
+exceção que explica o resto: ele **tem saldo** no `K200` e seu consumo **não é
+escriturado** no `K235`. O guia diz por quê — o Fisco o deduz por diferença:
+
+> "Quantidade consumida = estoque inicial (K200) + entrada (C170) − saída (C100/NF-e −
+> Devolução) − estoque final (K200)."
+
+Escriturar o consumo do tipo 06 não é "informação a mais": é informação que o leiaute não
+prevê, e o PVA rejeita. `validar_tipo_do_item` recebe o **conjunto**, não o nome do
+registro — um `if registro == ...` esconderia justamente a diferença que ela existe para
+mostrar.
+
+### Achado 3: um campo que existe no leiaute e não deve ser preenchido
+
+O campo 05 do `K235` (`COD_INS_SUBST`) traz na descrição oficial: "**A partir de
+01/01/2022 não preencher**". A posição permanece no leiaute — não pode sumir sem quebrar
+todo arquivo já gerado — mas a regra de negócio acabou.
+
+`InsumoConsumido` **não expõe o campo**: sai sempre vazio. Oferecê-lo como parâmetro seria
+dar ao usuário uma forma de gerar arquivo recusado, e há teste (`TypeError`) provando que
+não há como preenchê-lo por engano.
+
+### O `K010` decide o que é obrigatório abaixo
+
+Desde 2023 o contribuinte escolhe entre leiaute **simplificado** (`0`), **completo** (`1`)
+e **restrito aos saldos** (`2`), e a escolha muda quais registros são exigidos.
+`REGISTROS_DISPENSADOS_NO_SIMPLIFICADO` registra a consequência; o `K235` é a diferença
+mais cara, por ser o registro de maior volume. A escolha é do contribuinte, condicionada
+ao Ajuste SINIEF 02/09 — o módulo a registra, não a decide.
+
+### Onde a perda de estoque aparece — e onde não aparece
+
+O Bloco K **não tem registro de perda**. Quebra, vencimento ou furto não viram lançamento
+próprio: reduzem o saldo declarado no `K200`, e o estorno de crédito que a perda dispara
+(ver `contabil/perdas.py` e `docs/precificacao-custos-rastreabilidade.md`) é um ajuste de
+apuração no `E111`, cujo código vem da tabela da UF — que este projeto documenta como não
+modelada.
+
+Reclassificação de produto não conforme é caso **diferente** e tem registro: `K220` (troca
+de código) ou `K260` (reprocessamento mantendo o código). Confundir perda com
+reclassificação é o erro natural aqui — uma some do estoque, a outra muda de código dentro
+dele. `montar_k220` recusa origem igual a destino e diz, na mensagem, que o registro certo
+nesse caso é o `K260`.
+
+### Convenção de data: `date`, não `ddmmaaaa`
+
+Os módulos mais antigos deste projeto (`efd_bloco_0`, `efd_icms_ipi`) recebem data como
+texto já formatado; `efd_bloco_h` e `efd_bloco_k` recebem `date`. A divergência é
+deliberada e o `_ordenavel` do `efd_icms_ipi` é a prova do motivo: comparar `ddmmaaaa`
+como texto dá `"31012026" > "01022026"`, com o dia pesando mais que o mês. Com `date` o
+problema não existe.
+
 ## Ainda por implementar
 - **E230/E240 (detalhamento dos ajustes de ST) e E250 (guias de recolhimento da ST)** —
   o E250 exige dado de guia/pagamento (número, vencimento, banco) que este projeto não
@@ -576,6 +668,11 @@ quem chama:
   `montar_h010`, `montar_h020`, `montar_h030`, `montar_h990` e `montar_bloco_h`
   (inventário, com as validações cruzadas do guia); mesma camada pura. `montar_e001` e
   `montar_e990` ficam em `efd_icms_ipi.py`, junto dos demais registros do Bloco E.
+- `contabil/efd_bloco_k.py` — `EstoqueEscriturado`, `MovimentacaoInterna`,
+  `ItemProduzido`, `InsumoConsumido`, `arredondar_quantidade`, `validar_tipo_do_item`,
+  `montar_k001`, `montar_k010`, `montar_k100`, `montar_k200`, `montar_k220`,
+  `montar_k230`, `montar_k235`, `montar_k990` e `montar_bloco_k` (controle da produção e
+  do estoque); mesma camada pura. `montar_e100` também ficou em `efd_icms_ipi.py`.
 
 ## Fontes
 
