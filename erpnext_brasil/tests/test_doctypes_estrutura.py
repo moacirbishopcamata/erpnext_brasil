@@ -16,6 +16,7 @@ O que ele **não** substitui: `bench migrate` de verdade. Um JSON com campo inv�
 por aqui e quebra lá. A lacuna segue em `docs/gaps.md`.
 """
 
+import ast
 import json
 import unittest
 from pathlib import Path
@@ -105,6 +106,38 @@ class TestCoerenciaDoJson(unittest.TestCase):
 
 				with self.subTest(doctype=pasta.name, campo=campo["fieldname"]):
 					self.assertTrue(campo.get("options"), "Link/Table sem options")
+
+
+class TestNomeDaClasse(unittest.TestCase):
+	"""A regra que o Frappe aplica sem avisar — e cuja violação apaga o DocType.
+
+	`base_document.get_controller` procura a classe por
+	`doctype.replace(" ", "").replace("-", "")`, preservando a caixa do nome. Se não
+	achar, levanta `ImportError` — e `remove_orphan_doctypes` trata **todo** `ImportError`
+	como "DocType órfão" e **apaga o registro** na migração seguinte, em silêncio.
+
+	Aconteceu em 2026-09-04: `EventoDoLoteESocial` (que é o que o bom senso do Python
+	sugere) em vez de `EventodoLoteeSocial`. O DocType foi apagado duas vezes antes de a
+	causa aparecer.
+	"""
+
+	def _classes_declaradas(self, pasta: Path) -> set[str]:
+		fonte = (pasta / f"{pasta.name}.py").read_text(encoding="utf-8")
+
+		return {no.name for no in ast.walk(ast.parse(fonte)) if isinstance(no, ast.ClassDef)}
+
+	def test_a_classe_tem_o_nome_que_o_frappe_procura(self):
+		for pasta in _pastas_de_doctype():
+			dados = json.loads((pasta / f"{pasta.name}.json").read_text(encoding="utf-8"))
+			esperada = dados["name"].replace(" ", "").replace("-", "")
+
+			with self.subTest(doctype=dados["name"]):
+				self.assertIn(
+					esperada,
+					self._classes_declaradas(pasta),
+					f"o Frappe procura a classe {esperada!r} e não a encontra — "
+					"o DocType será apagado como órfão na próxima migração",
+				)
 
 
 if __name__ == "__main__":

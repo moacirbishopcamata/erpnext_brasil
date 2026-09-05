@@ -22,5 +22,19 @@ que o pai teria de contornar.
 from frappe.model.document import Document
 
 
-class EventoDoLoteESocial(Document):
+class EventodoLoteeSocial(Document):
+	"""O nome da classe **não** é escolha de estilo.
+
+	O Frappe deriva a classe esperada do nome do DocType com
+	`doctype.replace(" ", "").replace("-", "")` (`base_document.get_controller`), o que
+	preserva a caixa original: `"Evento do Lote eSocial"` vira `EventodoLoteeSocial` — com
+	`d` e `e` minúsculos, porque é assim que estão no nome.
+
+	Escrever `EventoDoLoteESocial`, que é o que o bom senso do Python sugere, faz o
+	`getattr` falhar. E o modo como isso se manifesta é traiçoeiro: `remove_orphan_doctypes`
+	trata **qualquer `ImportError`** como "DocType órfão" e **apaga o registro** na
+	migração seguinte, sem erro visível. Foi o que aconteceu duas vezes em 2026-09-04
+	antes de a causa ser encontrada.
+	"""
+
 	pass
