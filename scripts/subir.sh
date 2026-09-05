@@ -1,0 +1,173 @@
+#!/bin/bash
+# Sobe a pilha inteira — MariaDB, Redis e o servidor do Frappe com ERPNext e
+# erpnext_brasil — a partir do zero, sem `sudo` e sem Docker.
+#
+# Por que existe
+# --------------
+# `bench start` sozinho não basta neste ambiente: ele lê o `Procfile`, que assume um
+# MariaDB já no ar e um Redis que ele mesmo sobe por `honcho`. Aqui o MariaDB é um
+# tarball em espaço de usuário e os Redis rodam soltos, então alguém precisa ordená-los.
+# Esse alguém é este script.
+#
+# Ele é **idempotente**: rodar duas vezes não duplica processo nem perde dado. Cada etapa
+# verifica antes de agir, e as verificações não usam `pgrep -f` — nesta máquina esse
+# padrão casa com a própria linha de comando que o contém e já matou o próprio shell.
+#
+# Uso
+# ---
+#   bash scripts/subir.sh              # bench padrão (version-15)
+#   BENCH=~/frappe-bench-16 bash scripts/subir.sh
+#   PORTA=8001 bash scripts/subir.sh
+set -u
+
+BENCH="${BENCH:-$HOME/frappe-bench}"
+PORTA="${PORTA:-8000}"
+DADOS_MARIADB="${DADOS_MARIADB:-$HOME/mariadb-data}"
+BASE_MARIADB="${BASE_MARIADB:-$HOME/mariadb-10.11.9-linux-systemd-x86_64}"
+PORTA_MARIADB="${PORTA_MARIADB:-3306}"
+REDIS_CACHE="${REDIS_CACHE:-13000}"
+REDIS_QUEUE="${REDIS_QUEUE:-11000}"
+VOLUMES="${VOLUMES:-/mnt/g/erpnext-dados}"
+
+# Node e as ferramentas instaladas por `uv tool` vivem fora do PATH padrão.
+export PATH="$HOME/.local/node/bin:$HOME/.local/bin:$PATH"
+
+vermelho() { printf '\033[31m%s\033[0m\n' "$1"; }
+verde() { printf '\033[32m%s\033[0m\n' "$1"; }
+amarelo() { printf '\033[33m%s\033[0m\n' "$1"; }
+
+no_ar() {
+	# `timeout` porque nesta máquina a conexão a porta fechada **pendura** em vez de
+	# falhar rápido — efeito da rede espelhada do WSL.
+	timeout 3 bash -c "echo > /dev/tcp/127.0.0.1/$1" 2>/dev/null
+}
+
+exigir() {
+	command -v "$1" > /dev/null 2>&1 && return 0
+
+	vermelho "Falta '$1'. $2"
+	exit 1
+}
+
+# ---------------------------------------------------------------- pré-requisitos
+
+[ -d "$BENCH" ] || {
+	vermelho "Bench não encontrado em $BENCH"
+	exit 1
+}
+
+exigir redis-server "Instale com: sudo apt install redis-server"
+
+if [ ! -x "$BASE_MARIADB/bin/mariadbd" ]; then
+	vermelho "MariaDB não encontrado em $BASE_MARIADB"
+	amarelo "Baixe o tarball genérico (não precisa de sudo):"
+	amarelo "  curl -LO https://archive.mariadb.org/mariadb-10.11.9/bintar-linux-systemd-x86_64/mariadb-10.11.9-linux-systemd-x86_64.tar.gz"
+	amarelo "  tar xzf mariadb-10.11.9-linux-systemd-x86_64.tar.gz -C ~"
+	exit 1
+fi
+
+# ---------------------------------------------------------------- MariaDB
+
+if no_ar "$PORTA_MARIADB"; then
+	verde "MariaDB já no ar na porta $PORTA_MARIADB"
+else
+	# O datadir fica em ext4 de propósito. Em `/mnt/g` (drvfs) o InnoDB **corrompe o
+	# tablespace** sob carga real de DDL — testado, com crash em sinal 6. A persistência
+	# no G: se faz por dump, não por datadir.
+	if [ ! -d "$DADOS_MARIADB/mysql" ]; then
+		amarelo "Inicializando o datadir em $DADOS_MARIADB"
+		mkdir -p "$DADOS_MARIADB"
+		(cd "$BASE_MARIADB" && ./scripts/mariadb-install-db --user="$USER" \
+			--basedir=. --datadir="$DADOS_MARIADB" > /tmp/mariadb-install.log 2>&1) || {
+			vermelho "Falha ao inicializar o datadir; veja /tmp/mariadb-install.log"
+			exit 1
+		}
+	fi
+
+	amarelo "Subindo o MariaDB na porta $PORTA_MARIADB"
+	(cd "$BASE_MARIADB" && setsid nohup ./bin/mariadbd \
+		--datadir="$DADOS_MARIADB" --socket=/tmp/mariadb.sock --port="$PORTA_MARIADB" \
+		< /dev/null > "$HOME/mariadb.log" 2>&1 &)
+
+	for _ in $(seq 1 30); do
+		sleep 2
+		no_ar "$PORTA_MARIADB" && break
+	done
+
+	no_ar "$PORTA_MARIADB" && verde "MariaDB no ar" || {
+		vermelho "MariaDB não subiu; veja $HOME/mariadb.log"
+		exit 1
+	}
+fi
+
+# ---------------------------------------------------------------- Redis
+
+# Redis em `/mnt/g` funciona: o RDB é gravação sequencial, não InnoDB.
+subir_redis() {
+	local porta="$1" pasta="$2" arquivo="$3"
+
+	if no_ar "$porta"; then
+		verde "Redis já no ar na porta $porta"
+		return
+	fi
+
+	mkdir -p "$VOLUMES/$pasta"
+	redis-server --port "$porta" --dir "$VOLUMES/$pasta" \
+		--dbfilename "$arquivo" --save '60 1' --daemonize yes 2>&1 | tail -1
+
+	sleep 2
+	no_ar "$porta" && verde "Redis no ar na porta $porta" || vermelho "Redis $porta não subiu"
+}
+
+subir_redis "$REDIS_CACHE" redis-cache cache.rdb
+subir_redis "$REDIS_QUEUE" redis-queue queue.rdb
+
+# ---------------------------------------------------------------- Frappe
+
+cd "$BENCH" || exit 1
+
+# `bench serve` sem site escolhido devolve **404 em toda rota**, inclusive `/login` — o
+# que parece servidor quebrado quando é só site não definido.
+#
+# O padrão vai em `default_site` do `common_site_config.json`, e **não** em
+# `currentsite.txt`: o Frappe avisa em tempo de execução que o segundo deixou de ser
+# suportado. `bench use` é quem escreve a chave certa.
+#
+# Havendo um único site, escolhe-se ele; havendo vários, exige-se a escolha, porque
+# adivinhar qual atender é o tipo de decisão que produz dado no lugar errado.
+SITE=$(python3 -c "
+import json, pathlib
+config = pathlib.Path('sites/common_site_config.json')
+print(json.loads(config.read_text()).get('default_site', '') if config.exists() else '')
+" 2>/dev/null)
+
+if [ -z "$SITE" ]; then
+	SITES=$(find sites -maxdepth 2 -name site_config.json -exec dirname {} \; | xargs -r -n1 basename)
+	QUANTOS=$(echo "$SITES" | grep -c .)
+
+	if [ "$QUANTOS" -eq 1 ]; then
+		"$HOME/.local/bin/bench" use "$SITES" > /dev/null 2>&1
+		SITE="$SITES"
+		amarelo "Site padrão definido: $SITE"
+	elif [ "$QUANTOS" -eq 0 ]; then
+		vermelho "Nenhum site em $BENCH/sites."
+		amarelo "Crie um com:"
+		amarelo "  bench new-site meu-site.localhost --install-app erpnext --install-app erpnext_brasil"
+		exit 1
+	else
+		vermelho "Há mais de um site e nenhum padrão definido:"
+		echo "$SITES" | sed 's/^/  - /'
+		amarelo "Escolha com: bench use <site>"
+		exit 1
+	fi
+fi
+
+echo
+verde "Pilha pronta. Subindo o servidor em http://localhost:$PORTA"
+verde "Site: $SITE"
+amarelo "Ctrl+C encerra o servidor; MariaDB e Redis continuam no ar."
+echo
+
+# `bench serve` e não `bench start`: o `start` usa o Procfile, que sobe outro Redis nas
+# mesmas portas e falha. Aqui a infraestrutura já está de pé.
+exec "$HOME/.local/bin/bench" serve --port "$PORTA"

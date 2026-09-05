@@ -1,0 +1,8 @@
+# Script de shell precisa de LF mesmo quando editado no Windows: o bash quebra no `\r`
+# com "syntax error near unexpected token", e a mensagem não menciona a quebra de linha —
+# custou uma rodada de diagnóstico até a causa aparecer.
+*.sh text eol=lf
+
+# O mesmo vale para arquivos que o Frappe lê como configuração.
+*.json text eol=lf
+*.py text eol=lf
