@@ -10,6 +10,7 @@ efd_dados_cadastrais   Bloco 0 a partir da Company e do Address
 efd_escrituracao       Bloco C a partir dos documentos do período
 efd_apuracao           Bloco E: débitos e créditos de ICMS do período
 efd_inventario         Bloco H: saldo de estoque na data de encerramento
+efd_producao           Bloco K: saldos escriturados e produção do período
 efd_arquivo            junta os blocos, calcula o Bloco 9, serializa
 Arquivo SPED           guarda o texto, o hash e o período
 ```
@@ -27,7 +28,7 @@ inventar critério.
 
 O que ainda **não** entra no arquivo
 --------------------------------------------
-Blocos **D** (serviço de transporte) e **K** (produção) têm o leiaute
+O bloco **D** (serviço de transporte) tem o leiaute
 implementado em `contabil/` e **ainda não têm quem os leia do site** — o equivalente de
 `efd_escrituracao` para cada um. O arquivo gerado aqui é, portanto, **incompleto para
 entrega**: serve para conferir a montagem contra o PVA, não para transmitir.
@@ -55,10 +56,11 @@ from erpnext_brasil.integracao.efd_apuracao import bloco_e_do_periodo
 from erpnext_brasil.integracao.efd_dados_cadastrais import montar_identificacao_0000
 from erpnext_brasil.integracao.efd_escrituracao import bloco_c_do_periodo
 from erpnext_brasil.integracao.efd_inventario import bloco_h_do_periodo
+from erpnext_brasil.integracao.efd_producao import bloco_k_do_periodo
 
 __all__ = ["BLOCOS_SEM_LEITURA_DO_SITE", "gerar_efd"]
 
-BLOCOS_SEM_LEITURA_DO_SITE = ("D", "K")
+BLOCOS_SEM_LEITURA_DO_SITE = ("D",)
 """Blocos com leiaute pronto e sem quem os leia do site — ver docstring do módulo."""
 
 
@@ -100,6 +102,7 @@ def gerar_efd(company: str, address: str, data_inicial: str, data_final: str) ->
 		# nenhum EFD é aceito.
 		"E": bloco_e_do_periodo(company, data_inicial, data_final),
 		"H": bloco_h_do_periodo(company, data_final),
+		"K": bloco_k_do_periodo(company, data_inicial, data_final),
 	}
 
 	linhas = montar_arquivo_efd(blocos)
