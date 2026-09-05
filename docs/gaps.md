@@ -193,6 +193,11 @@ quem precise sobrescrever.
 
 Sobram **dois**: `ecf_dados_empresa` e `efd_dados_cadastrais`.
 
+**Atualização de 2026-09-05**: sobram **dois** — `cte_extracao` (sem gatilho de entrada
+de CT-e recebido) e `ecf_dados_empresa` (sem gerador de arquivo ECF).
+`integracao/geracao_efd.py` fechou a cadeia do EFD e desorfanou `efd_dados_cadastrais` e
+`efd_escrituracao` de uma vez.
+
 `contabil/efd_arquivo.py` (2026-09-04) resolveu metade do que faltava — a montagem do
 arquivo EFD inteiro, do `0000` ao `9999`, existia **só dentro de um teste**. Lógica que só
 vive em teste é lógica que ninguém pode usar; foi promovida a módulo, e o teste passou a
@@ -343,8 +348,11 @@ A ordem não é por tamanho, é por **quanto cada item destrava do que já está
    achou dois bugs reais no primeiro `migrate` (controller ausente e nome de classe que
    fazia o Frappe apagar o DocType em silêncio). Faltam os testes que gravam e releem
    documento.
-3. **Camada que lê o site para o EFD.** Produzir os blocos C/D/E/H/K a partir de
-   `Sales Invoice` e `Stock Ledger Entry` — o que desorfana os dois módulos restantes.
+3. **Camada que lê o site para os blocos D/E/H/K.** O **C** ficou pronto em 2026-09-05
+   (`integracao/efd_escrituracao.py`), e `integracao/geracao_efd.py` já gera um arquivo —
+   **parcial e declarado como tal**, no retorno e na docstring: sem D/E/H/K e sem os
+   cadastros do Bloco 0, serve para conferir a montagem no PVA, não para transmitir.
+   O leiaute dos quatro já existe em `contabil/`; falta só quem os leia do site.
 4. **DocType de eventos do documento** (cancelamento, CC-e, EPEC), hoje espremidos em
    `Transmissao Fiscal`.
 5. **Transmissão exercitada contra a SEFAZ de verdade**, que depende de certificado A1

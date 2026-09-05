@@ -14,6 +14,7 @@ definições sem duplicar, o que torna seguro rodar a cada `bench migrate`.
 
 from erpnext_brasil.contabil.efd_bloco_0 import TIPOS_ITEM
 from erpnext_brasil.fiscal.codigos.tabelas import ORIGEM_MERCADORIA, opcoes_select
+from erpnext_brasil.fiscal.documento.imposto_item import CST_ICMS_SUPORTADOS
 from erpnext_brasil.fiscal.impostos.pis_cofins import REGIMES_VALIDOS
 from erpnext_brasil.fiscal.natureza_operacao import TAMANHO_MAXIMO as TAMANHO_MAXIMO_NATUREZA
 
@@ -190,6 +191,10 @@ recalculada a cada `validate` e descartada.
 """
 
 
+OPCOES_CST_ICMS = "\n".join(["", *CST_ICMS_SUPORTADOS])
+"""Derivado de `CST_ICMS_SUPORTADOS`: um valor a mais na tela vira `ImpostoInvalido` no
+meio da emissão, depois de o usuário já ter escolhido."""
+
 REGIMES_PIS_COFINS = "\n".join(["", *REGIMES_VALIDOS])
 """Os dois valores que `fiscal/impostos/pis_cofins.py` aceita, escritos como ele os lê.
 
@@ -347,6 +352,12 @@ def _campos_de_apuracao_da_linha() -> list[dict]:
 		("br_cclasstrib", "cClassTrib", "Data"),
 	]
 
+	# CST do ICMS é `Select`, não `Data`, e por um motivo concreto: `montar_imposto_item`
+	# recusa CST que não sabe montar, e a recusa acontece **no meio da emissão** — depois
+	# de o usuário ter escolhido e clicado. Oferecer só o que o código monta transforma um
+	# erro de tempo de execução em uma opção que não existe na tela.
+	entradas.append(("br_cst_icms", "CST do ICMS", "Select"))
+
 	saidas = [
 		("br_base_icms", "Base do ICMS", "Currency"),
 		("br_valor_icms", "Valor do ICMS", "Currency"),
@@ -372,15 +383,20 @@ def _campos_de_apuracao_da_linha() -> list[dict]:
 
 	anterior = "secao_apuracao_br"
 
+	opcoes_por_campo = {"br_cst_icms": OPCOES_CST_ICMS}
+
 	for nome, rotulo, tipo in entradas:
-		campos.append(
-			{
-				"fieldname": nome,
-				"label": rotulo,
-				"fieldtype": tipo,
-				"insert_after": anterior,
-			}
-		)
+		campo = {
+			"fieldname": nome,
+			"label": rotulo,
+			"fieldtype": tipo,
+			"insert_after": anterior,
+		}
+
+		if nome in opcoes_por_campo:
+			campo["options"] = opcoes_por_campo[nome]
+
+		campos.append(campo)
 		anterior = nome
 
 	campos.append(

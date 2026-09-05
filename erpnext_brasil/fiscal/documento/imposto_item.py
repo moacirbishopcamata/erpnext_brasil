@@ -59,10 +59,23 @@ from erpnext_brasil.fiscal.impostos.icms import arredondar
 
 __all__ = [
 	"CST_COM_ICMS_DESONERADO",
+	"CST_ICMS_SUPORTADOS",
 	"ImpostoInvalido",
 	"montar_icms_uf_dest",
 	"montar_imposto_item",
 ]
+
+CST_ICMS_SUPORTADOS = ("00", "20", "40", "41", "60")
+"""Os CSTs que `montar_imposto_item` sabe montar — não a tabela inteira do leiaute.
+
+Exposto porque o Select de `br_cst_icms` precisa oferecer **exatamente** estes: um valor
+a mais na tela produziria `ImpostoInvalido` no meio da emissão, depois de o usuário já ter
+escolhido; um a menos esconderia caso que o código cobre.
+
+Fora daqui ficam, entre outros, o `10`/`70` (ICMS-ST na própria operação) e o `51`
+(diferimento) — cada um exige grupo XML próprio, com campos que este projeto ainda não
+modela. Ampliar a lista sem implementar o grupo é o erro que a constante evita.
+"""
 
 # CSTs em que `vICMSDeson`/`motDesICMS` fazem sentido — desoneração condicional
 # (ex.: isenção de IPVA/ICMS para taxista). Confirmado no leiaute e no guia de uso.

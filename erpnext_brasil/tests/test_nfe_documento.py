@@ -165,5 +165,80 @@ class TestModalidadeDeFrete(unittest.TestCase):
 		self.assertEqual(MODALIDADES_FRETE["Sem ocorrência de transporte"], "9")
 
 
+class TestCstDoIcms(unittest.TestCase):
+	"""O Select tem de oferecer exatamente o que `montar_imposto_item` sabe montar.
+
+	Um valor a mais na tela vira `ImpostoInvalido` **no meio da emissão**, depois de o
+	usuário confirmar; um a menos esconde caso que o código cobre. Foi este o gap
+	encontrado em 2026-09-05: o mapeador não passava CST nenhum, e não havia campo que o
+	guardasse.
+	"""
+
+	def test_as_opcoes_saem_do_dominio_que_o_codigo_monta(self):
+		from erpnext_brasil.fiscal.documento.imposto_item import CST_ICMS_SUPORTADOS
+		from erpnext_brasil.setup.custom_fields import OPCOES_CST_ICMS
+
+		self.assertEqual(_opcoes(OPCOES_CST_ICMS), set(CST_ICMS_SUPORTADOS))
+
+	def test_todo_cst_oferecido_e_de_fato_montavel(self):
+		"""Costura: percorre o domínio e monta o grupo de cada um.
+
+		Cada CST exige uma apuração **coerente com o que ele afirma** — e descobrir isso
+		foi o próprio achado do teste. `20` é "redução de base de cálculo" e recusa
+		apuração sem redução, o que está certo: o CST não é rótulo solto, é afirmação
+		sobre a operação, e o código exige que a operação a sustente.
+		"""
+		from decimal import Decimal
+
+		from erpnext_brasil.fiscal.documento.imposto_item import (
+			CST_ICMS_SUPORTADOS,
+			montar_imposto_item,
+		)
+		from erpnext_brasil.fiscal.impostos.apuracao import ItemFiscal, apurar
+
+		extras_por_cst = {"20": {"reducao_icms": Decimal("0.30")}}
+
+		for cst in CST_ICMS_SUPORTADOS:
+			with self.subTest(cst=cst):
+				item = ItemFiscal(
+					valor_produtos=Decimal("100.00"),
+					aliquota_icms=Decimal("0.18"),
+					# IBS/CBS também são obrigatórios no grupo `imposto` — sem eles a
+					# montagem falha antes de chegar ao ICMS, e o teste mediria outra coisa.
+					cst_ibs_cbs="000",
+					classificacao_tributaria="000001",
+					**extras_por_cst.get(cst, {}),
+				)
+				grupo = montar_imposto_item(apurar(item), cst_icms=cst)
+
+				# `montar_imposto_item` devolve `{"imposto": {...}}` — o grupo do XML.
+				self.assertIn("ICMS", grupo["imposto"])
+
+	def test_cst_fora_do_dominio_e_recusado(self):
+		"""`10` e `70` (ICMS-ST na própria operação) exigem grupo que ainda não existe."""
+		from decimal import Decimal
+
+		from erpnext_brasil.fiscal.documento.imposto_item import ImpostoInvalido, montar_imposto_item
+		from erpnext_brasil.fiscal.impostos.apuracao import ItemFiscal, apurar
+
+		apuracao = apurar(
+			ItemFiscal(
+				valor_produtos=Decimal("100.00"),
+				cst_ibs_cbs="000",
+				classificacao_tributaria="000001",
+			)
+		)
+
+		with self.assertRaises(ImpostoInvalido):
+			montar_imposto_item(apuracao, cst_icms="10")
+
+	def test_o_campo_existe_como_select(self):
+		from erpnext_brasil.setup.custom_fields import get_custom_fields
+
+		campo = next(c for c in get_custom_fields()["Sales Invoice Item"] if c["fieldname"] == "br_cst_icms")
+
+		self.assertEqual(campo["fieldtype"], "Select")
+
+
 if __name__ == "__main__":
 	unittest.main()

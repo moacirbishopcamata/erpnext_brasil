@@ -27,9 +27,17 @@ Falha alto em vez de escolher por conta própria:
 - **`transp` e `pag`** são obrigatórios no XSD, e `montar_infnfe` já recusa sem eles.
   "Sem transporte" (`modFrete="9"`) e "sem pagamento a destacar" (`tPag="90"`) são
   **afirmações sobre a operação**, não padrões razoáveis de assumir — vêm de quem chama.
-- **Natureza da operação, NCM, CFOP, endereço, indicador de IE**: sem eles não há
-  documento. Cada ausência levanta `DadosInsuficientes` dizendo qual campo falta e **em
-  qual cadastro** — mensagem que manda a pessoa ao lugar certo, não "erro ao emitir".
+- **Natureza da operação, NCM, CFOP, CST do ICMS, endereço, indicador de IE**: sem eles
+  não há documento. Cada ausência levanta `DadosInsuficientes` dizendo qual campo falta e
+  **em qual cadastro** — mensagem que manda a pessoa ao lugar certo, não "erro ao emitir".
+
+O **CST do ICMS** entrou nessa lista em 2026-09-05, e vale registrar como: `montar_imposto_item`
+recebe o CST por parâmetro e **recusa** o que não sabe montar. A primeira versão deste
+módulo não o passava, e a emissão teria falhado no primeiro clique — com `ImpostoInvalido`
+no meio da montagem, depois de o usuário confirmar. Não havia campo nenhum guardando o
+CST; `br_cst_icms` foi criado junto, como `Select` restrito a
+`imposto_item.CST_ICMS_SUPORTADOS`, para que a recusa vire uma opção que não existe na
+tela em vez de erro em tempo de execução.
 
 Já o **código numérico** (`cNF`) é sorteado aqui, e isso não é inventar dado de negócio: o
 leiaute pede um número cuja única regra é não repetir o `nNF` nem ter todos os dígitos
@@ -247,7 +255,15 @@ def _itens(doc):
 		# Sem `@nItem`: `montar_infnfe` numera os itens na ordem em que os recebe. Numerar
 		# aqui também criaria duas fontes para o mesmo dado — e a de lá venceria em
 		# silêncio, escondendo qualquer divergência.
-		itens.append({"prod": prod, "imposto": montar_imposto_item(resultado)})
+		itens.append(
+			{
+				"prod": prod,
+				"imposto": montar_imposto_item(
+					resultado,
+					cst_icms=_exigir(linha.get("br_cst_icms"), "CST do ICMS", f"linha do {onde}"),
+				),
+			}
+		)
 
 	return itens, produtos, apuracao
 
