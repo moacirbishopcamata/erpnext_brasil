@@ -24,6 +24,18 @@ RAIZ = Path(__file__).resolve().parent.parent
 _CHAMADA = re.compile(r'method:\s*["\']([\w.]+)["\']')
 
 
+def _sem_comentarios(fonte: str) -> str:
+	"""O JavaScript sem `//` nem `/* */`.
+
+	Serve para medir **o que executa**, não o que explica: as docstrings deste projeto
+	citam o que não se deve usar, e uma asserção de ausência sobre o texto inteiro
+	reprovaria a explicação junto com o erro que ela previne.
+	"""
+	sem_bloco = re.sub(r"/\*.*?\*/", "", fonte, flags=re.S)
+
+	return re.sub(r"//.*", "", sem_bloco)
+
+
 def _metodos_chamados() -> set[str]:
 	chamados: set[str] = set()
 
@@ -105,6 +117,49 @@ class TestBotaoDeEmissao(unittest.TestCase):
 	def test_congela_a_tela_durante_a_transmissao(self):
 		"""Sem `freeze`, o segundo clique consome outro número."""
 		self.assertIn("freeze: true", self._fonte())
+
+
+class TestTelaDeGeracaoDoEfd(unittest.TestCase):
+	"""O botão que faltava para `gerar_efd` — mesma lacuna que a NF-e tinha."""
+
+	def _fonte(self) -> str:
+		return (RAIZ / "public" / "js" / "geracao_efd_list.js").read_text(encoding="utf-8")
+
+	def test_esta_na_lista_e_nao_no_formulario(self):
+		"""O `Arquivo SPED` é o resultado da geração; um botão no formulário só existiria
+		depois de o registro existir, tarde demais."""
+		hooks = (RAIZ / "hooks.py").read_text(encoding="utf-8")
+
+		self.assertIn("doctype_list_js", hooks)
+		self.assertIn("geracao_efd_list.js", hooks)
+		self.assertIn("listview_settings", self._fonte())
+
+	def test_pede_o_endereco_porque_o_backend_se_recusa_a_deduzir(self):
+		"""A `Company` pode ter vários vinculados, e o EFD declara um."""
+		self.assertIn('fieldname: "address"', self._fonte())
+		self.assertIn("reqd: 1", self._fonte())
+
+	def test_o_endereco_e_limpo_ao_trocar_de_empresa(self):
+		"""Manter o anterior geraria o arquivo com o estabelecimento errado, e o número
+		seria plausível."""
+		self.assertIn('dialogo.set_value("address", "")', self._fonte())
+
+	def test_congela_a_tela_durante_a_geracao(self):
+		"""Sem isso o segundo clique produz um arquivo idêntico."""
+		self.assertIn("freeze: true", self._fonte())
+
+	def test_o_aviso_de_parcial_nao_e_anunciado_como_sucesso(self):
+		"""`msgprint` laranja, não alerta verde: anunciar sucesso convidaria a tentar
+		transmitir um arquivo que ainda não tem o Bloco D.
+
+		A checagem ignora comentários — eles citam `show_alert` justamente para explicar
+		por que não usá-lo, e medir o texto inteiro reprovaria a explicação junto com o
+		erro que ela previne. Mesmo tropeço já cometido em `test_efd_inventario`.
+		"""
+		fonte = _sem_comentarios(self._fonte())
+
+		self.assertIn('indicator: "orange"', fonte)
+		self.assertNotIn("show_alert", fonte)
 
 
 if __name__ == "__main__":
