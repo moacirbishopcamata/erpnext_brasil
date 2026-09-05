@@ -468,6 +468,144 @@ def _campo_cfop_sugerido() -> list[dict]:
 	]
 
 
+def _campos_do_banco() -> list[dict]:
+	"""Identificação do banco no arranjo brasileiro.
+
+	O `Bank` do ERPNext guarda só `bank_name` e `swift_number` — identificação
+	internacional. No Brasil um banco é identificado por dois números diferentes, e usar um
+	no lugar do outro produz arquivo recusado sem explicação:
+
+	- **COMPE**, 3 dígitos, é o que entra nas 3 primeiras posições do código de barras do
+	  boleto (`contabil/boleto.py`) e no CNAB;
+	- **ISPB**, 8 dígitos, é o que identifica a instituição no PIX e no SPI.
+
+	Nenhum dos dois é o SWIFT, e nenhum dos dois se deduz do outro.
+	"""
+	return [
+		{
+			"fieldname": "secao_banco_br",
+			"label": "Identificação (Brasil)",
+			"fieldtype": "Section Break",
+			"insert_after": "swift_number",
+			"collapsible": 1,
+		},
+		{
+			"fieldname": "br_codigo_banco",
+			"label": "Código do Banco (COMPE)",
+			"fieldtype": "Data",
+			"length": 3,
+			"insert_after": "secao_banco_br",
+			"description": (
+				"Três dígitos da tabela COMPE do Bacen (001 Banco do Brasil, 237 Bradesco, "
+				"341 Itaú…). É o que abre o código de barras do boleto — não é o SWIFT nem "
+				"o ISPB."
+			),
+		},
+		{
+			"fieldname": "coluna_banco_br",
+			"fieldtype": "Column Break",
+			"insert_after": "br_codigo_banco",
+		},
+		{
+			"fieldname": "br_ispb",
+			"label": "ISPB",
+			"fieldtype": "Data",
+			"length": 8,
+			"insert_after": "coluna_banco_br",
+			"description": (
+				"Oito dígitos que identificam a instituição no PIX e no SPI. Diferente do "
+				"COMPE, e obrigatório para arranjos de pagamento instantâneo."
+			),
+		},
+	]
+
+
+def _campos_da_conta_bancaria() -> list[dict]:
+	"""O que o boleto e o CNAB exigem e o `Bank Account` não guarda.
+
+	`contabil/boleto.py` monta o código de barras a partir de um `campo_livre` de 25
+	posições que **cada banco** compõe com agência, conta, carteira e convênio. O
+	`Bank Account` do ERPNext tem `branch_code` e `bank_account_no` — e nenhum dos demais,
+	nem os dígitos verificadores separados.
+
+	Por que o dígito é campo separado, e não parte do número
+	--------------------------------------------------------
+	Porque o campo livre os posiciona em lugares diferentes, e alguns bancos não o incluem.
+	Guardar `"1234-5"` numa `Data` obrigaria cada montador a fatiar a string por conta
+	própria — e a primeira conta sem hífen produziria um boleto com dígito errado, que o
+	banco aceita gerar e o cliente não consegue pagar.
+
+	⚠️ **Isto sozinho não emite boleto.** Falta o montador de campo livre, que é específico
+	por banco e exige a especificação de cada um — ver `docs/tropicalizacao-por-area.md`.
+	Os campos vêm primeiro porque sem eles não há o que montar.
+	"""
+	return [
+		{
+			"fieldname": "secao_conta_br",
+			"label": "Cobrança (Brasil)",
+			"fieldtype": "Section Break",
+			"insert_after": "bank_account_no",
+			"collapsible": 1,
+			"depends_on": "is_company_account",
+		},
+		{
+			"fieldname": "br_agencia",
+			"label": "Agência",
+			"fieldtype": "Data",
+			"length": 5,
+			"insert_after": "secao_conta_br",
+			"description": "Só os dígitos, sem o verificador — ele vai no campo ao lado.",
+		},
+		{
+			"fieldname": "br_agencia_dv",
+			"label": "Dígito da Agência",
+			"fieldtype": "Data",
+			"length": 1,
+			"insert_after": "br_agencia",
+			"description": "Pode ser vazio: nem todo banco usa dígito na agência.",
+		},
+		{
+			"fieldname": "br_conta_dv",
+			"label": "Dígito da Conta",
+			"fieldtype": "Data",
+			"length": 1,
+			"insert_after": "br_agencia_dv",
+			"description": (
+				"O número da conta continua em `bank_account_no`; aqui vai só o "
+				"verificador, que o campo livre do boleto posiciona à parte."
+			),
+		},
+		{
+			"fieldname": "coluna_conta_br",
+			"fieldtype": "Column Break",
+			"insert_after": "br_conta_dv",
+		},
+		{
+			"fieldname": "br_carteira",
+			"label": "Carteira",
+			"fieldtype": "Data",
+			"length": 3,
+			"insert_after": "coluna_conta_br",
+			"description": (
+				"Modalidade de cobrança contratada com o banco (ex.: 09, 17, 109). Quem "
+				"define os códigos é o banco, não uma tabela nacional."
+			),
+		},
+		{
+			"fieldname": "br_convenio",
+			"label": "Convênio / Código do Beneficiário",
+			"fieldtype": "Data",
+			"length": 20,
+			"insert_after": "br_carteira",
+			"description": (
+				"Identifica o beneficiário perante o banco. O nome muda conforme a "
+				"instituição — convênio, código do cedente, código do beneficiário — e o "
+				"tamanho também."
+			),
+		},
+	]
+
+
 def get_custom_fields() -> dict[str, list[dict]]:
 	"""Devolve o mapa {DocType: [definições de campo]} aplicado na instalação."""
 	campos: dict[str, list[dict]] = {
@@ -920,6 +1058,9 @@ def get_custom_fields() -> dict[str, list[dict]]:
 			),
 		}
 	]
+
+	campos["Bank"] = _campos_do_banco()
+	campos["Bank Account"] = _campos_da_conta_bancaria()
 
 	for doctype in DOCUMENTOS_COM_CHAVE_DE_ACESSO:
 		campos[doctype] = _campo_chave_de_acesso()

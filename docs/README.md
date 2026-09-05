@@ -5,6 +5,8 @@ precisa de tabela, cronograma ou comparação de alternativas.
 
 | Documento | Assunto |
 |---|---|
+| [gaps.md](gaps.md) | **Inventário vivo de gaps**: os de costura (código escrito e inalcançável), os módulos sem teste de bench, os itens declarados em `docs/` e as fontes a reconferir — com a ordem de pagamento e o método para refazer a varredura |
+| [tropicalizacao-por-area.md](tropicalizacao-por-area.md) | Varredura das quatro áreas do site do ERPNext (contabilidade, aquisições, vendas, bancos) contra o que o app tem: o que é neutro, o que já está pronto, e os quatro gaps reais — **NFS-e** é o maior, o boleto estava pronto e sem dados bancários, faltam depreciação fiscal e leitura do XML de entrada |
 | [arquitetura.md](arquitetura.md) | Camadas, por que `fiscal/` é puro, como testar sem bench |
 | [desk-transicoes.md](desk-transicoes.md) | Transições/animações do Desk (identidade visual): evento `page-change` real do Frappe, só `opacity`/`transform`, `prefers-reduced-motion` |
 | [chave-de-acesso.md](chave-de-acesso.md) | Layout das 44 posições, cálculo do DV, impacto do CNPJ alfanumérico |
