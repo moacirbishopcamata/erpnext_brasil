@@ -14,8 +14,7 @@ from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 from erpnext_brasil.integracao.depreciacao_ativo import instalar_livro_fiscal, instalar_turnos
 from erpnext_brasil.integracao.folha import COMPONENTES_DESTE_MODULO
 from erpnext_brasil.integracao.seed_codigos import criar_listas_de_codigos
-from erpnext_brasil.setup.campos_documento import get_custom_fields as get_campos_documento
-from erpnext_brasil.setup.custom_fields import get_custom_fields
+from erpnext_brasil.setup.campos import todos_os_campos
 
 
 def after_install():
@@ -124,10 +123,14 @@ def criar_campos_fiscais(update: bool = True):
 	Os dois mapas são mesclados por DocType em vez de aplicados em duas chamadas: `Company`
 	aparece nos dois, e a segunda chamada sobrescreveria a lista da primeira.
 	"""
-	campos: dict[str, list[dict]] = {}
+	campos = todos_os_campos()
 
-	for mapa in (get_custom_fields(), get_campos_documento()):
-		for doctype, definicoes in mapa.items():
-			campos.setdefault(doctype, []).extend(definicoes)
+	# `Salary Component` vem do `hrms`, que é opcional aqui — e `create_custom_fields` não
+	# tolera DocType ausente. Filtrar é o que permite instalar o bloco fiscal num site sem
+	# RH nenhum, em vez de exigir um app que ele não usa.
+	ausentes = [doctype for doctype in campos if not frappe.db.exists("DocType", doctype)]
+
+	for doctype in ausentes:
+		del campos[doctype]
 
 	create_custom_fields(campos, ignore_validate=frappe.flags.in_patch, update=update)

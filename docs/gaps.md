@@ -421,12 +421,16 @@ apareceu um buraco maior: **o S-1200 não tinha montador de árvore**. O S-1000 
 `montar_evento_s1000` desde o início; o evento da folha — o mais transmitido de todos — só
 tinha as dataclasses. Dava para validar cada grupo e não dava para produzir o evento.
 
-`montar_evento_s1200` fecha isso. O que ainda falta, em ordem:
+`montar_evento_s1200` fechou isso, e `integracao/folha_esocial.py` fechou a ponte com o
+`Salary Slip` — inclusive os campos que faltavam em `Employee` (CPF, NIS, categoria, CBO,
+lotação) e em `Salary Component` (código da rubrica).
 
-1. **Ler o `Salary Slip`** e produzir os `DmDev` — a ponte entre a folha do ERPNext e o
-   evento. `linhas_de_inss_irrf` já existe e é o começo dela.
-2. **Montar e assinar o lote** a partir dos eventos, gravando o `Lote eSocial`.
-3. **O botão**, que só faz sentido depois dos dois.
+O que ainda falta, em ordem:
+
+1. **Montar e assinar o lote** a partir dos eventos, gravando o `Lote eSocial`. As peças
+   estão todas: `esocial_id`, `esocial_montagem`, `esocial_lote` e o `TransporteEsocial`
+   que expõe o assinador.
+2. **O botão**, que só faz sentido depois disso.
 
 ### O que não mudou
 

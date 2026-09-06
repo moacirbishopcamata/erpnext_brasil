@@ -32,16 +32,21 @@ import re
 import unittest
 from pathlib import Path
 
+from erpnext_brasil.setup.campos import todos_os_campos
 from erpnext_brasil.setup.custom_fields import (
 	DOCUMENTOS_COM_APURACAO,
 	DOCUMENTOS_COM_CFOP_SUGERIDO,
 	DOCUMENTOS_COM_CHAVE_DE_ACESSO,
-	get_custom_fields,
 )
 
 RAIZ = Path(__file__).resolve().parent.parent
 
-CAMPOS = get_custom_fields()
+CAMPOS = todos_os_campos()
+"""A **mesma** união que a instalação aplica — não uma montada aqui.
+
+Enquanto este arquivo montava a sua, conhecia só um dos três mapas, e reprovou os campos de
+folha assim que nasceram. Um teste que constrói o seu próprio universo mede o universo dele.
+"""
 
 
 def _fieldnames(doctype: str) -> set[str]:

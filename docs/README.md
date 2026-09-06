@@ -70,6 +70,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [rh-fgts.md](rh-fgts.md) | FGTS: depósito mensal (não é desconto do empregado), multa rescisória por motivo de desligamento, o que fica de fora (prazo, saque) |
 | [rh-integracao-salary-slip.md](rh-integracao-salary-slip.md) | Primeira integração real com o `hrms`: hook `regional_overrides`, INSS/IRRF no `Salary Slip`, por que FGTS fica de fora, estado de verificação sem bench |
 | [rh-estado-esocial.md](rh-estado-esocial.md) | Levantamento de estado do eSocial: leiaute S-1.3, grupos de evento, arquitetura de transmissão, por que é maior que a NF-e e a decisão de escopo pendente |
+| [folha-para-esocial.md](folha-para-esocial.md) | A ponte `Salary Slip` → S-1200: por que o código da rubrica é o centro de tudo e **falha alto** quando falta, o que não entra no evento (componente estatístico), ganhos e descontos numa lista só, e os campos que **não** se criou por já existirem no `Employee` |
 | [rh-esocial-s1200.md](rh-esocial-s1200.md) | S-1200 (remuneração): árvore completa do evento verificada contra XSD de terceiro, ponte com INSS/IRRF, grupos raros fora de escopo |
 | [rh-esocial-lote.md](rh-esocial-lote.md) | Camada de transporte do eSocial: envelope de lote, endpoints por serviço/ambiente, limite de 50 eventos (regra de negócio, não do XSD), o que falta (assinatura, envio) |
 | [rh-esocial-retorno.md](rh-esocial-retorno.md) | Leitura da resposta de envio/processamento de lote: códigos de cdResposta confirmados, tem_erro vs. sucesso, eventos_com_erro |
