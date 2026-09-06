@@ -80,6 +80,17 @@ function montar_area_fiscal(frm, situacao) {
 		COR_DA_SITUACAO[situacao.situacao] || "gray",
 	);
 
+	// Estado que não é do domínio fiscal: o documento não tem situação perante o Fisco
+	// ainda, tem uma tarefa pendente. Por isso é indicador à parte, e não uma sexta cor
+	// na tabela acima — misturá-los faria "em transmissão" parecer uma situação fiscal.
+	if (situacao.em_fila) {
+		frm.dashboard.add_indicator(__("Transmissão na fila"), "blue");
+
+		// Sem botão enquanto há job: o servidor recusaria o segundo pedido (deduplicate),
+		// mas oferecer um botão que não faz nada é pior que não oferecer.
+		return;
+	}
+
 	if (situacao.cartas_de_correcao > 0) {
 		frm.dashboard.add_indicator(
 			__("Cartas de correção: {0}", [situacao.cartas_de_correcao]),
@@ -247,22 +258,26 @@ function confirmar_e_emitir(frm) {
 
 function emitir(frm) {
 	frappe.call({
-		method: "erpnext_brasil.integracao.emissao_nfe.emitir_nfe",
+		// Enfileira e volta na hora. A conversa com a SEFAZ acontece no worker: antes
+		// disto, a tela ficava travada até ~25 s enquanto o recibo era consultado.
+		method: "erpnext_brasil.integracao.fila_fiscal.enfileirar_emissao",
 		args: { doctype: frm.doctype, name: frm.docname },
-		// `freeze` porque a chamada fala com a SEFAZ e pode levar segundos: sem isso o
-		// usuário clica de novo, e o segundo clique consome outro número.
+		// `freeze` curto e honesto: só o enfileiramento, que é rápido.
 		freeze: true,
-		freeze_message: __("Montando, assinando e transmitindo à SEFAZ…"),
+		freeze_message: __("Enfileirando a emissão…"),
 		callback(resposta) {
 			if (!resposta.message) {
 				return;
 			}
 
+			// `ja_estava` não é erro: o pedido anterior ainda está sendo atendido, e
+			// enfileirar de novo consumiria outro número da série.
+			const mensagem = resposta.message.ja_estava
+				? __("Esta nota já está na fila de transmissão.")
+				: __("Emissão enfileirada. O resultado aparece aqui quando a SEFAZ responder.");
+
 			frappe.show_alert(
-				{
-					message: __("NF-e autorizada. Protocolo {0}.", [resposta.message.protocolo]),
-					indicator: "green",
-				},
+				{ message: mensagem, indicator: resposta.message.ja_estava ? "orange" : "blue" },
 				10,
 			);
 
@@ -270,3 +285,20 @@ function emitir(frm) {
 		},
 	});
 }
+
+// O worker avisa quando termina, e a tela se atualiza sozinha — sem isso o usuário
+// precisaria recarregar para saber se a nota passou.
+frappe.realtime.on("erpnext_brasil:emissao_concluida", (dados) => {
+	const frm = cur_frm;
+
+	if (!frm || frm.doctype !== dados.doctype || frm.docname !== dados.name) {
+		return;
+	}
+
+	frappe.show_alert(
+		{ message: __("NF-e autorizada. Protocolo {0}.", [dados.protocolo]), indicator: "green" },
+		10,
+	);
+
+	frm.reload_doc();
+});

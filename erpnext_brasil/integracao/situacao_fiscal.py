@@ -32,6 +32,7 @@ from dataclasses import asdict
 import frappe
 
 from erpnext_brasil.fiscal.documento.situacao_fiscal import RegistroLido, situacao_do_documento
+from erpnext_brasil.integracao.fila_fiscal import esta_na_fila
 
 __all__ = ["registros_do_documento", "situacao_fiscal"]
 
@@ -80,9 +81,13 @@ def situacao_fiscal(doctype: str, name: str) -> dict:
 
 	situacao = situacao_do_documento(registros_do_documento(doctype, name))
 
+	# `em_fila` **não** vem dos registros: vem da fila. É o estado que existe entre o
+	# clique e o `Transmissao Fiscal`, e não pertence ao domínio fiscal — um documento
+	# enfileirado não tem situação perante o Fisco, tem uma tarefa pendente.
 	return {
 		**asdict(situacao),
 		"motivos": list(situacao.motivos),
 		"emitido": situacao.emitido,
 		"vale": situacao.vale,
+		"em_fila": esta_na_fila(doctype, name),
 	}

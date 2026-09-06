@@ -26,7 +26,13 @@ doctype_js = {
 # `doctype_list_js` e não `doctype_js`: o `Arquivo SPED` é o **resultado** da geração, não
 # a entrada dela. Um botão no formulário só existiria depois de o registro existir, o que
 # é tarde demais — a lista é onde se está quando se quer um arquivo novo.
-doctype_list_js = {"Arquivo SPED": "public/js/geracao_efd_list.js"}
+doctype_list_js = {
+	"Arquivo SPED": "public/js/geracao_efd_list.js",
+	# A emissão em massa vive na **lista**, não no formulário: é ali que se seleciona um
+	# conjunto. Um botão no formulário só emitiria o documento aberto, que é o que o botão
+	# do formulário já faz.
+	"Sales Invoice": "public/js/emissao_lote_list.js",
+}
 
 # O bloco fiscal roda sem RH nenhum instalado — `hrms` não é obrigatório. Este hook só
 # tem efeito quando `hrms` também está instalado: é ele quem lê `regional_overrides`

@@ -5,6 +5,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 
 | Documento | Assunto |
 |---|---|
+| [fila-e-jobs.md](fila-e-jobs.md) | **Caixa de ferramentas** da transmissão em fila: `job_id` determinístico como coração do `deduplicate` (e por que a falha dele é silenciosa), fila `long` contra os 300 s da `default`, `enqueue_after_commit` sempre, um job por documento — e por que **não** se criou um registro "Pendente" |
 | [transmissoes-sincronas-e-assincronas.md](transmissoes-sincronas-e-assincronas.md) | Quais transmissões são assíncronas e onde a espera acontece: NF-e resolve o recibo dentro da chamada (~25 s), eventos são síncronos, o eSocial **não tem escapatória** (o envio só devolve protocolo), NFS-e nacional é síncrona — e o gap declarado de **nada rodar em job de segundo plano** |
 | [consultas-ao-banco.md](consultas-ao-banco.md) | Os quatro caminhos ao banco (`get_all`, `frappe.qb`, `db.sql`, índice) e onde o app está em cada um; o índice que falta em `Transmissao Fiscal` — consulta executada a cada `refresh` de formulário — e por que SQL de escrita some da trilha de auditoria |
 | [gaps.md](gaps.md) | **Inventário vivo de gaps**: os de costura (código escrito e inalcançável), os módulos sem teste de bench, os itens declarados em `docs/` e as fontes a reconferir — com a ordem de pagamento e o método para refazer a varredura |
