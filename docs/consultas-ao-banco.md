@@ -35,12 +35,12 @@ O jeito declarativo é `search_index: 1` no DocField, que o `frappe/database/sch
 traduz em índice na migração. O jeito programático é `frappe.db.add_index(doctype, fields)`
 num patch.
 
-⚠️ **É aqui que está o ganho real deste app.** As consultas que crescem sem limite são as
+⚠️ **É aqui que estava o ganho real deste app.** As consultas que crescem sem limite são as
 de `Transmissao Fiscal` filtrando por `documento_tipo` + `documento` — o painel de situação
 fiscal faz uma **a cada abertura de formulário**. Sem índice nesse par, é varredura de
 tabela numa tabela que cresce com cada nota emitida.
 
-**Isso ainda não foi feito.** Está declarado abaixo, em "o que falta".
+✅ Feito — ver [O índice que faltava](#o-índice-que-faltava--feito) abaixo.
 
 ### 2. `permission_query_conditions` — injetar `WHERE` do lado de fora
 
@@ -68,18 +68,50 @@ docstring do módulo que o usa.
 - **Portabilidade**: o ERPNext mantém compatibilidade com Postgres, e funções como `IF`,
   `DATE_FORMAT` e `GROUP_CONCAT` são só de MySQL.
 
-## O que falta, declarado
+## O índice que faltava — feito
 
-1. **Índice em `Transmissao Fiscal (documento_tipo, documento)`.** A consulta mais quente
-   do app, executada a cada `refresh` de `Sales Invoice`. É um patch curto e o ganho é
-   estrutural — não uma micro-otimização.
-2. **Índice em `Numeracao Fiscal`** pelo par que o `SELECT ... FOR UPDATE` usa: ali o
-   índice não é só velocidade, é **tamanho do lock**. Sem índice, a trava pode escalar da
-   linha para mais do que se quer.
-3. **`permission_query_conditions`** nos DocTypes fiscais, para que um site multiempresa
-   não mostre transmissão de outra `Company`.
+`Transmissao Fiscal (documento_tipo, documento)`, criado por `setup/install.py` no
+`after_install` **e** no `after_migrate`.
 
-Os três são gap declarado, não desenho final — e o primeiro é o mais barato dos três.
+É a consulta mais quente do app: o painel de situação fiscal a executa a **cada `refresh` de
+formulário**, numa tabela que cresce com toda nota emitida. Sem índice é varredura — e o
+custo só aparece meses depois, quando ninguém mais associa a lentidão a esta consulta. É o
+oposto de um erro alto, e por isso ganhou teste.
+
+Três decisões:
+
+- **Composto, não dois simples.** O banco usa um índice composto inteiro onde usaria só o
+  primeiro de dois separados. Declarar dois pareceria equivalente e não seria.
+- **No `after_migrate` também.** Só no `after_install` deixaria de fora todo site já
+  existente — e é justamente o site com dados acumulados que precisa do índice.
+- **`frappe.db.add_index`, não SQL.** Ele confere `has_index` antes de criar, então rodar a
+  cada migração é barato e devolve o índice se alguma migração o tiver removido.
+
+### ⚠️ Correção: `Numeracao Fiscal` **não** precisa de índice
+
+A primeira redação deste documento listava um índice para ela, com o argumento de que ali
+o índice não seria só velocidade, e sim **tamanho do lock**. O argumento é bom e o caso
+estava errado.
+
+O `SELECT ... FOR UPDATE` da alocação busca **pelo `name`**:
+
+```python
+frappe.db.get_value(DOCTYPE, nome, "ultimo_numero", for_update=True)
+```
+
+E o `autoname` daquele DocType é `format:{company}-{modelo}-{serie}` — **a chave primária já
+é a combinação procurada**. Um índice sobre os três campos duplicaria a chave, custando
+escrita sem ganhar leitura.
+
+Foi erro de leitura: supus que a consulta filtrava por campos, e ela filtra por `name`. Dois
+testes travam isso — um confere que o índice não existe, o outro confere que o `autoname`
+continua sendo a combinação, porque o primeiro só vale enquanto o segundo for verdade.
+
+## O que ainda falta
+
+- **`permission_query_conditions`** nos DocTypes fiscais, para que um site multiempresa não
+  mostre transmissão de outra `Company`. É segurança, não desempenho — e por isso não entrou
+  junto: mudar quem enxerga o quê merece incremento próprio.
 
 ## O que **não** vale a pena
 

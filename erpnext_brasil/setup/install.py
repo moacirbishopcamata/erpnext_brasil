@@ -23,6 +23,7 @@ def after_install():
 	criar_listas_de_codigos()
 	criar_componentes_salariais()
 	criar_depreciacao_fiscal()
+	criar_indices()
 
 
 def after_migrate():
@@ -30,6 +31,46 @@ def after_migrate():
 	criar_listas_de_codigos()
 	criar_componentes_salariais()
 	criar_depreciacao_fiscal()
+	criar_indices()
+
+
+INDICES = {
+	# A consulta mais quente do app: o painel de situação fiscal filtra por este par a
+	# **cada `refresh` de formulário**, numa tabela que cresce com toda nota emitida. Sem
+	# índice é varredura — e o custo só aparece depois de meses de uso, quando ninguém mais
+	# associa a lentidão a esta consulta.
+	"Transmissao Fiscal": [
+		["documento_tipo", "documento"],
+	],
+}
+"""DocType → listas de campos a indexar.
+
+⚠️ **Não há índice para `Numeracao Fiscal`, e isso é deliberado.** O `SELECT ... FOR UPDATE`
+da alocação de número busca **pelo `name`**, e o `autoname` daquele DocType é
+`format:{company}-{modelo}-{serie}` — a chave primária **já é** a combinação procurada.
+Acrescentar um índice sobre os três campos duplicaria a chave primária, custando escrita
+sem ganhar leitura.
+
+A primeira redação de `docs/consultas-ao-banco.md` listava esse índice como gap. Era erro
+de leitura: supôs-se que a consulta filtrava por campos, e ela filtra por `name`.
+"""
+
+
+def criar_indices() -> None:
+	"""Cria os índices que as consultas deste app precisam. Idempotente.
+
+	`frappe.db.add_index` já confere `has_index` antes de criar, então rodar a cada
+	`after_migrate` é barato e garante que o índice volte se uma migração o tiver removido.
+
+	Índice **composto**, não dois simples: a consulta filtra pelos dois campos juntos, e o
+	banco usa um índice composto inteiro onde usaria só o primeiro de dois separados.
+	"""
+	for doctype, listas in INDICES.items():
+		if not frappe.db.exists("DocType", doctype):
+			continue
+
+		for campos in listas:
+			frappe.db.add_index(doctype, campos)
 
 
 def criar_depreciacao_fiscal() -> None:
