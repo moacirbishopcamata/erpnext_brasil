@@ -373,7 +373,59 @@ Refeita pelo método da seção seguinte, depois de nove incrementos. O que mudo
 que foi o maior de todos, está travado por teste e permaneceu fechado ao longo de todos os
 módulos novos.
 
-### Métodos expostos e quem os chama
+### Primeira validação em bench real — 2026-09-06
+
+O bench subiu (`~/frappe-bench`, v15, site `erpnext-brasil.localhost`) e o `bench migrate`
+rodou com o código atual. Três resultados, e o terceiro é o que justifica tudo.
+
+### ✅ O que passou
+
+- **Os 15 módulos novos importam** num site real: nenhum `ImportError`, nenhum nome de
+  classe errado, nenhuma dependência quebrada.
+- **O índice composto foi criado**: `documento_tipo_documento_index` sobre
+  `(documento_tipo, documento)` em `Transmissao Fiscal` — a otimização não era teórica.
+- **`Finance Book` "Fiscal (Brasil)" e os três `Asset Shift Factor`** nasceram no
+  `after_migrate`, como projetado.
+- **`Salary Component` ficou com zero campos** — e isso é o comportamento correto: o `hrms`
+  não estava instalado, e o filtro de DocType ausente funcionou.
+
+### 🔴 O bug que só o bench mostrou
+
+O patch de renome para o prefixo `br_` era **bem-formado, tinha seis testes verdes, e não
+fazia nada**. O bench imprimiu 65 vezes:
+
+```text
+rename_field: br_inscricao_estadual not found in Company
+```
+
+A causa é de **ordem**, e vem de uma suposição sobre o que `rename_field` faz: ele **não
+renomeia coluna** — faz `UPDATE tabX SET novo = antigo`, e pressupõe as duas existindo. Só
+que os patches rodam **antes** do `after_migrate`, que é quem cria os campos. O patch
+desistia com um aviso, e o `after_migrate` logo depois criava a coluna nova **vazia**.
+
+Nada quebraria. O cadastro é que apareceria em branco.
+
+Corrigido para **criar, copiar, remover**, e **provado no bench**: com `ncm='84713019'`
+semeado na coluna antiga, depois do migrate o valor está em `br_ncm` e o `Custom Field`
+antigo sumiu.
+
+### O que isto diz sobre a suíte
+
+2651 testes não pegaram um patch inerte, e não é falha deles: eles medem o que o código
+**declara**, e o patch declarava certo. O que faltava era a **ordem em que o Frappe executa
+as coisas** — que não está no nosso código, e por isso só aparece rodando.
+
+É a mesma família dos 31 campos: declaração correta, efeito nenhum.
+
+### ⚠️ O que ainda não foi exercitado
+
+Nenhuma transmissão — SEFAZ e eSocial seguem sem nunca terem falado com o Fisco, o que
+exige certificado A1 real. E o bench v16 (`~/frappe-bench-16`) tem o código, mas **o site
+nunca foi criado**: o banco `_a78420228ee6f61e` não existe, e a criação falha por acesso
+negado do root do MariaDB.
+
+## Método
+s expostos e quem os chama
 
 | Método | Botão |
 |---|---|
