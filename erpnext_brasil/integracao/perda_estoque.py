@@ -43,7 +43,16 @@ O que **não** se faz aqui, declarado
 - **Derivar o crédito tomado.** Ver a docstring de `setup/campos_estoque.py`: o crédito é
   o daquela entrada, não a alíquota de hoje, e inventá-lo seria lançamento sem origem.
 
-Estado de verificação: camada Frappe, **não** exercitada contra bench real.
+Estado de verificação
+----------------------------
+Conferido em site **v16 real** (`v16.localhost`, frappe 16.31.0 / erpnext 16.33.0): os sete
+campos de dado têm coluna, os dois breaks corretamente não têm, as opções do `Select`
+gravadas batem com `TIPOS_DE_PERDA`, e o hook aparece no `doc_events` do Frappe **ao lado**
+dos hooks do próprio ERPNext em `Stock Entry` — o framework funde por app, não sobrescreve.
+
+⚠️ O que **não** foi exercitado é a execução: nenhum `Stock Entry` foi gravado no site para
+ver `validate` rodar. As recusas (sobra, finalidade incompatível) estão provadas por forma,
+não por comportamento.
 """
 
 from decimal import Decimal

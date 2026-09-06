@@ -97,6 +97,36 @@ exatamente o que ele informou.
 **Campo vazio significa "não houve crédito"**, e não erro — é o caso real do Simples
 Nacional, que não credita.
 
+## Validação em bench v16
+
+Conferido em `v16.localhost` (frappe 16.31.0, erpnext 16.33.0) depois do `migrate`:
+
+```
+Stock Entry / Stock Reconciliation
+    br_secao_perda_br        coluna: False   CustomField: True   (break, correto)
+    br_tipo_de_perda         coluna: True    CustomField: True
+    br_credito_icms_tomado   coluna: True    CustomField: True
+    ... 7 campos de dado com coluna, 2 breaks sem
+
+opções do Select, uma por linha (primeira vazia):
+    Quebra normal do processo / Vencimento / Deterioração /
+    Furto ou roubo / Sinistro / Ajuste de inventário
+
+doc_events['Stock Entry'] = {
+  'on_submit': ['erpnext...update_completed_and_requested_qty'],
+  'validate':  ['erpnext_brasil.integracao.perda_estoque.apurar_perda_do_documento'],
+}
+```
+
+A última linha é a que valia confirmar: nosso `doc_events["Stock Entry"] = {...}` **não
+apagou** os hooks que o próprio ERPNext registra no mesmo DocType. O Frappe funde os
+`doc_events` de todos os apps; cada app declara o seu dicionário inteiro sem pisar no do
+vizinho. Se sobrescrevesse, teríamos quebrado o `Material Request` do ERPNext sem que
+nenhum teste nosso percebesse.
+
+⚠️ **O que ainda não foi exercitado é a execução.** Nenhum `Stock Entry` foi gravado para
+ver o `validate` rodar: as duas recusas estão provadas por forma, não por comportamento.
+
 ## Gaps que ficam declarados
 
 ### 1. Transferência entre estabelecimentos não emite NF-e
