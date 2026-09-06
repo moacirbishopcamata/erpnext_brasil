@@ -25,12 +25,13 @@ Sem dependência do Frappe.
 """
 
 from erpnext_brasil.setup.campos_documento import get_custom_fields as _campos_documento
+from erpnext_brasil.setup.campos_estoque import get_custom_fields as _campos_estoque
 from erpnext_brasil.setup.campos_folha import get_custom_fields as _campos_folha
 from erpnext_brasil.setup.custom_fields import get_custom_fields as _campos_cadastro
 
 __all__ = ["MAPAS", "todos_os_campos"]
 
-MAPAS = (_campos_cadastro, _campos_documento, _campos_folha)
+MAPAS = (_campos_cadastro, _campos_documento, _campos_folha, _campos_estoque)
 """As fontes, em ordem de aplicação.
 
 Declarado como tupla para que acrescentar um quarto mapa seja uma linha aqui — e não uma

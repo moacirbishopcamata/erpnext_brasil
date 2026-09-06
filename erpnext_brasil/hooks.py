@@ -83,6 +83,11 @@ doc_events = {
 	# ERPNext e produzem números plausíveis. O erro não aparece no primeiro período; sem
 	# esta guarda, apareceria só na fiscalização. Ver `integracao/depreciacao_ativo.py`.
 	"Asset": {"validate": "erpnext_brasil.integracao.depreciacao_ativo.validar_livro_fiscal"},
+	# A perda de estoque é conferida em `validate` porque as duas recusas — perda numa
+	# finalidade que não é baixa, e perda declarada sobre uma **sobra** de inventário — são
+	# preenchimentos que o ERPNext aceita sem reclamar. Ver `integracao/perda_estoque.py`.
+	"Stock Entry": {"validate": "erpnext_brasil.integracao.perda_estoque.apurar_perda_do_documento"},
+	"Stock Reconciliation": {"validate": "erpnext_brasil.integracao.perda_estoque.apurar_perda_do_documento"},
 }
 
 # A apuração roda em `validate` para que o usuário veja os impostos enquanto ainda pode

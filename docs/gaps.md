@@ -499,6 +499,47 @@ exige certificado A1 real. Nenhum dos módulos do eSocial foi executado fora de 
   efeitos, superfície exposta). O bench existe e sobe (`scripts/subir.sh`), mas não foi
   alcançável na sessão desta varredura.
 
+## Varredura da frente de Estoque — 2026-09-06
+
+### 🔴 O gap que o inventário não tinha: `contabil/perdas.py` inalcançável
+
+`contabil/perdas.py` existia com o cálculo completo do estorno de crédito, testado, e
+**nenhum módulo de `integracao/` o importava**. A única citação em todo o app era uma
+docstring do Bloco K — e citação em docstring não torna código alcançável.
+
+⚠️ **Isto não estava nesta lista.** O gap foi encontrado pela varredura *por área de
+produto* (cruzar a página oficial do ERPNext com o que o app tem), não pela varredura de
+costura que produziu as seções 1.1 a 1.4. Os dois métodos encontram coisas diferentes e não
+se substituem: a de costura pergunta "o campo que este código escreve existe?"; a de área
+pergunta "o que o produto oferece aqui, e nós cobrimos?".
+
+**Pago no mesmo dia:** `integracao/perda_estoque.py` + `setup/campos_estoque.py`, ligados a
+`Stock Entry` e `Stock Reconciliation` em `hooks.py`. Detalhado em `estoque-estado.md`.
+
+### Gaps novos, declarados
+
+1. **Transferência entre estabelecimentos não emite NF-e.** Mover mercadoria entre CNPJ
+   diferentes da mesma empresa é fato gerador (CFOP 5152/6152); no ERPNext é um
+   `Stock Entry` com `purpose = "Material Transfer"`, e a emissão deste app está ligada a
+   `Sales Invoice`, `Delivery Note`, `Purchase Invoice` e `Purchase Receipt` — **não a
+   `Stock Entry`**. A transferência acontece e nenhum documento fiscal nasce.
+
+   Bloqueado por decisão de modelagem, não por código: estabelecimento com CNPJ próprio é
+   `Company` separada ou `Warehouse` com CNPJ? A resposta muda o que é "transferência" e o
+   que é "venda entre empresas".
+
+2. **O estorno apurado não vira lançamento na EFD.** O valor fica no documento; o registro
+   é ajuste de apuração no `E111` do Bloco E, já listado em `sped-fiscal.md`.
+
+3. **Percentual de quebra tolerada por UF.** Não implementado por falta de fonte única —
+   varia por estado e por produto, e inventar o número seria criar regra fiscal sem base.
+
+### O que a varredura confirmou como já pronto
+
+`Item` com NCM/CEST/origem, rastreabilidade de lote traduzida para o grupo `rastro` da NF-e,
+Bloco H (inventário, inclusive item em poder de terceiro) e Bloco K. Cinco dos oito recursos
+anunciados pelo ERPNext são fiscalmente neutros.
+
 ## Método
 
 
