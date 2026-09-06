@@ -121,11 +121,26 @@ class TestArquivosTLS(unittest.TestCase):
 		with TransporteSefaz(
 			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=SessaoFalsa([])
 		) as transporte:
-			self.assertTrue(transporte._arquivo_cert.exists())
-			self.assertTrue(transporte._arquivo_chave.exists())
-			caminho_cert = transporte._arquivo_cert
+			self.assertTrue(transporte._tls.cert.exists())
+			self.assertTrue(transporte._tls.chave.exists())
+			caminho_cert = transporte._tls.cert
 
 		self.assertFalse(caminho_cert.exists())
+
+	def test_a_chave_e_o_certificado_somem_juntos(self):
+		"""Estão no mesmo diretório temporário de propósito: dois `NamedTemporaryFile`
+		soltos poderiam sobreviver um ao outro, e o que sobra é a chave privada."""
+		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
+
+		with TransporteSefaz(
+			_gerar_pfx(), "teste123", "RO", "11222333000181", sessao=SessaoFalsa([])
+		) as transporte:
+			cert, chave = transporte._tls.cert, transporte._tls.chave
+
+			self.assertEqual(cert.parent, chave.parent)
+
+		self.assertFalse(cert.exists())
+		self.assertFalse(chave.exists())
 
 	def test_requisicao_usa_os_arquivos_de_certificado(self):
 		from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz

@@ -25,6 +25,7 @@ import unittest
 from pathlib import Path
 
 from erpnext_brasil.contabil.depreciacao import COEFICIENTE_POR_TURNOS, TAXAS_ANUAIS
+from erpnext_brasil.tests.ajudantes import sem_docstrings
 
 RAIZ = Path(__file__).resolve().parent.parent
 
@@ -60,27 +61,6 @@ def _constante(nome: str):
 			return ast.literal_eval(no.value)
 
 	raise AssertionError(f"{nome} não encontrado em depreciacao_ativo.py")
-
-
-def _corpo_executavel() -> str:
-	"""O fonte sem docstrings, para asserções de ausência.
-
-	Sem isto, a docstring que explica por que **não** se usa `purchase_date` reprovaria o
-	próprio teste que a defende — armadilha já vivida duas vezes neste projeto.
-	"""
-	proibidas = set()
-
-	for no in ast.walk(_ARVORE):
-		if (
-			isinstance(no, ast.Expr)
-			and isinstance(no.value, ast.Constant)
-			and isinstance(no.value.value, str)
-		):
-			proibidas.update(range(no.lineno, (no.end_lineno or no.lineno) + 1))
-
-	return "\n".join(
-		linha for numero, linha in enumerate(_FONTE.splitlines(), start=1) if numero not in proibidas
-	)
 
 
 def _funcao(nome: str) -> ast.FunctionDef:
@@ -156,7 +136,7 @@ class TestNumerosNaoDuplicados(unittest.TestCase):
 
 	def test_nenhum_coeficiente_foi_reescrito_no_fonte(self):
 		"""Uma busca literal: `1.5` aparecendo aqui seria a duplicação voltando."""
-		corpo = _corpo_executavel()
+		corpo = sem_docstrings(_FONTE)
 
 		for numero in ("1.5", "2.0"):
 			with self.subTest(numero=numero):
@@ -207,7 +187,7 @@ class TestCamposEscritos(unittest.TestCase):
 	def test_a_data_de_inicio_vem_de_disponibilidade_e_nao_de_compra(self):
 		"""Art. 317, § 2º: deprecia-se a partir de quando o bem é posto em serviço.
 		Comprar não é usar, e a diferença é dedução tomada antes da hora."""
-		corpo = _corpo_executavel()
+		corpo = sem_docstrings(_FONTE)
 
 		self.assertIn("available_for_use_date", corpo)
 		self.assertNotIn("purchase_date", corpo)

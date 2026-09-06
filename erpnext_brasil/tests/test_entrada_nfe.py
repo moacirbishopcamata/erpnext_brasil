@@ -17,6 +17,7 @@ import unittest
 from pathlib import Path
 
 from erpnext_brasil.setup.custom_fields import get_custom_fields
+from erpnext_brasil.tests.ajudantes import sem_docstrings
 
 RAIZ = Path(__file__).resolve().parent.parent
 
@@ -107,7 +108,7 @@ class TestFronteira(unittest.TestCase):
 		daria entrada no item errado, contaminando custo médio, saldo e escrituração."""
 		for proibido in ("doc.append(", '"Item"', "insert("):
 			with self.subTest(proibido=proibido):
-				self.assertNotIn(proibido, _corpo_executavel())
+				self.assertNotIn(proibido, sem_docstrings(_FONTE))
 
 	def test_nao_grava_valor_nem_imposto(self):
 		"""Valor vem do que foi negociado, não do que o fornecedor declarou; divergência
@@ -134,14 +135,14 @@ class TestOHelperDeAusencia(unittest.TestCase):
 	"""
 
 	def test_remove_o_texto_que_so_existe_em_docstring(self):
-		corpo = _corpo_executavel()
+		corpo = sem_docstrings(_FONTE)
 
 		self.assertNotIn("Deliberado", corpo)
 		self.assertNotIn("custo médio", corpo)
 
 	def test_preserva_o_codigo_e_as_mensagens_ao_usuario(self):
 		"""Mensagem de `_()` não é docstring: ela precisa continuar visível."""
-		corpo = _corpo_executavel()
+		corpo = sem_docstrings(_FONTE)
 
 		self.assertIn("db_set", corpo)
 		self.assertIn("crédito indevido", corpo)
@@ -157,30 +158,7 @@ class TestSuperficieExposta(unittest.TestCase):
 	def test_a_comparacao_de_cnpj_e_por_digitos(self):
 		"""`12.345.678/0001-99` e `12345678000199` são o mesmo CNPJ, e o `tax_id` da
 		`Company` costuma vir formatado."""
-		self.assertIn("_digitos", _corpo_executavel())
-
-
-def _corpo_executavel() -> str:
-	"""O fonte sem docstrings, para asserções de ausência.
-
-	Sem isto, a docstring que explica por que **não** se cria item reprovaria o próprio
-	teste que a defende — armadilha já vivida em `test_costura_cliente`.
-	"""
-	sem_docstring = []
-
-	for no in ast.walk(_ARVORE):
-		if (
-			isinstance(no, ast.Expr)
-			and isinstance(no.value, ast.Constant)
-			and isinstance(no.value.value, str)
-		):
-			sem_docstring.append((no.lineno, no.end_lineno))
-
-	proibidas = {linha for inicio, fim in sem_docstring for linha in range(inicio, fim + 1)}
-
-	return "\n".join(
-		texto for numero, texto in enumerate(_FONTE.splitlines(), start=1) if numero not in proibidas
-	)
+		self.assertIn("_digitos", sem_docstrings(_FONTE))
 
 
 if __name__ == "__main__":

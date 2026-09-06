@@ -402,11 +402,23 @@ produz um inventário que ninguém confia.
 | `conta_bancaria` | **órfão declarado** — espera o montador de campo livre do boleto, específico por banco ([tropicalizacao-por-area.md](tropicalizacao-por-area.md)) |
 | `cte_extracao` | o CT-e tem domínio e mapeamento, e nenhuma orquestração ligada |
 | `ecf_dados_empresa` | a ECF monta blocos e não tem gerador de arquivo ligado |
-| `assinador_esocial` | alcançado só por teste |
-| `transmissao_esocial` | idem — o eSocial tem a cadeia inteira e nenhum ponto de entrada |
+| ~~`assinador_esocial`~~ | ✅ pago — `TransporteEsocial` o usa |
+| ~~`transmissao_esocial`~~ | ✅ pago — ver abaixo |
 
-Os dois últimos, juntos, dizem a mesma coisa que a NF-e dizia antes de `emissao_nfe.py`:
-**o eSocial não é acionável de um site.** É o maior órfão que resta, e é frente própria.
+Os dois últimos diziam, juntos, o que a NF-e dizia antes de `emissao_nfe.py`: **o eSocial
+não era acionável de um site**. A causa era estrutural, não esquecimento — `ContextoEsocial`
+exige os arquivos PEM do TLS mútuo, e o **único** `ContextoEsocial(...)` do repositório
+estava num arquivo de teste.
+
+Pago por `integracao/transporte_esocial.py` (monta o contexto, dono do certificado) e
+`integracao/transmissao_lote_esocial.py` (dois métodos whitelisted: transmitir e
+reconsultar). O ciclo de vida dos PEM, que vivia dentro do `TransporteSefaz`, foi extraído
+para `tls_certificado.ArquivosTls` — a alternativa era **copiar a escrita de uma chave
+privada em disco**, que é o que `contexto_sefaz.py` proíbe.
+
+⚠️ **Falta o botão.** Os dois métodos existem e nenhuma tela os chama — o mesmo formato de
+gap, um nível acima. Diferente da NF-e, aqui não basta um botão: falta também **quem monte
+o lote** a partir da folha, e sem lote não há o que transmitir.
 
 ### O que não mudou
 

@@ -5,6 +5,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 
 | Documento | Assunto |
 |---|---|
+| [transmissoes-sincronas-e-assincronas.md](transmissoes-sincronas-e-assincronas.md) | Quais transmissões são assíncronas e onde a espera acontece: NF-e resolve o recibo dentro da chamada (~25 s), eventos são síncronos, o eSocial **não tem escapatória** (o envio só devolve protocolo), NFS-e nacional é síncrona — e o gap declarado de **nada rodar em job de segundo plano** |
 | [gaps.md](gaps.md) | **Inventário vivo de gaps**: os de costura (código escrito e inalcançável), os módulos sem teste de bench, os itens declarados em `docs/` e as fontes a reconferir — com a ordem de pagamento e o método para refazer a varredura |
 | [depreciacao.md](depreciacao.md) | Depreciação fiscal (RIR/2018, arts. 317-323): as cinco regras que um método linear genérico erra — base sempre no **custo de aquisição** e nunca no saldo residual, mês inteiro sem rateio por dias, bem usado pelo **maior** dos dois prazos, teto no custo "em qualquer hipótese", e início quando o bem entra em serviço; mais os coeficientes de turno 1,0/1,5/2,0 só para bens móveis |
 | [nfse-estado.md](nfse-estado.md) | Levantamento da NFS-e: **não existe "emitir NFS-e" no singular** — Sefin Nacional (REST/DPS) e emissor municipal (SOAP/ABRASF) são caminhos incompatíveis, e Porto Velho **mantém o próprio**; identificadores de 45 e 53 posições lidos dos XSD oficiais, o `pattern` do XSD com `^`/`$` que em XML Schema são literais, e a decisão de não emitir ainda |

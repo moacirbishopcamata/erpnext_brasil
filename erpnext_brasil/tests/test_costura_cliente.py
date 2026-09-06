@@ -19,21 +19,16 @@ import re
 import unittest
 from pathlib import Path
 
+from erpnext_brasil.tests.ajudantes import sem_comentarios_js
+
 RAIZ = Path(__file__).resolve().parent.parent
 
 _CHAMADA = re.compile(r'method:\s*["\']([\w.]+)["\']')
 
 
-def _sem_comentarios(fonte: str) -> str:
-	"""O JavaScript sem `//` nem `/* */`.
-
-	Serve para medir **o que executa**, não o que explica: as docstrings deste projeto
-	citam o que não se deve usar, e uma asserção de ausência sobre o texto inteiro
-	reprovaria a explicação junto com o erro que ela previne.
-	"""
-	sem_bloco = re.sub(r"/\*.*?\*/", "", fonte, flags=re.S)
-
-	return re.sub(r"//.*", "", sem_bloco)
+_sem_comentarios = sem_comentarios_js
+"""Mesma função de sempre, agora em `tests/ajudantes.py` — o nome local fica para não
+reescrever as dezenas de chamadas."""
 
 
 def _bloco(fonte: str, cabecalho: str) -> str:

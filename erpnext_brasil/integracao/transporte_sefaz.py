@@ -29,10 +29,8 @@ são injetáveis, com padrão `requests.Session()`/`time.sleep` — mesma discip
 `RepositorioClassificacao`/`Assinador`, testa a orquestração inteira sem rede.
 """
 
-import tempfile
 import time
 from datetime import datetime
-from pathlib import Path
 
 from erpnext_brasil.fiscal.documento.chave_acesso import ler_chave
 from erpnext_brasil.fiscal.documento.porta import (
@@ -44,6 +42,7 @@ from erpnext_brasil.integracao.assinador_local import AssinadorLocal, carregar_c
 from erpnext_brasil.integracao.autorizacao_sefaz import consultar_situacao, enviar_autorizacao
 from erpnext_brasil.integracao.contexto_sefaz import ContextoSefaz
 from erpnext_brasil.integracao.eventos_sefaz import TransporteIndisponivel, enviar_evento
+from erpnext_brasil.integracao.tls_certificado import ArquivosTls
 
 __all__ = ["TransporteIndisponivel", "TransporteSefaz"]
 
@@ -78,9 +77,9 @@ class TransporteSefaz:
 		self._dormir = dormir or time.sleep
 		self._tentativas_consulta_recibo = tentativas_consulta_recibo
 		self._intervalo_consulta_recibo = intervalo_consulta_recibo
-		self._diretorio_temp = None
-		self._arquivo_cert = None
-		self._arquivo_chave = None
+		# O ciclo de vida dos PEM vive em `ArquivosTls`, não aqui: o eSocial precisa do
+		# mesmo, e copiá-lo seria duplicar a escrita de uma chave privada em disco.
+		self._tls = ArquivosTls(self._chave, self._certificado)
 
 	def __enter__(self) -> "TransporteSefaz":
 		self._preparar_arquivos_tls()
@@ -93,28 +92,10 @@ class TransporteSefaz:
 	def fechar(self) -> None:
 		"""Remove os arquivos temporários do certificado. Chamado por `__exit__`, e
 		também deve ser chamado explicitamente se a classe não for usada como `with`."""
-		if self._diretorio_temp is not None:
-			self._diretorio_temp.cleanup()
-			self._diretorio_temp = None
+		self._tls.fechar()
 
 	def _preparar_arquivos_tls(self) -> None:
-		if self._diretorio_temp is not None:
-			return
-
-		from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat
-
-		# Diretório próprio, não `NamedTemporaryFile` solto: garante que os dois arquivos
-		# (cert e chave) somem juntos, e que o nome não colide com outra instância.
-		self._diretorio_temp = tempfile.TemporaryDirectory(prefix="erpnext_brasil_tls_")
-		base = Path(self._diretorio_temp.name)
-
-		self._arquivo_cert = base / "cert.pem"
-		self._arquivo_cert.write_bytes(self._certificado.public_bytes(Encoding.PEM))
-
-		self._arquivo_chave = base / "chave.pem"
-		self._arquivo_chave.write_bytes(
-			self._chave.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
-		)
+		self._tls.preparar()
 
 	def _sessao_http(self):
 		if self._sessao is not None:
@@ -137,8 +118,8 @@ class TransporteSefaz:
 			uf=self._uf,
 			ambiente=self._ambiente,
 			sessao_http=self._sessao_http(),
-			arquivo_cert=self._arquivo_cert,
-			arquivo_chave=self._arquivo_chave,
+			arquivo_cert=self._tls.cert,
+			arquivo_chave=self._tls.chave,
 		)
 
 	def transmitir(self, documento: dict) -> RespostaTransmissao:
