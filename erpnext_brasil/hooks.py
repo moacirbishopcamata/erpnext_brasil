@@ -26,6 +26,18 @@ doctype_js = {
 	"Lote eSocial": "public/js/lote_esocial.js",
 }
 
+# O leitor GS1 vale para toda tela de estoque que tem `scan_barcode`, e por isso o mesmo
+# arquivo é declarado cinco vezes: `doctype_js` carrega por DocType, e não há forma de
+# dizer "estes cinco" numa linha só. O arquivo se protege contra registro duplicado.
+for _tela_de_leitura in (
+	"Stock Entry",
+	"Stock Reconciliation",
+	"Delivery Note",
+	"Purchase Receipt",
+	"Material Request",
+):
+	doctype_js[_tela_de_leitura] = "public/js/leitura_gs1.js"
+
 # `doctype_list_js` e não `doctype_js`: o `Arquivo SPED` é o **resultado** da geração, não
 # a entrada dela. Um botão no formulário só existiria depois de o registro existir, o que
 # é tarde demais — a lista é onde se está quando se quer um arquivo novo.

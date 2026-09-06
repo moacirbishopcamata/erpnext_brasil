@@ -182,9 +182,10 @@ que coletam por código de barras para o WMS e pedem o lote **de novo**, à mão
 - **Leitor dedicado com teclado próprio.** Funciona (o campo é texto e o leitor "digita"),
   mas o foco no campo é responsabilidade da tela — em coletor físico com navegação por
   teclas isso costuma exigir ajuste.
-- **GS1-128 composto.** O resolvedor busca o valor **inteiro** nos quatro cadastros; uma
-  etiqueta GS1 que traz GTIN, lote e validade num único código precisaria ser fatiada antes.
-  Não há tratamento de Application Identifier no código lido.
+- ~~**GS1-128 composto.**~~ **Resolvido** — `fiscal/gs1.py` separa os Application
+  Identifiers e `integracao/leitura_gs1.py` decora o resolvedor do ERPNext. Detalhado em
+  [coletor-gs1.md](coletor-gs1.md). O composto não exigiu código a mais: o leitor entrega o
+  componente 2D concatenado ao linear, com os mesmos AI.
 
 ## Gaps que ficam declarados
 
