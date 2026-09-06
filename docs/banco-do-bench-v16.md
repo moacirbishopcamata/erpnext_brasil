@@ -100,16 +100,78 @@ Provado nos dois sentidos: antes, `tst1@'%'` era negado; depois, entra e reporta
 > servidor de fato casou. Quando a senha comprovadamente confere, o próximo lugar a
 > olhar é a **ordem de casamento de host**, não a senha.
 
-## 4. `apps.txt` sem quebra de linha final
+## 4. `bench get-app` não registra o app, e o `apps.txt` sem `\n` final
 
-O `sites/apps.txt` do bench-16 terminava sem `\n`. É a mesma armadilha que já tinha
-feito uma instalação de app falhar com `App hrms not in apps.txt`: quem lê o arquivo
-partindo as linhas não enxerga o último app, ou o cola no próximo texto. Barato de
-conferir e invisível a olho nu — `od -c` mostra:
+São **dois** problemas distintos que produzem a mesma mensagem — `App X not in apps.txt` —
+e por isso é fácil corrigir um e achar que corrigiu o outro.
+
+### 4a. `get-app` baixa mas não registra
+
+`bench get-app hrms --branch version-16` clona o app em `apps/hrms`, instala as
+dependências e **termina com sucesso**. O app fica no lugar certo, aparece em `ls apps`,
+com branch e tag corretos — e o `sites/apps.txt` **continua sem ele**. O `install-app`
+seguinte falha.
+
+O `apps.txt` é a lista do que aquele conjunto de sites considera instalável; o `get-app`
+mexe no diretório, não nessa lista. Tratar os dois como a mesma coisa é o erro:
+
+```sh
+ls apps                 # erpnext  erpnext_brasil  frappe  hrms
+cat sites/apps.txt      # frappe   erpnext   erpnext_brasil      <- hrms não está
+```
+
+### 4b. O arquivo sem quebra de linha final
+
+O `sites/apps.txt` do bench-16 terminava sem `\n`. Quem lê o arquivo partindo as linhas
+não enxerga o último app, ou o cola no texto seguinte. É **invisível** num `cat` — só
+aparece quando a saída gruda no próximo comando, ou com `od -c`.
+
+**A correção que resolve os dois de uma vez** é reescrever o arquivo inteiro com `printf`,
+em vez de acrescentar linha com `>>` — que herda a falta de quebra do que já estava lá:
+
+```sh
+printf "frappe\nerpnext\nerpnext_brasil\nhrms\n" > sites/apps.txt
+od -c sites/apps.txt | tail -2      # confere o \n final
+```
+
+### 4c. Instalar um app **depois** deixa os nossos campos inertes — gap de costura real
+
+Isto não é erro de bench, é armadilha do nosso app, e o v16 a expôs.
+
+`criar_campos_fiscais()` **pula os DocTypes que não existem no site** — é o filtro que
+permite o app rodar sem o hrms. Com o `erpnext_brasil` instalado antes do `hrms`, os
+campos de `Salary Component` foram legitimamente pulados. Instalar o `hrms` depois **não
+os cria**: o `install-app` do hrms não conhece os nossos campos.
+
+Medido no v16, logo após instalar o hrms:
 
 ```
-0000000   f r a p p e \n e r p n e x t \n e r p n e x t _ b r a s i l \n
+CAMPOS DE DADO sem coluna (gap): 2
+   !! Salary Component.br_cod_rubrica (Data)
+   !! Salary Component.br_ide_tab_rubr (Data)
 ```
+
+**Nada quebraria.** `doc.get("br_cod_rubrica")` devolveria `None` e a rubrica do eSocial
+sairia vazia — o gap de costura clássico: código escrito, testado e inalcançável.
+
+O `after_migrate` **se cura sozinho**, e isso foi verificado, não suposto: um
+`bench migrate` depois, o mesmo script devolve `CAMPOS DE DADO sem coluna (gap): 0`. Mas a
+cura só chega no próximo `migrate` — a janela entre instalar o app novo e migrar é tempo
+real em que a folha grava sem rubrica.
+
+> **Regra:** depois de todo `install-app` de app de terceiros, rodar `bench migrate`. Não é
+> higiene opcional; é o que traz os nossos campos para os DocTypes que acabaram de nascer.
+
+### 4d. O resíduo que o v15 deixou, e o v16 não teve
+
+A primeira tentativa de instalar o hrms (no bench v15) falhou pela metade e deixou um
+`Module Def` "HR" órfão; toda tentativa seguinte batia em
+`DuplicateEntryError: ('Module Def', 'HR')`. No site v16, recém-criado, o mesmo
+`install-app hrms` passou limpo — a diferença era o resíduo, não o comando.
+
+**O `install-app` não é transacional**: uma falha no meio deixa registros criados para
+trás, e a tentativa seguinte colide com o que a primeira criou. Em site de produção isso
+significa apagar o órfão à mão antes de repetir — não adianta insistir no mesmo comando.
 
 ## Qual versão de MariaDB usar
 
@@ -146,6 +208,16 @@ printf "frappe\nerpnext\nerpnext_brasil\n" > sites/apps.txt
 bench new-site v16.localhost --db-root-password <senha> --admin-password <senha>
 bench --site v16.localhost install-app erpnext
 bench --site v16.localhost install-app erpnext_brasil
+
+# 5. app de terceiros: get-app NÃO registra, e todo install-app pede migrate depois
+bench get-app hrms --branch version-16
+printf "frappe
+erpnext
+erpnext_brasil
+hrms
+" > sites/apps.txt
+bench --site v16.localhost install-app hrms
+bench --site v16.localhost migrate          # sem isto, nossos campos do hrms não existem
 ```
 
 ## O que a validação no v16 mostrou
@@ -154,11 +226,14 @@ Com o site no ar, a conferência dos campos do app contra as colunas reais:
 
 ```
 campos declarados: 405 em 24 DocTypes
-DocTypes ausentes no site: ['Salary Component']   (vem do hrms, não instalado)
 campos sem prefixo br_: []
-breaks de layout sem coluna (esperado): 62
+breaks de layout sem coluna (esperado): 63
 CAMPOS DE DADO sem coluna (gap): 0
 ```
+
+Antes do hrms havia um DocType ausente (`Salary Component`) e 62 breaks; depois de
+instalá-lo e migrar, **nenhum DocType do app falta no site** e os 63 breaks continuam
+sendo o único item sem coluna.
 
 E o índice composto de `Transmissao Fiscal` nasceu correto:
 `documento_tipo_documento_index` sobre `(documento_tipo, documento)`.
