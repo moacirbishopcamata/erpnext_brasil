@@ -363,7 +363,60 @@ A ordem não é por tamanho, é por **quanto cada item destrava do que já está
 5. **Transmissão exercitada contra a SEFAZ de verdade**, que depende de certificado A1
    real em homologação.
 
+## Varredura de 2026-09-06 — o que a costura mostra hoje
+
+Refeita pelo método da seção seguinte, depois de nove incrementos. O que mudou de figura:
+
+### ✅ Os campos não têm mais buraco
+
+**Zero** campos `br_` usados pela integração e não declarados em `setup/`. O gap 1.2-bis,
+que foi o maior de todos, está travado por teste e permaneceu fechado ao longo de todos os
+módulos novos.
+
+### Métodos expostos e quem os chama
+
+| Método | Botão |
+|---|---|
+| `emissao_nfe.emitir_nfe` | ✅ |
+| `eventos_nfe.cancelar_nfe` | ✅ |
+| `eventos_nfe.enviar_carta_correcao` | ✅ |
+| `situacao_fiscal.situacao_fiscal` | ✅ |
+| `geracao_efd.gerar_efd` | ✅ |
+| `entrada_nfe.importar_nfe` | ✅ — **feito nesta varredura** |
+| `alerta_fiscal.verificar_prontidao_efd` | — chamado pela tela de EFD |
+| `pix.gerar_payload_pix` | — API, sem tela própria |
+| `importar_codigos.importar_arquivo` | — utilitário de carga |
+| `importar_codigos.importar_classificacao_ibs_cbs` | — idem |
+
+O `importar_nfe` estava exposto e **sem botão nenhum** — o mesmo formato de gap que a
+emissão teve, e criado dois commits antes. Achado por varredura, não por alguém tentar usar.
+
+### ⚠️ Cinco módulos de integração sem chamador em produção
+
+Contados **fora** do próprio arquivo — a primeira tentativa desta varredura contava o
+próprio módulo e produziu 20 falsos positivos, o que vale registrar: heurística mal calibrada
+produz um inventário que ninguém confia.
+
+| Módulo | Situação |
+|---|---|
+| `conta_bancaria` | **órfão declarado** — espera o montador de campo livre do boleto, específico por banco ([tropicalizacao-por-area.md](tropicalizacao-por-area.md)) |
+| `cte_extracao` | o CT-e tem domínio e mapeamento, e nenhuma orquestração ligada |
+| `ecf_dados_empresa` | a ECF monta blocos e não tem gerador de arquivo ligado |
+| `assinador_esocial` | alcançado só por teste |
+| `transmissao_esocial` | idem — o eSocial tem a cadeia inteira e nenhum ponto de entrada |
+
+Os dois últimos, juntos, dizem a mesma coisa que a NF-e dizia antes de `emissao_nfe.py`:
+**o eSocial não é acionável de um site.** É o maior órfão que resta, e é frente própria.
+
+### O que não mudou
+
+- **28 dos 31 módulos seguem sem teste de bench.** A execução real continua não exercitada:
+  as suítes novas são de costura estática (campo gravado × campo declarado, ordem dos
+  efeitos, superfície exposta). O bench existe e sobe (`scripts/subir.sh`), mas não foi
+  alcançável na sessão desta varredura.
+
 ## Método
+
 
 Para reproduzir esta varredura:
 

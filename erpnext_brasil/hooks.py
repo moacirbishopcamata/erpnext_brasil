@@ -15,7 +15,13 @@ app_include_js = "/assets/erpnext_brasil/js/desk_transitions.js"
 
 # `doctype_js` em vez de `app_include_js` para o botão de emissão: ele só faz sentido num
 # DocType, e carregar em toda página do Desk seria peso morto em 99% das telas.
-doctype_js = {"Sales Invoice": "public/js/emissao_nfe.js"}
+doctype_js = {
+	"Sales Invoice": "public/js/emissao_nfe.js",
+	# A entrada fica no `Purchase Invoice` porque é ali que a nota do fornecedor vira
+	# escrituração. O botão só aparece em rascunho: depois do submit o documento já foi
+	# escriturado com o que tem.
+	"Purchase Invoice": "public/js/entrada_nfe.js",
+}
 
 # `doctype_list_js` e não `doctype_js`: o `Arquivo SPED` é o **resultado** da geração, não
 # a entrada dela. Um botão no formulário só existiria depois de o registro existir, o que

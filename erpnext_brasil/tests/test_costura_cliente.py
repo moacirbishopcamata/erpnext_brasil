@@ -225,6 +225,46 @@ class TestBotoesFiscais(unittest.TestCase):
 				self.assertIn("freeze: true", _bloco(self._fonte(), funcao))
 
 
+class TestBotaoDeEntradaDeNfe(unittest.TestCase):
+	"""O botão que faltava para `importar_nfe` — achado por varredura de costura dois
+	commits depois de o método ser escrito, não por alguém tentar usá-lo."""
+
+	def _fonte(self) -> str:
+		return (RAIZ / "public" / "js" / "entrada_nfe.js").read_text(encoding="utf-8")
+
+	def test_so_aparece_em_rascunho(self):
+		"""Depois do submit o documento já foi escriturado com o que tem; importar ali
+		gravaria a chave numa nota que já circulou."""
+		refresh = _sem_comentarios(_bloco(self._fonte(), "refresh(frm) {"))
+
+		self.assertIn("docstatus !== 0", refresh)
+
+	def test_le_o_arquivo_no_navegador_e_nao_faz_upload(self):
+		"""Um campo `Attach` criaria um `File` permanente no site para uma leitura que
+		acontece uma vez."""
+		corpo = _sem_comentarios(self._fonte())
+
+		self.assertIn("FileReader", corpo)
+		self.assertNotIn('"Attach"', corpo)
+
+	def test_le_o_arquivo_como_utf8_explicito(self):
+		"""O XML da NF-e é declarado em UTF-8; deixar o navegador adivinhar corromperia
+		acentos da razão social e da natureza da operação."""
+		self.assertIn('readAsText(arquivo, "UTF-8")', self._fonte())
+
+	def test_congela_a_tela_durante_a_leitura(self):
+		self.assertIn("freeze: true", _bloco(self._fonte(), "function importar"))
+
+	def test_divergencia_nao_e_anunciada_como_sucesso(self):
+		"""`msgprint` laranja, não alerta verde: importar com divergência é resultado que
+		alguém precisa olhar, e o verde convidaria a fechar sem ler."""
+		anuncio = _sem_comentarios(_bloco(self._fonte(), "function anunciar"))
+		laranja = anuncio.index('"orange"')
+
+		self.assertLess(anuncio.index("divergencias"), laranja)
+		self.assertIn("msgprint", anuncio)
+
+
 class TestTelaDeGeracaoDoEfd(unittest.TestCase):
 	"""O botão que faltava para `gerar_efd` — mesma lacuna que a NF-e tinha."""
 
