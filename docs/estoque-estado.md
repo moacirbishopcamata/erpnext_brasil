@@ -127,24 +127,80 @@ nenhum teste nosso percebesse.
 ⚠️ **O que ainda não foi exercitado é a execução.** Nenhum `Stock Entry` foi gravado para
 ver o `validate` rodar: as duas recusas estão provadas por forma, não por comportamento.
 
+## O ERPNext como coletor de dados do estoquista
+
+Pergunta do usuário, respondida contra o código do erpnext **v16**, não de memória:
+**sim, e já vem pronto** — não precisa de app nem de integração.
+
+### O que existe
+
+`scan_barcode` é um campo nativo em **seis** DocTypes de estoque:
+
+| DocType | Uso pelo estoquista |
+|---|---|
+| `Stock Entry` | baixa, transferência, produção |
+| `Purchase Receipt` | conferência do recebimento |
+| `Stock Reconciliation` | contagem de inventário |
+| `Material Request` | requisição no chão |
+| `Delivery Note` | conferência da expedição |
+| `Pick List` | separação |
+
+O controlador é `erpnext/public/js/utils/barcode_scanner.js` (572 linhas), e o resolvedor no
+servidor é `erpnext.stock.utils.scan_barcode`.
+
+### O que o app resolve a partir de uma leitura só
+
+Lido em `stock/utils.py`, o `scan_barcode` tenta **quatro** cadastros, nesta ordem, e
+devolve o primeiro que casar:
+
+1. **`Item Barcode`** — o código de barras do item (EAN/GTIN), devolvendo item e UOM;
+2. **`Serial No`** — devolvendo item **e o lote** do número de série;
+3. **`Batch`** — devolvendo item e lote;
+4. **`Warehouse`** — o próprio armazém, para o estoquista "entrar" num endereço lendo a
+   etiqueta da prateleira.
+
+⚠️ Uma guarda que vale conhecer: ler o **lote** de um item que tem número de série é
+**recusado** (`"Please scan serial no instead"`). Aceitar seria registrar uma quantidade sem
+saber qual série saiu — e a rastreabilidade se perderia no ponto exato em que existe para
+funcionar.
+
+### Por que isso importa fiscalmente, e não só operacionalmente
+
+O que o leitor devolve — **item + lote + série** — é exatamente o que
+`integracao/rastreabilidade.py` traduz para o grupo `rastro` da NF-e (`nLote`, `qLote`,
+`dFab`, `dVal`).
+
+Ou seja: **o bipe do estoquista já alimenta a rastreabilidade fiscal.** Não há uma segunda
+digitação, nem um cadastro paralelo a manter — o que o operador faz para controlar o estoque
+é o mesmo dado que a nota exige. Vale registrar porque o caminho contrário é comum: sistemas
+que coletam por código de barras para o WMS e pedem o lote **de novo**, à mão, na emissão.
+
+### O que não se resolve com isso
+
+- **Coletor offline.** O `scan_barcode` é uma chamada ao servidor; sem rede, não resolve.
+  Operação em galpão sem cobertura precisa de fila local, que o Desk não faz.
+- **Leitor dedicado com teclado próprio.** Funciona (o campo é texto e o leitor "digita"),
+  mas o foco no campo é responsabilidade da tela — em coletor físico com navegação por
+  teclas isso costuma exigir ajuste.
+- **GS1-128 composto.** O resolvedor busca o valor **inteiro** nos quatro cadastros; uma
+  etiqueta GS1 que traz GTIN, lote e validade num único código precisaria ser fatiada antes.
+  Não há tratamento de Application Identifier no código lido.
+
 ## Gaps que ficam declarados
 
-### 1. Transferência entre estabelecimentos não emite NF-e
+### 1. ~~Transferência entre estabelecimentos não emite NF-e~~ — resolvido
 
-Este é o furo mais relevante que sobra na frente de estoque.
+**O suspeito estava errado.** Com a decisão de que cada estabelecimento é uma `Company`
+própria (2026-09-06), a transferência nunca foi um `Stock Entry`: é operação entre duas
+`Company`, que o ERPNext modela como `Delivery Note` com `is_internal_customer` — documento
+que este app **já** emitia.
 
-Mover mercadoria entre dois estabelecimentos **da mesma empresa** mas com **CNPJ
-diferentes** é fato gerador de NF-e (CFOP 5152/6152, transferência de mercadoria). No
-ERPNext isso é um `Stock Entry` com `purpose = "Material Transfer"` — e a emissão de NF-e
-deste app está ligada a `Sales Invoice`, `Delivery Note`, `Purchase Invoice` e
-`Purchase Receipt`. **`Stock Entry` não está na lista.**
+O que faltava era o tratamento fiscal, e ele foi construído: CFOP de transferência,
+alíquota interestadual e a transferência de crédito do Convênio ICMS 109/2024. Detalhado em
+[transferencia-entre-estabelecimentos.md](transferencia-entre-estabelecimentos.md).
 
-Consequência: a transferência acontece no estoque e **nenhum documento fiscal nasce**.
-
-Não se resolveu aqui porque a decisão anterior é de modelagem, não de código: um
-estabelecimento com CNPJ próprio é uma `Company` separada no ERPNext ou um `Warehouse` com
-CNPJ? A resposta muda o que é "transferência" e o que é "venda entre empresas", e escolher
-sem o desenho seria construir sobre suposição.
+Fica aberto só o pedaço declarado lá: a **transferência interna** (mesmo estado), que o
+Convênio não cobre e depende do RICMS de Rondônia.
 
 ### 2. O estorno apurado não vira lançamento na EFD
 

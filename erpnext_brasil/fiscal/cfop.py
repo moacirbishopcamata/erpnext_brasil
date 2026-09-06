@@ -57,9 +57,8 @@ importam para esse fluxo específico; os outros dois (`1901`/`2901`, `5902`/`690
 são fornecidos para quem usa este app do lado do industrializador.
 
 **Fora do escopo, e não finja que está coberto**: operação com o exterior (`3`/`7`),
-transferência entre estabelecimentos da mesma empresa, bonificação/doação/brinde,
-consignação, ativo imobilizado/uso e consumo, substituição tributária, prestação
-de serviço de transporte, e qualquer código fora deste núcleo. `CfopInvalido` é
+bonificação/doação/brinde, consignação, substituição tributária, prestação de
+serviço de transporte, e qualquer código fora deste núcleo. `CfopInvalido` é
 levantado para qualquer combinação não coberta — nunca um código plausível
 inventado.
 
@@ -84,6 +83,10 @@ __all__ = [
 	"cfop_remessa_para_industrializacao",
 	"cfop_retorno_da_industrializacao_realizada",
 	"cfop_retorno_de_industrializacao",
+	"cfop_transferencia_ativo_imobilizado",
+	"cfop_transferencia_entrada",
+	"cfop_transferencia_saida",
+	"cfop_transferencia_uso_e_consumo",
 	"cfop_venda",
 ]
 
@@ -184,3 +187,84 @@ def cfop_retorno_da_industrializacao_realizada(mesmo_estado: bool) -> str:
 	"""`5902`/`6902` — saída do **industrializador**, devolvendo ao dono do
 	material o que processou por encomenda."""
 	return "5902" if mesmo_estado else "6902"
+
+
+# --------------------------------------------------------------------------------------
+# Transferência entre estabelecimentos da mesma empresa
+#
+# Entrou no escopo quando se decidiu que **cada estabelecimento é uma `Company` própria,
+# com CNPJ próprio**. Com essa modelagem a transferência deixa de ser movimentação interna
+# de estoque e passa a ser operação entre empresas — no ERPNext, um `Delivery Note` com
+# `is_internal_customer`, que já é um documento que este app sabe emitir.
+#
+# ⚠️ **Entrada e saída NÃO são espelho, e a analogia com venda/devolução erraria.**
+# Lido na tabela oficial da SEFAZ-PE, baixada e conferida linha a linha:
+#
+# | Código | Descrição oficial | Classifica por |
+# |---|---|---|
+# | `5.151`/`6.151` | "Transferência de produção do estabelecimento" | **origem** da mercadoria |
+# | `5.152`/`6.152` | "Transferência de mercadoria adquirida ou recebida de terceiros" | **origem** |
+# | `1.151`/`2.151` | "Transferência para industrialização ou produção rural" | **destino** |
+# | `1.152`/`2.152` | "Transferência para comercialização" | **destino** |
+#
+# Ou seja: quem remete classifica pelo que a mercadoria **é** (produzi eu, ou comprei de
+# terceiro); quem recebe classifica pelo que **vai fazer** com ela. Em `cfop_venda` e
+# `cfop_devolucao_venda` os dois lados usam o mesmo par 01/02 — aqui não, e tratar igual
+# produziria um código válido, existente, e errado.
+# --------------------------------------------------------------------------------------
+
+
+def cfop_transferencia_saida(mesmo_estado: bool, producao_propria: bool) -> str:
+	"""`5151`/`6151` (produção do próprio estabelecimento) ou `5152`/`6152` (mercadoria
+	adquirida ou recebida de terceiros) — saída em transferência para outro
+	estabelecimento da mesma empresa.
+
+	A distinção é de **origem** da mercadoria, igual à da venda — mas os três dígitos
+	finais são `151`/`152`, não `101`/`102`.
+	"""
+	sufixo = "1" if producao_propria else "2"
+	prefixo = "5" if mesmo_estado else "6"
+
+	return f"{prefixo}15{sufixo}"
+
+
+def cfop_transferencia_entrada(mesmo_estado: bool, finalidade: str) -> str:
+	"""`1151`/`2151` (industrialização ou produção rural) ou `1152`/`2152`
+	(comercialização) — entrada da mercadoria recebida em transferência.
+
+	⚠️ O parâmetro é `finalidade`, **não** `producao_propria`: quem recebe classifica pelo
+	destino que vai dar à mercadoria, não pela origem dela. Ver a nota acima.
+	"""
+	_validar_finalidade(finalidade)
+
+	sufixo = "1" if finalidade == FINALIDADE_INDUSTRIALIZACAO else "2"
+	prefixo = "1" if mesmo_estado else "2"
+
+	return f"{prefixo}15{sufixo}"
+
+
+def cfop_transferencia_uso_e_consumo(mesmo_estado: bool, entrada: bool = False) -> str:
+	"""`5557`/`6557` na saída, `1557`/`2557` na entrada — transferência de material de uso
+	ou consumo.
+
+	Código próprio porque material de uso e consumo **não é mercadoria**: não gera crédito
+	na entrada, e classificá-lo como `5152` daria a entender que gera.
+	"""
+	if entrada:
+		return "1557" if mesmo_estado else "2557"
+
+	return "5557" if mesmo_estado else "6557"
+
+
+def cfop_transferencia_ativo_imobilizado(mesmo_estado: bool, entrada: bool = False) -> str:
+	"""`5552`/`6552` na saída, `1552`/`2552` na entrada — transferência de bem do ativo
+	imobilizado.
+
+	Separado de uso e consumo porque o ativo imobilizado tem crédito de ICMS **apropriado
+	em 48 parcelas** (LC 87/1996, art. 20, § 5º); uso e consumo não tem crédito nenhum. O
+	mesmo código para os dois apagaria essa diferença.
+	"""
+	if entrada:
+		return "1552" if mesmo_estado else "2552"
+
+	return "5552" if mesmo_estado else "6552"

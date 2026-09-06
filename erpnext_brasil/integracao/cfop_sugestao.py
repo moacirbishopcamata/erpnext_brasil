@@ -48,8 +48,11 @@ from erpnext_brasil.fiscal.cfop import (
 	cfop_compra,
 	cfop_remessa_para_industrializacao,
 	cfop_retorno_de_industrializacao,
+	cfop_transferencia_entrada,
+	cfop_transferencia_saida,
 	cfop_venda,
 )
+from erpnext_brasil.fiscal.transferencia import mesmo_titular
 from erpnext_brasil.integracao.party import uf_da_parte
 
 __all__ = ["sugerir_cfop_compra_venda", "sugerir_cfop_subcontratacao"]
@@ -87,6 +90,37 @@ def _mesmo_estado(doc, campo_parte: str, doctype_parte: str) -> bool | None:
 	return uf_empresa == uf_parte
 
 
+_CAMPO_INTERNO = {"Customer": "is_internal_customer", "Supplier": "is_internal_supplier"}
+"""O campo que marca a parte como pertencente ao próprio grupo, por DocType.
+
+Nomes distintos para a mesma ideia: o ERPNext chama `is_internal_customer` no `Customer` e
+`is_internal_supplier` no `Supplier`. Lidos nos JSON, não deduzidos de um pelo outro.
+"""
+
+
+def _transferencia_do_mesmo_titular(doc, parte) -> bool:
+	"""A operação é transferência entre estabelecimentos do **mesmo titular**?
+
+	⚠️ Duas condições, e a segunda é a que quase se esquece. Ser "interno" no ERPNext
+	significa apenas que a contraparte representa outra `Company` do mesmo cadastro — o que
+	inclui **grupo econômico**, cujas empresas têm raízes de CNPJ diferentes e vendem umas
+	às outras com incidência normal. A não incidência do art. 12, § 4º da LC 87/1996 vale só
+	para o mesmo titular, e é `mesmo_titular` quem afirma isso.
+
+	Sem os dois CNPJ, `mesmo_titular` devolve `False` e a operação segue como venda — a
+	degradação segura, porque é a que mantém o imposto.
+	"""
+	campo = _CAMPO_INTERNO.get(parte.doctype)
+
+	if not campo or not parte.get(campo) or not parte.get("represents_company"):
+		return False
+
+	representada = frappe.get_cached_doc("Company", parte.represents_company)
+	empresa = frappe.get_cached_doc("Company", doc.company)
+
+	return mesmo_titular(empresa.get("tax_id"), representada.get("tax_id"))
+
+
 def sugerir_cfop_compra_venda(doc, method=None):
 	"""`doc_event` de `validate` para pedidos/documentos de compra e venda —
 	escreve `br_cfop_sugerido` em cada linha de item, quando há dado suficiente."""
@@ -101,6 +135,9 @@ def sugerir_cfop_compra_venda(doc, method=None):
 	if mesmo_estado is None:
 		return
 
+	parte = frappe.get_cached_doc(doctype_parte, doc.get(campo_parte))
+	transferencia = _transferencia_do_mesmo_titular(doc, parte)
+
 	for linha in doc.get("items", []):
 		item = frappe.get_cached_doc("Item", linha.item_code) if linha.get("item_code") else None
 
@@ -113,7 +150,8 @@ def sugerir_cfop_compra_venda(doc, method=None):
 			if producao_propria is None:
 				continue
 
-			linha.br_cfop_sugerido = cfop_venda(
+			montar = cfop_transferencia_saida if transferencia else cfop_venda
+			linha.br_cfop_sugerido = montar(
 				mesmo_estado=mesmo_estado, producao_propria=bool(producao_propria)
 			)
 		else:
@@ -123,7 +161,10 @@ def sugerir_cfop_compra_venda(doc, method=None):
 			if not finalidade:
 				continue
 
-			linha.br_cfop_sugerido = cfop_compra(mesmo_estado=mesmo_estado, finalidade=finalidade)
+			# ⚠️ Na entrada a transferência classifica pela **finalidade**, não pela origem —
+			# o oposto da saída. Ver a nota de assimetria em `fiscal/cfop.py`.
+			montar = cfop_transferencia_entrada if transferencia else cfop_compra
+			linha.br_cfop_sugerido = montar(mesmo_estado=mesmo_estado, finalidade=finalidade)
 
 
 def sugerir_cfop_subcontratacao(doc, method=None):
