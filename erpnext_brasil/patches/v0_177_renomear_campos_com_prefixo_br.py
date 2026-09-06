@@ -19,18 +19,37 @@ a memorizar.
 Os breaks de layout entram junto. Não guardam dado — `rename_field` sobre eles é barato — e
 ficam na regra para que ela não tenha caso especial.
 
-`rename_field` e não SQL
--------------------------------
-`frappe.model.utils.rename_field` renomeia a coluna **e** o `Custom Field`, além de ajustar
-Property Setter, filtros salvos e a ordem do formulário. Um `ALTER TABLE` moveria só a
-coluna, e o campo continuaria apontando para um nome que não existe mais.
+⚠️ A ordem importa, e o bench provou isso
+------------------------------------------------
+`rename_field` **não renomeia coluna**: ele faz `UPDATE tabX SET novo = antigo` — copia o
+valor de uma coluna para a outra, e pressupõe que **as duas já existem**.
 
-Idempotente: `rename_field` verifica se o campo novo existe e se o antigo tem coluna, e
-avisa sem levantar quando não há o que fazer — então rodar de novo é inofensivo.
+A primeira versão deste patch só chamava `rename_field`, e no bench saiu
+`rename_field: br_inscricao_estadual not found in Company`, repetido 65 vezes. A causa é de
+ordem: os patches rodam **antes** do `after_migrate`, e é o `after_migrate` que cria os
+campos. Quando o patch corria, a coluna de destino ainda não existia — então ele não fazia
+nada, e o `after_migrate` logo depois criava o campo novo **vazio**. O dado ficaria na
+coluna antiga, invisível.
+
+Não quebraria nada. O cadastro é que apareceria em branco — e é por isso que só um bench
+mostra: a suíte pura via um patch bem-formado, e ele era inerte.
+
+Por isso a ordem aqui é **criar, copiar, remover**:
+
+1. `criar_campos_fiscais()` — garante a coluna de destino;
+2. `rename_field` — copia o valor, e ainda ajusta Property Setter, relatórios e filtros
+   salvos, o que um `UPDATE` cru não faria;
+3. remoção do `Custom Field` antigo — sem ela o formulário mostraria **os dois** campos, o
+   novo preenchido e o velho também, sem que nada dissesse qual vale.
+
+Idempotente nos três passos: `create_custom_fields` usa `update=True`, `rename_field` avisa
+sem levantar quando não há o que fazer, e a remoção confere a existência antes.
 """
 
 import frappe
 from frappe.model.utils.rename_field import rename_field
+
+from erpnext_brasil.setup.install import criar_campos_fiscais
 
 RENOMES = {
 	"Address": [
@@ -141,6 +160,11 @@ e tentar renomeá-los procuraria colunas que nunca existiram.
 
 
 def execute():
+	# Passo 1: os campos novos precisam existir **antes** de receber o valor — ver a nota
+	# de ordem na docstring. Os patches rodam antes do `after_migrate`, então adiantar a
+	# criação aqui é o que torna o resto possível.
+	criar_campos_fiscais()
+
 	for doctype, pares in RENOMES.items():
 		if not frappe.db.exists("DocType", doctype):
 			# `Salary Component` vem do `hrms`, opcional neste projeto.
@@ -148,9 +172,18 @@ def execute():
 
 		for antigo, novo in pares:
 			if not frappe.db.has_column(doctype, antigo):
-				# Site novo: os campos já nasceram com o nome certo.
+				# Site novo: os campos já nasceram com o nome certo, e não há de onde copiar.
 				continue
 
+			# Passo 2: copia o valor da coluna antiga para a nova.
 			rename_field(doctype, antigo, novo)
+
+			# Passo 3: o `Custom Field` antigo continua declarado, e sem removê-lo o
+			# formulário mostraria os dois campos — o novo com o valor e o velho também,
+			# sem nada dizendo qual vale.
+			nome_do_campo = f"{doctype}-{antigo}"
+
+			if frappe.db.exists("Custom Field", nome_do_campo):
+				frappe.delete_doc("Custom Field", nome_do_campo, ignore_permissions=True)
 
 	frappe.clear_cache()

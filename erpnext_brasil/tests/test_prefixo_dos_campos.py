@@ -129,6 +129,40 @@ class TestOPatchDeRenome(unittest.TestCase):
 
 		self.assertIn("has_column", fonte)
 
+	def test_cria_os_campos_antes_de_copiar_o_valor(self):
+		"""O bug que só um bench mostrou.
+
+		`rename_field` **não renomeia coluna**: faz `UPDATE tabX SET novo = antigo`, e
+		pressupõe as duas existindo. Os patches rodam **antes** do `after_migrate`, que é
+		quem cria os campos — então a primeira versão deste patch não fazia nada, e o
+		`after_migrate` logo depois criava o campo novo vazio.
+
+		Nada quebrava. O cadastro é que apareceria em branco.
+		"""
+		fonte = sem_docstrings(
+			(RAIZ / "patches" / "v0_177_renomear_campos_com_prefixo_br.py").read_text(encoding="utf-8")
+		)
+
+		self.assertLess(fonte.index("criar_campos_fiscais()"), fonte.index("rename_field("))
+
+	def test_remove_o_campo_antigo_depois_de_copiar(self):
+		"""Sem isso o formulário mostraria os dois campos — o novo com o valor e o velho
+		também, sem nada dizendo qual vale."""
+		fonte = sem_docstrings(
+			(RAIZ / "patches" / "v0_177_renomear_campos_com_prefixo_br.py").read_text(encoding="utf-8")
+		)
+
+		self.assertLess(fonte.index("rename_field("), fonte.index("delete_doc"))
+		self.assertIn('"Custom Field"', fonte)
+
+	def test_a_remocao_confere_a_existencia(self):
+		"""O patch roda em site novo também, onde o campo antigo nunca existiu."""
+		fonte = sem_docstrings(
+			(RAIZ / "patches" / "v0_177_renomear_campos_com_prefixo_br.py").read_text(encoding="utf-8")
+		)
+
+		self.assertIn('frappe.db.exists("Custom Field"', fonte)
+
 	def test_usa_rename_field_e_nao_sql(self):
 		"""Um `ALTER TABLE` moveria só a coluna, e o `Custom Field` continuaria apontando
 		para um nome que não existe mais."""
