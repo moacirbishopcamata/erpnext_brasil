@@ -69,6 +69,7 @@ __all__ = [
 	"ItemRemuneracao",
 	"RemunPerApur",
 	"linhas_de_inss_irrf",
+	"montar_evento_s1200",
 	"validar_digito_unico",
 ]
 
@@ -410,3 +411,141 @@ def linhas_de_inss_irrf(
 		ItemRemuneracao(cod_rubr=cod_rubrica_inss, vr_rubr=inss),
 		ItemRemuneracao(cod_rubr=cod_rubrica_irrf, vr_rubr=irrf),
 	)
+
+
+def _sem_vazios(grupo: dict) -> dict:
+	"""Tira as chaves de valor `None`.
+
+	O leiaute distingue **ausente** de **vazio**: um `<nisTrab/>` vazio é diferente de não
+	haver `nisTrab`, e o segundo é o que se quer quando o campo é opcional e não veio.
+	Serializar `None` produziria a primeira forma, que o eSocial rejeita.
+	"""
+	return {chave: valor for chave, valor in grupo.items() if valor is not None}
+
+
+def _item_remuneracao(item: ItemRemuneracao) -> dict:
+	return _sem_vazios(
+		{
+			"codRubr": item.cod_rubr,
+			"ideTabRubr": item.ide_tab_rubr,
+			"qtdRubr": item.qtd_rubr,
+			"fatorRubr": item.fator_rubr,
+			"vrUnit": item.vr_unit,
+			"vrRubr": item.vr_rubr,
+		}
+	)
+
+
+def _remun_per_apur(remun: RemunPerApur) -> dict:
+	return _sem_vazios(
+		{
+			"matricula": remun.matricula,
+			"indSimples": remun.ind_simples,
+			"itensRemun": [_item_remuneracao(item) for item in remun.itens_remun],
+		}
+	)
+
+
+def _ide_estab_lot(estab: IdeEstabLot) -> dict:
+	return _sem_vazios(
+		{
+			"tpInsc": estab.tp_insc,
+			"nrInsc": estab.nr_insc,
+			"codLotacao": estab.cod_lotacao,
+			"qtdDiasAv": estab.qtd_dias_av,
+			"remunPerApur": [_remun_per_apur(remun) for remun in estab.remun_per_apur],
+		}
+	)
+
+
+def _dm_dev(dm: DmDev) -> dict:
+	grupo = {
+		"ideDmDev": dm.ide_dm_dev,
+		"codCateg": dm.cod_categ,
+	}
+
+	if dm.info_per_apur is not None:
+		grupo["infoPerApur"] = {
+			"ideEstabLot": [_ide_estab_lot(estab) for estab in dm.info_per_apur.ide_estab_lot]
+		}
+
+	return grupo
+
+
+def _info_complem(info: InfoComplem) -> dict:
+	return _sem_vazios(
+		{
+			"nmTrab": info.nm_trab,
+			# `TSData`: o leiaute do eSocial usa AAAA-MM-DD, com hífen — diferente do SPED,
+			# que usa DDMMAAAA sem separador. Dois formatos de data no mesmo projeto, e
+			# trocá-los é rejeição que não diz qual campo está errado.
+			"dtNascto": info.dt_nascto.isoformat(),
+			"codCBO": info.cod_cbo,
+			"natAtividade": info.nat_atividade,
+			"qtdDiasTrab": info.qtd_dias_trab,
+		}
+	)
+
+
+def montar_evento_s1200(
+	id_evento: str,
+	ide_evento: IdeEvento,
+	ide_empregador: IdeEmpregador,
+	ide_trabalhador: IdeTrabalhador,
+	dm_dev: tuple[DmDev, ...],
+) -> dict:
+	"""Monta o evento `evtRemun` completo, na ordem do leiaute.
+
+	Faltava: o S-1000 tinha `montar_evento_s1000` desde o início, e o S-1200 — o evento da
+	**folha**, o mais transmitido de todos — só tinha as dataclasses. A varredura de costura
+	que destravou a transmissão encontrou o buraco: dava para validar cada grupo e não dava
+	para produzir o evento.
+
+	Por que `ideEvento` do S-1200 é maior que o do S-1000
+	------------------------------------------------------------
+	O do S-1000 tem três campos (`tpAmb`, `procEmi`, `verProc`); este tem seis, porque um
+	evento de folha é **de um período** e pode ser **retificação**: `indRetif`, `nrRecibo`,
+	`indApuracao` e `perApur` não existem no evento de cadastro do empregador.
+
+	Copiar a montagem do S-1000 e trocar o nome da raiz produziria um `evtRemun` sem
+	período — aceito pelo serializador, recusado pelo eSocial. É a analogia entre eventos
+	irmãos que este projeto trata como o erro mais caro.
+
+	`nrRecibo` sai quando é `None`: o grupo já garante, no `__post_init__`, que ele existe
+	quando `indRetif == 2`.
+	"""
+	if not dm_dev:
+		raise EsocialInvalido("evtRemun precisa de ao menos um demonstrativo (dmDev)")
+
+	return {
+		"eSocial": {
+			"evtRemun": {
+				"Id": id_evento,
+				"ideEvento": _sem_vazios(
+					{
+						"indRetif": ide_evento.ind_retif,
+						"nrRecibo": ide_evento.nr_recibo,
+						"indApuracao": ide_evento.ind_apuracao,
+						"perApur": ide_evento.per_apur,
+						"tpAmb": ide_evento.tp_amb,
+						"procEmi": ide_evento.proc_emi,
+						"verProc": ide_evento.ver_proc,
+					}
+				),
+				"ideEmpregador": {
+					"tpInsc": ide_empregador.tp_insc,
+					"nrInsc": ide_empregador.nr_insc,
+				},
+				"ideTrabalhador": _sem_vazios(
+					{
+						"cpfTrab": ide_trabalhador.cpf_trab,
+						"nisTrab": ide_trabalhador.nis_trab,
+						"infoComplem": _info_complem(ide_trabalhador.info_complem)
+						if ide_trabalhador.info_complem is not None
+						else None,
+					}
+				),
+				"dmDev": [_dm_dev(dm) for dm in dm_dev],
+			}
+		}
+	}

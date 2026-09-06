@@ -159,3 +159,43 @@ aplicada aqui a uma ausência de linha em vez de um campo vazio na tela.
 - Busca agregada às Perguntas Frequentes do `gov.br/esocial` — usada para confirmar
   `tpAmb` (1=Produção, 2=Produção Restrita) e a obrigatoriedade de `nrRecibo` quando
   `indRetif=2`.
+
+## A montagem da árvore, e o buraco que ela fechou
+
+O S-1000 tinha `montar_evento_s1000` desde o primeiro incremento. O S-1200 — o evento
+**mais transmitido** do eSocial — ficou até 2026-09-06 só com as dataclasses: dava para
+validar cada grupo isoladamente e **não dava para produzir o evento**.
+
+O buraco apareceu ao procurar quem montaria o lote para a transmissão recém-destravada. É
+o padrão que este projeto já viu várias vezes: cada peça pronta, e nada que as componha.
+
+### ⚠️ Por que não dava para copiar a montagem do S-1000
+
+O `ideEvento` dos dois **não é o mesmo grupo**:
+
+| | S-1000 | S-1200 |
+|---|---|---|
+| campos | `tpAmb`, `procEmi`, `verProc` | os três, mais `indRetif`, `nrRecibo`, `indApuracao`, `perApur` |
+
+Um evento de folha é **de um período** e pode ser retificação; o de cadastro do empregador
+não é nem uma coisa nem outra. Copiar a montagem e trocar o nome da raiz produziria um
+`evtRemun` **sem período** — que o serializador aceita e o eSocial recusa. É a analogia
+entre eventos irmãos que este projeto trata como o erro mais caro, e é a asserção-âncora da
+suíte.
+
+### Ausente não é vazio
+
+Campo opcional que não veio **não vira chave**: um `<nrRecibo/>` vazio é diferente de não
+haver `nrRecibo`, e o segundo é o que o leiaute quer. Por isso `_sem_vazios` tira as chaves
+`None` de cada grupo, em vez de deixar o serializador decidir.
+
+### Duas datas, dois formatos
+
+`dtNascto` sai como `AAAA-MM-DD`, com hífen — **diferente do SPED**, que usa `DDMMAAAA` sem
+separador. Os dois formatos convivem neste projeto, e trocá-los é rejeição que não diz qual
+campo está errado.
+
+### O valor continua `Decimal` até a serialização
+
+Converter para `float` na montagem traria o erro de representação binária para dentro da
+folha. A conversão para texto é do serializador, e só ali.

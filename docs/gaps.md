@@ -416,9 +416,17 @@ reconsultar). O ciclo de vida dos PEM, que vivia dentro do `TransporteSefaz`, fo
 para `tls_certificado.ArquivosTls` — a alternativa era **copiar a escrita de uma chave
 privada em disco**, que é o que `contexto_sefaz.py` proíbe.
 
-⚠️ **Falta o botão.** Os dois métodos existem e nenhuma tela os chama — o mesmo formato de
-gap, um nível acima. Diferente da NF-e, aqui não basta um botão: falta também **quem monte
-o lote** a partir da folha, e sem lote não há o que transmitir.
+⚠️ **Falta o botão**, e faltava mais do que isso. Ao procurar quem montaria o lote,
+apareceu um buraco maior: **o S-1200 não tinha montador de árvore**. O S-1000 tinha
+`montar_evento_s1000` desde o início; o evento da folha — o mais transmitido de todos — só
+tinha as dataclasses. Dava para validar cada grupo e não dava para produzir o evento.
+
+`montar_evento_s1200` fecha isso. O que ainda falta, em ordem:
+
+1. **Ler o `Salary Slip`** e produzir os `DmDev` — a ponte entre a folha do ERPNext e o
+   evento. `linhas_de_inss_irrf` já existe e é o começo dela.
+2. **Montar e assinar o lote** a partir dos eventos, gravando o `Lote eSocial`.
+3. **O botão**, que só faz sentido depois dos dois.
 
 ### O que não mudou
 
