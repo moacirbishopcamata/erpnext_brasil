@@ -425,12 +425,20 @@ tinha as dataclasses. Dava para validar cada grupo e não dava para produzir o e
 `Salary Slip` — inclusive os campos que faltavam em `Employee` (CPF, NIS, categoria, CBO,
 lotação) e em `Salary Component` (código da rubrica).
 
-O que ainda falta, em ordem:
+✅ **A cadeia fechou** em 2026-09-06. `integracao/montagem_lote_esocial.py` compõe as peças
+— holerite → S-1200 → evento assinado → lote —, e três telas a acionam:
 
-1. **Montar e assinar o lote** a partir dos eventos, gravando o `Lote eSocial`. As peças
-   estão todas: `esocial_id`, `esocial_montagem`, `esocial_lote` e o `TransporteEsocial`
-   que expõe o assinador.
-2. **O botão**, que só faz sentido depois disso.
+| Onde | O quê |
+|---|---|
+| lista de `Salary Slip` | **Montar Lote eSocial** a partir da seleção |
+| formulário do `Lote eSocial` | **Transmitir ao eSocial** |
+| idem, com protocolo | **Consultar processamento** |
+
+Transmitir e consultar são botões separados, e um exclui o outro: com protocolo, o lote já
+foi recebido, e **reenviar duplicaria os eventos**.
+
+O que falta agora é de outra ordem: **exercitar contra o ambiente de produção restrita**, que
+exige certificado A1 real. Nenhum dos módulos do eSocial foi executado fora de teste.
 
 ### O que não mudou
 

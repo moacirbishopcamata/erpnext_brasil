@@ -21,6 +21,9 @@ doctype_js = {
 	# escrituração. O botão só aparece em rascunho: depois do submit o documento já foi
 	# escriturado com o que tem.
 	"Purchase Invoice": "public/js/entrada_nfe.js",
+	# Transmitir e reconsultar ficam no **próprio lote**: é ele que tem o protocolo, e é o
+	# protocolo que decide qual das duas ações faz sentido.
+	"Lote eSocial": "public/js/lote_esocial.js",
 }
 
 # `doctype_list_js` e não `doctype_js`: o `Arquivo SPED` é o **resultado** da geração, não
@@ -32,6 +35,9 @@ doctype_list_js = {
 	# conjunto. Um botão no formulário só emitiria o documento aberto, que é o que o botão
 	# do formulário já faz.
 	"Sales Invoice": "public/js/emissao_lote_list.js",
+	# O lote do eSocial **nasce** da seleção de holerites: é ela que o define. A lista de
+	# `Lote eSocial` mostra o que já existe, e ali o que faz sentido é transmitir.
+	"Salary Slip": "public/js/lote_esocial_list.js",
 }
 
 # O bloco fiscal roda sem RH nenhum instalado — `hrms` não é obrigatório. Este hook só

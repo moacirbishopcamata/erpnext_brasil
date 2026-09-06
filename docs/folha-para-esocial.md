@@ -101,11 +101,59 @@ A mesclagem é **por DocType**, não `dict.update`: `Company` aparece em dois ma
 `Employee` num terceiro, e um `update` faria o segundo apagar a lista do primeiro — campo
 sumindo da instalação sem que ninguém o tivesse removido.
 
+## A composição, e o caminho completo
+
+`integracao/montagem_lote_esocial.py` compõe as peças e grava o `Lote eSocial`:
+
+```text
+seleção de holerites
+  → evento_do_holerite        (este documento)
+  → gerar_id_evento           Id de 36 caracteres
+  → montar_evento_assinado    assinatura XMLDSig
+  → montar_xml_lote           envelope envioLoteEventos
+  → Lote eSocial              gravado, em rascunho
+```
+
+### ⚠️ O certificado é aberto uma vez para o lote inteiro
+
+`TransporteEsocial` expõe `assinador` justamente para isto, e o `with` fica **em volta do
+laço**, não dentro. Dentro, o PKCS#12 seria decifrado uma vez por empregado — numa folha de
+cem, cem operações caras de criptografia. O código funcionaria igual e ficaria lento de um
+jeito que ninguém relaciona à causa. Um teste confere a posição do `with` por AST.
+
+### Montar não transmite
+
+O lote nasce em **rascunho**. Em eSocial, o que foi transmitido **não se desfaz**: retificar
+exige outro evento, com o número do recibo do primeiro. Separar as duas ações dá ao usuário o
+momento de conferir — a mesma razão de a importação de XML não criar o documento sozinha.
+
+### Uma empresa por lote
+
+O `ideEmpregador` é **um** por envelope. Misturar empresas produziria um lote que declara uma
+e contém eventos de outra — aceito pelo montador, recusado pelo eSocial, com mensagem que não
+diria qual holerite é o intruso. A recusa aqui **lista as empresas encontradas**.
+
+### Não se fatia o lote automaticamente
+
+O leiaute tem teto de eventos por lote, e passar dele é recusado. Fatiar sem pedir produziria
+vários `Lote eSocial` de um clique, e quem transmitisse o primeiro acharia que transmitiu
+tudo.
+
+## As telas
+
+| Onde | O quê |
+|---|---|
+| lista de `Salary Slip` | **Montar Lote eSocial** a partir da seleção |
+| formulário do `Lote eSocial` | **Transmitir ao eSocial** |
+| idem, com protocolo | **Consultar processamento** |
+
+Transmitir e consultar são botões **separados**, e um exclui o outro: com protocolo, o lote
+já foi recebido, e reenviar duplicaria os eventos.
+
 ## O que falta
 
-1. **Montar e assinar o lote** a partir dos eventos, gravando o `Lote eSocial`. As peças
-   estão todas: `esocial_id`, `esocial_montagem`, `esocial_lote`, e o `TransporteEsocial`
-   expõe o assinador de propósito.
-2. **O botão**, que só faz sentido depois disso.
+**Exercitar contra o ambiente de produção restrita**, que exige certificado A1 real. Nenhum
+módulo do eSocial foi executado fora de teste — a cadeia está inteira e nunca falou com o
+Fisco.
 
 Estado de verificação: camada Frappe, **não** exercitada contra bench real.
