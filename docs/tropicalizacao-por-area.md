@@ -105,8 +105,13 @@ Já existe o preparo: o campo `codigo_servico_lc116` está declarado no `Item`, 
 
 Por que é grande: **NFS-e é municipal**. Cada município teve o seu leiaute e o seu
 webservice por duas décadas. O padrão nacional (ADN/Sefin Nacional) mudou isso, mas a
-adesão é gradual — e verificar qual é a situação de Porto Velho/RO é o primeiro passo, não
-um detalhe.
+adesão é gradual.
+
+✅ **Levantado** em [nfse-estado.md](nfse-estado.md), e o primeiro passo confirmou o que se
+temia: **Porto Velho mantém emissor próprio** (SOAP/ABRASF); o nacional (REST/DPS) atende
+lá só o MEI. São dois caminhos incompatíveis, e chamar qualquer um deles de "a NFS-e" seria
+o erro estrutural do bloco. Os identificadores já estão implementados a partir dos XSD
+oficiais; a emissão está **declarada fora de escopo por ora**, com o motivo escrito.
 
 ## 🔴 2. Boleto sem conta bancária — código pronto e sem costura
 
@@ -186,6 +191,7 @@ Anotar o que já está resolvido evita reabrir frente por engano:
 
 1. ~~**Campos brasileiros no `Bank Account`**~~ — **feito**.
 2. ~~**Leitura do XML da NF-e de entrada**~~ — **feito**.
-3. **NFS-e**, começando por verificar a situação do município de referência (Porto Velho/RO)
-   e do padrão nacional.
+3. **NFS-e** — levantada; o que falta é o manual de integração do emissor municipal de
+   Porto Velho, que a Semec anunciou. Enquanto ele não vem, seguem as peças puras comuns
+   aos dois caminhos (tabelas oficiais, tipos do leiaute).
 4. **Depreciação fiscal**, junto do LALUR, quando o bloco de lucro real avançar.
