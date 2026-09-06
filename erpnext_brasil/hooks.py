@@ -60,6 +60,11 @@ doc_events = {
 	},
 	"Address": {"validate": "erpnext_brasil.integracao.party.validar_codigo_municipio"},
 	"Item": {"validate": "erpnext_brasil.integracao.party.validar_ncm"},
+	# O livro fiscal do ativo é conferido em `validate` porque as duas configurações que
+	# ele recusa — método sobre saldo residual e rateio diário — são **válidas** no
+	# ERPNext e produzem números plausíveis. O erro não aparece no primeiro período; sem
+	# esta guarda, apareceria só na fiscalização. Ver `integracao/depreciacao_ativo.py`.
+	"Asset": {"validate": "erpnext_brasil.integracao.depreciacao_ativo.validar_livro_fiscal"},
 }
 
 # A apuração roda em `validate` para que o usuário veja os impostos enquanto ainda pode

@@ -141,12 +141,54 @@ Está registrada aqui porque é fácil errar na direção contrária (usar a mé
 principal), mas depende de saber o que há dentro do conjunto — informação que o módulo não
 recebe.
 
-## O que falta
+## A costura com o `Asset`, sem inventar campo nenhum
 
-- **A costura com o `Asset` do ERPNext.** O cálculo existe e nada num site o chama ainda —
-  o mesmo gap que a emissão de NF-e teve. O `Asset` do ERPNext tem `Asset Depreciation
-  Schedule`, e ligar os dois exige decidir se se substitui o cronograma nativo ou se se
-  grava a quota fiscal em paralelo à contábil.
+O ERPNext já tem a estrutura certa, e ela é melhor do que qualquer campo customizado que se
+criasse:
+
+| Estrutura nativa | O que resolve |
+|---|---|
+| **`Asset Finance Book`** (tabela filha) | vários livros por ativo — a separação contábil × fiscal que o art. 321 pressupõe |
+| **`Asset Shift Factor`** (`shift_name` + `shift_factor`) | os coeficientes do art. 323 |
+| **`available_for_use_date`** | literalmente o *"posto em serviço"* do art. 317, § 2º |
+
+Criar um `br_taxa_depreciacao` ao lado do `rate_of_depreciation` nativo produziria **duas
+verdades sobre a mesma taxa** — o mesmo erro que já se evitou no `Bank Account` com o
+número da conta.
+
+`integracao/depreciacao_ativo.py` faz três coisas:
+
+1. **`instalar_livro_fiscal` / `instalar_turnos`** — criam o `Finance Book` "Fiscal
+   (Brasil)" e os três `Asset Shift Factor` do art. 323, no `after_install` e no
+   `after_migrate`. Idempotentes, e **não sobrescrevem** o que já existe: um fator ajustado
+   por quem administra o site é decisão dele, não ruído a corrigir a cada `migrate`.
+2. **`aplicar_taxa_fiscal(asset, especie)`** — preenche a linha do livro fiscal a partir do
+   núcleo do Anexo III: método linear, taxa, parcelas mensais, e início em
+   `available_for_use_date` — **não** em `purchase_date`, porque comprar não é usar e a
+   diferença é dedução tomada antes da hora.
+3. **`validar_livro_fiscal`** — ligado no `validate` do `Asset`.
+
+### ⚠️ Os dois padrões do ERPNext que a lei não admite
+
+A validação recusa exatamente dois, e ambos passam despercebidos porque **produzem números
+plausíveis**:
+
+- **`depreciation_method` ≠ "Straight Line".** *Written Down Value* e *Double Declining
+  Balance* aplicam a taxa sobre o saldo residual. **A primeira quota é igual nos dois** — a
+  divergência só aparece do segundo período em diante.
+- **`daily_prorata_based` marcado.** Ratear por dias contraria o art. 319, § 2º, e deduz a
+  menos pela vida inteira do bem.
+
+Nenhum dos dois levanta erro no ERPNext: são configurações válidas para outros países. Por
+isso a guarda **falha alto** em vez de avisar — um aviso amarelo sobre método de
+depreciação seria clicado sem ler, e o erro que ele evita não aparece no primeiro período.
+
+A validação só olha a linha do livro fiscal: os demais livros são do contador, e o método
+contábil pode legitimamente ser outro.
+
+## O que falta
+- **Exercitar num bench real.** A camada Frappe tem teste de costura estática, não de
+  execução.
 - **O LALUR.** O art. 321 permite **excluir** do lucro líquido a diferença quando a
   depreciação contábil é menor que a fiscal, e manda **adicioná-la** de volta quando o
   acumulado atinge o teto. Isso é controle de Parte B — domínio que o projeto ainda não tem

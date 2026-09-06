@@ -162,8 +162,10 @@ a base é **sempre o custo de aquisição**, nunca o saldo residual, então o *W
 Value* que o ERPNext oferece produz um número que não é o dedutível — e o erro só aparece do
 segundo ano em diante.
 
-**Falta a costura** com o `Asset` do ERPNext, e o LALUR (art. 321), que depende de um
-controle de Parte B que o projeto ainda não tem.
+✅ **A costura também** — `integracao/depreciacao_ativo.py` usa `Asset Finance Book`,
+`Asset Shift Factor` e `available_for_use_date`, todos nativos, sem criar campo nenhum. O
+que sobra é o LALUR (art. 321), que depende de um controle de Parte B que o projeto ainda
+não tem.
 
 ## 🟡 4. Entrada de NF-e do fornecedor, e operação entre filiais
 
