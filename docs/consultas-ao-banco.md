@@ -44,11 +44,12 @@ tabela numa tabela que cresce com cada nota emitida.
 
 ### 2. `permission_query_conditions` — injetar `WHERE` do lado de fora
 
-Hook do Frappe (`frappe/hooks.py`) que permite acrescentar condição a **toda** listagem de
-um DocType, sem tocar em quem consulta. É como o ERPNext restringe registros por empresa.
+Hook do Frappe (`frappe/hooks.py`) que acrescenta condição a **toda** listagem de um
+DocType, sem tocar em quem consulta.
 
-Serve para: um `Transmissao Fiscal` que só apareça para quem pode ver a `Company` dele.
-Também não implementado.
+⚠️ **Não é preciso para restringir por empresa** — o Frappe já aplica User Permission a todo
+campo Link sozinho. Ver a correção no fim deste documento. Serve para restrições que **não**
+sejam por um campo Link: um filtro por período, por exemplo, ou por um cálculo.
 
 ### 3. `frappe.qb` — SQL programático sem string
 
@@ -107,11 +108,38 @@ Foi erro de leitura: supus que a consulta filtrava por campos, e ela filtra por 
 testes travam isso — um confere que o índice não existe, o outro confere que o `autoname`
 continua sendo a combinação, porque o primeiro só vale enquanto o segundo for verdade.
 
-## O que ainda falta
+## ⚠️ Segunda correção: `permission_query_conditions` **não** é necessário
 
-- **`permission_query_conditions`** nos DocTypes fiscais, para que um site multiempresa não
-  mostre transmissão de outra `Company`. É segurança, não desempenho — e por isso não entrou
-  junto: mudar quem enxerga o quê merece incremento próprio.
+Este documento afirmava que faltava um `permission_query_conditions` para que um site
+multiempresa não mostrasse transmissão de outra `Company`. **O Frappe já faz isso.**
+
+`frappe/model/db_query.py`, em `add_user_permissions`, percorre **todo campo Link** do
+DocType (`doctype_meta.get_link_fields()`) e aplica a User Permission correspondente. O
+campo `company` entra nessa varredura como qualquer outro — não há nada a acrescentar.
+
+Escrever o hook teria produzido código redundante, que é pior que código faltando: alguém
+depois teria de descobrir por que existem duas restrições fazendo a mesma coisa.
+
+### O que **de fato** sustenta a proteção
+
+Três condições, todas do lado do app, todas travadas por teste:
+
+1. **O DocType tem campo `company`.** Sem ele não há por onde restringir.
+2. **O campo é obrigatório.** Com `apply_strict_user_permissions` desligado — que é o
+   **padrão** —, o Frappe deixa passar registro com o campo vazio (`ifnull(company,'')=''`).
+   Campo obrigatório fecha esse buraco sem depender de configuração do site.
+3. **O campo não tem `ignore_user_permissions`**, que desligaria a restrição para ele.
+
+Os quatro DocTypes deste app cumprem as três. Se qualquer uma cair, a restrição para de
+valer **sem erro nenhum** — as listagens simplesmente passam a mostrar mais.
+
+### E nenhuma leitura contorna a permissão
+
+`ignore_permissions` aparece 18 vezes na integração, **todas em escrita** (`insert`/`save`).
+Isso é legítimo: gravar o registro de auditoria não deve depender de o usuário poder criar
+um `Transmissao Fiscal` à mão. Em **leitura**, a marca desligaria a separação entre empresas
+— e um teste varre as chamadas de `get_all`/`get_list`/`get_value` para garantir que não
+aparece lá.
 
 ## O que **não** vale a pena
 
