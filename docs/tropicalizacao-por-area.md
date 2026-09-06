@@ -153,12 +153,17 @@ Quatro decisões dessa parte, que valem registro:
 
 ## 🟡 3. Depreciação e ativo imobilizado
 
-O ERPNext traz Asset Register e três métodos de depreciação (linear, saldo decrescente,
-duplo decrescente). O Brasil usa **taxas por tipo de bem** fixadas pela Receita Federal, e a
-diferença entre a depreciação contábil e a fiscal é ajuste no LALUR.
+O ERPNext traz Asset Register e três métodos (linear, saldo decrescente, duplo decrescente).
+O Brasil usa **um**: quota sobre o custo de aquisição, com taxas por espécie de bem.
 
-Hoje o app **não tem nada** disso — só as contas de depreciação no plano de contas. Não é
-urgente para faturar, e é obrigatório para apurar lucro real corretamente.
+✅ **O cálculo foi feito** — `contabil/depreciacao.py`, com as cinco regras do RIR/2018
+verificadas artigo a artigo. Ver [depreciacao.md](depreciacao.md). O achado que mais importa:
+a base é **sempre o custo de aquisição**, nunca o saldo residual, então o *Written Down
+Value* que o ERPNext oferece produz um número que não é o dedutível — e o erro só aparece do
+segundo ano em diante.
+
+**Falta a costura** com o `Asset` do ERPNext, e o LALUR (art. 321), que depende de um
+controle de Parte B que o projeto ainda não tem.
 
 ## 🟡 4. Entrada de NF-e do fornecedor, e operação entre filiais
 
@@ -194,4 +199,5 @@ Anotar o que já está resolvido evita reabrir frente por engano:
 3. **NFS-e** — levantada; o que falta é o manual de integração do emissor municipal de
    Porto Velho, que a Semec anunciou. Enquanto ele não vem, seguem as peças puras comuns
    aos dois caminhos (tabelas oficiais, tipos do leiaute).
-4. **Depreciação fiscal**, junto do LALUR, quando o bloco de lucro real avançar.
+4. ~~**Depreciação fiscal**~~ — cálculo **feito**; o que sobra é a costura com o `Asset` e
+   o LALUR, que depende do controle de Parte B.
