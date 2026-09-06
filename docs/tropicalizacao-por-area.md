@@ -54,8 +54,12 @@ daqui: ECD, ECF, EFD-ICMS/IPI, EFD-Contribuições, EFD-Reinf, apuração perió
 | Budget Controls, Aging, relatórios | neutro |
 
 A entrada de mercadoria tem a peça mais difícil: **a NF-e do fornecedor precisa ser lida,
-não digitada**. `integracao/cte_extracao.py` já faz isso para o CT-e; para a NF-e de
-entrada, não.
+não digitada** — ✅ feito, ver [entrada-de-nfe.md](entrada-de-nfe.md).
+
+⚠️ Correção: a primeira versão deste documento dizia que "`integracao/cte_extracao.py` já
+faz isso para o CT-e". **Não faz.** Aquele módulo percorre `Shipment` → `Delivery Note` →
+`br_chave_acesso`, isto é, lê **DocTypes do site**, não XML. Não havia precedente de parser
+de documento fiscal recebido — `fiscal/documento/leitura_nfe.py` é o primeiro.
 
 ## Vendas
 
@@ -155,9 +159,10 @@ urgente para faturar, e é obrigatório para apurar lucro real corretamente.
 
 Dois itens menores, do mesmo tipo:
 
-- **Ler o XML da NF-e do fornecedor** para criar `Purchase Invoice`. O caminho já existe
-  para o CT-e (`integracao/cte_extracao.py`); falta o equivalente da NF-e. Sem isso, a
-  entrada é digitada — e digitar chave de 44 dígitos é onde nasce erro de escrituração.
+- ~~**Ler o XML da NF-e do fornecedor**~~ — **feito**, ver
+  [entrada-de-nfe.md](entrada-de-nfe.md). O que **não** foi feito, e é decisão declarada:
+  criar os itens do documento. O `cProd` da nota é o código **do fornecedor**, e casá-lo
+  por descrição ou EAN daria entrada no item errado.
 - **Transferência entre filiais gera NF-e.** O "inter-company transaction" do ERPNext move
   valor entre empresas; no Brasil a mercadoria que sai de um CNPJ e entra em outro precisa
   de documento fiscal, com CFOP próprio. Não verificado se o fluxo atual emite.
@@ -180,7 +185,7 @@ Anotar o que já está resolvido evita reabrir frente por engano:
 ## Ordem sugerida
 
 1. ~~**Campos brasileiros no `Bank Account`**~~ — **feito**.
-2. **Leitura do XML da NF-e de entrada** — reaproveita o que o CT-e já fez.
+2. ~~**Leitura do XML da NF-e de entrada**~~ — **feito**.
 3. **NFS-e**, começando por verificar a situação do município de referência (Porto Velho/RO)
    e do padrão nacional.
 4. **Depreciação fiscal**, junto do LALUR, quando o bloco de lucro real avançar.
