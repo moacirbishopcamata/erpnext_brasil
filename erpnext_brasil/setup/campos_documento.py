@@ -314,7 +314,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 			"fieldname": "br_secao_contas_fiscais",
 			"label": "Contas de tributos (Brasil)",
 			"fieldtype": "Section Break",
-			"insert_after": "cnae_principal",
+			"insert_after": "br_cnae_principal",
 			"collapsible": 1,
 			"description": (
 				"Tributo sem conta configurada não é lançado na tabela de impostos — "

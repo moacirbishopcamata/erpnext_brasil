@@ -97,13 +97,13 @@ def montar_dados_cadastrais_0030(company: str, address: str) -> DadosCadastrais:
 
 	return DadosCadastrais(
 		natureza_juridica=empresa.get("br_natureza_juridica") or "",
-		cnae_fiscal=empresa.get("cnae_principal") or "",
+		cnae_fiscal=empresa.get("br_cnae_principal") or "",
 		endereco=endereco.address_line1 or "",
-		numero=endereco.get("numero_endereco") or "",
+		numero=endereco.get("br_numero_endereco") or "",
 		complemento=endereco.address_line2 or "",
-		bairro=endereco.get("bairro") or "",
+		bairro=endereco.get("br_bairro") or "",
 		uf=endereco.state or "",
-		codigo_municipio=endereco.get("codigo_municipio_ibge") or "",
+		codigo_municipio=endereco.get("br_codigo_municipio_ibge") or "",
 		cep=endereco.pincode or "",
 		telefone=endereco.phone or "",
 		email=endereco.email_id or "",

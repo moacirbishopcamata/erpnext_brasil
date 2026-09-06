@@ -129,9 +129,9 @@ def _grupo_endereco(endereco: dict, onde: str) -> dict:
 	"""
 	return {
 		"xLgr": _exigir(endereco.get("address_line1"), "logradouro", onde),
-		"nro": _exigir(endereco.get("numero_endereco"), "número do endereço", onde),
-		"xBairro": _exigir(endereco.get("bairro"), "bairro", onde),
-		"cMun": _exigir(endereco.get("codigo_municipio_ibge"), "código IBGE do município", onde),
+		"nro": _exigir(endereco.get("br_numero_endereco"), "número do endereço", onde),
+		"xBairro": _exigir(endereco.get("br_bairro"), "br_bairro", onde),
+		"cMun": _exigir(endereco.get("br_codigo_municipio_ibge"), "código IBGE do município", onde),
 		"xMun": _exigir(endereco.get("city"), "município", onde),
 		"UF": _exigir(endereco.get("state"), "UF", onde),
 		"CEP": _exigir(endereco.get("pincode"), "CEP", onde).replace("-", ""),
@@ -149,7 +149,7 @@ def _emitente(company: str) -> tuple[Emitente, dict]:
 		cnpj=_exigir(empresa.get("tax_id"), "CNPJ do emitente", f"Company {company}"),
 		nome=_exigir(empresa.get("company_name"), "razão social", f"Company {company}"),
 		inscricao_estadual=_exigir(
-			empresa.get("inscricao_estadual"), "inscrição estadual", f"Company {company}"
+			empresa.get("br_inscricao_estadual"), "inscrição estadual", f"Company {company}"
 		),
 		regime_tributario=_regime_tributario(empresa, company),
 		endereco=endereco,
@@ -159,7 +159,7 @@ def _emitente(company: str) -> tuple[Emitente, dict]:
 
 
 def _regime_tributario(empresa, company: str) -> str:
-	rotulo = _exigir(empresa.get("regime_tributario"), "regime tributário", f"Company {company}")
+	rotulo = _exigir(empresa.get("br_regime_tributario"), "regime tributário", f"Company {company}")
 	crt = CRT_POR_REGIME.get(rotulo)
 
 	if not crt:
@@ -189,7 +189,7 @@ def _destinatario(doc) -> Destinatario:
 		nome=_exigir(parte.get("customer_name"), "nome do destinatário", f"Customer {cliente}"),
 		indicador_ie=indicador,
 		cnpj_cpf=_exigir(documento, "CNPJ/CPF do destinatário", f"Customer {cliente}"),
-		inscricao_estadual=str(parte.get("inscricao_estadual") or "").strip(),
+		inscricao_estadual=str(parte.get("br_inscricao_estadual") or "").strip(),
 		endereco=_grupo_endereco(_endereco_vinculado("Customer", cliente), f"endereço do Customer {cliente}"),
 	)
 
@@ -237,13 +237,13 @@ def _itens(doc):
 		prod = montar_prod(
 			codigo=linha.item_code,
 			descricao=_exigir(linha.get("description") or item.get("item_name"), "descrição", onde),
-			ncm=_exigir(item.get("ncm"), "NCM", onde),
+			ncm=_exigir(item.get("br_ncm"), "NCM", onde),
 			cfop=_exigir(linha.get("br_cfop_sugerido"), "CFOP", f"linha do {onde}"),
 			unidade=_exigir(linha.get("uom") or item.get("stock_uom"), "unidade", onde),
 			quantidade=linha.get("qty"),
 			valor_unitario=linha.get("rate"),
 			valor_total=linha.get("amount"),
-			cest=str(item.get("cest") or "").strip(),
+			cest=str(item.get("br_cest") or "").strip(),
 			# Rastreabilidade: `montar_rastro_da_linha` devolve lista vazia quando a linha
 			# não tem lote, que é o caso da maioria dos produtos. Passar a lista vazia é o
 			# mesmo que não passar — `montar_prod` omite o grupo, e ausência de rastro não

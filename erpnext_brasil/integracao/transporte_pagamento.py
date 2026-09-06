@@ -115,7 +115,7 @@ def transp_do_documento(doc) -> dict:
 		modalidade,
 		transportador_cnpj_cpf="".join(c for c in str(parte.get("tax_id") or "") if c.isalnum()),
 		transportador_nome=parte.get("supplier_name") or "",
-		transportador_ie=str(parte.get("inscricao_estadual") or "").strip(),
+		transportador_ie=str(parte.get("br_inscricao_estadual") or "").strip(),
 	)
 
 

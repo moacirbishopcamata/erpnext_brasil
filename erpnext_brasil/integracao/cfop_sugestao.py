@@ -108,7 +108,7 @@ def sugerir_cfop_compra_venda(doc, method=None):
 			continue
 
 		if direcao == "venda":
-			producao_propria = item.get("producao_propria")
+			producao_propria = item.get("br_producao_propria")
 
 			if producao_propria is None:
 				continue
@@ -117,7 +117,7 @@ def sugerir_cfop_compra_venda(doc, method=None):
 				mesmo_estado=mesmo_estado, producao_propria=bool(producao_propria)
 			)
 		else:
-			finalidade_bruta = item.get("finalidade_compra")
+			finalidade_bruta = item.get("br_finalidade_compra")
 			finalidade = _MAPA_FINALIDADE_COMPRA.get(finalidade_bruta)
 
 			if not finalidade:

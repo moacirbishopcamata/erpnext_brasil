@@ -99,7 +99,7 @@ def verificar_prontidao_efd(company: str, limite_de_itens: int = 500) -> dict:
 		frappe.db.get_value(
 			"Company",
 			company,
-			["tax_id", "inscricao_estadual", "br_efd_perfil", "br_efd_atividade", "br_efd_versao_leiaute"],
+			["tax_id", "br_inscricao_estadual", "br_efd_perfil", "br_efd_atividade", "br_efd_versao_leiaute"],
 			as_dict=True,
 		)
 		or {}
@@ -108,7 +108,7 @@ def verificar_prontidao_efd(company: str, limite_de_itens: int = 500) -> dict:
 	endereco = frappe.db.get_value(
 		"Address",
 		{"is_your_company_address": 1, "link_name": company},
-		["state", "codigo_municipio_ibge"],
+		["state", "br_codigo_municipio_ibge"],
 		as_dict=True,
 	)
 
@@ -120,7 +120,7 @@ def verificar_prontidao_efd(company: str, limite_de_itens: int = 500) -> dict:
 	itens = frappe.get_all(
 		"Item",
 		filters={"disabled": 0},
-		fields=["name as item_code", "stock_uom", "ncm", "br_efd_tipo_item"],
+		fields=["name as item_code", "stock_uom", "br_ncm", "br_efd_tipo_item"],
 		limit=limite_de_itens + 1,
 	)
 

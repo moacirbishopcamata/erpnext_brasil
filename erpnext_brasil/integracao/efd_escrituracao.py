@@ -146,7 +146,7 @@ def _cst_de_tres_digitos(linha) -> str:
 	if not cst:
 		return ""
 
-	origem = str(linha.get("origem_mercadoria") or "0").strip()[:1] or "0"
+	origem = str(linha.get("br_origem_mercadoria") or "0").strip()[:1] or "0"
 
 	return f"{origem}{cst}"
 

@@ -79,7 +79,7 @@ def verificar_empresa(dados: dict) -> list[Pendencia]:
 			)
 		)
 
-	if not (dados.get("inscricao_estadual") or "").strip():
+	if not (dados.get("br_inscricao_estadual") or "").strip():
 		pendencias.append(
 			Pendencia(
 				campo="Inscrição Estadual",
@@ -123,7 +123,7 @@ def verificar_empresa(dados: dict) -> list[Pendencia]:
 			)
 		)
 
-	codigo_municipio = (dados.get("codigo_municipio_ibge") or "").strip()
+	codigo_municipio = (dados.get("br_codigo_municipio_ibge") or "").strip()
 
 	if len(codigo_municipio) != 7 or not codigo_municipio.isdigit():
 		pendencias.append(
@@ -174,7 +174,7 @@ def verificar_item(dados: dict) -> list[Pendencia]:
 			)
 		)
 
-	ncm = "".join(c for c in (dados.get("ncm") or "") if c.isdigit())
+	ncm = "".join(c for c in (dados.get("br_ncm") or "") if c.isdigit())
 
 	if ncm and len(ncm) != 8:
 		pendencias.append(

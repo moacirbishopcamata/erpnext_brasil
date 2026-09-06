@@ -89,7 +89,7 @@ def uf_da_parte(doc) -> str | None:
 
 def validar_ie(doc, method=None):
 	"""Valida a Inscrição Estadual quando a UF da parte puder ser determinada."""
-	ie = doc.get("inscricao_estadual")
+	ie = doc.get("br_inscricao_estadual")
 
 	if not ie or not _pais_e_brasil():
 		return
@@ -110,7 +110,7 @@ def validar_ie(doc, method=None):
 
 def validar_codigo_municipio(doc, method=None):
 	"""Valida o código IBGE do município em Address (7 dígitos)."""
-	codigo = doc.get("codigo_municipio_ibge")
+	codigo = doc.get("br_codigo_municipio_ibge")
 
 	if not codigo or not _pais_e_brasil():
 		return
@@ -128,7 +128,7 @@ def validar_codigo_municipio(doc, method=None):
 
 def validar_ncm(doc, method=None):
 	"""Valida o NCM do Item (8 dígitos)."""
-	ncm = doc.get("ncm")
+	ncm = doc.get("br_ncm")
 
 	if not ncm or not _pais_e_brasil():
 		return

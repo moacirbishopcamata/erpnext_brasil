@@ -85,7 +85,7 @@ def referencias_do_shipment(shipment) -> list[ReferenciaDocumentoFiscal]:
 		return []
 
 	endereco = shipment.get("delivery_address_name")
-	codigo = endereco and frappe.db.get_value("Address", endereco, "codigo_municipio_ibge")
+	codigo = endereco and frappe.db.get_value("Address", endereco, "br_codigo_municipio_ibge")
 	nome = endereco and frappe.db.get_value("Address", endereco, "city")
 
 	if not codigo or not nome:

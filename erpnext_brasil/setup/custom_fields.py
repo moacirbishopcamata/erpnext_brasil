@@ -117,44 +117,44 @@ def _campos_de_parte(insert_after: str) -> list[dict]:
 	"""
 	return [
 		{
-			"fieldname": "secao_fiscal_br",
+			"fieldname": "br_secao_fiscal_br",
 			"label": "Dados Fiscais (Brasil)",
 			"fieldtype": "Section Break",
 			"insert_after": insert_after,
 			"collapsible": 1,
 		},
 		{
-			"fieldname": "indicador_ie",
+			"fieldname": "br_indicador_ie",
 			"label": "Indicador de Inscrição Estadual",
 			"fieldtype": "Select",
 			"options": INDICADORES_IE,
-			"insert_after": "secao_fiscal_br",
+			"insert_after": "br_secao_fiscal_br",
 			"description": "Determina o indIEDest da NF-e. Isento não é o mesmo que Não Contribuinte.",
 		},
 		{
-			"fieldname": "inscricao_estadual",
+			"fieldname": "br_inscricao_estadual",
 			"label": "Inscrição Estadual",
 			"fieldtype": "Data",
-			"insert_after": "indicador_ie",
+			"insert_after": "br_indicador_ie",
 			"depends_on": "eval:doc.indicador_ie=='Contribuinte ICMS'",
 			"mandatory_depends_on": "eval:doc.indicador_ie=='Contribuinte ICMS'",
 		},
 		{
-			"fieldname": "coluna_fiscal_br",
+			"fieldname": "br_coluna_fiscal_br",
 			"fieldtype": "Column Break",
-			"insert_after": "inscricao_estadual",
+			"insert_after": "br_inscricao_estadual",
 		},
 		{
-			"fieldname": "inscricao_municipal",
+			"fieldname": "br_inscricao_municipal",
 			"label": "Inscrição Municipal",
 			"fieldtype": "Data",
-			"insert_after": "coluna_fiscal_br",
+			"insert_after": "br_coluna_fiscal_br",
 		},
 		{
-			"fieldname": "suframa",
+			"fieldname": "br_suframa",
 			"label": "Inscrição SUFRAMA",
 			"fieldtype": "Data",
-			"insert_after": "inscricao_municipal",
+			"insert_after": "br_inscricao_municipal",
 		},
 	]
 
@@ -228,7 +228,7 @@ def _campos_de_apuracao_do_documento() -> list[dict]:
 			"label": "Apurar impostos brasileiros",
 			"fieldtype": "Check",
 			"default": "1",
-			"insert_after": "secao_fiscal_br",
+			"insert_after": "br_secao_fiscal_br",
 			"description": (
 				"Desmarque para documento importado de terceiro, que já traz os impostos do "
 				"emitente — recalcular sobre eles produziria valores que não conferem com o "
@@ -373,7 +373,7 @@ def _campos_de_apuracao_da_linha() -> list[dict]:
 
 	campos: list[dict] = [
 		{
-			"fieldname": "secao_apuracao_br",
+			"fieldname": "br_secao_apuracao_br",
 			"label": "Tributos (Brasil)",
 			"fieldtype": "Section Break",
 			"insert_after": "br_cfop_sugerido",
@@ -381,7 +381,7 @@ def _campos_de_apuracao_da_linha() -> list[dict]:
 		}
 	]
 
-	anterior = "secao_apuracao_br"
+	anterior = "br_secao_apuracao_br"
 
 	opcoes_por_campo = {"br_cst_icms": OPCOES_CST_ICMS}
 
@@ -401,13 +401,13 @@ def _campos_de_apuracao_da_linha() -> list[dict]:
 
 	campos.append(
 		{
-			"fieldname": "coluna_apuracao_br",
+			"fieldname": "br_coluna_apuracao_br",
 			"label": "",
 			"fieldtype": "Column Break",
 			"insert_after": anterior,
 		}
 	)
-	anterior = "coluna_apuracao_br"
+	anterior = "br_coluna_apuracao_br"
 
 	for nome, rotulo, tipo in saidas:
 		campos.append(
@@ -427,7 +427,7 @@ def _campos_de_apuracao_da_linha() -> list[dict]:
 def _campo_chave_de_acesso() -> list[dict]:
 	return [
 		{
-			"fieldname": "secao_fiscal_br",
+			"fieldname": "br_secao_fiscal_br",
 			"label": "Dados Fiscais (Brasil)",
 			"fieldtype": "Section Break",
 			"insert_after": "company",
@@ -437,7 +437,7 @@ def _campo_chave_de_acesso() -> list[dict]:
 			"fieldname": "br_chave_acesso",
 			"label": "Chave de Acesso",
 			"fieldtype": "Data",
-			"insert_after": "secao_fiscal_br",
+			"insert_after": "br_secao_fiscal_br",
 			"length": 44,
 			"description": (
 				"44 dígitos. Validada (inclusive o dígito verificador) e normalizada — a "
@@ -483,7 +483,7 @@ def _campos_do_banco() -> list[dict]:
 	"""
 	return [
 		{
-			"fieldname": "secao_banco_br",
+			"fieldname": "br_secao_banco_br",
 			"label": "Identificação (Brasil)",
 			"fieldtype": "Section Break",
 			"insert_after": "swift_number",
@@ -494,7 +494,7 @@ def _campos_do_banco() -> list[dict]:
 			"label": "Código do Banco (COMPE)",
 			"fieldtype": "Data",
 			"length": 3,
-			"insert_after": "secao_banco_br",
+			"insert_after": "br_secao_banco_br",
 			"description": (
 				"Três dígitos da tabela COMPE do Bacen (001 Banco do Brasil, 237 Bradesco, "
 				"341 Itaú…). É o que abre o código de barras do boleto — não é o SWIFT nem "
@@ -502,7 +502,7 @@ def _campos_do_banco() -> list[dict]:
 			),
 		},
 		{
-			"fieldname": "coluna_banco_br",
+			"fieldname": "br_coluna_banco_br",
 			"fieldtype": "Column Break",
 			"insert_after": "br_codigo_banco",
 		},
@@ -511,7 +511,7 @@ def _campos_do_banco() -> list[dict]:
 			"label": "ISPB",
 			"fieldtype": "Data",
 			"length": 8,
-			"insert_after": "coluna_banco_br",
+			"insert_after": "br_coluna_banco_br",
 			"description": (
 				"Oito dígitos que identificam a instituição no PIX e no SPI. Diferente do "
 				"COMPE, e obrigatório para arranjos de pagamento instantâneo."
@@ -541,7 +541,7 @@ def _campos_da_conta_bancaria() -> list[dict]:
 	"""
 	return [
 		{
-			"fieldname": "secao_conta_br",
+			"fieldname": "br_secao_conta_br",
 			"label": "Cobrança (Brasil)",
 			"fieldtype": "Section Break",
 			"insert_after": "bank_account_no",
@@ -553,7 +553,7 @@ def _campos_da_conta_bancaria() -> list[dict]:
 			"label": "Agência",
 			"fieldtype": "Data",
 			"length": 5,
-			"insert_after": "secao_conta_br",
+			"insert_after": "br_secao_conta_br",
 			"description": "Só os dígitos, sem o verificador — ele vai no campo ao lado.",
 		},
 		{
@@ -576,7 +576,7 @@ def _campos_da_conta_bancaria() -> list[dict]:
 			),
 		},
 		{
-			"fieldname": "coluna_conta_br",
+			"fieldname": "br_coluna_conta_br",
 			"fieldtype": "Column Break",
 			"insert_after": "br_conta_dv",
 		},
@@ -585,7 +585,7 @@ def _campos_da_conta_bancaria() -> list[dict]:
 			"label": "Carteira",
 			"fieldtype": "Data",
 			"length": 3,
-			"insert_after": "coluna_conta_br",
+			"insert_after": "br_coluna_conta_br",
 			"description": (
 				"Modalidade de cobrança contratada com o banco (ex.: 09, 17, 109). Quem "
 				"define os códigos é o banco, não uma tabela nacional."
@@ -611,75 +611,75 @@ def get_custom_fields() -> dict[str, list[dict]]:
 	campos: dict[str, list[dict]] = {
 		"Company": [
 			{
-				"fieldname": "secao_fiscal_br",
+				"fieldname": "br_secao_fiscal_br",
 				"label": "Dados Fiscais (Brasil)",
 				"fieldtype": "Section Break",
 				"insert_after": "tax_id",
 				"collapsible": 1,
 			},
 			{
-				"fieldname": "regime_tributario",
+				"fieldname": "br_regime_tributario",
 				"label": "Regime Tributário",
 				"fieldtype": "Select",
 				"options": REGIMES_TRIBUTARIOS,
-				"insert_after": "secao_fiscal_br",
+				"insert_after": "br_secao_fiscal_br",
 				"description": "Define o CRT informado na NF-e e como o ICMS é apurado.",
 			},
 			{
-				"fieldname": "inscricao_estadual",
+				"fieldname": "br_inscricao_estadual",
 				"label": "Inscrição Estadual",
 				"fieldtype": "Data",
-				"insert_after": "regime_tributario",
+				"insert_after": "br_regime_tributario",
 			},
 			{
-				"fieldname": "coluna_fiscal_br",
+				"fieldname": "br_coluna_fiscal_br",
 				"fieldtype": "Column Break",
-				"insert_after": "inscricao_estadual",
+				"insert_after": "br_inscricao_estadual",
 			},
 			{
-				"fieldname": "inscricao_municipal",
+				"fieldname": "br_inscricao_municipal",
 				"label": "Inscrição Municipal",
 				"fieldtype": "Data",
-				"insert_after": "coluna_fiscal_br",
+				"insert_after": "br_coluna_fiscal_br",
 			},
 			{
-				"fieldname": "cnae_principal",
+				"fieldname": "br_cnae_principal",
 				"label": "CNAE Principal",
 				"fieldtype": "Data",
-				"insert_after": "inscricao_municipal",
+				"insert_after": "br_inscricao_municipal",
 			},
 			{
 				"fieldname": "br_natureza_juridica",
 				"label": "Natureza Jurídica",
 				"fieldtype": "Data",
-				"insert_after": "cnae_principal",
+				"insert_after": "br_cnae_principal",
 				"description": (
 					"Código da tabela de Natureza Jurídica da Receita Federal (ex.: 206-2 "
 					"para Sociedade Empresária Limitada) — usado no registro 0030 da ECF."
 				),
 			},
 			{
-				"fieldname": "chave_pix",
+				"fieldname": "br_chave_pix",
 				"label": "Chave Pix",
 				"fieldtype": "Data",
-				"insert_after": "cnae_principal",
+				"insert_after": "br_cnae_principal",
 				"description": (
 					"CPF/CNPJ, e-mail, telefone ou chave aleatória — usada para gerar o "
 					"payload Pix ('Copia e Cola') na cobrança."
 				),
 			},
 			{
-				"fieldname": "secao_certificado_a1",
+				"fieldname": "br_secao_certificado_a1",
 				"label": "Certificado Digital (transmissão SEFAZ)",
 				"fieldtype": "Section Break",
-				"insert_after": "chave_pix",
+				"insert_after": "br_chave_pix",
 				"collapsible": 1,
 			},
 			{
 				"fieldname": "br_certificado_a1",
 				"label": "Certificado A1 (.pfx/.p12)",
 				"fieldtype": "Attach",
-				"insert_after": "secao_certificado_a1",
+				"insert_after": "br_secao_certificado_a1",
 				"no_copy": 1,
 				"description": (
 					"Arquivo do certificado digital A1, usado para assinar e transmitir "
@@ -696,7 +696,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"description": "Armazenada criptografada pelo próprio Frappe (fieldtype Password).",
 			},
 			{
-				"fieldname": "coluna_certificado_a1",
+				"fieldname": "br_coluna_certificado_a1",
 				"fieldtype": "Column Break",
 				"insert_after": "br_senha_certificado_a1",
 			},
@@ -706,14 +706,14 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"fieldtype": "Select",
 				"options": "\nProdução\nHomologação",
 				"default": "Homologação",
-				"insert_after": "coluna_certificado_a1",
+				"insert_after": "br_coluna_certificado_a1",
 				"description": (
 					"Homologação por padrão — troque para Produção só quando for emitir "
 					"documento fiscal de verdade. Nunca o padrão de fábrica."
 				),
 			},
 			{
-				"fieldname": "secao_efd",
+				"fieldname": "br_secao_efd",
 				"label": "EFD-ICMS/IPI (SPED Fiscal)",
 				"fieldtype": "Section Break",
 				"insert_after": "br_ambiente_sefaz",
@@ -724,7 +724,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"label": "Perfil de Apresentação",
 				"fieldtype": "Select",
 				"options": "\nA\nB\nC",
-				"insert_after": "secao_efd",
+				"insert_after": "br_secao_efd",
 				"description": (
 					"Campo IND_PERFIL do registro 0000. Definido pela SEFAZ do estado, não "
 					"escolhido pela empresa — o perfil decide quais registros o arquivo "
@@ -743,7 +743,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				),
 			},
 			{
-				"fieldname": "coluna_efd",
+				"fieldname": "br_coluna_efd",
 				"fieldtype": "Column Break",
 				"insert_after": "br_efd_atividade",
 			},
@@ -751,7 +751,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"fieldname": "br_efd_versao_leiaute",
 				"label": "Versão do Leiaute (EFD)",
 				"fieldtype": "Data",
-				"insert_after": "coluna_efd",
+				"insert_after": "br_coluna_efd",
 				"description": (
 					"Campo COD_VER do registro 0000, 3 dígitos. Vale a versão vigente na "
 					"data final da escrituração (tabela do Ato COTEPE/ICMS 09/2008) — por "
@@ -759,7 +759,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				),
 			},
 			{
-				"fieldname": "suframa",
+				"fieldname": "br_suframa",
 				"label": "Inscrição SUFRAMA",
 				"fieldtype": "Data",
 				"insert_after": "br_efd_versao_leiaute",
@@ -769,17 +769,17 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				),
 			},
 			{
-				"fieldname": "secao_nfce",
+				"fieldname": "br_secao_nfce",
 				"label": "NFC-e (Código de Segurança do Contribuinte)",
 				"fieldtype": "Section Break",
-				"insert_after": "suframa",
+				"insert_after": "br_suframa",
 				"collapsible": 1,
 			},
 			{
 				"fieldname": "br_csc_id_nfce",
 				"label": "Identificador do CSC (CSCId)",
 				"fieldtype": "Data",
-				"insert_after": "secao_nfce",
+				"insert_after": "br_secao_nfce",
 				"description": (
 					"Identificador do CSC cadastrado na SEFAZ. Entra no QR Code sem zeros à "
 					"esquerda, mesmo que o cadastro os exiba."
@@ -797,7 +797,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				),
 			},
 			{
-				"fieldname": "secao_transporte",
+				"fieldname": "br_secao_transporte",
 				"label": "Transporte (CT-e / MDF-e)",
 				"fieldtype": "Section Break",
 				"insert_after": "br_csc_nfce",
@@ -807,7 +807,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"fieldname": "br_rntrc",
 				"label": "RNTRC",
 				"fieldtype": "Data",
-				"insert_after": "secao_transporte",
+				"insert_after": "br_secao_transporte",
 				"description": (
 					"Registro Nacional de Transportadores Rodoviários de Carga (ANTT), 8 "
 					"dígitos. Exigido pelo modal rodoviário do CT-e e do MDF-e. Transportador "
@@ -815,7 +815,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				),
 			},
 			{
-				"fieldname": "secao_series",
+				"fieldname": "br_secao_series",
 				"label": "Séries dos documentos fiscais",
 				"fieldtype": "Section Break",
 				"insert_after": "br_rntrc",
@@ -825,7 +825,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"fieldname": "br_serie_nfe",
 				"label": "Série da NF-e",
 				"fieldtype": "Data",
-				"insert_after": "secao_series",
+				"insert_after": "br_secao_series",
 				"description": "Série padrão deste estabelecimento para o modelo 55.",
 			},
 			{
@@ -836,7 +836,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"description": "Série padrão deste estabelecimento para o modelo 65.",
 			},
 			{
-				"fieldname": "coluna_series",
+				"fieldname": "br_coluna_series",
 				"fieldtype": "Column Break",
 				"insert_after": "br_serie_nfce",
 			},
@@ -844,7 +844,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"fieldname": "br_serie_cte",
 				"label": "Série do CT-e",
 				"fieldtype": "Data",
-				"insert_after": "coluna_series",
+				"insert_after": "br_coluna_series",
 				"description": "Série padrão deste estabelecimento para o modelo 57.",
 			},
 			{
@@ -855,7 +855,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"description": "Série padrão deste estabelecimento para o modelo 58.",
 			},
 			{
-				"fieldname": "secao_esocial",
+				"fieldname": "br_secao_esocial",
 				"label": "eSocial / EFD-Reinf",
 				"fieldtype": "Section Break",
 				"insert_after": "br_serie_mdfe",
@@ -865,7 +865,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"fieldname": "br_esocial_classificacao_tributaria",
 				"label": "Classificação Tributária (eSocial)",
 				"fieldtype": "Data",
-				"insert_after": "secao_esocial",
+				"insert_after": "br_secao_esocial",
 				"description": (
 					"Campo classTrib do evento S-1000, 2 dígitos da Tabela 08 do eSocial. "
 					"Define como o empregador é tributado e condiciona vários outros campos "
@@ -884,7 +884,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				),
 			},
 			{
-				"fieldname": "coluna_esocial",
+				"fieldname": "br_coluna_esocial",
 				"fieldtype": "Column Break",
 				"insert_after": "br_esocial_transmissor",
 			},
@@ -894,7 +894,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"fieldtype": "Select",
 				"options": "\nProdução\nProdução restrita",
 				"default": "Produção restrita",
-				"insert_after": "coluna_esocial",
+				"insert_after": "br_coluna_esocial",
 				"description": (
 					"Domínio PRÓPRIO do eSocial (tpAmb 1/2), NÃO o mesmo da SEFAZ — lá é "
 					"produção/homologação. Campo separado de propósito: um site pode estar "
@@ -906,34 +906,34 @@ def get_custom_fields() -> dict[str, list[dict]]:
 		"Supplier": _campos_de_parte("tax_id"),
 		"Address": [
 			{
-				"fieldname": "secao_fiscal_br",
+				"fieldname": "br_secao_fiscal_br",
 				"label": "Dados Fiscais (Brasil)",
 				"fieldtype": "Section Break",
 				"insert_after": "pincode",
 				"collapsible": 1,
 			},
 			{
-				"fieldname": "codigo_municipio_ibge",
+				"fieldname": "br_codigo_municipio_ibge",
 				"label": "Código do Município (IBGE)",
 				"fieldtype": "Data",
-				"insert_after": "secao_fiscal_br",
+				"insert_after": "br_secao_fiscal_br",
 				"description": "7 dígitos. Obrigatório na NF-e; não é derivável do CEP com segurança.",
 			},
 			{
-				"fieldname": "bairro",
+				"fieldname": "br_bairro",
 				"label": "Bairro",
 				"fieldtype": "Data",
-				"insert_after": "codigo_municipio_ibge",
+				"insert_after": "br_codigo_municipio_ibge",
 				"description": (
 					"O `Address` nativo do ERPNext não tem campo de bairro — obrigatório no "
 					"endereço da NF-e (xBairro) e no registro 0030 da ECF."
 				),
 			},
 			{
-				"fieldname": "numero_endereco",
+				"fieldname": "br_numero_endereco",
 				"label": "Número",
 				"fieldtype": "Data",
-				"insert_after": "bairro",
+				"insert_after": "br_bairro",
 				"description": (
 					"O `Address` nativo do ERPNext embute o número em `address_line1` — "
 					"separado aqui porque a NF-e (`nro`) e a ECF (registro 0030, `NUM`) "
@@ -943,51 +943,51 @@ def get_custom_fields() -> dict[str, list[dict]]:
 		],
 		"Item": [
 			{
-				"fieldname": "secao_fiscal_br",
+				"fieldname": "br_secao_fiscal_br",
 				"label": "Dados Fiscais (Brasil)",
 				"fieldtype": "Section Break",
 				"insert_after": "item_group",
 				"collapsible": 1,
 			},
 			{
-				"fieldname": "ncm",
+				"fieldname": "br_ncm",
 				"label": "NCM",
 				"fieldtype": "Data",
-				"insert_after": "secao_fiscal_br",
+				"insert_after": "br_secao_fiscal_br",
 				"description": "8 dígitos. Determina IPI e, em muitos casos, a alíquota de ICMS.",
 			},
 			{
-				"fieldname": "cest",
+				"fieldname": "br_cest",
 				"label": "CEST",
 				"fieldtype": "Data",
-				"insert_after": "ncm",
+				"insert_after": "br_ncm",
 				"description": "7 dígitos. Obrigatório quando a mercadoria está sujeita a ICMS-ST.",
 			},
 			{
-				"fieldname": "coluna_fiscal_br",
+				"fieldname": "br_coluna_fiscal_br",
 				"fieldtype": "Column Break",
-				"insert_after": "cest",
+				"insert_after": "br_cest",
 			},
 			{
-				"fieldname": "origem_mercadoria",
+				"fieldname": "br_origem_mercadoria",
 				"label": "Origem da Mercadoria",
 				"fieldtype": "Select",
 				"options": ORIGENS_MERCADORIA,
-				"insert_after": "coluna_fiscal_br",
+				"insert_after": "br_coluna_fiscal_br",
 			},
 			{
-				"fieldname": "codigo_servico_lc116",
+				"fieldname": "br_codigo_servico_lc116",
 				"label": "Código de Serviço (LC 116)",
 				"fieldtype": "Data",
-				"insert_after": "origem_mercadoria",
+				"insert_after": "br_origem_mercadoria",
 				"depends_on": "eval:!doc.is_stock_item",
 				"description": "Usado na NFS-e. Só se aplica a itens de serviço.",
 			},
 			{
-				"fieldname": "producao_propria",
+				"fieldname": "br_producao_propria",
 				"label": "Produção Própria",
 				"fieldtype": "Check",
-				"insert_after": "codigo_servico_lc116",
+				"insert_after": "br_codigo_servico_lc116",
 				"depends_on": "eval:doc.is_stock_item",
 				"description": (
 					"Marque se este item é fabricado por esta empresa, não comprado pronto "
@@ -996,11 +996,11 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				),
 			},
 			{
-				"fieldname": "finalidade_compra",
+				"fieldname": "br_finalidade_compra",
 				"label": "Finalidade da Compra",
 				"fieldtype": "Select",
 				"options": FINALIDADES_COMPRA,
-				"insert_after": "producao_propria",
+				"insert_after": "br_producao_propria",
 				"description": (
 					"Para que esta empresa compra este item: para industrializar (usar como "
 					"insumo de produção) ou para comercializar (revender como veio). Decide o "
@@ -1013,7 +1013,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"label": "Tipo do Item (EFD)",
 				"fieldtype": "Select",
 				"options": TIPOS_ITEM_EFD,
-				"insert_after": "finalidade_compra",
+				"insert_after": "br_finalidade_compra",
 				"description": (
 					"Campo TIPO_ITEM do registro 0200 da EFD, obrigatório. Não tem "
 					"equivalente nativo no ERPNext: 'produção própria' e 'finalidade da "

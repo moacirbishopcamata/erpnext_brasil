@@ -70,7 +70,7 @@ class TestCamposDaCompanyParaORegistro0000(unittest.TestCase):
 
 	def test_company_ganhou_suframa(self):
 		"""Achado real: Customer/Supplier já tinham; a Company não."""
-		campo = _campo("Company", "suframa")
+		campo = _campo("Company", "br_suframa")
 
 		self.assertEqual(campo["fieldtype"], "Data")
 

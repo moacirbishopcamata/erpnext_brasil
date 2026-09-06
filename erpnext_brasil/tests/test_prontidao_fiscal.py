@@ -15,11 +15,11 @@ from erpnext_brasil.contabil.prontidao_fiscal import (
 def _empresa_completa(**overrides) -> dict:
 	base = {
 		"tax_id": "11.222.333/0001-81",
-		"inscricao_estadual": "00000000",
+		"br_inscricao_estadual": "00000000",
 		"br_efd_perfil": "A",
 		"br_efd_atividade": "Industrial ou equiparado a industrial",
 		"br_efd_versao_leiaute": "017",
-		"codigo_municipio_ibge": "1100205",
+		"br_codigo_municipio_ibge": "1100205",
 		"state": "RO",
 	}
 	base.update(overrides)
@@ -31,7 +31,7 @@ def _item_completo(**overrides) -> dict:
 	base = {
 		"item_code": "PROD001",
 		"stock_uom": "UN",
-		"ncm": "84713019",
+		"br_ncm": "84713019",
 		"br_efd_tipo_item": "04 - Produto Acabado",
 	}
 	base.update(overrides)
@@ -52,7 +52,7 @@ class TestEmpresaIncompleta(unittest.TestCase):
 		self.assertIn("CNPJ", self._campos_pendentes(tax_id=""))
 
 	def test_sem_inscricao_estadual(self):
-		self.assertIn("Inscrição Estadual", self._campos_pendentes(inscricao_estadual=""))
+		self.assertIn("Inscrição Estadual", self._campos_pendentes(br_inscricao_estadual=""))
 
 	def test_sem_perfil(self):
 		self.assertIn("Perfil de Apresentação", self._campos_pendentes(br_efd_perfil=""))
@@ -65,10 +65,10 @@ class TestEmpresaIncompleta(unittest.TestCase):
 		self.assertIn("Versão do Leiaute", self._campos_pendentes(br_efd_versao_leiaute=""))
 
 	def test_sem_codigo_de_municipio(self):
-		self.assertIn("Código do Município (IBGE)", self._campos_pendentes(codigo_municipio_ibge=""))
+		self.assertIn("Código do Município (IBGE)", self._campos_pendentes(br_codigo_municipio_ibge=""))
 
 	def test_codigo_de_municipio_com_tamanho_errado(self):
-		self.assertIn("Código do Município (IBGE)", self._campos_pendentes(codigo_municipio_ibge="110020"))
+		self.assertIn("Código do Município (IBGE)", self._campos_pendentes(br_codigo_municipio_ibge="110020"))
 
 	def test_sem_uf(self):
 		self.assertIn("UF", self._campos_pendentes(state=""))
@@ -113,20 +113,20 @@ class TestItem(unittest.TestCase):
 		self.assertIn("Unidade de Medida", self._campos_pendentes(stock_uom=""))
 
 	def test_ncm_com_tamanho_errado_bloqueia(self):
-		pendencia = next(p for p in verificar_item(_item_completo(ncm="123")) if p.campo == "NCM")
+		pendencia = next(p for p in verificar_item(_item_completo(br_ncm="123")) if p.campo == "NCM")
 
 		self.assertTrue(pendencia.bloqueia)
 
 	def test_ncm_ausente_e_atencao_nao_bloqueio(self):
 		"""O layout exige NCM de indústria e equiparada, não de todo mundo — tratar
 		como bloqueio recusaria cadastro que o Fisco aceita."""
-		pendencia = next(p for p in verificar_item(_item_completo(ncm="")) if p.campo == "NCM")
+		pendencia = next(p for p in verificar_item(_item_completo(br_ncm="")) if p.campo == "NCM")
 
 		self.assertFalse(pendencia.bloqueia)
 		self.assertEqual(pendencia.gravidade, GRAVIDADE_ATENCAO)
 
 	def test_ncm_com_mascara_e_aceito(self):
-		self.assertEqual(verificar_item(_item_completo(ncm="8471.30.19")), [])
+		self.assertEqual(verificar_item(_item_completo(br_ncm="8471.30.19")), [])
 
 	def test_a_pendencia_identifica_o_item(self):
 		pendencia = verificar_item(_item_completo(item_code="XYZ", stock_uom=""))[0]

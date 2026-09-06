@@ -67,7 +67,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 	return {
 		"Employee": [
 			{
-				"fieldname": "secao_esocial_br",
+				"fieldname": "br_secao_esocial_br",
 				"label": "eSocial (Brasil)",
 				"fieldtype": "Section Break",
 				"insert_after": "date_of_birth",
@@ -78,7 +78,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"label": "CPF",
 				"fieldtype": "Data",
 				"length": 14,
-				"insert_after": "secao_esocial_br",
+				"insert_after": "br_secao_esocial_br",
 				"description": (
 					"Identifica o trabalhador em todo evento do eSocial (`cpfTrab`). "
 					"Sem ele o S-1200 não pode ser montado."
@@ -107,7 +107,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				),
 			},
 			{
-				"fieldname": "coluna_esocial_br",
+				"fieldname": "br_coluna_esocial_br",
 				"fieldtype": "Column Break",
 				"insert_after": "br_cod_categoria",
 			},
@@ -116,7 +116,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"label": "CBO",
 				"fieldtype": "Data",
 				"length": 6,
-				"insert_after": "coluna_esocial_br",
+				"insert_after": "br_coluna_esocial_br",
 				"description": (
 					"Classificação Brasileira de Ocupações, 6 dígitos. Fica no `Employee` e "
 					"não na `Designation` porque dois empregados com o mesmo cargo podem ter "
@@ -137,7 +137,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 		],
 		"Salary Component": [
 			{
-				"fieldname": "secao_esocial_br",
+				"fieldname": "br_secao_esocial_br",
 				"label": "eSocial (Brasil)",
 				"fieldtype": "Section Break",
 				"insert_after": "type",
@@ -148,7 +148,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"label": "Código da Rubrica (eSocial)",
 				"fieldtype": "Data",
 				"length": 30,
-				"insert_after": "secao_esocial_br",
+				"insert_after": "br_secao_esocial_br",
 				"description": (
 					"`codRubr` do S-1200, da tabela de rubricas do empregador (evento S-1010). "
 					"Não há tabela nacional. Componente sem código não entra no evento — e "
