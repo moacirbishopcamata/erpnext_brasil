@@ -147,81 +147,13 @@ Os outros quatro cobrem o comportamento através do banco: baixa sem tipo salva 
 o resultado é gravado e relido por caminho independente, quebra normal do processo preserva
 o crédito, e apagar o tipo limpa o resultado.
 
-⚠️ **Quatro** exigências do ERPNext viraram comentário no arquivo, porque cada uma produz um
-erro que aponta para o lugar errado:
-
-| Falta | Erro que aparece |
-|---|---|
-| `Stock Entry Type` | `LinkValidationError` |
-| segundo armazém no `Material Transfer` | "Target warehouse is mandatory" |
-| `valuation_rate` no item | "Valuation Rate is required" |
-| **ano fiscal ativo** | `FiscalYearError` |
-
-Nenhuma menciona "configuração faltando", que é a causa das quatro — site que nunca rodou o
-assistente do ERPNext não tem nada disso.
-
-A do `valuation_rate` mordeu duas vezes, e a lição é geral: o setup era idempotente **por
-existência**, então o item criado numa execução anterior sobrevivia à correção.
-
-## O ERPNext como coletor de dados do estoquista
-
-Pergunta do usuário, respondida contra o código do erpnext **v16**, não de memória:
-**sim, e já vem pronto** — não precisa de app nem de integração.
-
-### O que existe
-
-`scan_barcode` é um campo nativo em **seis** DocTypes de estoque:
-
-| DocType | Uso pelo estoquista |
-|---|---|
-| `Stock Entry` | baixa, transferência, produção |
-| `Purchase Receipt` | conferência do recebimento |
-| `Stock Reconciliation` | contagem de inventário |
-| `Material Request` | requisição no chão |
-| `Delivery Note` | conferência da expedição |
-| `Pick List` | separação |
-
-O controlador é `erpnext/public/js/utils/barcode_scanner.js` (572 linhas), e o resolvedor no
-servidor é `erpnext.stock.utils.scan_barcode`.
-
-### O que o app resolve a partir de uma leitura só
-
-Lido em `stock/utils.py`, o `scan_barcode` tenta **quatro** cadastros, nesta ordem, e
-devolve o primeiro que casar:
-
-1. **`Item Barcode`** — o código de barras do item (EAN/GTIN), devolvendo item e UOM;
-2. **`Serial No`** — devolvendo item **e o lote** do número de série;
-3. **`Batch`** — devolvendo item e lote;
-4. **`Warehouse`** — o próprio armazém, para o estoquista "entrar" num endereço lendo a
-   etiqueta da prateleira.
-
-⚠️ Uma guarda que vale conhecer: ler o **lote** de um item que tem número de série é
-**recusado** (`"Please scan serial no instead"`). Aceitar seria registrar uma quantidade sem
-saber qual série saiu — e a rastreabilidade se perderia no ponto exato em que existe para
-funcionar.
-
-### Por que isso importa fiscalmente, e não só operacionalmente
-
-O que o leitor devolve — **item + lote + série** — é exatamente o que
-`integracao/rastreabilidade.py` traduz para o grupo `rastro` da NF-e (`nLote`, `qLote`,
-`dFab`, `dVal`).
-
-Ou seja: **o bipe do estoquista já alimenta a rastreabilidade fiscal.** Não há uma segunda
-digitação, nem um cadastro paralelo a manter — o que o operador faz para controlar o estoque
-é o mesmo dado que a nota exige. Vale registrar porque o caminho contrário é comum: sistemas
-que coletam por código de barras para o WMS e pedem o lote **de novo**, à mão, na emissão.
-
-### O que não se resolve com isso
-
-- **Coletor offline.** O `scan_barcode` é uma chamada ao servidor; sem rede, não resolve.
-  Operação em galpão sem cobertura precisa de fila local, que o Desk não faz.
-- **Leitor dedicado com teclado próprio.** Funciona (o campo é texto e o leitor "digita"),
-  mas o foco no campo é responsabilidade da tela — em coletor físico com navegação por
-  teclas isso costuma exigir ajuste.
-- ~~**GS1-128 composto.**~~ **Resolvido** — `fiscal/gs1.py` separa os Application
-  Identifiers e `integracao/leitura_gs1.py` decora o resolvedor do ERPNext. Detalhado em
-  [coletor-gs1.md](coletor-gs1.md). O composto não exigiu código a mais: o leitor entrega o
-  componente 2D concatenado ao linear, com os mesmos AI.
+⚠️ Escrever estes testes esbarrou em **sete** cadastros que um site sem assistente de
+configuração não tem — `Warehouse Type`, `Fiscal Year`, `Stock Entry Type`,
+`Address Template`, `Price List`, `valuation_rate` e o segundo armazém do
+`Material Transfer` —, e nenhuma das mensagens de erro diz que a causa é configuração
+faltando. A lista completa, com o erro que cada uma produz, está em
+[ambiente-dev-bench.md](ambiente-dev-bench.md); duplicá-la aqui criaria duas versões da
+mesma tabela.
 
 ## Gaps que ficam declarados
 

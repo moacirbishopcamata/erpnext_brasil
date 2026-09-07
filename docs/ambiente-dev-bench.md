@@ -334,6 +334,45 @@ git pull /mnt/g/PROJECTS/erpnext_brasil <branch>
 # caminho local e mergear a branch de trabalho.
 ```
 
+## ⚠️ Site sem assistente de configuração: sete faltas, e nenhuma se explica
+
+Um site criado por `bench new-site` + `install-app erpnext` **não passou pelo assistente de
+configuração**, e por isso lhe faltam cadastros que o ERPNext considera óbvios. Escrever
+testes de bench esbarra em todos eles, um de cada vez, e o custo não é o conserto — é que
+**nenhuma das mensagens diz que a causa é configuração faltando**:
+
+| O que falta | Erro que aparece | Onde morde |
+|---|---|---|
+| `Warehouse Type: Transit` | `LinkValidationError: Could not find Warehouse Type: Transit` | criar `Company` |
+| `Fiscal Year` ativo | `FiscalYearError: Date … is not in any active Fiscal Year` | submeter lançamento de estoque |
+| `Stock Entry Type` | `LinkValidationError: Could not find Stock Entry Type` | criar `Stock Entry` |
+| `Address Template` padrão | `No default Address Template found` | criar `Address` |
+| `Price List` de venda | `MandatoryError: selling_price_list, price_list_currency, plc_conversion_rate` | criar `Sales Invoice` |
+| `valuation_rate` no `Item` | `Valuation Rate for the Item … is required` | baixar estoque |
+| segundo armazém no `Material Transfer` | `Target warehouse is mandatory for row 1` | transferir estoque |
+
+Duas armadilhas a mais, que não são "falta de cadastro" e custam o mesmo tempo:
+
+- **Cliente interno precisa autorizar a empresa.** `is_internal_customer` +
+  `represents_company` não bastam: sem a empresa em `companies` ("Allowed To Transact
+  With"), a nota é recusada com *"Customer not allowed to transact with"*. É proteção do
+  ERPNext contra faturamento cruzado — legítima, e invisível para quem leu só a
+  documentação de `is_internal_customer`.
+- **Setup idempotente por existência não incorpora mudança no cadastro.** Um
+  `if not frappe.db.exists("Item", X): criar(...)` faz o item de uma execução anterior
+  sobreviver a qualquer correção no `setUpClass` — e o teste segue falhando por um motivo
+  que já foi consertado. Campos que o teste depende (`valuation_rate`,
+  `br_producao_propria`) vão **fora** do `if`, com `frappe.db.set_value`.
+
+Também é preciso habilitar os testes uma vez por site:
+
+```sh
+bench --site v16.localhost set-config allow_tests true
+```
+
+Os arquivos em `erpnext_brasil/tests_bench/` já trazem tudo isso no `setUpClass`, e servem
+de receita para o próximo.
+
 ## Fonte
 
 Testado e documentado em 2026-08-29, na máquina de desenvolvimento deste projeto
