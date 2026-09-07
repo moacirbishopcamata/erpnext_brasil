@@ -135,15 +135,33 @@ O teste-âncora é `test_recusa_perda_em_transferencia`: grava um `Stock Entry` 
 o que prova que o Frappe de fato chama o hook — hook declarado que nunca roda é o gap de
 costura que este projeto trata como pior que bug.
 
+O **segundo âncora** é `test_recusa_sobra_de_inventario`, e é o mais sutil: dá entrada de 10
+unidades por um `Stock Entry` submetido e conta 15 no `Stock Reconciliation`, deixando o
+ERPNext calcular a diferença. Positiva, é sobra — apareceu mercadoria, não sumiu —, e apurar
+perda ali estornaria crédito em cima de um ganho.
+
+O saldo é **real**, não `difference_amount` forçado num campo: forçar o valor provaria a
+nossa função e não a integração, e quem decide o sinal é o ERPNext.
+
 Os outros quatro cobrem o comportamento através do banco: baixa sem tipo salva normalmente,
 o resultado é gravado e relido por caminho independente, quebra normal do processo preserva
 o crédito, e apagar o tipo limpa o resultado.
 
-⚠️ Três exigências do ERPNext viraram comentário no arquivo, porque cada uma produz um erro
-que aponta para o lugar errado: `Stock Entry Type` precisa existir (site sem assistente de
-configuração não tem), `Material Transfer` exige **os dois** armazéns, e o item precisa de
-`valuation_rate`. Esta última mordeu duas vezes: o setup era idempotente por existência, e o
-item criado numa execução anterior sobrevivia à correção.
+⚠️ **Quatro** exigências do ERPNext viraram comentário no arquivo, porque cada uma produz um
+erro que aponta para o lugar errado:
+
+| Falta | Erro que aparece |
+|---|---|
+| `Stock Entry Type` | `LinkValidationError` |
+| segundo armazém no `Material Transfer` | "Target warehouse is mandatory" |
+| `valuation_rate` no item | "Valuation Rate is required" |
+| **ano fiscal ativo** | `FiscalYearError` |
+
+Nenhuma menciona "configuração faltando", que é a causa das quatro — site que nunca rodou o
+assistente do ERPNext não tem nada disso.
+
+A do `valuation_rate` mordeu duas vezes, e a lição é geral: o setup era idempotente **por
+existência**, então o item criado numa execução anterior sobrevivia à correção.
 
 ## O ERPNext como coletor de dados do estoquista
 

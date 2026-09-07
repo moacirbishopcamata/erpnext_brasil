@@ -371,11 +371,11 @@ A ordem não é por tamanho, é por **quanto cada item destrava do que já está
    recusa de perda em transferência prova que o hook está ligado através do framework, e os
    demais cobrem gravação e releitura por caminho independente.
 
-   **O que ainda falta** é a recusa de **sobra de inventário** no `Stock Reconciliation`.
-   Ela depende de o ERPNext calcular `difference_amount` positivo, o que exige saldo
-   anterior no armazém — mais setup do que os outros casos, e por isso ficou de fora deste
-   incremento em vez de ser simulada com um valor forçado, que provaria a nossa função e
-   não a integração.
+   **A recusa de sobra de inventário também entrou** — e com saldo real, não com
+   `difference_amount` forçado: o teste dá entrada de 10 unidades por um `Stock Entry`
+   submetido e conta 15 no `Stock Reconciliation`, deixando o **ERPNext** calcular a
+   diferença positiva. Forçar o valor provaria a nossa função e não a integração, que é o
+   que estes testes existem para provar.
 3. **Camada que lê o site para o bloco D.** C, E, H e K ficaram prontos em 2026-09-05
    (`efd_escrituracao`, `efd_apuracao`, `efd_inventario`, `efd_producao`). O **D**
    continua aberto por motivo estrutural, não por falta de tempo: **nenhum DocType do

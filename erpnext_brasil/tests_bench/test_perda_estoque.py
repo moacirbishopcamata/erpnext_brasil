@@ -53,7 +53,7 @@ class TestPerdaNoEstoque(FrappeTestCase):
 		# o assistente de configuração a tabela está vazia — o erro que aparece é
 		# `LinkValidationError: Could not find Stock Entry Type`, sem relação aparente com o
 		# que se está testando.
-		for finalidade in ("Material Issue", "Material Transfer"):
+		for finalidade in ("Material Issue", "Material Transfer", "Material Receipt"):
 			if not frappe.db.exists("Stock Entry Type", finalidade):
 				frappe.get_doc(
 					{
@@ -81,6 +81,24 @@ class TestPerdaNoEstoque(FrappeTestCase):
 				}
 			).insert(ignore_permissions=True)
 
+		# Submeter um lançamento de estoque exige **ano fiscal ativo** — o razão contábil
+		# precisa saber em que exercício lançar. Site sem assistente de configuração não tem
+		# nenhum, e o erro é `FiscalYearError`, que não menciona configuração faltando.
+		#
+		# Sem `companies` preenchido, o ano fiscal vale para todas as empresas — que é o que
+		# se quer num ambiente de teste.
+		ano = str(frappe.utils.now_datetime().year)
+
+		if not frappe.db.exists("Fiscal Year", ano):
+			frappe.get_doc(
+				{
+					"doctype": "Fiscal Year",
+					"year": ano,
+					"year_start_date": f"{ano}-01-01",
+					"year_end_date": f"{ano}-12-31",
+				}
+			).insert(ignore_permissions=True)
+
 		# ⚠️ Fora do `if not exists`, e de propósito.
 		#
 		# Setup idempotente por existência não incorpora mudança no cadastro: o item criado
@@ -103,11 +121,15 @@ class TestPerdaNoEstoque(FrappeTestCase):
 		"""
 		linha = {
 			"item_code": ITEM,
-			"qty": 1,
+			"qty": extras.pop("qty", 1),
 			"uom": "Unidade",
-			"s_warehouse": ORIGEM,
 			"basic_rate": 100,
 		}
+
+		if finalidade == "Material Receipt":
+			linha["t_warehouse"] = ORIGEM
+		else:
+			linha["s_warehouse"] = ORIGEM
 
 		if finalidade == "Material Transfer":
 			linha["t_warehouse"] = DESTINO
@@ -203,3 +225,45 @@ class TestPerdaNoEstoque(FrappeTestCase):
 		doc.save()
 
 		self.assertEqual(0.0, float(frappe.db.get_value("Stock Entry", doc.name, "br_credito_estornado")))
+
+	def _dar_entrada(self, quantidade: int) -> None:
+		"""Cria saldo de verdade no armazém, submetendo uma entrada.
+
+		⚠️ Saldo **real**, e não `difference_amount` forçado num campo. Forçar o valor
+		provaria a nossa função e não a integração — e é justamente a integração que estes
+		testes existem para provar: quem calcula `difference_amount`, e com que sinal, é o
+		ERPNext.
+		"""
+		entrada = self._lancamento("Material Receipt", qty=quantidade)
+		entrada.insert()
+		entrada.submit()
+
+	def test_recusa_sobra_de_inventario(self):
+		"""Segundo teste-âncora, e o mais sutil da frente de estoque.
+
+		No `Stock Reconciliation` o **sinal** de `difference_amount` é a única coisa que
+		separa falta de sobra — e sinal não é classificação fiscal. Contando **mais** do que
+		o sistema registra, a diferença é positiva: apareceu mercadoria, não sumiu. Apurar
+		perda aí calcularia estorno de crédito em cima de um ganho, e o ERPNext não levantaria
+		um único erro.
+		"""
+		self._dar_entrada(10)
+
+		contagem = frappe.get_doc(
+			{
+				"doctype": "Stock Reconciliation",
+				"company": EMPRESA,
+				"purpose": "Stock Reconciliation",
+				"expense_account": frappe.db.get_value(
+					"Account", {"company": EMPRESA, "account_type": "Stock Adjustment"}, "name"
+				),
+				"items": [{"item_code": ITEM, "warehouse": ORIGEM, "qty": 15, "valuation_rate": 100}],
+				"br_tipo_de_perda": "Ajuste de inventário",
+			}
+		)
+		contagem.flags.ignore_permissions = True
+
+		with self.assertRaises(frappe.ValidationError) as capturado:
+			contagem.insert()
+
+		self.assertIn("sobra", str(capturado.exception).lower())
