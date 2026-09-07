@@ -223,6 +223,25 @@ class TestACosturaComOLeitor(unittest.TestCase):
 
 		self.assertEqual(["search_value", "ctx"], [a.arg for a in funcao.args.args])
 
+	def test_completa_com_has_batch_no_antes_do_lote(self):
+		"""🔴 O defeito que o bench achou. O JS suprime o seletor de lote quando
+		`has_batch_no` vem indefinido — e um item com controle de lote, lido por etiqueta sem
+		o AI (10), entraria na linha **sem lote**, sem nada perguntar.
+
+		A ordem importa: completar **antes** de gravar `batch_no`, senão a decisão do JS é
+		tomada com o dado que ainda não chegou."""
+		self.assertIn("_completar_com_os_dados_do_item", _SEM_DOC)
+		self.assertIn("has_batch_no", _SEM_DOC)
+		self.assertLess(
+			_SEM_DOC.index("_completar_com_os_dados_do_item(achado, ctx)"),
+			_SEM_DOC.index('achado["batch_no"]'),
+		)
+
+	def test_a_falha_de_import_do_privado_degrada(self):
+		"""`_update_item_info` é privado de outro app: pode sumir. A leitura inteira não
+		pode cair por isso."""
+		self.assertIn("except ImportError", _SEM_DOC)
+
 	def test_o_js_troca_nos_dois_lugares(self):
 		"""A instância mora em `frm.barcode_scanner` numa tela e em
 		`frm.cscript.barcode_scanner` nas outras — procurar só num faria a leitura

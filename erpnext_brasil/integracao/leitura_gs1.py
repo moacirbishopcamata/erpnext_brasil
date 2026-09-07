@@ -36,7 +36,15 @@ faria o leitor bipar, o servidor responder, e **nada acontecer na tela**.
 O que a etiqueta traz e o ERPNext não tem onde guardar — validade e data de fabricação —
 volta em `br_gs1`, ignorado pelo JS do ERPNext e disponível para quem quiser usar.
 
-Estado de verificação: camada Frappe, **não** exercitada contra bench real.
+Estado de verificação
+----------------------------
+**Exercitado em site v16 real.** Um `Item` com EAN-13 cadastrado, lido por uma etiqueta
+`01…17250600 10LOTE-A1 <GS> 21SN-9`, devolveu `item_code`, `batch_no`, `serial_no` e a
+validade resolvida para 30/06 — e um EAN-13 puro delegou ao ERPNext, como esperado.
+
+Foi essa execução que revelou a ausência de `has_batch_no` no retorno (ver
+`_completar_com_os_dados_do_item`): a suíte via um dicionário bem formado, e o defeito
+estava no que **faltava** nele.
 """
 
 import frappe
@@ -59,6 +67,44 @@ def _delegar(search_value: str, ctx):
 	from erpnext.stock.utils import scan_barcode
 
 	return scan_barcode(search_value, ctx)
+
+
+def _completar_com_os_dados_do_item(achado: dict, ctx):
+	"""Acrescenta `has_batch_no`, `has_serial_no` e o armazém padrão ao resultado.
+
+	🔴 **Achado no bench, e o modo de falhar é silencioso.** O `barcode_scanner.js` decide
+	se abre o seletor de lote/série assim:
+
+	    const require_selecting_batch = has_batch_no && !batch_no;
+	    if (!(require_selecting_batch || require_selecting_serial))
+	        frappe.flags.hide_serial_batch_dialog = true;
+
+	Com `has_batch_no` **indefinido** a expressão é falsa, o seletor é **suprimido**, e um
+	item com controle de lote lido por uma etiqueta que não traz o AI (10) entra na linha
+	**sem lote** — sem que nada pergunte. É perder justamente a rastreabilidade que este
+	módulo existe para proteger.
+
+	O caminho de delegação nunca teve esse problema: o `scan_barcode` do ERPNext chama
+	`_update_item_info` internamente. Só o caminho GS1, que o contorna, precisava disto.
+
+	⚠️ `_update_item_info` é **privado** de outro app. Reusá-lo é o certo — ele também
+	resolve o `default_warehouse` a partir do contexto, e reimplementar isso criaria uma
+	segunda verdade. Mas privado pode sumir numa versão nova, então a falha de importação
+	degrada para o mínimo indispensável em vez de derrubar a leitura inteira.
+	"""
+	try:
+		from erpnext.stock.utils import _update_item_info
+
+		return _update_item_info(achado, ctx)
+	except ImportError:
+		informacao = frappe.get_cached_value(
+			"Item", achado["item_code"], ("has_batch_no", "has_serial_no"), as_dict=True
+		)
+
+		if informacao:
+			achado.update(informacao)
+
+		return achado
 
 
 def _item_do_gtin(gtin: str, sem_enchimento: str | None):
@@ -107,6 +153,10 @@ def ler_codigo(search_value: str, ctx: dict | str | None = None):
 
 	if not achado:
 		return _delegar(search_value, ctx)
+
+	# Antes de acrescentar lote e série: é isto que diz ao JS se ele deve perguntar quando a
+	# etiqueta **não** trouxer um deles. Ver a docstring da função.
+	achado = _completar_com_os_dados_do_item(achado, ctx)
 
 	if etiqueta.lote:
 		achado["batch_no"] = etiqueta.lote
