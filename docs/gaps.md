@@ -540,6 +540,46 @@ pergunta "o que o produto oferece aqui, e nós cobrimos?".
 Bloco H (inventário, inclusive item em poder de terceiro) e Bloco K. Cinco dos oito recursos
 anunciados pelo ERPNext são fiscalmente neutros.
 
+## 🔴 Consumo indevido da SEFAZ — sem tratamento, e tentar de novo piora
+
+Encontrado em 2026-09-07, cruzando o app com uma lista de conceitos de arquitetura backend.
+Busca por `consumo indevido`, `656`, `rate limit`, `throttle` e `backoff` em todo o código e
+em `docs/`: **nenhuma ocorrência**. O app transmite para a SEFAZ sem controle de cadência.
+
+### A regra, verificada em fonte oficial
+
+`cStat 656 — Consumo indevido pelo aplicativo da empresa` **bloqueia o CNPJ por uma hora**,
+com desbloqueio automático. O gatilho típico é reconsultar depois de um `cStat 137` sem
+esperar o intervalo.
+
+⚠️ **A armadilha que torna isto grave**, e é o que muda o desenho: *"se retomar a consulta
+antes de completar 1 (uma) hora, o tempo é zerado e a contagem reiniciará"*.
+
+Ou seja: **um laço de retentativa mantém a empresa bloqueada indefinidamente**, e cada
+tentativa piora a situação. É o caso raro em que a reação instintiva a um erro de
+transmissão — tentar de novo — é a pior ação possível. Nada no código diz isso hoje.
+
+### Por que a fila não resolve sozinha
+
+`integracao/fila_fiscal.py` protege contra **duplicidade** (`job_id` determinístico +
+`deduplicate`), que é outro problema. Ela não impõe **cadência**. E há um risco embutido:
+`frappe.enqueue` não repete sozinho hoje, mas quem acrescentar `retry` a um job de
+transmissão — coisa razoável de se querer — cria o bloqueio permanente sem perceber.
+
+### O que falta, quando for implementado
+
+1. Reconhecer `656` no retorno e tratá-lo como **parada obrigatória**, não como erro
+   repetível — com o instante do bloqueio registrado por CNPJ e ambiente.
+2. Recusar nova transmissão do mesmo CNPJ enquanto a carência de uma hora não vencer,
+   falhando alto com a explicação — porque o silêncio aqui custa uma hora a mais.
+3. Vale para **NF-e, NFC-e, CT-e e MDF-e**: os web services e os MOC são os mesmos.
+
+### Fontes
+
+- Portal da NF-e — Notas Técnicas e MOC do documento correspondente.
+- SEFAZ-ES, comunicado sobre controle automático de consumo indevido: bloqueio de 1 hora,
+  desbloqueio automático, e a contagem que reinicia a cada tentativa antecipada.
+
 ## Método
 
 
