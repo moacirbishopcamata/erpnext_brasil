@@ -259,6 +259,29 @@ class TestAPersistencia(unittest.TestCase):
 		self.assertIn("self.liberado_em = ", _CONTROLLER)
 		self.assertIn("CARENCIA", _CONTROLLER)
 
+	def test_falhar_ao_gravar_nao_derruba_a_resposta(self):
+		"""🔴 Achado no bench. `company` é obrigatório, e num site sem `Company` o `insert`
+		levantava dentro do caminho da resposta — derrubando a transmissão **e** deixando o
+		bloqueio sem registro.
+
+		Deixar a exceção subir troca um problema por outro maior: quem não consegue anotar o
+		bloqueio volta a transmitir e estende a hora.
+		"""
+		self.assertIn("except Exception:", _INTEGRACAO)
+		self.assertIn("frappe.log_error", _INTEGRACAO)
+
+	def test_a_falha_de_gravacao_deixa_trilha(self):
+		"""É falha que ninguém vê acontecer: sem `Error Log`, o CNPJ fica bloqueado na SEFAZ
+		e ninguém descobre por quê."""
+		fonte = (RAIZ / "integracao" / "consumo_indevido.py").read_text(encoding="utf-8")
+		mensagens = [
+			no.value
+			for no in ast.walk(ast.parse(fonte))
+			if isinstance(no, ast.Constant) and isinstance(no.value, str)
+		]
+
+		self.assertTrue(any("NÃO pôde ser gravado" in m for m in mensagens))
+
 	def test_o_doctype_vive_no_modulo_de_registros(self):
 		"""`fiscal/` é puro; controller de DocType importa `frappe` por definição."""
 		self.assertEqual("Registros Fiscais", _DOCTYPE_JSON["module"])

@@ -39,7 +39,24 @@ O que este módulo **não** faz, declarado
   seria conveniente e perigoso: se o motivo do consumo indevido persistir, o app volta a
   bater e o ciclo recomeça. Quem retoma é uma pessoa que viu a mensagem.
 
-Estado de verificação: camada Frappe, **não** exercitada contra bench real.
+⚠️ Gravar o bloqueio é o que **não** pode falhar
+------------------------------------------------------
+`company` é obrigatório no DocType — a restrição por empresa exige, e sem ela um usuário
+veria o bloqueio de outra empresa. Mas campo obrigatório num registro de segurança cria um
+risco próprio: se a gravação falhar, o CNPJ fica bloqueado na SEFAZ **e o app não sabe**, e
+a próxima transmissão estende a hora.
+
+Por isso a persistência é envolvida: falhou, registra alto em `Error Log` e devolve
+`False`, em vez de derrubar o caminho da resposta. Trocar um problema por outro maior seria
+deixar a exceção subir.
+
+Estado de verificação
+----------------------------
+Exercitado em site **v16 real**: `cStat 100` não bloqueia, `656` bloqueia, a guarda passa a
+recusar com `BloqueadoPorConsumoIndevido`, o outro ambiente segue liberado, e `liberado_em`
+sai derivado com uma hora exata de diferença.
+
+Foi essa execução que revelou o risco do campo obrigatório acima.
 """
 
 import frappe
@@ -158,16 +175,38 @@ def registrar_resposta(
 		"mensagem": (mensagem or "")[:500],
 	}
 
-	if frappe.db.exists(DOCTYPE, nome):
-		documento = frappe.get_doc(DOCTYPE, nome)
-		documento.update(valores)
-		documento.save(ignore_permissions=True)
-	else:
-		frappe.get_doc({"doctype": DOCTYPE, "chave": nome, **valores}).insert(ignore_permissions=True)
+	try:
+		if frappe.db.exists(DOCTYPE, nome):
+			documento = frappe.get_doc(DOCTYPE, nome)
+			documento.update(valores)
+			documento.save(ignore_permissions=True)
+		else:
+			frappe.get_doc({"doctype": DOCTYPE, "chave": nome, **valores}).insert(ignore_permissions=True)
 
-	# `commit` explícito: a rejeição costuma vir num caminho que termina em exceção, e o
-	# rollback da transação levaria o registro do bloqueio junto — deixando o app sem saber
-	# que está bloqueado, que é o pior dos estados possíveis.
-	frappe.db.commit()
+		# `commit` explícito: a rejeição costuma vir num caminho que termina em exceção, e
+		# o rollback da transação levaria o registro do bloqueio junto — deixando o app sem
+		# saber que está bloqueado, que é o pior dos estados possíveis.
+		frappe.db.commit()
+	except Exception:
+		# 🔴 Achado no bench: `company` é obrigatório (a restrição por empresa exige), e num
+		# site sem `Company` cadastrada o `insert` levantava **dentro do caminho da
+		# resposta** — derrubando a transmissão e, pior, deixando o bloqueio sem registro.
+		#
+		# Deixar a exceção subir seria trocar um problema por outro maior: quem não
+		# consegue **anotar** o bloqueio volta a transmitir daqui a pouco e estende a hora.
+		# Por isso aqui se registra alto no log e se devolve `False`, em vez de explodir.
+		#
+		# `log_error` e não `print`: é falha que ninguém vê acontecer, e precisa de trilha.
+		frappe.log_error(
+			title="Falha ao registrar bloqueio por consumo indevido",
+			message=(
+				f"CNPJ {cnpj} / ambiente {ambiente} recebeu cStat {codigo_status} e o bloqueio "
+				f"NÃO pôde ser gravado. O CNPJ está bloqueado na SEFAZ por uma hora e o app "
+				f"não sabe disso — transmitir de novo estende o bloqueio.\n\n"
+				f"{frappe.get_traceback()}"
+			),
+		)
+
+		return False
 
 	return True

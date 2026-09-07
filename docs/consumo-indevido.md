@@ -107,6 +107,42 @@ A exceção é **tipada** (`BloqueadoPorConsumoIndevido`, passada em `exc=`) —
 da lei "erros úteis": quem chama precisa distinguir *"espere"* de *"a nota está errada"*. A
 primeira não deve ser repetida de forma alguma; a segunda, depois de corrigida.
 
+## Validação em bench v16
+
+Exercitado em `v16.localhost`, os cinco cenários:
+
+```
+1. cStat 100  -> não bloqueia, guarda passa
+2. cStat 656  -> bloqueia; liberado em 2026-09-08 06:01:54
+3. guarda     -> recusa com BloqueadoPorConsumoIndevido e a mensagem certa
+4. ambiente   -> "producao" segue liberado (o bloqueio era em "homologacao")
+5. registro   -> cnpj 11222333000181 | company Empresa Teste 656
+                 bloqueado_em 05:01:54 | liberado_em 06:01:54 | diferença 1:00:00
+```
+
+O CNPJ é gravado **limpo** e a derivação de `liberado_em` sai exata.
+
+### 🔴 O risco que só a execução mostrou
+
+A primeira rodada estourou em `MandatoryError: [Bloqueio Sefaz]: company` — o site de teste
+não tinha `Company` cadastrada.
+
+Fácil de descartar como "problema do ambiente", e seria o erro. O que a falha mostrou é
+estrutural: **`company` é obrigatório, e a gravação do bloqueio acontece dentro do caminho
+da resposta da SEFAZ.** Se ela falhar por qualquer motivo, a exceção sobe, derruba a
+transmissão **e** o bloqueio fica sem registro — o CNPJ está bloqueado na SEFAZ e o app não
+sabe. A próxima tentativa estende a hora.
+
+Ou seja: o campo obrigatório que a restrição por empresa exige criava exatamente o desfecho
+que a docstring deste módulo já declarava como o pior.
+
+A correção não foi afrouxar o campo — a restrição por empresa importa. Foi envolver a
+persistência: falhou, registra alto em `Error Log` com o CNPJ, o `cStat` e o aviso de que
+**transmitir de novo estende o bloqueio**, e devolve `False`. Deixar a exceção subir seria
+trocar um problema por outro maior.
+
+`log_error` e não `print`: é falha que ninguém vê acontecer, e precisa de trilha.
+
 ## O que não se faz, declarado
 
 - **Não adivinha consumo indevido.** Quem diz é a SEFAZ, no `cStat`. Uma heurística local

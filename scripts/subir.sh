@@ -15,18 +15,29 @@
 #
 # Uso
 # ---
-#   bash scripts/subir.sh              # bench padrão (version-15)
-#   BENCH=~/frappe-bench-16 bash scripts/subir.sh
-#   PORTA=8001 bash scripts/subir.sh
+#   bash scripts/subir.sh                        # bench v16 (o padrão)
+#   BENCH=~/frappe-bench bash scripts/subir.sh   # o antigo, v15
+#   PORTA=8080 bash scripts/subir.sh
+#   SO_SERVICOS=1 bash scripts/subir.sh          # só MariaDB e Redis
+#
+# `SO_SERVICOS=1` sobe MariaDB e Redis e **para aí**. É o modo certo antes de um
+# `bench migrate`, de um `bench execute` ou de qualquer script: nenhum deles precisa do
+# servidor web, e deixá-lo em primeiro plano bloquearia o terminal.
 set -u
 
-BENCH="${BENCH:-$HOME/frappe-bench}"
-PORTA="${PORTA:-8000}"
+# ⚠️ O padrão é o bench **v16**, e não o v15.
+#
+# Há dois benches nesta máquina, e a decisão do projeto é a version-16 — `frappe` 16.31,
+# `erpnext` 16.33, site `v16.localhost`. Um padrão apontando para o v15 faria o caminho
+# mais curto ser o errado, e "validar na versão errada" já aconteceu aqui uma vez.
+#
+# Para o antigo, explicitamente: `BENCH=~/frappe-bench bash scripts/subir.sh`
+BENCH="${BENCH:-$HOME/frappe-bench-16}"
+PORTA="${PORTA:-8001}"
 DADOS_MARIADB="${DADOS_MARIADB:-$HOME/mariadb-data}"
 BASE_MARIADB="${BASE_MARIADB:-$HOME/mariadb-10.11.9-linux-systemd-x86_64}"
 PORTA_MARIADB="${PORTA_MARIADB:-3306}"
-REDIS_CACHE="${REDIS_CACHE:-13000}"
-REDIS_QUEUE="${REDIS_QUEUE:-11000}"
+SO_SERVICOS="${SO_SERVICOS:-}"
 VOLUMES="${VOLUMES:-/mnt/g/erpnext-dados}"
 
 # Node e as ferramentas instaladas por `uv tool` vivem fora do PATH padrão.
@@ -57,6 +68,35 @@ exigir() {
 }
 
 exigir redis-server "Instale com: sudo apt install redis-server"
+
+# ⚠️ As portas do Redis são **lidas do bench**, não fixadas aqui.
+#
+# Cada bench declara as suas em `common_site_config.json`, e elas diferem: o de v15 usa
+# 11000/13000, o de v16 usa 11001/13001. Um padrão fixo funcionaria num e falharia no
+# outro — e o modo de falhar é o pior possível: o script diz "Redis no ar" (porque a porta
+# do outro bench está mesmo no ar) e o `bench` seguinte morre em `TimeoutError`, sem que a
+# mensagem tenha relação com a causa. Aconteceu em 2026-09-07.
+LEITURA_DE_PORTAS=$(python3 - "$BENCH" <<'FIM'
+import json, pathlib, sys, urllib.parse
+
+config = pathlib.Path(sys.argv[1]) / "sites" / "common_site_config.json"
+dados = json.loads(config.read_text()) if config.exists() else {}
+
+
+def porta(chave, padrao):
+	url = dados.get(chave) or ""
+	achado = urllib.parse.urlparse(url).port if "://" in url else None
+
+	return achado or padrao
+
+
+print(porta("redis_queue", 11000), porta("redis_cache", 13000))
+FIM
+)
+REDIS_QUEUE="${REDIS_QUEUE:-${LEITURA_DE_PORTAS%% *}}"
+REDIS_CACHE="${REDIS_CACHE:-${LEITURA_DE_PORTAS##* }}"
+
+amarelo "Bench: $BENCH  |  Redis fila $REDIS_QUEUE, cache $REDIS_CACHE"
 
 if [ ! -x "$BASE_MARIADB/bin/mariadbd" ]; then
 	vermelho "MariaDB não encontrado em $BASE_MARIADB"
@@ -119,8 +159,16 @@ subir_redis() {
 	no_ar "$porta" && verde "Redis no ar na porta $porta" || vermelho "Redis $porta não subiu"
 }
 
-subir_redis "$REDIS_CACHE" redis-cache cache.rdb
-subir_redis "$REDIS_QUEUE" redis-queue queue.rdb
+# Pasta por porta, e não por papel: dois benches no ar gravariam o mesmo `cache.rdb` em
+# cima um do outro, e o segundo a subir carregaria o dump do primeiro.
+subir_redis "$REDIS_CACHE" "redis-cache-$REDIS_CACHE" cache.rdb
+subir_redis "$REDIS_QUEUE" "redis-queue-$REDIS_QUEUE" queue.rdb
+
+if [ -n "$SO_SERVICOS" ]; then
+	echo
+	verde "MariaDB e Redis no ar. Servidor web não foi iniciado (SO_SERVICOS)."
+	exit 0
+fi
 
 # ---------------------------------------------------------------- Frappe
 
