@@ -242,24 +242,51 @@ class TestACosturaComOLeitor(unittest.TestCase):
 		pode cair por isso."""
 		self.assertIn("except ImportError", _SEM_DOC)
 
-	def test_o_js_troca_nos_dois_lugares(self):
-		"""A instância mora em `frm.barcode_scanner` numa tela e em
-		`frm.cscript.barcode_scanner` nas outras — procurar só num faria a leitura
-		funcionar em metade delas."""
-		self.assertIn("frm.barcode_scanner", _JS_SEM_COMENTARIO)
-		self.assertIn("frm.cscript.barcode_scanner", _JS_SEM_COMENTARIO)
+	def test_o_js_patcheia_o_prototipo_e_nao_a_instancia(self):
+		"""Teste-âncora da costura. `scan_api_call` lê `this.scan_api` **na hora da
+		chamada**, então envolver o método no protótipo alcança toda instância — inclusive a
+		`const` local do `Pick List`, que nenhuma abordagem por instância alcançaria.
+
+		Mexer na instância exigiria saber onde cada tela a guarda, e são lugares
+		diferentes."""
+		self.assertIn("prototype.scan_api_call", _JS_SEM_COMENTARIO)
+		self.assertNotIn("frm.barcode_scanner", _JS_SEM_COMENTARIO)
+		self.assertNotIn("frm.cscript", _JS_SEM_COMENTARIO)
+
+	def test_o_js_chama_o_metodo_original(self):
+		"""Decoração, não substituição: se o ERPNext mudar `scan_api_call`, a mudança dele
+		continua valendo — só o método consultado é outro."""
+		self.assertIn("original.call(this", _JS_SEM_COMENTARIO)
+
+	def test_o_js_respeita_um_scan_api_proprio(self):
+		"""Quem passou `scan_api` em `opts` fez uma escolha deliberada."""
+		self.assertIn("this.scan_api === METODO_DO_ERPNEXT", _JS_SEM_COMENTARIO)
+
+	def test_o_js_nao_quebra_se_a_classe_sumir(self):
+		"""Sem o patch a leitura simples continua funcionando; derrubar a tela seria pior
+		que perder o GS1."""
+		self.assertIn("return;", _JS_SEM_COMENTARIO)
+		self.assertIn("BarcodeScanner", _JS_SEM_COMENTARIO)
+
+	def test_o_patch_e_idempotente(self):
+		"""O arquivo é carregado em seis telas; envolver o método duas vezes empilharia
+		decoradores."""
+		self.assertIn("__br_gs1_instalado", _JS_SEM_COMENTARIO)
 
 	def test_o_js_aponta_para_o_nosso_metodo(self):
 		self.assertIn("erpnext_brasil.integracao.leitura_gs1.ler_codigo", _JS_SEM_COMENTARIO)
 
-	def test_o_js_esta_ligado_nas_cinco_telas(self):
-		"""JS não declarado em `doctype_js` nunca é carregado."""
+	def test_o_js_esta_ligado_nas_seis_telas(self):
+		"""JS não declarado em `doctype_js` nunca é carregado. São as seis que têm
+		`scan_barcode` no JSON do erpnext v16 — `Pick List` incluído, desde que o patch
+		passou a ser no protótipo."""
 		for tela in (
 			"Stock Entry",
 			"Stock Reconciliation",
 			"Delivery Note",
 			"Purchase Receipt",
 			"Material Request",
+			"Pick List",
 		):
 			with self.subTest(tela=tela):
 				self.assertIn(f'"{tela}"', _HOOKS)

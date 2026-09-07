@@ -27,14 +27,19 @@ doctype_js = {
 }
 
 # O leitor GS1 vale para toda tela de estoque que tem `scan_barcode`, e por isso o mesmo
-# arquivo é declarado cinco vezes: `doctype_js` carrega por DocType, e não há forma de
-# dizer "estes cinco" numa linha só. O arquivo se protege contra registro duplicado.
+# arquivo é declarado seis vezes: `doctype_js` carrega por DocType, e não há forma de dizer
+# "estas seis" numa linha só.
+#
+# São as seis que têm o campo `scan_barcode` no JSON do erpnext v16 — conferido, não
+# suposto. O `Pick List` entra porque o patch é no **protótipo** do leitor: ele guarda a
+# instância numa `const` local, e nenhuma abordagem por instância o alcançaria.
 for _tela_de_leitura in (
 	"Stock Entry",
 	"Stock Reconciliation",
 	"Delivery Note",
 	"Purchase Receipt",
 	"Material Request",
+	"Pick List",
 ):
 	doctype_js[_tela_de_leitura] = "public/js/leitura_gs1.js"
 

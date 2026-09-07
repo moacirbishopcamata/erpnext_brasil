@@ -83,22 +83,52 @@ haver `br_taxa_depreciacao` ao lado de `rate_of_depreciation`.
 antigo funcionar. Um EAN-13 ou GTIN-14 puro (só dígitos, 8/12/13/14 posições) nunca é tratado
 como GS1, mesmo começando por `01`.
 
-### A costura no cliente
+### A costura no cliente: patch no protótipo, não na instância
 
-`erpnext.utils.BarcodeScanner` lê `opts.scan_api` **no construtor** e guarda na instância;
-quem constrói é cada tela do ERPNext, e não há hook para interferir nisso. O que sobra — e
-basta — é trocar a propriedade na instância já criada, no `refresh`.
+`erpnext.utils.BarcodeScanner` guarda o método **no construtor**:
 
-⚠️ **A instância mora em dois lugares**, lido tela por tela no erpnext v16:
+```js
+this.scan_api = opts.scan_api || "erpnext.stock.utils.scan_barcode";
+```
 
-| Tela | Onde | Origem |
+Mas quem o **usa** é `scan_api_call`, que lê `this.scan_api` **na hora da chamada**:
+
+```js
+scan_api_call(input, callback) {
+    frappe.call({ method: this.scan_api, args: { search_value: input, ctx: {...} } })
+}
+```
+
+**Essa diferença é tudo.** Trocar a propriedade na instância exigiria *alcançar* a
+instância — e cada tela a guarda num lugar diferente:
+
+| Tela | Onde guarda | Alcançável? |
 |---|---|---|
-| `Stock Reconciliation` | `frm.barcode_scanner` | `stock_reconciliation.js` |
-| `Stock Entry` | `frm.cscript.barcode_scanner` | `extend_cscript` |
-| `Delivery Note`, `Purchase Receipt`, `Material Request` | `frm.cscript.barcode_scanner` | `TransactionController` |
+| `Stock Reconciliation` | `frm.barcode_scanner` | sim |
+| `Stock Entry`, `Delivery Note`, `Purchase Receipt`, `Material Request` | `frm.cscript.barcode_scanner` | sim |
+| `Pick List` | uma `const` local (`pick_list.js:296`) | **não** |
 
-Procurar só num dos dois faria a leitura GS1 funcionar em **metade** das telas — e é o pior
-tipo de falha, porque o estoquista aprenderia que "às vezes funciona".
+Envolvendo `scan_api_call` **no protótipo**, nada disso importa: o patch vale para toda
+instância — criada antes ou depois, guardada em qualquer lugar. O `Pick List` deixou de ser
+a exceção, e cinco costuras viraram uma.
+
+#### ⚠️ Isto não é alterar o ERPNext
+
+Nenhum arquivo do erpnext é tocado. Substitui-se um método **em memória**, no nosso próprio
+JS — o mesmo mecanismo de `override_doctype_class` e `override_whitelisted_methods` do
+Frappe, só que do lado do cliente, onde não existe hook equivalente.
+
+O contrato é preservado de propósito, em duas camadas:
+
+1. o método original é **chamado**, não reescrito — se o ERPNext mudar `scan_api_call`, a
+   mudança dele continua valendo, só o método consultado é outro;
+2. o resolvedor do servidor **decora** o do ERPNext em vez de substituí-lo.
+
+Três guardas: só assume o lugar do **padrão** (um `scan_api` passado em `opts` é escolha
+deliberada de quem o passou); é **idempotente**, porque o arquivo é carregado em seis telas
+e envolver duas vezes empilharia decoradores; e se a classe não existir, **sai calado** — a
+leitura simples continua funcionando pelo caminho de sempre, só a etiqueta GS1 deixa de ser
+entendida. Derrubar a tela seria pior que perder o GS1.
 
 ### O contrato de retorno
 
@@ -108,6 +138,76 @@ leitor bipar, o servidor responder, e **nada acontecer na tela**.
 
 O que a etiqueta traz e o ERPNext não tem onde guardar — validade, fabricação, quantidade,
 SSCC — volta em `br_gs1`, que o JS do ERPNext ignora e fica disponível para quem quiser.
+
+## 🔴 O defeito que só a execução mostrou
+
+A primeira rodada num site v16 real devolveu um dicionário **bem formado** — e faltava uma
+chave:
+
+```
+antes:  {barcode, item_code, uom, batch_no, serial_no, br_gs1}
+depois: {barcode, item_code, uom, has_batch_no, has_serial_no, batch_no, serial_no, br_gs1}
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+```
+
+O caminho GS1 contorna o `scan_barcode` do ERPNext e, com ele, o `_update_item_info` que
+acrescenta `has_batch_no` e `has_serial_no`. E é exatamente disso que o JS depende para
+decidir se pergunta:
+
+```js
+const require_selecting_batch = has_batch_no && !batch_no;
+const require_selecting_serial = has_serial_no && !serial_no;
+
+if (!(require_selecting_batch || require_selecting_serial))
+    frappe.flags.hide_serial_batch_dialog = true;
+```
+
+Com `has_batch_no` **indefinido**, a expressão é falsa e o seletor é **suprimido**. O
+cenário concreto: item com controle de lote, etiqueta GS1 que traz GTIN mas **não** traz o
+AI (10) — a linha entra **sem lote**, e nada pergunta.
+
+> Perder o lote em silêncio é justamente o que este módulo existe para evitar. O caminho de
+> delegação nunca teve o problema (o `scan_barcode` chama `_update_item_info` internamente);
+> só o atalho o tinha.
+
+**Por que a suíte não pegou.** Ela conferia que o retorno tinha as chaves do contrato — e
+todas estavam lá. O defeito era o que **faltava**: um campo que o nosso código nunca
+prometeu e o JS do outro app consome. Só comparar as respostas dos **dois caminhos**, num
+site de verdade, mostrou a diferença.
+
+A correção reusa `_update_item_info` (que também resolve o `default_warehouse` a partir do
+contexto). É função **privada** de outro app, então a falha de importação degrada para o
+mínimo em vez de derrubar a leitura — e a **ordem** tem teste próprio: completar antes de
+gravar `batch_no`, senão a decisão do JS é tomada com o dado que ainda não chegou.
+
+## Como pôr em uso
+
+### 1. Cadastrar o código de barras no item
+
+`Item` → aba **Códigos de Barras** → uma linha por `barcode`. O que se cadastra é o **EAN-13
+impresso na caixa**; o GTIN-14 da etiqueta é resolvido sozinho (ver a seção do enchimento).
+
+Sem esse cadastro nada funciona — nem GS1, nem leitura simples. É o único passo obrigatório.
+
+### 2. Configurar o leitor para emitir o FNC1
+
+O leitor precisa transmitir o FNC1 como **GS (ASCII 29)**. É o padrão da maioria dos
+aparelhos em modo GS1, mas alguns vêm configurados para suprimir caracteres de controle — e
+aí a etiqueta chega sem separador.
+
+**Como saber que é isso:** a leitura falha só nas etiquetas que têm lote **e** algo depois
+dele. Uma etiqueta com o lote no fim funciona (o fim da cadeia também termina o elemento).
+Esse padrão de falha é a assinatura do separador ausente.
+
+O módulo recusa a cadeia nesse caso — o lote passaria de 20 caracteres —, em vez de gravar
+um lote com o resto da etiqueta grudado.
+
+### 3. Bipar
+
+Nas cinco telas ligadas (`Stock Entry`, `Stock Reconciliation`, `Delivery Note`,
+`Purchase Receipt`, `Material Request`) o campo é o mesmo **Scan Barcode** de sempre. Não há
+tela nova nem botão novo: o estoquista não precisa saber que algo mudou — a etiqueta que
+antes dava "não encontrado" agora preenche item, lote e série de uma vez.
 
 ## Sobre "GS1-128 composto"
 
@@ -119,11 +219,34 @@ Do lado do dado — que é o lado deste módulo — **não há diferença**. É 
 composto não exigiu código a mais: quem separa AI corretamente já lê os dois. Vale dizer
 isso explicitamente porque a expectativa oposta é comum.
 
+## Validação em bench v16
+
+Exercitado em `v16.localhost` com um `Item` de teste cadastrado com o EAN-13
+`7891234567895`:
+
+```
+etiqueta: '01' + '0' + EAN + '17250600' + '10LOTE-A1' + <GS> + '21SN-9'
+
+RESULTADO GS1:
+  item_code    GS1-TESTE
+  batch_no     LOTE-A1          <- do AI (10)
+  serial_no    SN-9             <- do AI (21)
+  has_batch_no 1                <- a correção acima
+  br_gs1       validade 2025-06-30   <- AI (17) com dia 00, virou 30/06
+
+EAN-13 puro  -> delegou ao ERPNext (voltou com has_batch_no/has_serial_no)
+valor inexistente -> {} , como o ERPNext devolve
+```
+
+Os três caminhos do decorador foram percorridos: **GS1 resolvido**, **delegação** e
+**não encontrado**.
+
+⚠️ **O que não foi exercitado é a tela.** A troca do `scan_api` no JS está conferida por
+forma (o método existe, está exposto, e os dois lugares onde a instância mora são tratados),
+mas nenhum formulário foi aberto num navegador para ver o campo preencher a linha.
+
 ## O que fica de fora, declarado
 
-- **`Pick List`.** Ele cria a instância do leitor numa `const` local
-  (`pick_list.js:296`), sem guardá-la em lugar alcançável. Não há seam sem alterar o
-  ERPNext — e alterar o ERPNext é o que este projeto não faz.
 - **Dígito verificador do GTIN.** `fiscal/validators.py` já faz módulo 10; validar de novo
   criaria duas verdades sobre o mesmo dígito.
 - **AI que o app não usa** — peso, dimensão, preço, destino. O dicionário tem mais de cem;
