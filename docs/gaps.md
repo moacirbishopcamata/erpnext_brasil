@@ -540,7 +540,7 @@ pergunta "o que o produto oferece aqui, e nós cobrimos?".
 Bloco H (inventário, inclusive item em poder de terceiro) e Bloco K. Cinco dos oito recursos
 anunciados pelo ERPNext são fiscalmente neutros.
 
-## 🔴 Consumo indevido da SEFAZ — sem tratamento, e tentar de novo piora
+## ~~🔴 Consumo indevido da SEFAZ~~ — pago em 2026-09-07
 
 Encontrado em 2026-09-07, cruzando o app com uma lista de conceitos de arquitetura backend.
 Busca por `consumo indevido`, `656`, `rate limit`, `throttle` e `backoff` em todo o código e
@@ -566,13 +566,26 @@ transmissão — tentar de novo — é a pior ação possível. Nada no código 
 `frappe.enqueue` não repete sozinho hoje, mas quem acrescentar `retry` a um job de
 transmissão — coisa razoável de se querer — cria o bloqueio permanente sem perceber.
 
-### O que falta, quando for implementado
+### ✅ Implementado
 
-1. Reconhecer `656` no retorno e tratá-lo como **parada obrigatória**, não como erro
-   repetível — com o instante do bloqueio registrado por CNPJ e ambiente.
-2. Recusar nova transmissão do mesmo CNPJ enquanto a carência de uma hora não vencer,
-   falhando alto com a explicação — porque o silêncio aqui custa uma hora a mais.
-3. Vale para **NF-e, NFC-e, CT-e e MDF-e**: os web services e os MOC são os mesmos.
+`fiscal/consumo_indevido.py` (a regra de tempo, pura) + `integracao/consumo_indevido.py` (a
+guarda e o registro) + DocType `Bloqueio Sefaz`, ligados no **ponto único** `_contexto` do
+`TransporteSefaz` — por onde as cinco operações passam antes da rede.
+
+A guarda levanta `BloqueadoPorConsumoIndevido` com o horário de liberação e a instrução
+explícita de **não insistir**. Detalhado em
+[consumo-indevido.md](consumo-indevido.md).
+
+⚠️ **A primeira versão causou uma regressão que a suíte pegou**: importar o módulo no topo
+de `transporte_sefaz.py` derrubou 25 testes, porque aquele adaptador é livre de `frappe` de
+propósito. Corrigido por injeção — e o desenho ficou melhor, com a dependência explícita no
+construtor em vez de escondida num import.
+
+### O que ficou de fora
+
+**CT-e e MDF-e.** A regra é a mesma e os web services também, mas o transporte deles é
+outro caminho de código — ligar a guarda lá é trabalho a fazer, e está declarado no
+documento.
 
 ### Fontes
 

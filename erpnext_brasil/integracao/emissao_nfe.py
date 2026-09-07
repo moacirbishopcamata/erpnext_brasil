@@ -47,6 +47,8 @@ O que ainda **não** está aqui, e por quê
 Estado de verificação: camada Frappe, **não** exercitada contra bench real.
 """
 
+from functools import partial
+
 import frappe
 from frappe import _
 
@@ -65,6 +67,7 @@ from erpnext_brasil.integracao.certificado_a1 import (
 )
 from erpnext_brasil.integracao.cobranca_documento import montar_cobranca_do_documento
 from erpnext_brasil.integracao.configuracao_fiscal import serie_padrao
+from erpnext_brasil.integracao.consumo_indevido import garantir_liberado, registrar_resposta
 from erpnext_brasil.integracao.nfe_documento import montar_nfe_do_documento
 from erpnext_brasil.integracao.numeracao_fiscal import numero_do_documento
 from erpnext_brasil.integracao.transporte_pagamento import pag_do_documento, transp_do_documento
@@ -187,6 +190,11 @@ def emitir_nfe(
 		uf=emitente["enderEmit"]["UF"],
 		cnpj_emitente=emitente["CNPJ"],
 		ambiente=ambiente,
+		# A proteção contra consumo indevido é injetada aqui, e não importada dentro de
+		# `transporte_sefaz`: aquele módulo não conhece `frappe`, e é isso que o mantém
+		# testável sem bench. Ver a nota na docstring dele.
+		guarda=garantir_liberado,
+		registrador=partial(registrar_resposta, company=doc.company),
 	)
 	resposta = transporte.transmitir(assinada)
 

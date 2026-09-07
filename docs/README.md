@@ -5,6 +5,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 
 | Documento | Assunto |
 |---|---|
+| [consumo-indevido.md](consumo-indevido.md) | **Caixa de ferramentas** do `cStat 656`: o erro em que tentar de novo estende o bloqueio de uma hora, por que a guarda é preventiva e fica no ponto único de `_contexto`, a regressão em que importar o módulo derrubou 25 testes (e por que injetar ficou melhor), e por que o bloqueio vive em DocType e não em cache |
 | [fila-e-jobs.md](fila-e-jobs.md) | **Caixa de ferramentas** da transmissão em fila: `job_id` determinístico como coração do `deduplicate` (e por que a falha dele é silenciosa), fila `long` contra os 300 s da `default`, `enqueue_after_commit` sempre, um job por documento — e por que **não** se criou um registro "Pendente" |
 | [transmissoes-sincronas-e-assincronas.md](transmissoes-sincronas-e-assincronas.md) | Quais transmissões são assíncronas e onde a espera acontece: NF-e resolve o recibo dentro da chamada (~25 s), eventos são síncronos, o eSocial **não tem escapatória** (o envio só devolve protocolo), NFS-e nacional é síncrona — e o gap declarado de **nada rodar em job de segundo plano** |
 | [banco-do-bench-v16.md](banco-do-bench-v16.md) | **Caixa de ferramentas** de subir o banco do bench v16: os quatro obstáculos (Redis do bench mascarando tudo, `--no-mariadb-socket` criando a conta em `'%'`, as **contas anônimas** do datadir que vencem `'%'` na ordem de casamento de host, `apps.txt` sem `

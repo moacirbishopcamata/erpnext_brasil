@@ -61,6 +61,8 @@ de programa. Quem tentou cancelar precisa poder ler o que a SEFAZ respondeu.
 Estado de verificação: camada Frappe, **não** exercitada contra bench real.
 """
 
+from functools import partial
+
 import frappe
 from frappe import _
 
@@ -78,6 +80,7 @@ from erpnext_brasil.integracao.certificado_a1 import (
 	ambiente_sefaz_da_empresa,
 	carregar_certificado_da_empresa,
 )
+from erpnext_brasil.integracao.consumo_indevido import garantir_liberado, registrar_resposta
 from erpnext_brasil.integracao.emissao_nfe import AMBIENTE_POR_CHAVE
 from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
 
@@ -132,6 +135,11 @@ def _transporte(chave: str, company: str, ambiente: str) -> TransporteSefaz:
 		uf=sigla_da_uf(lida.uf),
 		cnpj_emitente=lida.cnpj,
 		ambiente=ambiente,
+		# A proteção contra consumo indevido é injetada aqui, e não importada dentro de
+		# `transporte_sefaz`: aquele módulo não conhece `frappe`, e é isso que o mantém
+		# testável sem bench. Ver a nota na docstring dele.
+		guarda=garantir_liberado,
+		registrador=partial(registrar_resposta, company=company),
 	)
 
 

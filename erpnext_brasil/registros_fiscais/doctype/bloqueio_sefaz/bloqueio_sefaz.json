@@ -1,0 +1,126 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:chave",
+ "creation": "2026-09-07 00:00:00.000000",
+ "description": "Bloqueio por consumo indevido (cStat 656). Enquanto ativo, nenhuma requisição pode sair para a SEFAZ: tentar antes da hora reinicia a contagem.",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "chave",
+  "cnpj",
+  "ambiente",
+  "company",
+  "coluna_bloqueio",
+  "bloqueado_em",
+  "liberado_em",
+  "secao_origem",
+  "codigo_status",
+  "mensagem"
+ ],
+ "fields": [
+  {
+   "fieldname": "chave",
+   "fieldtype": "Data",
+   "label": "Chave",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1,
+   "description": "CNPJ e ambiente combinados. É o autoname: um bloqueio por par, sempre o mesmo registro atualizado, para que não existam duas verdades sobre a mesma espera."
+  },
+  {
+   "fieldname": "cnpj",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "CNPJ",
+   "read_only": 1,
+   "reqd": 1,
+   "description": "A SEFAZ bloqueia o CNPJ, não o documento nem o usuário."
+  },
+  {
+   "fieldname": "ambiente",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Ambiente",
+   "read_only": 1,
+   "reqd": 1,
+   "description": "Produção e homologação bloqueiam de forma independente — um bloqueio em teste não pode parar a emissão real."
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Empresa",
+   "options": "Company",
+   "reqd": 1,
+   "read_only": 1,
+   "in_list_view": 1,
+   "description": "A empresa dona do CNPJ bloqueado. Existe para que a restrição por empresa alcance este registro como alcança os demais: sem ela, um usuário de uma empresa veria o bloqueio de outra."
+  },
+  {
+   "fieldname": "coluna_bloqueio",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "bloqueado_em",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Bloqueado em",
+   "read_only": 1,
+   "reqd": 1,
+   "description": "Início da janela. Guardado em vez do fim para que a pergunta 'desde quando?' tenha resposta."
+  },
+  {
+   "fieldname": "liberado_em",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Liberado em",
+   "read_only": 1,
+   "description": "Derivado do início mais uma hora. Gravado por conveniência de leitura na lista; a decisão usa sempre o início."
+  },
+  {
+   "fieldname": "secao_origem",
+   "fieldtype": "Section Break",
+   "label": "Origem"
+  },
+  {
+   "fieldname": "codigo_status",
+   "fieldtype": "Data",
+   "label": "cStat",
+   "read_only": 1
+  },
+  {
+   "fieldname": "mensagem",
+   "fieldtype": "Small Text",
+   "label": "Mensagem da SEFAZ",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-07 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Registros Fiscais",
+ "name": "Bloqueio Sefaz",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1,
+   "delete": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}
