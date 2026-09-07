@@ -124,8 +124,26 @@ apagou** os hooks que o próprio ERPNext registra no mesmo DocType. O Frappe fun
 vizinho. Se sobrescrevesse, teríamos quebrado o `Material Request` do ERPNext sem que
 nenhum teste nosso percebesse.
 
-⚠️ **O que ainda não foi exercitado é a execução.** Nenhum `Stock Entry` foi gravado para
-ver o `validate` rodar: as duas recusas estão provadas por forma, não por comportamento.
+### ✅ A execução também está coberta
+
+`tests_bench/test_perda_estoque.py`, cinco casos verdes num site v16 real. A ressalva
+anterior deste documento — *"as duas recusas estão provadas por forma, não por
+comportamento"* — deixou de valer em 2026-09-07.
+
+O teste-âncora é `test_recusa_perda_em_transferencia`: grava um `Stock Entry` de verdade com
+`purpose = "Material Transfer"` e tipo de perda preenchido, e exige que o **save falhe**. É
+o que prova que o Frappe de fato chama o hook — hook declarado que nunca roda é o gap de
+costura que este projeto trata como pior que bug.
+
+Os outros quatro cobrem o comportamento através do banco: baixa sem tipo salva normalmente,
+o resultado é gravado e relido por caminho independente, quebra normal do processo preserva
+o crédito, e apagar o tipo limpa o resultado.
+
+⚠️ Três exigências do ERPNext viraram comentário no arquivo, porque cada uma produz um erro
+que aponta para o lugar errado: `Stock Entry Type` precisa existir (site sem assistente de
+configuração não tem), `Material Transfer` exige **os dois** armazéns, e o item precisa de
+`valuation_rate`. Esta última mordeu duas vezes: o setup era idempotente por existência, e o
+item criado numa execução anterior sobrevivia à correção.
 
 ## O ERPNext como coletor de dados do estoquista
 

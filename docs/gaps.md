@@ -367,9 +367,15 @@ A ordem não é por tamanho, é por **quanto cada item destrava do que já está
    confirmando o `autoname` de chave única, a derivação de `liberado_em` pelo controller,
    a independência entre ambientes e o vencimento automático da janela.
 
-   **Falta** o mesmo tratamento para `perda_estoque`: as duas recusas — sobra de inventário
-   e finalidade incompatível — continuam provadas por forma, não por comportamento. Exige
-   semear item, armazém e UOM no site, que hoje é bare.
+   **`perda_estoque` também entrou** (`tests_bench/test_perda_estoque.py`, cinco casos): a
+   recusa de perda em transferência prova que o hook está ligado através do framework, e os
+   demais cobrem gravação e releitura por caminho independente.
+
+   **O que ainda falta** é a recusa de **sobra de inventário** no `Stock Reconciliation`.
+   Ela depende de o ERPNext calcular `difference_amount` positivo, o que exige saldo
+   anterior no armazém — mais setup do que os outros casos, e por isso ficou de fora deste
+   incremento em vez de ser simulada com um valor forçado, que provaria a nossa função e
+   não a integração.
 3. **Camada que lê o site para o bloco D.** C, E, H e K ficaram prontos em 2026-09-05
    (`efd_escrituracao`, `efd_apuracao`, `efd_inventario`, `efd_producao`). O **D**
    continua aberto por motivo estrutural, não por falta de tempo: **nenhum DocType do
