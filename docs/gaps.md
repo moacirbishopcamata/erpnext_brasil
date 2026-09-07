@@ -342,13 +342,34 @@ A ordem não é por tamanho, é por **quanto cada item destrava do que já está
 
 ### O que sobrou, em ordem
 
-1. **Interface do usuário.** Emissão, cancelamento, carta de correção e geração do EFD já
-   têm botão. O que falta é **painel**: uma tela que mostre a situação fiscal de um
-   documento sem obrigar o usuário a procurar na lista de `Transmissao Fiscal`.
-2. **Teste de bench dos módulos ligados em `hooks.py`.** O bench subiu em 2026-09-04 e já
-   achou dois bugs reais no primeiro `migrate` (controller ausente e nome de classe que
-   fazia o Frappe apagar o DocType em silêncio). Faltam os testes que gravam e releem
-   documento.
+1. ~~**Interface do usuário — painel**~~ — **feito, e o inventário estava desatualizado.**
+   Conferido em 2026-09-07: `fiscal/documento/situacao_fiscal.py` +
+   `integracao/situacao_fiscal.py` existem e o painel está ligado em `emissao_nfe.js`,
+   que o chama por `frappe.call`.
+
+   ⚠️ Registro de método: este item ficou escrito como pendente **depois de pronto**. É o
+   mesmo defeito que o item 5 da lista acima já apontava — "documento de estado envelhece
+   mais rápido que código, e mapa errado é pior que mapa nenhum" —, agora acontecido
+   dentro do próprio inventário de gaps. Conferir antes de trabalhar evitou construir de
+   novo o que já existia.
+
+   O que de fato sobra é **alcance**: o painel vive no `Sales Invoice`, a tela onde a NF-e
+   é emitida. Levá-lo a `Delivery Note` e `Purchase Invoice` é decisão de produto, não
+   lacuna de costura.
+
+2. **Teste de bench dos módulos ligados em `hooks.py`** — em andamento. O bench já achou
+   bugs reais que a suíte pura não via: controller ausente, nome de classe que fazia o
+   Frappe apagar o DocType em silêncio, o patch de renome inerte, o retorno GS1 sem
+   `has_batch_no` e o campo obrigatório que impedia gravar o bloqueio.
+
+   **Coberto até aqui** (`tests_bench/`): `certificado_a1`, `party` e, desde 2026-09-07,
+   `consumo_indevido` — sete testes que gravam por um caminho e releem por outro,
+   confirmando o `autoname` de chave única, a derivação de `liberado_em` pelo controller,
+   a independência entre ambientes e o vencimento automático da janela.
+
+   **Falta** o mesmo tratamento para `perda_estoque`: as duas recusas — sobra de inventário
+   e finalidade incompatível — continuam provadas por forma, não por comportamento. Exige
+   semear item, armazém e UOM no site, que hoje é bare.
 3. **Camada que lê o site para o bloco D.** C, E, H e K ficaram prontos em 2026-09-05
    (`efd_escrituracao`, `efd_apuracao`, `efd_inventario`, `efd_producao`). O **D**
    continua aberto por motivo estrutural, não por falta de tempo: **nenhum DocType do

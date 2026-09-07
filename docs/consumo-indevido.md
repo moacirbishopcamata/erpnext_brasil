@@ -109,7 +109,11 @@ primeira não deve ser repetida de forma alguma; a segunda, depois de corrigida.
 
 ## Validação em bench v16
 
-Exercitado em `v16.localhost`, os cinco cenários:
+Exercitado em `v16.localhost`, primeiro à mão e agora **por teste permanente**:
+`tests_bench/test_consumo_indevido.py`, sete casos que gravam por um caminho e releem por
+outro. Script solto prova uma vez; teste prova sempre.
+
+Os cenários da verificação manual, que os testes hoje cobrem:
 
 ```
 1. cStat 100  -> não bloqueia, guarda passa
