@@ -154,15 +154,36 @@ class TestACosturaDaGuarda(unittest.TestCase):
 		self.assertIn("guarda=None", _TRANSPORTE)
 		self.assertIn("registrador=None", _TRANSPORTE)
 
-	def test_quem_transmite_de_verdade_liga_os_dois(self):
+	def test_todo_ponto_de_construcao_liga_a_guarda(self):
 		"""Injeção que ninguém injeta é guarda que nunca roda — o gap de costura clássico,
-		só que com o desligamento parecendo intencional."""
-		for arquivo in ("emissao_nfe.py", "eventos_nfe.py"):
-			fonte = (RAIZ / "integracao" / arquivo).read_text(encoding="utf-8")
+		só que com o desligamento parecendo intencional.
 
+		⚠️ Varre **todo** `integracao/` por construções de `TransporteSefaz`, em vez de
+		conferir dois nomes de arquivo. A diferença aparece no futuro: CT-e e MDF-e ainda
+		não transmitem, e quando transmitirem vão construir um transporte. Uma lista fixa
+		aprovaria o arquivo novo sem guarda; a varredura reprova.
+		"""
+		construtores = []
+
+		for caminho in sorted((RAIZ / "integracao").glob("*.py")):
+			arvore = ast.parse(caminho.read_text(encoding="utf-8"))
+
+			for no in ast.walk(arvore):
+				achou = (
+					isinstance(no, ast.Call)
+					and isinstance(no.func, ast.Name)
+					and no.func.id == "TransporteSefaz"
+				)
+
+				if achou:
+					construtores.append((caminho.name, {p.arg for p in no.keywords}))
+
+		self.assertTrue(construtores, "nenhuma construção de TransporteSefaz encontrada")
+
+		for arquivo, argumentos in construtores:
 			with self.subTest(arquivo=arquivo):
-				self.assertIn("guarda=garantir_liberado", fonte)
-				self.assertIn("registrador=partial(registrar_resposta", fonte)
+				self.assertIn("guarda", argumentos)
+				self.assertIn("registrador", argumentos)
 
 	def test_toda_resposta_passa_pelo_registro(self):
 		"""Quatro pontos de retorno para a SEFAZ: autorização, consulta, evento e

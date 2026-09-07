@@ -152,8 +152,15 @@ trocar um problema por outro maior.
 - **Não repete a requisição depois.** Reenfileirar para daqui a uma hora seria conveniente e
   perigoso: se a causa do consumo indevido persistir, o app volta a bater e o ciclo
   recomeça. Quem retoma é uma pessoa que viu a mensagem.
-- **Não cobre CT-e e MDF-e ainda.** A regra é a mesma e os web services também, mas o
-  transporte deles é outro caminho de código; ligar a guarda lá é trabalho a fazer.
+- **CT-e e MDF-e não transmitem ainda** — e a formulação importa. A primeira redação
+  deste documento dizia "não cobre CT-e e MDF-e", o que dá a entender que existe
+  transmissão desguarnecida. Não existe: há as URLs dos autorizadores
+  (`fiscal/documento/autorizadores_cte.py`) e o leiaute puro, mas nenhum caminho de envio.
+
+  O risco real é o **futuro**: quando a transmissão deles for escrita, alguém pode
+  construir o transporte sem passar `guarda`. Por isso o teste varre **todo** `integracao/`
+  procurando construções de `TransporteSefaz` e exige a guarda em cada uma — em vez de
+  conferir uma lista fixa de arquivos, que aprovaria o arquivo novo em silêncio.
 
 ## Fontes
 

@@ -583,9 +583,11 @@ construtor em vez de escondida num import.
 
 ### O que ficou de fora
 
-**CT-e e MDF-e.** A regra é a mesma e os web services também, mas o transporte deles é
-outro caminho de código — ligar a guarda lá é trabalho a fazer, e está declarado no
-documento.
+**Nada — e a primeira redação desta seção errava.** Dizia que faltava cobrir CT-e e MDF-e,
+o que sugere transmissão desguarnecida. Conferido: eles **não transmitem** ainda (há URLs
+de autorizador e leiaute puro, nenhum caminho de envio). O risco é o futuro, e está coberto
+por teste: a suíte varre todo `integracao/` procurando construções de `TransporteSefaz` e
+exige `guarda` em cada uma.
 
 ### Fontes
 
