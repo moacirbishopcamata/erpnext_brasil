@@ -1,0 +1,51 @@
+/* Copyright (c) 2026, ERPNext Brasil contributors
+ * License: MIT. See license.txt
+ *
+ * Estilo do Navegador de Estoque.
+ *
+ * A tela é usada **de pé, no galpão**, muitas vezes com uma mão só e num aparelho modesto.
+ * Isso decide tudo aqui: alvo de toque grande, uma coluna, e nada que dependa de passar o
+ * mouse — que não existe num coletor.
+ *
+ * Usa as variáveis do tema do Frappe (`--border-color`, `--fg-color`…) em vez de cores
+ * próprias: assim a tela acompanha o modo escuro sem uma segunda paleta para manter.
+ */
+
+.br-navegador .br-trilha {
+	margin-bottom: 12px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--border-color);
+}
+
+.br-navegador .br-trilha a {
+	cursor: pointer;
+}
+
+.br-navegador .br-lista {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+/* 48px é o alvo de toque confortável para dedo — não é número estético.
+   Linha de tabela normal exige mira que não se tem andando. */
+.br-navegador .br-no {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	min-height: 48px;
+	padding: 8px 12px;
+	border: 1px solid var(--border-color);
+	border-radius: var(--border-radius-md, 6px);
+	background: var(--fg-color);
+	cursor: pointer;
+}
+
+.br-navegador .br-no:active {
+	background: var(--bg-color);
+}
+
+.br-navegador .br-conteudo td,
+.br-navegador .br-conteudo th {
+	vertical-align: middle;
+}

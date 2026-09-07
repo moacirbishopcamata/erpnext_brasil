@@ -10,7 +10,13 @@ required_apps = ["frappe/erpnext"]
 # Transições/animações discretas do Desk (identidade visual) — só opacity/transform
 # (aceleradas por GPU, sem reflow de layout) e um único listener de evento, para não
 # pesar no desempenho do sistema. Ver `docs/desk-transicoes.md`.
-app_include_css = "/assets/erpnext_brasil/css/desk_transitions.css"
+# Lista, e não string: o Frappe aceita as duas formas, e a segunda folha nasceu com o
+# Navegador de Estoque. Deixar como string obrigaria a concatenar CSS de assuntos
+# diferentes num arquivo só.
+app_include_css = [
+	"/assets/erpnext_brasil/css/desk_transitions.css",
+	"/assets/erpnext_brasil/css/navegador_de_estoque.css",
+]
 app_include_js = "/assets/erpnext_brasil/js/desk_transitions.js"
 
 # `doctype_js` em vez de `app_include_js` para o botão de emissão: ele só faz sentido num
