@@ -40,6 +40,18 @@ from frappe.tests.utils import FrappeTestCase
 from erpnext_brasil.tests_bench import test_cfop_sugestao
 from erpnext_brasil.tests_bench.test_cfop_sugestao import ITEM, LISTA, MATRIZ, OUTRO_GRUPO
 
+MODULOS_COBERTOS = ("documento",)
+"""Os módulos de `integracao/` que este arquivo exercita — **declarados**, não inferidos.
+
+Lido por `scripts/cobertura_de_bench.py`. A declaração existe porque as duas inferências
+óbvias erram, em direções opostas: por **nome de arquivo**, um teste que cobre três módulos
+conta como um; por **import**, um teste que exercita o hook através do `save` — sem importar
+o módulo, que é a forma mais forte de testar — conta como zero.
+
+Quanto melhor o teste de bench, menos ele importa o módulo que prova.
+"""
+
+
 CAMPOS_CALCULADOS = (
 	"br_base_icms",
 	"br_valor_icms",

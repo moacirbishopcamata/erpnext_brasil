@@ -32,6 +32,18 @@ from erpnext_brasil.integracao.certificado_a1 import (
 	carregar_certificado_da_empresa,
 )
 
+MODULOS_COBERTOS = ("certificado_a1",)
+"""Os módulos de `integracao/` que este arquivo exercita — **declarados**, não inferidos.
+
+Lido por `scripts/cobertura_de_bench.py`. A declaração existe porque as duas inferências
+óbvias erram, em direções opostas: por **nome de arquivo**, um teste que cobre três módulos
+conta como um; por **import**, um teste que exercita o hook através do `save` — sem importar
+o módulo, que é a forma mais forte de testar — conta como zero.
+
+Quanto melhor o teste de bench, menos ele importa o módulo que prova.
+"""
+
+
 _CAMPOS_TOCADOS = ("br_certificado_a1", "br_senha_certificado_a1", "br_ambiente_sefaz")
 
 

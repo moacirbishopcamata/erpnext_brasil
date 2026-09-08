@@ -28,6 +28,18 @@ Como rodar
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
+MODULOS_COBERTOS = ("cfop_sugestao",)
+"""Os módulos de `integracao/` que este arquivo exercita — **declarados**, não inferidos.
+
+Lido por `scripts/cobertura_de_bench.py`. A declaração existe porque as duas inferências
+óbvias erram, em direções opostas: por **nome de arquivo**, um teste que cobre três módulos
+conta como um; por **import**, um teste que exercita o hook através do `save` — sem importar
+o módulo, que é a forma mais forte de testar — conta como zero.
+
+Quanto melhor o teste de bench, menos ele importa o módulo que prova.
+"""
+
+
 MATRIZ = "_Teste CFOP Matriz"
 FILIAL = "_Teste CFOP Filial"
 OUTRO_GRUPO = "_Teste CFOP Outro Grupo"

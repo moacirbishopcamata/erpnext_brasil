@@ -33,6 +33,17 @@ from frappe.tests.utils import FrappeTestCase
 
 from erpnext_brasil.integracao.party import validar_codigo_municipio, validar_tax_id
 
+MODULOS_COBERTOS = ("party",)
+"""Os módulos de `integracao/` que este arquivo exercita — **declarados**, não inferidos.
+
+Lido por `scripts/cobertura_de_bench.py`. A declaração existe porque as duas inferências
+óbvias erram, em direções opostas: por **nome de arquivo**, um teste que cobre três módulos
+conta como um; por **import**, um teste que exercita o hook através do `save` — sem importar
+o módulo, que é a forma mais forte de testar — conta como zero.
+
+Quanto melhor o teste de bench, menos ele importa o módulo que prova.
+"""
+
 
 class _EmpresaBrasileiraMixin:
 	"""Cria uma `Company` com `country="Brazil"` e força `frappe.local.flags.company`
