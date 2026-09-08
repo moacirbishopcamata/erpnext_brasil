@@ -42,7 +42,18 @@ São os dois que `validar_livro_fiscal` recusa, e ambos passam despercebidos por
 
 Nenhum dos dois levanta erro no ERPNext: são configurações válidas para outros países.
 
-Estado de verificação: camada Frappe, **não** exercitada contra bench real.
+Estado de verificação
+----------------------------
+Exercitado em site **v16 real** (`tests_bench/test_depreciacao_ativo.py`, seis casos): as
+duas recusas disparam ao gravar um `Asset`, a configuração correta passa, e um segundo livro
+com método diferente **não** é conferido — que é o ponto, porque o método contábil pode
+legitimamente ser outro.
+
+Os dois primeiros testes cobrem o que nenhuma suíte pura alcança: `instalar_livro_fiscal` e
+`instalar_turnos` rodam no `after_migrate`, e uma falha ali não apareceria em teste algum —
+o `Finance Book` simplesmente não existiria. Os três turnos são relidos do banco e
+comparados com `COEFICIENTE_POR_TURNOS`, para que o número da lei não ganhe uma terceira
+cópia.
 """
 
 import frappe
