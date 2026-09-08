@@ -62,6 +62,10 @@ Foi essa execução que revelou o risco do campo obrigatório acima.
 import frappe
 from frappe import _
 
+from erpnext_brasil.fiscal.codigos_de_erro import (
+	SEFAZ_BLOQUEADO_POR_CONSUMO_INDEVIDO,
+	formatar,
+)
 from erpnext_brasil.fiscal.consumo_indevido import (
 	CSTAT_CONSUMO_INDEVIDO,
 	Bloqueio,
@@ -129,17 +133,20 @@ def garantir_liberado(cnpj: str, ambiente: str) -> None:
 	minutos = int(bloqueio.restante(agora).total_seconds() // 60) + 1
 
 	frappe.throw(
-		_(
-			"O CNPJ {0} está bloqueado pela SEFAZ por consumo indevido (cStat {1}) no ambiente "
-			"{2}. A liberação é automática em {3} — faltam cerca de {4} minuto(s).<br><br>"
-			"<b>Não tente transmitir antes disso.</b> Cada tentativa dentro da janela reinicia "
-			"a contagem de uma hora, e o bloqueio recomeça do zero."
-		).format(
-			cnpj,
-			CSTAT_CONSUMO_INDEVIDO,
-			ambiente,
-			frappe.utils.format_datetime(bloqueio.liberado_em),
-			minutos,
+		formatar(
+			SEFAZ_BLOQUEADO_POR_CONSUMO_INDEVIDO,
+			_(
+				"O CNPJ {0} está bloqueado pela SEFAZ por consumo indevido (cStat {1}) no ambiente "
+				"{2}. A liberação é automática em {3} — faltam cerca de {4} minuto(s).<br><br>"
+				"<b>Não tente transmitir antes disso.</b> Cada tentativa dentro da janela "
+				"reinicia a contagem de uma hora, e o bloqueio recomeça do zero."
+			).format(
+				cnpj,
+				CSTAT_CONSUMO_INDEVIDO,
+				ambiente,
+				frappe.utils.format_datetime(bloqueio.liberado_em),
+				minutos,
+			),
 		),
 		exc=BloqueadoPorConsumoIndevido,
 		title=_("Bloqueado por consumo indevido"),

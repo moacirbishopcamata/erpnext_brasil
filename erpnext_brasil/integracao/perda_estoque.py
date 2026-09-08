@@ -61,6 +61,12 @@ import frappe
 from frappe import _
 
 from erpnext_brasil.contabil.perdas import TipoDePerda, apurar_perda
+from erpnext_brasil.fiscal.codigos_de_erro import (
+	ESTOQUE_PERDA_EM_FINALIDADE_INCOMPATIVEL,
+	ESTOQUE_PERDA_SEM_VALOR,
+	ESTOQUE_SOBRA_CLASSIFICADA_COMO_PERDA,
+	formatar,
+)
 
 __all__ = [
 	"CAMPOS_DE_CREDITO",
@@ -114,11 +120,14 @@ def valor_da_perda(doc) -> Decimal:
 
 		if diferenca >= ZERO:
 			frappe.throw(
-				_(
-					"A diferença apurada é de {0}, ou seja, sobra de inventário — e sobra não é "
-					"perda: não há crédito a estornar sobre mercadoria que apareceu. Deixe o "
-					"tipo de perda em branco."
-				).format(diferenca),
+				formatar(
+					ESTOQUE_SOBRA_CLASSIFICADA_COMO_PERDA,
+					_(
+						"A diferença apurada é de {0}, ou seja, sobra de inventário — e sobra não "
+						"é perda: não há crédito a estornar sobre mercadoria que apareceu. Deixe "
+						"o tipo de perda em branco."
+					).format(diferenca),
+				),
 				title=_("Sobra de inventário classificada como perda"),
 			)
 
@@ -165,11 +174,14 @@ def apurar_perda_do_documento(doc, method=None) -> None:
 
 	if doc.doctype == "Stock Entry" and doc.get("purpose") != PROPOSITO_DE_BAIXA:
 		frappe.throw(
-			_(
-				"Tipo de perda preenchido num lançamento cuja finalidade é {0}. Perda só cabe "
-				"em {1}: nas demais finalidades a mercadoria continua na empresa, e estornar o "
-				"crédito dela criaria passivo fiscal sem fato gerador."
-			).format(doc.get("purpose"), PROPOSITO_DE_BAIXA),
+			formatar(
+				ESTOQUE_PERDA_EM_FINALIDADE_INCOMPATIVEL,
+				_(
+					"Tipo de perda preenchido num lançamento cuja finalidade é {0}. Perda só cabe "
+					"em {1}: nas demais finalidades a mercadoria continua na empresa, e estornar "
+					"o crédito dela criaria passivo fiscal sem fato gerador."
+				).format(doc.get("purpose"), PROPOSITO_DE_BAIXA),
+			),
 			title=_("Finalidade incompatível com perda"),
 		)
 
@@ -177,10 +189,13 @@ def apurar_perda_do_documento(doc, method=None) -> None:
 
 	if valor <= ZERO:
 		frappe.throw(
-			_(
-				"Perda classificada como {0}, mas o valor baixado é {1}. Baixa de valor zero "
-				"não é perda — é lançamento sem efeito."
-			).format(nome_do_tipo, valor),
+			formatar(
+				ESTOQUE_PERDA_SEM_VALOR,
+				_(
+					"Perda classificada como {0}, mas o valor baixado é {1}. Baixa de valor zero "
+					"não é perda — é lançamento sem efeito."
+				).format(nome_do_tipo, valor),
+			),
 			title=_("Perda sem valor"),
 		)
 
