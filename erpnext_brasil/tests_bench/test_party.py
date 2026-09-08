@@ -53,6 +53,43 @@ class _EmpresaBrasileiraMixin:
 	automático de `FrappeTestCase` sozinho para estado que passa por cache
 	(`frappe.get_cached_value`, que `_pais_e_brasil()` usa)."""
 
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+
+		# ⚠️ Oitava falta da série "site sem assistente de configuração" (a tabela está em
+		# `docs/ambiente-dev-bench.md`). Este arquivo nasceu no bench v15, que tinha os
+		# cadastros padrão; o v16 foi criado por `bench new-site` puro e não tem nem a raiz
+		# da árvore de grupos de item.
+		#
+		# O erro é `LinkValidationError: Could not find Item Group: All Item Groups`, e
+		# aponta para o `Item` do teste — não para o cadastro que falta.
+		raizes = [
+			{"doctype": "Item Group", "item_group_name": "All Item Groups", "is_group": 1},
+			{"doctype": "UOM", "uom_name": "Nos"},
+			{
+				"doctype": "Customer Group",
+				"customer_group_name": "All Customer Groups",
+				"is_group": 1,
+			},
+			{
+				"doctype": "Customer Group",
+				"customer_group_name": "Individual",
+				"parent_customer_group": "All Customer Groups",
+				"is_group": 0,
+			},
+			{"doctype": "Territory", "territory_name": "All Territories", "is_group": 1},
+		]
+
+		for dados in raizes:
+			doctype = dados["doctype"]
+			nome = next(v for k, v in dados.items() if k.endswith("_name"))
+
+			if not frappe.db.exists(doctype, nome):
+				frappe.get_doc(dados).insert(ignore_permissions=True)
+
+		frappe.db.commit()
+
 	def setUp(self):
 		self._flag_anterior = frappe.local.flags.company
 
@@ -135,15 +172,15 @@ class TestValidarTaxId(_EmpresaBrasileiraMixin, FrappeTestCase):
 class TestValidarCodigoMunicipio(_EmpresaBrasileiraMixin, FrappeTestCase):
 	def test_codigo_valido_e_aceito_direto(self):
 		doc = frappe.new_doc("Address")
-		doc.codigo_municipio_ibge = "3550308"
+		doc.br_codigo_municipio_ibge = "3550308"
 
 		validar_codigo_municipio(doc)
 
-		self.assertEqual(doc.codigo_municipio_ibge, "3550308")
+		self.assertEqual(doc.br_codigo_municipio_ibge, "3550308")
 
 	def test_codigo_fora_do_formato_levanta_erro(self):
 		doc = frappe.new_doc("Address")
-		doc.codigo_municipio_ibge = "123"
+		doc.br_codigo_municipio_ibge = "123"
 
 		with self.assertRaises(frappe.ValidationError):
 			validar_codigo_municipio(doc)
@@ -158,12 +195,15 @@ class TestValidarNcm(_EmpresaBrasileiraMixin, FrappeTestCase):
 				"doctype": "Item",
 				"item_code": "_Test Item NCM (erpnext_brasil)",
 				"item_group": "All Item Groups",
-				"ncm": "8471.30.19",
+				# Explícito porque o site não tem `Stock Settings` configurado: sem
+				# assistente, não existe unidade padrão para o `Item` herdar.
+				"stock_uom": "Nos",
+				"br_ncm": "8471.30.19",
 			}
 		).insert(ignore_permissions=True)
 		self._docs_criados.append(("Item", item.name))
 
-		ncm_relido = frappe.db.get_value("Item", item.name, "ncm")
+		ncm_relido = frappe.db.get_value("Item", item.name, "br_ncm")
 
 		self.assertEqual(ncm_relido, "84713019")
 
@@ -174,6 +214,9 @@ class TestValidarNcm(_EmpresaBrasileiraMixin, FrappeTestCase):
 					"doctype": "Item",
 					"item_code": "_Test Item NCM Invalido (erpnext_brasil)",
 					"item_group": "All Item Groups",
-					"ncm": "123",
+					# Explícito porque o site não tem `Stock Settings` configurado: sem
+					# assistente, não existe unidade padrão para o `Item` herdar.
+					"stock_uom": "Nos",
+					"br_ncm": "123",
 				}
 			).insert(ignore_permissions=True)

@@ -25,7 +25,14 @@ from erpnext_brasil.tests.ajudantes import sem_docstrings
 
 RAIZ = Path(__file__).resolve().parent.parent
 
-GUARDAS_COM_CODIGO = ("perda_estoque", "consumo_indevido")
+GUARDAS_COM_CODIGO = (
+	"chave_acesso_documento",
+	"consumo_indevido",
+	"documento",
+	"party",
+	"perda_estoque",
+	"validacao_fiscal",
+)
 """Os módulos de `integracao/` cujas recusas já foram convertidas.
 
 ⚠️ Lista explícita, e não "todos os módulos": a conversão é incremental, e um teste que

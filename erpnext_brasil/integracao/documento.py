@@ -14,6 +14,10 @@ ainda pode corrigir o documento.
 import frappe
 from frappe import _
 
+from erpnext_brasil.fiscal.codigos_de_erro import (
+	DOCUMENTO_APURACAO_IMPOSSIVEL,
+	formatar,
+)
 from erpnext_brasil.fiscal.impostos.apuracao import apurar_documento
 from erpnext_brasil.integracao.mapeamento import (
 	item_fiscal_de_linha,
@@ -90,7 +94,12 @@ def apurar_impostos(doc, method=None):
 		itens = [item_fiscal_de_linha(linha.as_dict()) for linha in doc.items]
 		apuracao = apurar_documento(itens, operacao)
 	except ValueError as e:
-		frappe.throw(_("Não foi possível apurar os impostos: {0}").format(str(e)))
+		frappe.throw(
+			formatar(
+				DOCUMENTO_APURACAO_IMPOSSIVEL,
+				_("Não foi possível apurar os impostos: {0}").format(str(e)),
+			)
+		)
 		return
 
 	for linha, resultado in zip(doc.items, apuracao.itens, strict=True):

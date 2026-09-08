@@ -40,6 +40,13 @@ Sem dependência do Frappe: é dado, e a suíte de costura o lê sem bench.
 """
 
 __all__ = [
+	"CADASTRO_CODIGO_DE_MUNICIPIO_INVALIDO",
+	"CADASTRO_CPF_CNPJ_INVALIDO",
+	"CADASTRO_INSCRICAO_ESTADUAL_INVALIDA",
+	"CADASTRO_NCM_INVALIDO",
+	"DOCUMENTO_APURACAO_IMPOSSIVEL",
+	"DOCUMENTO_CHAVE_DE_ACESSO_INVALIDA",
+	"DOCUMENTO_CLASSIFICACAO_INCOMPATIVEL",
 	"ESTOQUE_PERDA_EM_FINALIDADE_INCOMPATIVEL",
 	"ESTOQUE_PERDA_SEM_VALOR",
 	"ESTOQUE_SOBRA_CLASSIFICADA_COMO_PERDA",
@@ -51,6 +58,42 @@ __all__ = [
 
 PRIMEIRO_CODIGO = 1000
 """O piso da faixa. Abaixo dele é território do `cStat` — ver a nota do módulo."""
+
+# As centenas agrupam por assunto, e o agrupamento é para quem lê o log, não para o código:
+# `11xx` cadastro, `12xx` documento fiscal, `10xx` estoque e SEFAZ. Um número solto não diz
+# de onde veio; `1102` já situa quem procura antes mesmo de abrir a tabela.
+
+# -------------------------------------------------------------------------------- cadastro
+CADASTRO_CPF_CNPJ_INVALIDO = 1101
+"""`tax_id` que não passa no dígito verificador, em Company, Customer ou Supplier."""
+
+CADASTRO_INSCRICAO_ESTADUAL_INVALIDA = 1102
+"""IE que não fecha pelo algoritmo da UF do endereço."""
+
+CADASTRO_CODIGO_DE_MUNICIPIO_INVALIDO = 1103
+"""Código IBGE do município fora dos 7 dígitos."""
+
+CADASTRO_NCM_INVALIDO = 1104
+"""NCM fora dos 8 dígitos."""
+
+# -------------------------------------------------------------------------------- documento
+DOCUMENTO_CHAVE_DE_ACESSO_INVALIDA = 1201
+"""Chave de 44 posições com layout ou dígito verificador errado.
+
+Inclui a URL do QR Code da NFC-e que não contenha uma chave legível — o campo aceita as
+duas formas de entrada, e a recusa é a mesma.
+"""
+
+DOCUMENTO_CLASSIFICACAO_INCOMPATIVEL = 1202
+"""CST e cClassTrib que a SEFAZ recusaria — inclusive o par preenchido pela metade."""
+
+DOCUMENTO_APURACAO_IMPOSSIVEL = 1203
+"""Os dados da linha não permitem calcular os tributos.
+
+⚠️ Diferente de "imposto zero": zero é resultado válido de item sem alíquota. Este código é
+para quando o cálculo **não pôde ser feito**, e confundir os dois faria alguém procurar
+alíquota onde falta dado.
+"""
 
 # --------------------------------------------------------------------------------- estoque
 ESTOQUE_PERDA_EM_FINALIDADE_INCOMPATIVEL = 1001
@@ -72,6 +115,13 @@ tratá-los como um só apagaria justamente a distinção que evita estender o bl
 """
 
 TODOS = {
+	CADASTRO_CPF_CNPJ_INVALIDO,
+	CADASTRO_INSCRICAO_ESTADUAL_INVALIDA,
+	CADASTRO_CODIGO_DE_MUNICIPIO_INVALIDO,
+	CADASTRO_NCM_INVALIDO,
+	DOCUMENTO_CHAVE_DE_ACESSO_INVALIDA,
+	DOCUMENTO_CLASSIFICACAO_INCOMPATIVEL,
+	DOCUMENTO_APURACAO_IMPOSSIVEL,
 	ESTOQUE_PERDA_EM_FINALIDADE_INCOMPATIVEL,
 	ESTOQUE_SOBRA_CLASSIFICADA_COMO_PERDA,
 	ESTOQUE_PERDA_SEM_VALOR,

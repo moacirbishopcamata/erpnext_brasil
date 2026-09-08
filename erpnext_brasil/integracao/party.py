@@ -15,6 +15,13 @@ fornecedor estrangeiro.
 import frappe
 from frappe import _
 
+from erpnext_brasil.fiscal.codigos_de_erro import (
+	CADASTRO_CODIGO_DE_MUNICIPIO_INVALIDO,
+	CADASTRO_CPF_CNPJ_INVALIDO,
+	CADASTRO_INSCRICAO_ESTADUAL_INVALIDA,
+	CADASTRO_NCM_INVALIDO,
+	formatar,
+)
 from erpnext_brasil.fiscal.inscricao_estadual import validar_inscricao_estadual
 from erpnext_brasil.fiscal.ufs import resolver_uf
 from erpnext_brasil.fiscal.validators import (
@@ -52,7 +59,10 @@ def validar_tax_id(doc, method=None):
 		limpo = validar_cpf_cnpj(doc.tax_id)
 	except ValidacaoFiscalError as e:
 		frappe.throw(
-			_("CPF/CNPJ inválido em {0}: {1}").format(doc.doctype, str(e)),
+			formatar(
+				CADASTRO_CPF_CNPJ_INVALIDO,
+				_("CPF/CNPJ inválido em {0}: {1}").format(doc.doctype, str(e)),
+			),
 			title=_("Documento fiscal inválido"),
 		)
 		return
@@ -100,10 +110,13 @@ def validar_ie(doc, method=None):
 		return
 
 	try:
-		doc.inscricao_estadual = validar_inscricao_estadual(ie, uf)
+		doc.br_inscricao_estadual = validar_inscricao_estadual(ie, uf)
 	except ValidacaoFiscalError as e:
 		frappe.throw(
-			_("Inscrição Estadual inválida: {0}").format(str(e)),
+			formatar(
+				CADASTRO_INSCRICAO_ESTADUAL_INVALIDA,
+				_("Inscrição Estadual inválida: {0}").format(str(e)),
+			),
 			title=_("Documento fiscal inválido"),
 		)
 
@@ -119,11 +132,14 @@ def validar_codigo_municipio(doc, method=None):
 
 	if not limpo.isdigit() or len(limpo) != 7:
 		frappe.throw(
-			_("Código do Município (IBGE) deve ter 7 dígitos numéricos, recebido {0}").format(codigo),
+			formatar(
+				CADASTRO_CODIGO_DE_MUNICIPIO_INVALIDO,
+				_("Código do Município (IBGE) deve ter 7 dígitos numéricos, recebido {0}").format(codigo),
+			),
 			title=_("Documento fiscal inválido"),
 		)
 
-	doc.codigo_municipio_ibge = limpo
+	doc.br_codigo_municipio_ibge = limpo
 
 
 def validar_ncm(doc, method=None):
@@ -137,8 +153,11 @@ def validar_ncm(doc, method=None):
 
 	if not limpo.isdigit() or len(limpo) != 8:
 		frappe.throw(
-			_("NCM deve ter 8 dígitos numéricos, recebido {0}").format(ncm),
+			formatar(
+				CADASTRO_NCM_INVALIDO,
+				_("NCM deve ter 8 dígitos numéricos, recebido {0}").format(ncm),
+			),
 			title=_("Documento fiscal inválido"),
 		)
 
-	doc.ncm = limpo
+	doc.br_ncm = limpo

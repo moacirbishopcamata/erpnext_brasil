@@ -31,6 +31,10 @@ família NF-e/CT-e/MDF-e), não reimplementa nada.
 import frappe
 from frappe import _
 
+from erpnext_brasil.fiscal.codigos_de_erro import (
+	DOCUMENTO_CHAVE_DE_ACESSO_INVALIDA,
+	formatar,
+)
 from erpnext_brasil.fiscal.documento.leitura_codigo import LeituraInvalida, extrair_chave
 
 __all__ = ["validar_chave_acesso"]
@@ -60,7 +64,10 @@ def validar_chave_acesso(doc, method=None):
 		limpa = extrair_chave(valor)
 	except LeituraInvalida as e:
 		frappe.throw(
-			_("Chave de acesso inválida em {0}: {1}").format(doc.doctype, str(e)),
+			formatar(
+				DOCUMENTO_CHAVE_DE_ACESSO_INVALIDA,
+				_("Chave de acesso inválida em {0}: {1}").format(doc.doctype, str(e)),
+			),
 			title=_("Chave de acesso inválida"),
 		)
 		return
