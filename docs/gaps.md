@@ -622,6 +622,74 @@ exige `guarda` em cada uma.
 - SEFAZ-ES, comunicado sobre controle automático de consumo indevido: bloqueio de 1 hora,
   desbloqueio automático, e a contagem que reinicia a cada tentativa antecipada.
 
+## Contrato com o ERPNext — 2026-09-09
+
+Achado ao **medir** a tropicalização, e não ao procurar bug: o contato do app com o ERPNext
+tinha quatro formas, e só três se declaravam.
+
+| Forma | Declarada em | DocTypes |
+|---|---|---|
+| campo acrescentado | `setup/campos*.py` | 24 |
+| comportamento ligado | `hooks.py` | 17 |
+| DocType próprio | `registros_fiscais/doctype/` | 6 |
+| **leitura** | ~~lugar nenhum~~ → `setup/leituras_do_erpnext.py` | **13** |
+
+### ✅ As 13 leituras, pagas no mesmo dia
+
+Campo e hook são coisas **nossas**, que mudam quando nós mudamos. Leitura é dependência de
+estrutura **alheia** — muda quando o ERPNext muda, e nada acusava.
+
+O caso mais grave: o Bloco K da EFD é montado a partir de `Work Order`, e o módulo
+`manufacturing` **existe no app só por essa leitura** — nenhum campo, nenhum hook. Renome de
+`actual_start_date` = arquivo entregue ao Fisco errado, com a suíte pura verde. Mesma
+exposição em `Stock Ledger Entry` (Bloco H), `Batch` (grupo `rastro`) e `Dynamic Link` (a
+ligação que revela a UF, e a UF decide CFOP e alíquota).
+
+Agora há duas conferências: uma pura, que reprova leitura nova sem declaração; e uma de
+bench, que confere DocType e coluna num site real — a única coisa no projeto que pega um
+renome do ERPNext, e pega na atualização em vez de na entrega.
+
+⚠️ Nota de método: a varredura manual achou **onze**; o teste achou **treze**. `Dynamic Link`
+e `Has Role` escaparam porque a varredura procurava numa lista que ela mesma montou.
+
+### ✅ O mapa de indicador tinha uma entrada inalcançável
+
+`INDICADOR_POR_DOCUMENTO` mapeava `POS Invoice` para `indNFCe`, e a função **nunca recebe um
+`POS Invoice`** — ele não está no `hooks.py`. Entrada inalcançável dentro de estrutura viva é
+pior que ausência: dá a impressão de que o caso está coberto.
+
+Separada em `INDICADOR_QUANDO_LIGARMOS`, que é o que ela de fato é: decisão registrada para
+quando o gap for pago.
+
+O perigo maior era o inverso, e agora tem teste: a leitura usa `.get(doctype, "indNFe")`, e
+um DocType **ligado e ausente do mapa** cairia em nota modelo 55 sem erro. Para um cupom,
+isso faz a combinação CST/cClassTrib passar pela tabela errada — aprovada aqui, rejeitada
+pela SEFAZ.
+
+### 🔴 Gap novo: NFC-e não sai do POS do ERPNext
+
+`POS Invoice` é o documento de ponto de venda do ERPNext e **não recebe campo fiscal
+nenhum**. A NFC-e do app é emitida a partir de `Sales Invoice` com modelo 65.
+
+Consequência: quem usa o **POS do ERPNext** não emite NFC-e. Não é lacuna de cálculo — o
+modelo 65 está pronto na camada pura (chave de acesso, autorizadores, QR Code) —, é lacuna
+de **costura**: falta o conjunto de campos, o hook e o botão nessa tela.
+
+Não foi feito agora porque é frente própria: o POS tem fluxo de caixa, contingência offline
+(que a NFC-e admite e a NF-e não) e impressão de cupom. Tratá-lo de passagem produziria meia
+emissão.
+
+### O que a medição também mostrou, e não é gap
+
+- **30 de 534 DocTypes tocados (5,6%)**, e **15 dos 21 módulos sem contato nenhum**. Não é
+  lacuna: CRM, Projects, Support e afins não têm consequência fiscal. A tropicalização é
+  estreita e profunda.
+- **`stock` + `accounts` = 71% dos campos.**
+- **Os mesmos 30 campos de linha em 4 tabelas-filhas e 16 de cabeçalho em 4 documentos** —
+  mas o código **não duplica**: `campos_documento.py` gera os quatro num laço só. Quem
+  replica é o modelo do ERPNext, que separa por papel comercial onde o fisco separa por
+  modelo de documento.
+
 ## Método
 
 
