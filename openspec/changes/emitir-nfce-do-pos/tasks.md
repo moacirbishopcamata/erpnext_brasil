@@ -11,9 +11,12 @@
 - [ ] 1.1b Confirmar se a SEFAZ-RO já aceita o QR Code versão 3 — verificar na SEFAZ-RO, porque
       mandar v3 para UF não migrada é rejeição 407, e a v2 implementada continua correta para
       Pessoa Jurídica enquanto não migrar
-- [ ] 1.2 Conferir no site v16 o nome real da tabela-filha de itens do `POS Invoice` e os campos
-      que o POS já preenche — verificar contra `bench --site v16.localhost console`, não por
-      analogia com `Sales Invoice Item`
+- [x] 1.2 Conferir no site v16 o nome real da tabela-filha de itens do `POS Invoice` e os campos
+      que o POS já preenche — **feito em 2026-09-09** no `bench console`: `items` →
+      `POS Invoice Item`; nenhum campo `br_*` no cabeçalho nem no item; o POS consolida em
+      `Sales Invoice` via `consolidated_invoice` (Link somente-leitura) e `POS Invoice Merge Log`
+- [ ] 1.2a Recusar emissão sobre `Sales Invoice` com `is_consolidated = 1` — verificar com teste
+      de bench que a recusa nomeia o motivo e que uma fatura de venda comum continua emitindo
 - [ ] 1.3 Levantar quais DocTypes do POS a emissão vai ler (`POS Invoice`, `POS Profile`,
       fechamento de caixa) — verificar que cada um entrou em `setup/leituras_do_erpnext.py` com
       os campos exatos

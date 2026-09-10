@@ -96,7 +96,29 @@ o `Custom Field` recebe muda. Verificar no site, não por analogia com `Sales In
 ligado (entrada inalcançável). Fazer em dois commits deixa a suíte vermelha no meio, o que é
 correto e desconfortável; fazer junto é o certo aqui porque é uma mudança só.
 
-### 6. Valores do MOC não entram no código sem fonte primária conferida
+### 6. A fatura consolidada do caixa é recusada explicitamente pela emissão
+
+Descoberto ao inspecionar o site v16, não previsto no desenho inicial: o POS **consolida**
+os cupons num `Sales Invoice` (campo `consolidated_invoice`, Link somente-leitura, via
+`POS Invoice Merge Log`), e o consolidado carrega `is_consolidated = 1`.
+
+`Sales Invoice` **está ligado** aos nossos hooks fiscais. Ou seja, a fatura que agrega as
+vendas do caixa passa pela mesma porta de emissão que uma venda comum — e emitir sobre ela
+documentaria as mesmas operações duas vezes, uma no cupom e outra na nota.
+
+A emissão passa a recusar `is_consolidated`, com código e mensagem próprios.
+
+*Verificado, e o resultado foi o oposto do temido:* a validação de classificação **não**
+trava a consolidação hoje. `problemas_dos_itens` ignora item sem classificação nenhuma de
+propósito ("exigir aqui impediria de salvar um rascunho"), e o consolidado nasce sem campo
+fiscal porque `POS Invoice Item` não tem nenhum `br_*`. Não há bug ativo — há um caminho
+aberto que precisa de porta.
+
+*Alternativa considerada:* tirar `Sales Invoice` consolidado do hook de validação. Recusada:
+o hook não é o problema — ele já degrada corretamente. O que falta é recusa **na emissão**,
+que é onde o documento em duplicidade nasceria.
+
+### 7. Valores do MOC não entram no código sem fonte primária conferida
 
 O tipo de emissão da contingência offline da NFC-e, o prazo de transmissão posterior e o formato
 do QR Code em contingência vêm do Manual de Orientação do Contribuinte. Nenhum deles é escrito

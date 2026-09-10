@@ -63,6 +63,24 @@ resultado da SEFAZ — protocolo quando autorizada, código e motivo quando reje
   liberação
 - **AND** não envia requisição à SEFAZ, porque tentar de novo reinicia a janela
 
+### Requirement: A fatura consolidada do caixa não gera documento fiscal próprio
+
+O ERPNext consolida as vendas do ponto de venda numa fatura de venda agregada. Essa fatura
+consolidada NÃO DEVE gerar documento fiscal próprio, porque cada venda que ela agrega já tem
+seu cupom — emitir sobre ela documentaria as mesmas operações duas vezes.
+
+#### Scenario: Tentativa de emitir sobre a fatura consolidada
+
+- **WHEN** alguém solicita emissão de documento fiscal para uma fatura de venda marcada como
+  consolidada do ponto de venda
+- **THEN** o sistema recusa com código de erro e mensagem em pt-BR explicando que as vendas
+  agregadas já têm cupom próprio
+
+#### Scenario: Fatura de venda comum não é afetada
+
+- **WHEN** a fatura de venda não é consolidada do ponto de venda
+- **THEN** a emissão segue normalmente, sem restrição nova
+
 ### Requirement: O cupom entregue permite ao consumidor conferir a nota
 
 O sistema DEVE produzir um cupom com a chave de acesso em texto legível e o QR Code no formato
