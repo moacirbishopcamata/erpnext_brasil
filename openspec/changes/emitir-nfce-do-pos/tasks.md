@@ -1,9 +1,16 @@
 ## 1. Fonte primária antes do código
 
-- [ ] 1.1 Abrir o Manual de Orientação do Contribuinte da NFC-e e registrar, em
-      `docs/nfce-contingencia.md`, o tipo de emissão da contingência offline, o prazo de
-      transmissão posterior e o formato do QR Code em contingência — verificar que o documento
-      cita a versão e o link da fonte, e que nenhum desses valores está escrito de memória
+- [x] 1.1 Registrar em `docs/nfce-contingencia.md` o tipo de emissão, o prazo de transmissão e
+      o leiaute do QR Code em contingência, cada um com a fonte nomeada — **feito em
+      2026-09-09**: `tpEmis = 9`, prazo de 24 h, chave e código numérico mantidos, sem série
+      distinta, "NFC-e EMITIDA EM CONTINGÊNCIA" no DANFE, e o leiaute v3 literal da NT
+      2025.001 v1.03
+- [ ] 1.1a Reconferir os cinco parâmetros de contingência contra o MOC federal ou a SEFAZ-RO —
+      hoje vêm da SEFAZ-PE (estadual oficial), porque o portal nacional responde com
+      redirecionamento em loop; verificar antes de a contingência ir a produção
+- [ ] 1.1b Confirmar se a SEFAZ-RO já aceita o QR Code versão 3 — verificar na SEFAZ-RO, porque
+      mandar v3 para UF não migrada é rejeição 407, e a v2 implementada continua correta para
+      Pessoa Jurídica enquanto não migrar
 - [ ] 1.2 Conferir no site v16 o nome real da tabela-filha de itens do `POS Invoice` e os campos
       que o POS já preenche — verificar contra `bench --site v16.localhost console`, não por
       analogia com `Sales Invoice Item`
@@ -79,8 +86,12 @@
       cupom sai pela tela do caixa
 - [ ] 7.2 Cupom de venda autorizada com chave em texto, QR Code e endereço de consulta da SEFAZ
       da UF do emitente — verificar conferindo o QR Code gerado contra o portal de homologação
-- [ ] 7.3 Cupom de venda em contingência identificando a condição ao consumidor — verificar que
-      o QR Code é o admitido para contingência, conforme a tarefa 1.1
+- [ ] 7.3 Cupom de venda em contingência com a expressão "NFC-e EMITIDA EM CONTINGÊNCIA" e o
+      QR Code versão 2 (`montar_qrcode_offline`) — verificar que a expressão sai impressa e que
+      a chave do cupom é a mesma que a fila vai retransmitir
+- [ ] 7.4 Recusar explicitamente a contingência quando o emitente for Pessoa Física (CPF) —
+      verificar com teste: a v2 é rejeição 444 nesse caso, e a v3 depende do algoritmo de
+      assinatura ainda não confirmado; silêncio aqui produziria cupom irrecuperável
 
 ## 8. Fechamento
 

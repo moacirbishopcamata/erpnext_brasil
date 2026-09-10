@@ -18,13 +18,18 @@ Cobertos os dois casos: **emissão on-line** (`tpEmis` diferente de `9`, majorit
 **contingência offline** (`tpEmis = 9`) — usada quando o emitente não consegue contato
 com a SEFAZ no momento da venda e autoriza depois.
 
-**Contingência offline desatualizada desde 01/09/2025** (NT 2025.001): a partir dessa
-data, a SEFAZ passou a exigir QR Code "versão 3" (assinatura criptográfica, sem CSC)
-especificamente para esse cenário — `montar_qrcode_offline` ainda implementa a versão 2
-(hash com CSC), porque o algoritmo de assinatura da versão 3 não foi confirmado em
-nenhuma fonte acessível até agora (ver o aviso na docstring da função e `docs/
-nfce-qrcode.md`). Emissão on-line não é afetada pela NT — `montar_qrcode_online`
-continua vigente sem ressalva.
+**A versão 2 implementada aqui continua válida** (conferido na NT 2025.001 v1.03, lida
+por inteiro em 2026-09-09). Um registro anterior deste módulo dizia que a "versão 3"
+tinha virado obrigatória em 01/09/2025 — **estava errado**, e errado do lado perigoso:
+a NT rejeita a v3 (**rejeição 407**) justamente onde a UF ainda **não** migrou, com
+migração "por UF, enquanto todas as UF não migrarem". A v3 é facultativa para Pessoa
+Jurídica; a v2 só é proibida (**rejeição 444**) para emitente Pessoa Física (Produtor
+Rural, CPF). A eliminação do CSC é, na NT, "futuramente (sem data definida)".
+
+A v3 continua não implementada, e o que falta está localizado: a NT remete o algoritmo
+da assinatura ao "Manual de Padrões Técnicos do DANFE NFC-e e QR-Code" v6.0, que o
+portal oficial não entrega às ferramentas. Ver `docs/nfce-qrcode.md` para o layout v3
+literal e o registro do bloqueio.
 
 Para o caso on-line, o algoritmo foi confirmado em duas fontes independentes que batem
 exatamente:
@@ -60,9 +65,11 @@ O que fica de fora, declarado
 - **Tabela de URL de consulta por UF** (`webConsultaNFCe`): resolvida à parte, em
   `consulta_nfce.py` — este módulo continua recebendo a URL base já pronta de quem
   chama, não a deriva sozinho.
-- **QR Code "versão 3" (NT 2025.001)**: uma atualização recente troca o esquema de
-  contingência específico para assinatura criptográfica em vez de hash com CSC — fora do
-  escopo desta implementação (só a versão 2, vigente e majoritária).
+- **QR Code "versão 3" (NT 2025.001)**: leiaute alternativo em que a assinatura substitui
+  o hash com CSC, e **só na contingência** (on-line a v3 tem três parâmetros e assinatura
+  nenhuma). Fora do escopo: é facultativo para Pessoa Jurídica, depende de a UF ter
+  migrado, e o algoritmo da assinatura está num manual que o portal oficial não entrega.
+  Só a versão 2, vigente e majoritária.
 
 Funções puras: nenhuma dependência do Frappe.
 """
@@ -163,16 +170,17 @@ def montar_qrcode_offline(
 	(`tpEmis = 9`) — usada quando o emitente não consegue contato com a SEFAZ no
 	momento da venda.
 
-	**ATENÇÃO — desatualizada para uso real desde 01/09/2025.** Esta função implementa
-	o QR Code "versão 2" (hash com CSC). A Nota Técnica 2025.001 tornou obrigatória, a
-	partir dessa data, a "versão 3" (assinatura criptográfica) especificamente para
-	contingência offline — o CSC deixou de valer nesse cenário. **Não implementado
-	ainda**: não foi possível confirmar o algoritmo exato de assinatura em nenhuma fonte
-	acessível (a oficial, `nfe.fazenda.gov.br`, está inacessível às ferramentas de busca)
-	— ver `docs/nfce-qrcode.md`, seção "Ainda por implementar", para o registro completo
-	do bloqueio. Usar esta função para uma contingência offline real hoje produz um QR
-	Code que a SEFAZ pode não aceitar mais; para emissão normal (`montar_qrcode_online`),
-	a versão 2 continua vigente e não é afetada.
+	Implementa o QR Code **"versão 2"** (hash com CSC), que **continua vigente** — a NT
+	2025.001 (lida por inteiro, v1.03) criou a "versão 3" como leiaute alternativo, não
+	como substituto obrigatório: ela é rejeitada (**407**) nas UFs que ainda não migraram,
+	e a v2 só é proibida (**444**) para emitente Pessoa Física (Produtor Rural, CPF).
+
+	⚠️ Duas condições em que esta função **não** serve, e que quem chama precisa checar
+	antes: emitente Pessoa Física, e UF que já exija o leiaute v3. Nenhuma das duas é
+	detectável aqui — esta função não conhece o emitente nem a UF, recebe a URL base
+	pronta. Ver `docs/nfce-qrcode.md` para o layout v3 e o bloqueio que impede
+	implementá-lo (o algoritmo da assinatura está no Manual de Padrões Técnicos v6.0, que
+	o portal oficial não entrega às ferramentas).
 
 	`digest_value` é a string base64 do `DigestValue` **exatamente como está no XML**
 	assinado — este módulo converte cada caractere ASCII dela para hex (`digHex`), não

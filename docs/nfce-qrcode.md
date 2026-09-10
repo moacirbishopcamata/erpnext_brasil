@@ -134,21 +134,49 @@ nfe_completa = anexar_infnfesupl(nfe_assinada, grupo)
   ENCAT (mais CE só em homologação), ver `consulta_nfce.URL_CHAVE_POR_UF`/`url_chave`.
   Goiás, Minas Gerais, Pernambuco e Santa Catarina continuam sem confirmação — ausência
   real na fonte primária, não falta de busca.
-- **QR Code "versão 3" (NT 2025.001)** — **status revisado em 2026-08-30, mais urgente
-  do que o registrado antes**: troca o esquema de contingência offline (`tpEmis=9`) de
-  hash com CSC para assinatura criptográfica, eliminando o CSC nesse cenário. Confirmado
-  em fonte secundária que **a obrigatoriedade em produção já entrou em vigor em
-  01/09/2025** — não é mais "futuro sem data definida" como esta seção registrava.
-  Continua **não implementado aqui**, mas agora por bloqueio de fonte, não por escolha
-  de escopo: não achei nenhuma fonte (a oficial, `nfe.fazenda.gov.br`, está inacessível
-  às ferramentas de busca — redirecionamento em loop) que detalhe o algoritmo exato
-  (quais campos entram na assinatura, em que ordem, qual algoritmo de hash/assinatura,
-  qual chave, como o resultado é codificado na URL). Implementar sem essa confirmação
-  seria adivinhar um esquema criptográfico — o erro que este projeto existe para evitar,
-  ainda mais grave aqui porque uma assinatura errada não dá erro visível na hora, só
-  falha quando alguém tenta validar o QR Code depois. Escopo desta implementação
-  continua sendo só a versão 2 (emissão normal e contingência offline com CSC), que
-  segue válida para tudo que não é o caso específico que a NT 2025.001 endureceu.
+- **QR Code "versão 3" (NT 2025.001)** — **corrigido em 2026-09-09, lendo a NT inteira
+  (versão 1.03, setembro/2025) em vez de fonte secundária**. O registro anterior desta
+  seção dizia que a v3 passou a ser **obrigatória** em produção em 01/09/2025. **Isso
+  está errado**, e o erro era do lado perigoso: alarmava contra uma implementação que
+  continua válida.
+
+  O que a NT de fato estabelece (regras de validação do grupo ZX, seção 90):
+
+  | Rejeição | Quando |
+  |---|---|
+  | **407** | QR Code **versão 3** e a **UF não aceita** essa versão |
+  | **444** | QR Code **versão 2** e emitente **Pessoa Física** (Produtor Rural, CPF) |
+  | 445 / 474 | parâmetro `assinatura` informado quando não devia, e o inverso |
+  | 583 | valor da assinatura difere do calculado pela SEFAZ |
+
+  Ou seja: a v3 é **facultativa para Pessoa Jurídica**, e a migração é **por UF** — texto
+  literal da NT: *"Parâmetro por UF, enquanto todas as UF não migrarem para o leiaute do
+  qrCode versão 3"*. Mandar v3 para uma UF que ainda não migrou **derruba a nota** (407).
+  A v2 só é proibida para emitente Pessoa Física. E a eliminação do CSC é, na própria NT,
+  *"futuramente (sem data definida)"*.
+
+  Layout v3, literal da NT:
+
+  ```
+  on-line:      ?p=<chave_acesso>|<versao_qrcode>|<tpAmb>
+  contingência: ?p=<chave_acesso>|<versao_qrcode>|<tpAmb>|<dia_data_emissao>|<vNF>|<tp_idDest>|<idDest>|<assinatura>
+  ```
+
+  A assinatura existe **unicamente para NFC-e emitida em contingência** — na emissão
+  on-line a v3 encolhe para três parâmetros e não tem assinatura nenhuma. A v3 também
+  dispensa o `CDATA` na tag `qrCode`, que a v2 exige.
+
+  **Continua não implementado, mas o bloqueio agora está localizado**: a NT remete o
+  algoritmo ao *"Manual de Padrões Técnicos do DANFE NFC-e e QR-Code"* (versão 6.0,
+  março/2025), que o portal `nfe.fazenda.gov.br` não entrega às ferramentas
+  (redirecionamento em loop). Falta exatamente isto, e só isto: qual chave assina, qual
+  algoritmo, sobre qual string e em que codificação. Implementar sem confirmar seria
+  adivinhar um esquema criptográfico — pior aqui do que em outros lugares, porque
+  assinatura errada não falha na hora: falha quando alguém tenta validar o cupom depois.
+
+  **Consequência prática para RO**: a v2 implementada continua servindo para emitente
+  Pessoa Jurídica. Antes de migrar, confirmar se a SEFAZ-RO já aceita a v3 — migrar cedo
+  demais custa a rejeição 407, que derruba a venda.
 - ~~Diferenças de transporte específicas de NFC-e via autorizador de contingência
   (SVC-AN/SVC-RS)~~ — **investigado e descartado em 2026-08-29**: SVC-AN/SVC-RS são
   exclusivos de NF-e (modelo 55); NFC-e nunca usa SVC, sua contingência é sempre offline
