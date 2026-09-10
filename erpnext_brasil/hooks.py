@@ -115,7 +115,7 @@ doc_events = {
 
 # A apuração roda em `validate` para que o usuário veja os impostos enquanto ainda pode
 # corrigir o documento — em `on_submit` seria tarde. A sugestão de CFOP roda junto
-# nesses quatro (documentos com apuração fiscal completa) e também em Pedidos/
+# nesses documentos (os que têm apuração fiscal completa) e também em Pedidos/
 # Subcontratação, que não têm apuração (documento interno, sem chave de acesso) mas
 # ainda se beneficiam de saber qual CFOP usar quando virarem NF-e depois.
 for _doctype in (
@@ -123,6 +123,10 @@ for _doctype in (
 	"Delivery Note",
 	"Purchase Invoice",
 	"Purchase Receipt",
+	# Cupom do ponto de venda. Ligado aqui **no mesmo commit** em que o indicador
+	# `indNFCe` migrou para o mapa vivo de `validacao_fiscal.py` — ligar sem migrar faria
+	# o cupom ser conferido pela tabela da nota modelo 55, em silêncio.
+	"POS Invoice",
 ):
 	doc_events[_doctype] = {
 		"validate": [

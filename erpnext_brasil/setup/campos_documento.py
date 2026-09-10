@@ -17,6 +17,12 @@ ITENS = (
 	"Delivery Note Item",
 	"Purchase Invoice Item",
 	"Purchase Receipt Item",
+	# Cupom do ponto de venda (NFC-e, modelo 65). Entra no mesmo laço, e não num bloco
+	# próprio, porque os campos fiscais do item são exatamente os mesmos — o que muda é o
+	# indicador de aplicabilidade da tabela de classificação, resolvido em
+	# `integracao/validacao_fiscal.py`. Nome conferido no site v16, não deduzido de
+	# `Sales Invoice Item`.
+	"POS Invoice Item",
 )
 
 # Só recebem a sugestão de CFOP (`integracao/cfop_sugestao.py`), não a apuração
@@ -29,7 +35,13 @@ ITENS_SO_CFOP_SUGERIDO = (
 	"Subcontracting Receipt Item",
 )
 
-CABECALHOS = ("Sales Invoice", "Delivery Note", "Purchase Invoice", "Purchase Receipt")
+CABECALHOS = (
+	"Sales Invoice",
+	"Delivery Note",
+	"Purchase Invoice",
+	"Purchase Receipt",
+	"POS Invoice",
+)
 
 TABELAS_DE_IMPOSTO = ("Sales Taxes and Charges", "Purchase Taxes and Charges")
 

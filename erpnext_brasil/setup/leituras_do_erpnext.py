@@ -109,16 +109,19 @@ alguém conferir uma e esquecer a outra. O núcleo do Frappe muda menos, o que r
 probabilidade, não a consequência.
 """
 
-NOMES_USADOS_COMO_CHAVE: frozenset[str] = frozenset({"POS Invoice"})
+NOMES_USADOS_COMO_CHAVE: frozenset[str] = frozenset()
 """DocTypes citados só como **chave de decisão**, sem leitura de campo.
 
-`validacao_fiscal.INDICADOR_POR_DOCUMENTO` mapeia o DocType para `indNFe`/`indNFCe`. Nada é
-lido do `POS Invoice`; o nome dele é comparado.
+Vazio hoje. `POS Invoice` morava aqui: o nome dele era comparado em
+`validacao_fiscal.INDICADOR_POR_DOCUMENTO` e nada era lido dele. Saiu quando o cupom passou
+a receber campos fiscais e a ser ligado no `hooks.py` — deixou de ser estrutura **alheia**
+para virar estrutura que nós declaramos, e a conferência dele passou a ser a de campo.
 
-Separado de `LEITURAS` de propósito: a fragilidade é outra. Um campo renomeado quebra uma
-leitura de forma detectável; um **DocType** renomeado faz a chave simplesmente não casar, e
-o mapa cai no padrão — silenciosamente. Conferir a existência do DocType é o que protege, e
-não faria sentido cobrar campos que não lemos.
+⚠️ Foi o teste que exigiu esta remoção, não a leitura do código: um DocType não pode estar
+nos dois lugares, porque a pergunta que cada lado faz é diferente. Manter a estrutura vazia
+preserva a distinção — a fragilidade aqui é outra. Um campo renomeado quebra uma leitura de
+forma detectável; um **DocType** renomeado faz a chave simplesmente não casar, e o mapa cai
+no padrão, em silêncio.
 """
 
 

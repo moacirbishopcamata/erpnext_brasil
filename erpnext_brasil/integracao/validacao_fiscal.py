@@ -27,6 +27,7 @@ INDICADOR_POR_DOCUMENTO = {
 	"Delivery Note": "indNFe",
 	"Purchase Invoice": "indNFe",
 	"Purchase Receipt": "indNFe",
+	"POS Invoice": "indNFCe",
 }
 """DocType -> indicador de aplicabilidade na Tabela de Classificação Tributária.
 
@@ -39,21 +40,20 @@ modelo 65**, e a combinação CST/cClassTrib passaria por uma tabela que não é
 `hooks.py` — não com o texto dele — e reprova a divergência nos dois sentidos.
 """
 
-INDICADOR_QUANDO_LIGARMOS = {
-	"POS Invoice": "indNFCe",
-}
+INDICADOR_QUANDO_LIGARMOS: dict[str, str] = {}
 """O indicador que cada DocType **ainda não ligado** deve receber quando for.
 
-`POS Invoice` é o documento de ponto de venda do ERPNext, e é por ele que a NFC-e sairia
-para quem usa o POS. Hoje ele não recebe campo fiscal nenhum e não está em `hooks.py`:
-a NFC-e do app é emitida a partir de `Sales Invoice` com modelo 65.
+Vazio hoje, e mantido de propósito. `POS Invoice` morou aqui enquanto o cupom não saía do
+POS; migrou para o mapa vivo acima **no mesmo commit** em que o `hooks.py` passou a ligá-lo
+— separar os dois movimentos deixaria o cupom sendo conferido pela tabela da nota modelo 55,
+sem erro visível.
 
-Separado do mapa vivo de propósito. A entrada estava misturada com os quatro ligados, e ali
-era **inalcançável** — a função nunca recebe um `POS Invoice`. Código inalcançável dentro de
-uma estrutura viva é pior que ausência: dá a impressão de que o caso está coberto.
+A estrutura fica porque é ela que dá lugar à decisão já tomada e ainda não valendo. Sem ela,
+a entrada volta para o mapa vivo "só para não esquecer" e vira código inalcançável — que é
+pior que ausência, porque dá a impressão de que o caso está coberto.
 
-Aqui ela vira o que de fato é — a decisão já tomada para quando o gap for pago, registrada
-no lugar onde quem for pagá-lo vai olhar. O gap está em `docs/gaps.md`.
+`tests/test_indicador_por_documento.py` reprova a divergência nos dois sentidos, e por isso
+a migração só passa se acontecer junto com a ligação.
 """
 
 

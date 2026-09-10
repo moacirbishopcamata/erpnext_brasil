@@ -49,9 +49,17 @@ def _mapa(nome: str) -> dict:
 	fonte = (RAIZ / "integracao" / "validacao_fiscal.py").read_text(encoding="utf-8")
 
 	for no in ast.parse(fonte).body:
-		if isinstance(no, ast.Assign) and any(
-			isinstance(alvo, ast.Name) and alvo.id == nome for alvo in no.targets
-		):
+		# ⚠️ Os dois casos: `X = {...}` é `Assign`, e `X: dict[str, str] = {}` é
+		# `AnnAssign`. Aceitar só o primeiro fez este leitor não achar o mapa no dia em que
+		# ele ficou vazio e ganhou anotação — e o teste morreu no import, sem conferir nada.
+		if isinstance(no, ast.AnnAssign):
+			alvos = [no.target]
+		elif isinstance(no, ast.Assign):
+			alvos = no.targets
+		else:
+			continue
+
+		if any(isinstance(alvo, ast.Name) and alvo.id == nome for alvo in alvos):
 			return ast.literal_eval(no.value)
 
 	raise AssertionError(f"{nome} não encontrado em validacao_fiscal.py")
