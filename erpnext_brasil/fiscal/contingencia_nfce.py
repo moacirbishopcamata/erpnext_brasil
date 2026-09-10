@@ -50,7 +50,9 @@ __all__ = [
 	"Acao",
 	"Resultado",
 	"SituacaoDaPendencia",
+	"classificar_resposta",
 	"decidir",
+	"deve_tentar_autorizar",
 	"exige_tratamento_humano",
 	"pode_emitir_em_contingencia",
 	"transmitir_ate",
@@ -140,6 +142,42 @@ def exige_tratamento_humano(situacao: SituacaoDaPendencia) -> bool:
 	invisível justamente onde é mais caro.
 	"""
 	return situacao in (SituacaoDaPendencia.REJEITADA, SituacaoDaPendencia.DENEGADA)
+
+
+def deve_tentar_autorizar(situacao: SituacaoDaPendencia) -> bool:
+	"""Vale gastar uma requisição com esta pendência agora?
+
+	Só a pendente. As outras três já têm desfecho — e insistir sobre elas não é inofensivo:
+	é requisição a mais à SEFAZ, que é exatamente o caminho do `cStat 656`.
+
+	⚠️ A idempotência do reprocessamento depende disto **mais** de uma consulta pela chave
+	antes de reemitir: a pendência pode ter sido autorizada por uma rodada anterior que não
+	chegou a fechar o registro. Esta função sozinha não basta, e dizer que basta seria o
+	erro que produz documento em duplicidade.
+	"""
+	return situacao is SituacaoDaPendencia.PENDENTE
+
+
+def classificar_resposta(resultado: Resultado) -> SituacaoDaPendencia:
+	"""Em que situação a pendência fica depois desta tentativa.
+
+	`SEM_RESPOSTA` e `BLOQUEADO` mantêm **pendente**: nada se soube do documento, e mudar a
+	situação por causa de uma falha nossa de transporte apagaria a diferença entre "a SEFAZ
+	recusou" e "não conseguimos perguntar". A tentativa fica registrada no contador; a
+	situação, não.
+
+	⚠️ `DENEGADA` não sai daqui. Denegação chega como um `cStat` específico dentro de uma
+	resposta — e este módulo classifica o **desfecho do transporte**, não o conteúdo dela.
+	Quem lê o `cStat` é quem grava; forçar a denegada neste mapa exigiria trazer a tabela de
+	`cStat` para cá e misturaria duas responsabilidades.
+	"""
+	if resultado is Resultado.AUTORIZADA:
+		return SituacaoDaPendencia.AUTORIZADA
+
+	if resultado is Resultado.REJEITADA:
+		return SituacaoDaPendencia.REJEITADA
+
+	return SituacaoDaPendencia.PENDENTE
 
 
 def transmitir_ate(emitida_em: datetime) -> datetime:

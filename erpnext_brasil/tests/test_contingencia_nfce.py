@@ -24,7 +24,10 @@ import unittest
 from erpnext_brasil.fiscal.contingencia_nfce import (
 	Acao,
 	Resultado,
+	SituacaoDaPendencia,
+	classificar_resposta,
 	decidir,
+	deve_tentar_autorizar,
 	pode_emitir_em_contingencia,
 )
 
@@ -92,6 +95,44 @@ class TestEmitentePessoaFisica(unittest.TestCase):
 		só no desfecho de uma transmissão que já falhou."""
 		self.assertTrue(pode_emitir_em_contingencia(emitente_pessoa_fisica=False))
 		self.assertFalse(pode_emitir_em_contingencia(emitente_pessoa_fisica=True))
+
+
+class TestPoliticaDaFila(unittest.TestCase):
+	def test_so_a_pendente_merece_tentativa(self):
+		"""Insistir sobre pendência já resolvida não é inofensivo: é requisição a mais à
+		SEFAZ, que é o caminho do cStat 656."""
+		tentaveis = [s for s in SituacaoDaPendencia if deve_tentar_autorizar(s)]
+
+		self.assertEqual([SituacaoDaPendencia.PENDENTE], tentaveis)
+
+	def test_falha_de_transporte_nao_muda_a_situacao(self):
+		"""Teste-âncora da fila. Sem resposta e bloqueado significam que **nada se soube**
+		do documento — marcar qualquer outra coisa apagaria a diferença entre 'a SEFAZ
+		recusou' e 'não conseguimos perguntar'."""
+		for resultado in (Resultado.SEM_RESPOSTA, Resultado.BLOQUEADO):
+			with self.subTest(resultado=resultado):
+				self.assertIs(SituacaoDaPendencia.PENDENTE, classificar_resposta(resultado))
+
+	def test_autorizada_fecha_a_pendencia(self):
+		self.assertIs(SituacaoDaPendencia.AUTORIZADA, classificar_resposta(Resultado.AUTORIZADA))
+
+	def test_rejeitada_marca_rejeitada(self):
+		self.assertIs(SituacaoDaPendencia.REJEITADA, classificar_resposta(Resultado.REJEITADA))
+
+	def test_a_classificacao_nunca_devolve_denegada(self):
+		"""Denegação vem de um `cStat` dentro da resposta, não do desfecho do transporte.
+		Se ela aparecesse aqui, seria sinal de que a tabela de `cStat` vazou para este
+		módulo — e a fronteira entre transporte e conteúdo teria se perdido."""
+		for resultado in Resultado:
+			with self.subTest(resultado=resultado):
+				self.assertIsNot(SituacaoDaPendencia.DENEGADA, classificar_resposta(resultado))
+
+	def test_o_desfecho_da_tentativa_e_coerente_com_a_decisao(self):
+		"""Costura entre as duas funções: o que leva a contingência (`SEM_RESPOSTA`) é o
+		mesmo que mantém a pendência aberta. Divergir faria a fila fechar o registro do
+		documento que acabou de entrar nela."""
+		self.assertIs(Acao.CONTINGENCIAR, decidir(Resultado.SEM_RESPOSTA))
+		self.assertIs(SituacaoDaPendencia.PENDENTE, classificar_resposta(Resultado.SEM_RESPOSTA))
 
 
 if __name__ == "__main__":
