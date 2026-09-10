@@ -95,6 +95,22 @@ para quando o cálculo **não pôde ser feito**, e confundir os dois faria algu�
 alíquota onde falta dado.
 """
 
+DOCUMENTO_CONSOLIDADO_NAO_EMITE = 1204
+"""Fatura consolidada do ponto de venda, que agrega cupons já emitidos.
+
+Emitir sobre ela documentaria as mesmas operações duas vezes — uma no cupom entregue ao
+consumidor, outra na nota. A recusa é da **emissão**: a fatura em si é legítima, é peça
+contábil do fechamento de caixa.
+"""
+
+DOCUMENTO_CONTINGENCIA_INDISPONIVEL_PARA_PESSOA_FISICA = 1205
+"""Emitente Pessoa Física tentando emitir NFC-e em contingência off-line.
+
+O QR Code da versão 2 é rejeição 444 para CPF, e o da versão 3 — que seria o caminho dele —
+não está implementado. Recusar a venda é o único dano reversível: o cupom entregue de um
+documento que a SEFAZ nunca aceitará não é.
+"""
+
 # --------------------------------------------------------------------------------- estoque
 ESTOQUE_PERDA_EM_FINALIDADE_INCOMPATIVEL = 1001
 """Tipo de perda num `Stock Entry` cuja finalidade não é baixa."""
@@ -122,6 +138,8 @@ TODOS = {
 	DOCUMENTO_CHAVE_DE_ACESSO_INVALIDA,
 	DOCUMENTO_CLASSIFICACAO_INCOMPATIVEL,
 	DOCUMENTO_APURACAO_IMPOSSIVEL,
+	DOCUMENTO_CONSOLIDADO_NAO_EMITE,
+	DOCUMENTO_CONTINGENCIA_INDISPONIVEL_PARA_PESSOA_FISICA,
 	ESTOQUE_PERDA_EM_FINALIDADE_INCOMPATIVEL,
 	ESTOQUE_SOBRA_CLASSIFICADA_COMO_PERDA,
 	ESTOQUE_PERDA_SEM_VALOR,

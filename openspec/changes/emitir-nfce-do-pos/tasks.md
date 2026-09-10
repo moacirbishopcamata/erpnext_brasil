@@ -23,15 +23,15 @@
 
 ## 2. Decisão de contingência, pura
 
-- [ ] 2.1 Criar `fiscal/contingencia_nfce.py` com o tipo de resultado da transmissão
-      (respondeu / não respondeu / rejeitou / bloqueado) e a função que devolve a ação —
-      verificar que `tests/test_arquitetura.py` continua verde (nenhum import de `frappe`)
-- [ ] 2.2 Escrever `tests/test_contingencia_nfce.py` cobrindo os três casos que se parecem:
-      indisponibilidade entra em contingência, rejeição **não** entra, bloqueio 656 **não**
-      entra — verificar por mutação: inverter cada caso faz um teste nomeado falhar
-- [ ] 2.3 Acrescentar os códigos de erro novos em `fiscal/codigos_de_erro.py` (faixa 12xx,
-      documento) — verificar que `tests/test_codigos_de_erro.py` aceita e que nenhum código
-      colide
+- [x] 2.1 Criar `fiscal/contingencia_nfce.py` com o tipo de resultado da transmissão
+      (`AUTORIZADA` / `REJEITADA` / `SEM_RESPOSTA` / `BLOQUEADO`) e a função que devolve a ação
+      — **feito**, `test_arquitetura.py` verde: nenhum import de `frappe`
+- [x] 2.2 Escrever `tests/test_contingencia_nfce.py` cobrindo os três casos que se parecem —
+      **feito**, 10 testes; provado por mutação: fazer a rejeição cair em contingência quebra
+      dois testes, um deles nomeando `REJEITADA`
+- [x] 2.3 Acrescentar os códigos de erro novos em `fiscal/codigos_de_erro.py` — **feito**:
+      `DOCUMENTO_CONSOLIDADO_NAO_EMITE = 1204` e
+      `DOCUMENTO_CONTINGENCIA_INDISPONIVEL_PARA_PESSOA_FISICA = 1205`
 
 ## 3. Campos e ligação do POS
 
