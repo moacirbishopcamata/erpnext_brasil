@@ -1,0 +1,188 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:chave_acesso",
+ "creation": "2026-09-09 00:00:00.000000",
+ "description": "NFC-e emitida em contingência off-line e ainda não autorizada. O cupom já está com o consumidor: enquanto este registro existir como Pendente, há venda feita sem documento válido.",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "chave_acesso",
+  "situacao",
+  "exige_tratamento",
+  "coluna_documento",
+  "tipo_documento",
+  "documento",
+  "company",
+  "ambiente",
+  "secao_prazo",
+  "emitida_em",
+  "transmitir_ate",
+  "coluna_prazo",
+  "tentativas",
+  "ultima_tentativa_em",
+  "secao_resposta",
+  "protocolo",
+  "codigo_status",
+  "mensagem"
+ ],
+ "fields": [
+  {
+   "fieldname": "chave_acesso",
+   "fieldtype": "Data",
+   "label": "Chave de acesso",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1,
+   "description": "A chave da emissão em contingência, e é o autoname. A retransmissão mantém esta mesma chave e o mesmo código numérico: gerar chave nova produziria documento diferente do cupom que o consumidor levou."
+  },
+  {
+   "fieldname": "situacao",
+   "fieldtype": "Select",
+   "label": "Situação",
+   "options": "Pendente\nAutorizada\nRejeitada\nDenegada",
+   "default": "Pendente",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "As opções são os valores de `fiscal.contingencia_nfce.SituacaoDaPendencia`, e um teste compara os dois lendo este JSON. Denegada não é o mesmo que rejeitada: a denegada fica registrada no fisco."
+  },
+  {
+   "fieldname": "exige_tratamento",
+   "fieldtype": "Check",
+   "label": "Exige tratamento humano",
+   "read_only": 1,
+   "description": "Derivado da situação. Rejeitada e denegada não se resolvem com mais uma tentativa: existe cupom entregue e nenhum documento válido."
+  },
+  {
+   "fieldname": "coluna_documento",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tipo_documento",
+   "fieldtype": "Link",
+   "label": "Tipo de documento",
+   "options": "DocType",
+   "read_only": 1,
+   "reqd": 1,
+   "description": "Qual DocType originou o cupom. Guardado explicitamente porque a NFC-e pode sair do POS Invoice ou do Sales Invoice, e a fila não pode supor um dos dois."
+  },
+  {
+   "fieldname": "documento",
+   "fieldtype": "Dynamic Link",
+   "label": "Documento",
+   "options": "tipo_documento",
+   "read_only": 1,
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Empresa",
+   "options": "Company",
+   "read_only": 1,
+   "reqd": 1,
+   "description": "A empresa emitente. Existe para que a restrição por empresa alcance este registro: sem ela, um usuário de uma empresa veria a pendência de outra."
+  },
+  {
+   "fieldname": "ambiente",
+   "fieldtype": "Data",
+   "label": "Ambiente",
+   "read_only": 1,
+   "reqd": 1,
+   "description": "Produção e homologação são filas independentes — uma pendência de teste não pode ser tratada como venda real."
+  },
+  {
+   "fieldname": "secao_prazo",
+   "fieldtype": "Section Break",
+   "label": "Prazo"
+  },
+  {
+   "fieldname": "emitida_em",
+   "fieldtype": "Datetime",
+   "label": "Emitida em",
+   "read_only": 1,
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Momento da emissão em contingência. O prazo conta daqui, não da primeira tentativa de transmissão."
+  },
+  {
+   "fieldname": "transmitir_ate",
+   "fieldtype": "Datetime",
+   "label": "Transmitir até",
+   "read_only": 1,
+   "description": "Derivado da emissão mais o prazo do Manual. Gravado por conveniência de leitura na lista; a decisão usa sempre a emissão."
+  },
+  {
+   "fieldname": "coluna_prazo",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tentativas",
+   "fieldtype": "Int",
+   "label": "Tentativas",
+   "read_only": 1,
+   "default": "0",
+   "description": "Quantas vezes já se tentou autorizar. Um campo de situação sozinho não teria onde guardar isto, e sem isto não se distingue 'a SEFAZ segue fora' de 'ninguém tentou'."
+  },
+  {
+   "fieldname": "ultima_tentativa_em",
+   "fieldtype": "Datetime",
+   "label": "Última tentativa em",
+   "read_only": 1
+  },
+  {
+   "fieldname": "secao_resposta",
+   "fieldtype": "Section Break",
+   "label": "Resposta da SEFAZ"
+  },
+  {
+   "fieldname": "protocolo",
+   "fieldtype": "Data",
+   "label": "Protocolo",
+   "read_only": 1,
+   "description": "Preenchido quando a autorização enfim chega. Pendência autorizada sem protocolo é divergência: existe nota válida no fisco e nada que a comprove aqui."
+  },
+  {
+   "fieldname": "codigo_status",
+   "fieldtype": "Data",
+   "label": "cStat",
+   "read_only": 1
+  },
+  {
+   "fieldname": "mensagem",
+   "fieldtype": "Small Text",
+   "label": "Mensagem da SEFAZ",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Registros Fiscais",
+ "name": "Pendencia Nfce",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1,
+   "delete": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User"
+  }
+ ],
+ "sort_field": "emitida_em",
+ "sort_order": "ASC",
+ "track_changes": 1
+}

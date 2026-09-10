@@ -42,14 +42,28 @@ Fonte: `docs/nfce-contingencia.md` — `tpEmis = 9`, prazo de 24 horas, mesma ch
 distinta, e a expressão obrigatória no cupom.
 """
 
+from datetime import datetime, timedelta
 from enum import Enum
 
 __all__ = [
+	"PRAZO_TRANSMISSAO",
 	"Acao",
 	"Resultado",
+	"SituacaoDaPendencia",
 	"decidir",
+	"exige_tratamento_humano",
 	"pode_emitir_em_contingencia",
+	"transmitir_ate",
+	"venceu_o_prazo",
 ]
+
+PRAZO_TRANSMISSAO = timedelta(hours=24)
+"""Prazo para transmitir a NFC-e emitida em contingência, contado da **emissão**.
+
+Não é configurável: é prazo do Manual de Orientação do Contribuinte, não parâmetro deste
+app. Ver `docs/nfce-contingencia.md` — e a ressalva registrada lá, de que as 24 horas foram
+confirmadas em portal estadual da SEFAZ, com o portal nacional inacessível às ferramentas.
+"""
 
 
 class Resultado(Enum):
@@ -91,6 +105,61 @@ class Acao(Enum):
 
 	RECUSAR = "recusar"
 	"""Não concluir a venda como documento fiscal. O motivo vem de quem chamou."""
+
+
+class SituacaoDaPendencia(Enum):
+	"""Em que pé está a autorização de um documento emitido em contingência.
+
+	⚠️ Os valores são exatamente as opções do `Select` do DocType `Pendencia Nfce`, e
+	`tests/test_pendencia_nfce.py` compara os dois lendo o JSON. Redigitar rótulo bonito de
+	um lado é como o Select e o domínio divergem — e `frappe.db.set_value` **não valida
+	opções de Select**, então a divergência grava sem erro.
+	"""
+
+	PENDENTE = "Pendente"
+	"""Emitido em contingência, ainda não transmitido ou sem resposta conclusiva."""
+
+	AUTORIZADA = "Autorizada"
+	"""A SEFAZ autorizou depois. Fim de vida da pendência."""
+
+	REJEITADA = "Rejeitada"
+	"""A SEFAZ recusou — e o cupom **já está com o consumidor**."""
+
+	DENEGADA = "Denegada"
+	"""Denegada: a SEFAZ registrou o documento e proibiu a operação (irregularidade do
+	participante). Não é o mesmo que rejeitada, e tratá-las como uma só apagaria o fato de
+	que a denegada **fica registrada** no fisco."""
+
+
+def exige_tratamento_humano(situacao: SituacaoDaPendencia) -> bool:
+	"""Esta pendência precisa de alguém, e não de mais uma tentativa?
+
+	Sim para rejeitada e denegada: em ambos os casos existe cupom entregue ao consumidor e
+	nenhum documento válido — desfecho que nenhuma retentativa conserta. Deixar isso
+	implícito faria a fila continuar tentando contra uma parede, e o problema ficaria
+	invisível justamente onde é mais caro.
+	"""
+	return situacao in (SituacaoDaPendencia.REJEITADA, SituacaoDaPendencia.DENEGADA)
+
+
+def transmitir_ate(emitida_em: datetime) -> datetime:
+	"""O instante em que o prazo de transmissão se esgota, derivado da emissão."""
+	return emitida_em + PRAZO_TRANSMISSAO
+
+
+def venceu_o_prazo(emitida_em: datetime, agora: datetime) -> bool:
+	"""O prazo já passou?
+
+	Fronteira: **exatamente no limite já venceu** — as 24 horas se completaram.
+
+	⚠️ Não confundir com `consumo_indevido.Bloqueio.ativo_em`, que usa `<`. Parece a mesma
+	fronteira e é a **complementar**: lá o estado (bloqueado) *termina* no limite; aqui o
+	estado (vencido) *começa* nele. Escrever "igual ao bloqueio" custou um teste vermelho —
+	a analogia entre dois prazos vizinhos é exatamente o tipo que engana.
+
+	O "agora" é parâmetro: data que o módulo lê do relógio não se testa.
+	"""
+	return agora >= transmitir_ate(emitida_em)
 
 
 def pode_emitir_em_contingencia(emitente_pessoa_fisica: bool) -> bool:

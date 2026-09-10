@@ -60,9 +60,13 @@
 
 ## 5. Fila de pendências
 
-- [ ] 5.1 Criar o DocType `Pendencia Nfce` em `registros_fiscais/doctype/` com chave, momento de
-      entrada, motivo, situação e tentativas — verificar que o registro sobrevive a reinício do
-      bench, relendo pelo `bench console`
+- [x] 5.1 Criar o DocType `Pendencia Nfce` em `registros_fiscais/doctype/` com chave, momento de
+      entrada, motivo, situação e tentativas — **estrutura feita**: `test_doctypes_estrutura`
+      verde (classe `PendenciaNfce`, três arquivos, `field_order`, `options`), e
+      `test_pendencia_nfce` trava as opções do Select contra o enum do domínio
+- [ ] 5.1a Confirmar no bench que o registro sobrevive a reinício, relendo pelo `bench console`
+      — **bloqueado**: atualizar o clone do app dentro do bench exige `git` no WSL, recusado
+      nesta sessão
 - [ ] 5.2 Registrar a pendência ao emitir em contingência, num caminho que **não** derruba a
       venda se a gravação falhar (try/except + `frappe.log_error`, como em
       `integracao/consumo_indevido.py`) — verificar com teste que força a falha de gravação e
