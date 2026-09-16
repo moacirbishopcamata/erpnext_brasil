@@ -14,7 +14,7 @@ documentado que, num site real, não é alcançado por nada.
 |---|---|
 | Gaps de costura confirmados (código inalcançável ou inerte) | **5** |
 | Campos que a integração usava e a instalação nunca criava | **31** — todos corrigidos |
-| Módulos de integração sem teste de bench | 28 de 31 |
+| Módulos de integração sem teste de bench | 26 de 31 |
 | Itens pendentes declarados em `docs/` | 69 |
 | Documentos desatualizados encontrados | 2 |
 | Fontes a reconferir | 2 |
@@ -217,15 +217,22 @@ garantir que existe **um** objeto, não duas cópias que hoje coincidem.
 whitelist — não entram nesta lista.
 
 O padrão é claro: quatro dos seis dependem de um orquestrador que não existe (1.3), e os
+
+**Atualização de 2026-09-15**: sobram **quatro** módulos inalcançáveis:
+- `cte_extracao`: será desorfanado pelo change `fechar-laco-cte-mdfe` (MDF-e o consome)
+- `ecf_dados_empresa`: depende de gerador de arquivo ECF (futuro)
+- `efd_dados_cadastrais`: parcialmente desorfanado (Bloco 0 pronto; blocos C/D/E/H/K dependem de leitura de site)
+- `conta_bancaria`: depende de módulo de campo livre do boleto (tropicalização bancária)
 outros dois esperam um **gerador de arquivo** que junte os blocos já implementados do EFD
 e da ECF num arquivo entregável. São dois adaptadores, não seis problemas.
 
 ---
 
-## 2. Teste de bench — 28 de 31 módulos sem cobertura real
+## 2. Teste de bench — 26 de 31 módulos sem cobertura real
 
-Só `party`, `party_bench` e um terceiro módulo têm teste rodando contra um site real. Os
-outros 28 são exercitados apenas por teste puro com objeto simulado.
+Só `party`, `party_bench`, `consumo_indevido`, `perda_estoque` e inventário têm teste
+rodando contra um site real. Os outros 26 são exercitados apenas por teste puro com
+objeto simulado.
 
 Isso é exatamente o que permitiu os gaps 1.1 e 1.2 passarem: o teste puro monta o campo
 que o site real não tem. **Um teste de bench que salvasse um `Sales Invoice` e relesse o
@@ -296,6 +303,28 @@ Já registrado em `docs/nfce-qrcode.md` como pendente com fonte inacessível. Co
   precedente de validar tamanho (`JUSTIFICATIVA_CONTINGENCIA_MAXIMA`).
 - ❌ Não há sugestão de natureza a partir do CFOP, apesar de `cfop_sugestao.py` já
   determinar o CFOP — e a descrição oficial de cada CFOP depende da fonte do gap 4.1.
+
+### 5.2 Transferência entre estabelecimentos não emite NF-e
+
+- CFOP 5152/6152 é fato gerador; `Stock Entry` com `purpose = "Material Transfer"` não
+  dispara emissão.
+- **Bloqueio**: decisão de modelagem — estabelecimento com CNPJ próprio é `Company`
+  separada ou `Warehouse` com CNPJ? A resposta muda o que é "transferência".
+
+### 5.3 Estorno apurado não vira lançamento na EFD
+
+- Valor fica no documento; falta o ajuste no E111 do Bloco E.
+- Listado em `sped-fiscal.md` como pendente.
+
+### 5.4 Quebra tolerada por UF não implementada
+
+- Percentual varia por estado e por produto; fonte única não encontrada.
+- Inventar número seria criar regra fiscal sem base.
+
+### 5.5 NFC-e não sai do POS do ERPNext
+
+- `POS Invoice` não recebe campo fiscal nenhum.
+- Depende do change `emitir-nfce-do-pos` (6/30 tasks).
 
 ### 5.2 Os 69 itens declarados em `docs/`
 

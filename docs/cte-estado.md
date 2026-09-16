@@ -93,6 +93,15 @@ complementar, que carrega só `chCTe` do CT-e complementado (até 10) — mais s
 desses é prioritário**; rodoviário é o candidato natural para o primeiro incremento (mais comum
 no Brasil), mas isso é suposição, não verificação.
 
+**`infDoc` é opcional — confirmado no XSD, não suposto** (linha 4119: `minOccurs="0"`). A decisão
+da frente operacional (`docs/cte-operacional.md`/`openspec/changes/fechar-laco-cte-mdfe`) de
+deixar as referências de documento fora do primeiro incremento se apoia nisso: um CT-e sem
+`infDoc` é válido para autorização. Consequência direta da fonte: a etapa de montagem do CT-e
+**não depende** de `infDoc` — o mapeador para a `Sales Invoice` de frete preenche todos os grupos
+obrigatórios (emit, tomador, vPrest) sem precisar da lista de chaves, que hoje tampouco é
+rastreável de uma fatura de transporte (o `Shipment` não amarra fatura nenhuma). Quando a tela
+de chaves vier, ela adiciona `infNFe`/`infNF` sem mudar o resto da montagem.
+
 **`infDoc` investigado em seguida** (linha 4119): é um `xs:choice` entre `infNF` (linha 4128 —
 documento originário é NF modelo 01/04 em papel, carrega o detalhamento fiscal inteiro: `vBC`,
 `vICMS`, `vBCST`, `vST`, `vProd`, `vNF`, `nCFOP` — caso legado, cada vez mais raro) e `infNFe`
@@ -237,3 +246,41 @@ resolve sozinho: autorizador/webservice por UF (não investigado — provavelmen
 SVRS/SVSP já mapeado para NF-e, mas não verificado), transmissão de verdade, e a integração com
 Frappe (`integracao/`, doctypes) para gerar `IdentificacaoCte`/`TomadorOutros` a partir de um
 documento de transporte real do ERPNext.
+
+## O campo `br_natureza_transporte` mora no cabeçalho da `Sales Invoice` — decidido
+
+A detecção de "fatura de transporte" (que habilita o botão Emitir CT-e) usa um campo explícito
+no **cabeçalho** da `Sales Invoice`, nunca inspeção heurística de item. A natureza de transporte
+é atributo da **prestação inteira** (do documento), não de uma linha: uma fatura pode misturar
+itens, e herdar do `Item` reintroduziria a heurística que o design recusou — recusar uma
+prestação de transporte legítima sem item classificado, ou habilitar uma fatura que não é de
+transporte só porque tem um item com nome de frete. O `natOp` do CT-e já vem de
+`br_natureza_operacao` (também campo de cabeçalho, ver `integracao/nfe_documento.py`); o
+`br_natureza_transporte` (Select) é a declaração explícita do usuário de que a fatura é a venda
+de uma prestação de transporte. Registrado na docstring de `integracao/cte_documento.py` quando
+o módulo existir (tarefa 2.1).
+
+## Serviços de autorização do CT-e — nomes reais, fluxo síncrono
+
+Fonte: `autorizadores_cte.py` (lido de `nfephp-org/sped-cte`, `storage/wscte_4.00_mod57.xml`
+e `storage/autorizadores.json` — consultados em 2026-09-03). A tabela de endpoints por UF já
+está implementada (ver `docs/cte-mdfe-autorizadores.md`); o que falta é a transmissão em si.
+
+**Achado real que corrige o planejamento**: o CT-e 4.00 **não tem lote + recibo**. A
+autorização é **síncrona por documento único** (`CTeRecepcaoSincV4`), resposta na própria
+chamada — não existe `CTeAutorizacao4`/`CTeRetAutorizacao4` no leiaute deste documento (esses
+termos, que apareciam em `openspec/changes/fechar-laco-cte-mdfe`, eram suposição por analogia
+com a NF-e, não verificação). Serviços confirmados na fonte:
+
+| Serviço | Chave no mapa | Papel |
+|---|---|---|
+| `CTeRecepcaoSincV4` | `CteRecepcao` | Autorização — **síncrona, unitária**, sem recibo |
+| `CTeRecepcaoSimpV4` | `CteRecepcaoSimp` | Recepção síncrona simplificada (alternativa não usada) |
+| `CTeConsultaV4` | `CteConsultaProtocolo` | Consulta de protocolo |
+| `CTeStatusServicoV4` | `CteStatusServico` | Status do serviço |
+| `CTeRecepcaoEventoV4` | `CteRecepcaoEvento` | Recepção de eventos (110111/110110…) |
+| `CTeDistribuicaoDFe` | `CteDistribuicaoDFe` | Distribuição — **só grupo `AN`**, não autoriza |
+
+Consequência para a transmissão (ver `openspec/changes/fechar-laco-cte-mdfe/design.md`, decisão
+3): o CT-e **não reusa a máquina de polling de recibo** da NF-e — o desfecho vem da resposta da
+própria chamada síncrona. O MDF-e, sim (ver `docs/mdfe-estado.md`).

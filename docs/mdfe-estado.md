@@ -199,9 +199,94 @@ do ERPNext — os dois fechados em seguida (ver `docs/cte-mdfe-autorizadores.md`
 `docs/integracao-cte-frete.md`). Só falta mesmo a transmissão de verdade, bloqueada por
 falta de certificado A1/ambiente de homologação testável nesta investigação.
 
+## Serviços de autorização do MDF-e — nomes reais, lote + recibo
+
+Fonte: `autorizadores_mdfe.py` (lido de `nfephp-org/sped-mdfe`, `storage/wsmdfe_3.00.xml` e
+`storage/autorizadores.json`, chave `"58"` — consultados em 2026-09-03). Autorizador **único
+nacional** (todas as 27 UFs, ver `docs/cte-mdfe-autorizadores.md`).
+
+**Achado real que corrige o planejamento**: os nomes `MDFeAutorizacao`/`MDFeRetAutorizacao`,
+usados no `openspec/changes/fechar-laco-cte-mdfe`, **não existem na fonte** — são invenção por
+analogia com a NF-e. Os serviços reais são `MDFeRecepcao` (lote, devolve `nRec`) e
+`MDFeRetRecepcao` (consulta do recibo) — o fluxo de **lote + recibo** que a entrega escolheu,
+reusando a máquina de polling da NF-e; e a **síncrona** `MDFeRecepcaoSinc` também existe como
+alternativa. Serviços confirmados na fonte:
+
+| Serviço | Papel |
+|---|---|
+| `MDFeRecepcao` | Autorização por **lote** — devolve `nRec` |
+| `MDFeRetRecepcao` | Consulta do **recibo** (polling até o protocolo) |
+| `MDFeRecepcaoSinc` | Autorização **síncrona** (alternativa, não usada nesta entrega) |
+| `MDFeRecepcaoEvento` | Recepção de eventos (110112/110111…) |
+| `MDFeConsulta` | Consulta da situação do manifesto |
+| `MDFeStatusServico` | Status do serviço |
+| `MDFeConsNaoEnc` | Consulta de MDF-e não encerrados |
+| `MDFeDistribuicaoDFe` | Distribuição |
+
+## Campos de `Shipment` e `Shipment Delivery Note` que a montagem lê — e os `br_*` que o Shipment ganha (tarefa 1.4)
+
+Fonte: leitura direta do core de `G:\PROJECTS\erpnext\erpnext\stock\doctype\shipment\shipment.json` e
+`...\shipment_delivery_note\shipment_delivery_note.json` (consultados em 2026-09-15). Decisão da
+tarefa 1.4 — o levantamento contra a fonte corrige duas afirmações do `design.md`:
+
+### O que a montagem lê do `Shipment` (campos do core, nenhum nosso)
+
+| Campo | Papel na montagem |
+|---|---|
+| `shipment_delivery_note` | Tabela filha (`Shipment Delivery Note`) — as `Delivery Note` da viagem; já é a base de `cte_extracao.referencias_do_shipment` |
+| `delivery_address_name` | Link → `Address` de entrega — município de descarga e `UFFim`; já lido como `br_codigo_municipio_ibge`/`city` |
+| `pickup_address_name` | Link → `Address` de coleta — município de carga (`infMunCarrega`) e `UFIni` |
+| `total_weight` | `Float`, read_only — peso da carga (`tot.qCarga`) |
+| `value_of_goods` | `Currency`, reqd — valor da carga (`tot.vCarga`) |
+| `pickup_company` / `delivery_company` | Link → `Company` de origem/destino — decidir a `Company` emitente (tpEmit 2) na montagem, tarefa 4.x |
+
+### O que a montagem lê de `Shipment Delivery Note` (tabela filha, `istable`)
+
+| Campo | Papel |
+|---|---|
+| `delivery_note` | Link → `Delivery Note`, reqd — de onde vem `br_chave_acesso` |
+| `grand_total` | `Currency`, read_only — não lido pela primeira montagem (o `tot` usa `value_of_goods` do `Shipment`, não a soma das linhas) |
+
+Só `delivery_note` é lido — por isso a entrada em `LEITURAS` declara só ele.
+
+### `br_*` que o `Shipment` **ganha** (tarefa 4.4) — e os que **não** ganha (correção do design)
+
+Ganha (mapeados às dataclasses de `fiscal/mdfe_rodoviario.py`):
+
+- veículo de tração (`Veiculo`): `br_placa`, `br_tara` (ambos obrigatórios em `_montar_campos_comuns`),
+  e os opcionais `br_codigo_interno`, `br_renavam`, `br_capacidade_kg`, `br_capacidade_m3`,
+  `br_tipo_carroceria`, `br_uf_licenciamento`, `br_tipo_rodado` (`tpRod`, obrigatório para
+  `montar_veiculo_tracao`)
+- condutor (`Condutor`): `br_condutor_nome` + `br_condutor_cpf` (até 10; a primeira montagem
+  declara um no formulário)
+- retorno da numeração: `br_numero_mdfe` (série 58, mesma forma do `br_numero_nfe`)
+
+**Não ganha — correção do `design.md` decisão 2, feita a partir da fonte:**
+
+- **RNTRC**: já existe como `Company.br_rntrc`, lido por `integracao/configuracao_fiscal.py::rntrc_da_empresa`
+  (usado pelo CT-e). Duplicá-la como `br_*` no `Shipment` criaria a segunda fonte de verdade para
+  o mesmo atributo; a montagem usa `rntrc_da_empresa`, como o CT-e já faz.
+- **CIOT** (`infANTT/infCIOT`) e **vale-pedágio** (`infANTT/valePed`): já declarados **fora do
+  escopo** do modal rodoviário em `fiscal/mdfe_rodoviario.py` (docstring do módulo). Ganhar campo
+  de formulário para dado que a montagem ainda não consome é campo morto.
+
+### Entrada do `Shipment` no contrato de leituras — e por que `Shipment` fica fora de `LEITURAS`
+
+`Shipment Delivery Note` entra em `setup/leituras_do_erpnext.py` com `("delivery_note",)`: é pura
+leitura de estrutura alheia (a `istable` não ganha campo nosso). Mas `Shipment` **não** pode entrar
+em `LEITURAS`: a tarefa 4.4 o registra em `setup/campos_documento.py` com `br_numero_mdfe` + campos
+da viagem, e `tests/test_leituras_do_erpnext.py::test_nenhum_lido_tem_campo_ou_hook_nosso` exige que
+um DocType com campo nosso **nunca** esteja em `LEITURAS` (é a mesma regra que tirou o `POS Invoice`
+de `NOMES_USADOS_COMO_CHAVE` quando o cupom ganhou campos fiscais). O `Shipment` passa a ser cobrado
+pela conferência **de campo** (tarefa 4.4) e pela prova de bench da tarefa 6.2 (salvar/reler),
+não pela conferência de leitura.
+
 ## Fontes
 
 - `github.com/nfephp-org/sped-mdfe`, `schemes/PL_MDFe_300b/mdfeTiposBasico_v3.00.xsd` (`ide`,
   linhas 17–232; `infDoc`, a partir da linha 331) e `mdfeModalRodoviario_v3.00.xsd` (`veicTracao`
   a partir da linha 496, `condutor` a partir da linha 638) — arquivos baixados e lidos localmente
   em 2026-08-31.
+- `G:\PROJECTS\erpnext\erpnext\stock\doctype\shipment\shipment.json` e
+  `G:\PROJECTS\erpnext\erpnext\stock\doctype\shipment_delivery_note\shipment_delivery_note.json`
+  (campos lidos acima) — consultados em 2026-09-15.

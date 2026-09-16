@@ -107,3 +107,12 @@
 - [ ] 8.2 Rodar a suíte pura, a de bench e o `ruff`, e conferir o bump de versão em
       `erpnext_brasil/__init__.py` no mesmo commit — verificar que tudo está verde antes do
       commit local
+
+## ⚠️ Diff não commitado (registrado em 2026-09-15)
+
+Existe um diff não commitado em:
+- `setup/custom_fields.py`
+- `tests/test_costura_campos_e_hooks.py`
+
+**Não commitar** até que as tarefas correspondentes (3.1, 3.2, 3.3) estejam completas.
+O diff é trabalho em andamento deste change.
