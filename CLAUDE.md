@@ -31,6 +31,11 @@ pip install lxml cryptography requests
 
 # Quais módulos ligados em hooks.py ainda não têm teste de bench
 python scripts/cobertura_de_bench.py
+
+# Cherry — tela de configuração do bench (tkinter, MIT); testes e cobertura do núcleo
+python scripts/cherry/cherry.py
+python -m unittest scripts.cherry.test_config scripts.cherry.test_app -v
+python -m coverage run --include="scripts/cherry/config.py" -m unittest scripts.cherry.test_config && python -m coverage report -m
 ```
 
 Testes de bench (`erpnext_brasil/tests_bench/`) só rodam num bench de verdade — WSL2 + Docker,
@@ -45,6 +50,19 @@ bench --site v16.localhost run-tests --app erpnext_brasil
 bench --site v16.localhost run-tests --app erpnext_brasil --module erpnext_brasil.tests_bench.test_party
 bench --site v16.localhost migrate         # reaplica campos customizados (after_migrate)
 ```
+
+Há um segundo site, **`v16pg.localhost`, em PostgreSQL** (servidor 18.6 no Windows,
+`postgres/postgres`, alcançado do WSL em `127.0.0.1:5432`) — os mesmos comandos valem trocando o
+site. MariaDB continua sendo a referência; Postgres é experimental no Frappe e não oficial no
+ERPNext (`docs/postgresql.md`). Dois patches ao Frappe vivem em `contrib/frappe/` (aplicar com
+`git am` no clone do bench) e o `install.py` tem um contorno guardado por `db_type`.
+
+**Antes de corrigir qualquer coisa no Frappe/ERPNext/hrms, `git pull --ff-only` nos três clones
+do bench** — evita corrigir o que já foi corrigido upstream e evita retrocesso.
+
+Nesta máquina, comandos `wsl ...` só rodam pela ferramenta PowerShell; escreva o script num
+arquivo em `C:\Users\ninte\.claude\jobs\<job>\tmp\` e chame `wsl -d Ubuntu -u <usuário> -- bash -l /mnt/c/...`
+(receita de `docs/ambiente-dev-bench.md`).
 
 ## Arquitetura — a regra é executável
 
@@ -61,6 +79,9 @@ Duas camadas, dependência numa direção só, **imposta por `tests/test_arquite
   teste leem o mesmo dado. Novo mapa = uma linha em `MAPAS`. Não importa `frappe`.
 - `registros_fiscais/doctype/` — DocTypes próprios (Transmissão Fiscal, Numeração Fiscal, Lote
   eSocial, Arquivo SPED, Pendência NFC-e, Bloqueio SEFAZ). `estoque/page/` — página do Desk.
+- `scripts/cherry/` — ferramenta de desenvolvedor (não é parte do app): `config.py` puro, `app.py`
+  tkinter, testes ao lado; segue os mesmos padrões (DbC, `frozen`, injeção, teste na costura).
+  `contrib/frappe/` — patches ao Frappe para Postgres, com o texto dos PRs.
 - `tests/` — nenhum arquivo pode importar `frappe` (também testado). `tests_bench/` — testes que
   exigem bench; cada arquivo declara `MODULOS_COBERTOS = (...)` com os módulos de `integracao/`
   que exercita (lido por `scripts/cobertura_de_bench.py`, não inferido).

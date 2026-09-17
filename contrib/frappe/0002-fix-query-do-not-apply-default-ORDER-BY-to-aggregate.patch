@@ -1,0 +1,83 @@
+From e1ebaf713a972f8c7e336a6c51b658380db21c2c Mon Sep 17 00:00:00 2001
+From: Moacir Bishop Camata <moacirbishopcamata@gmail.com>
+Date: Thu, 17 Sep 2026 17:27:12 -0400
+Subject: [PATCH 2/2] fix(query): do not apply default ORDER BY to
+ aggregate-only queries on PostgreSQL
+
+`frappe.db.get_value(doctype, filters, [{"MAX": "field"}])` builds
+`SELECT MAX(field) FROM tab WHERE ... ORDER BY creation DESC`. MariaDB accepts it; PostgreSQL
+rejects it: "column creation must appear in the GROUP BY clause or be used in an aggregate
+function". ERPNext hits this on every site (e.g. Stock Closing Entry reading the last
+Period Closing Voucher), which breaks `run-tests` on PostgreSQL before any test runs.
+
+A query that only aggregates returns one row, so ordering carries no information: skip it,
+the same way DISTINCT/GROUP BY queries already skip it on PostgreSQL.
+---
+ frappe/database/query.py   | 14 +++++++++++++-
+ frappe/tests/test_query.py | 18 ++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/frappe/database/query.py b/frappe/database/query.py
+index 2da0442743..22efeb7bfa 100644
+--- a/frappe/database/query.py
++++ b/frappe/database/query.py
+@@ -318,7 +318,13 @@ class Engine:
+ 			self.apply_group_by(group_by)
+ 
+ 		if order_by:
+-			if not (
++			if self.is_postgres and is_select and not group_by and self._selects_only_aggregates():
++				# A query that only aggregates (MAX, COUNT, ...) returns a single row, so ordering
++				# is meaningless — and PostgreSQL rejects ORDER BY on a non-aggregated column
++				# ("must appear in the GROUP BY clause or be used in an aggregate function").
++				# `get_value(..., [{"MAX": field}])` hits this with the default `creation` ordering.
++				pass
++			elif not (
+ 				self.is_postgres and is_select and (distinct or group_by)
+ 			):  # ignore in Postgres since order by fields need to appear in select distinct
+ 				self.apply_order_by(order_by)
+@@ -341,6 +347,12 @@ class Engine:
+ 		self.query.immutable = True
+ 		return self.query
+ 
++	def _selects_only_aggregates(self) -> bool:
++		"""True when every selected field is an aggregate function (MAX, MIN, SUM, COUNT, AVG...)."""
++		from pypika.terms import AggregateFunction
++
++		return bool(self.fields) and all(isinstance(field, AggregateFunction) for field in self.fields)
++
+ 	def apply_fields(self, fields):
+ 		self.fields = self.parse_fields(fields)
+ 
+diff --git a/frappe/tests/test_query.py b/frappe/tests/test_query.py
+index 8acd21f6a6..8db0066064 100644
+--- a/frappe/tests/test_query.py
++++ b/frappe/tests/test_query.py
+@@ -67,6 +67,24 @@ class TestQuery(IntegrationTestCase):
+ 	def setUp(self):
+ 		setup_for_tests()
+ 
++	@run_only_if(db_type_is.POSTGRES)
++	def test_aggregate_only_query_drops_default_order_by(self):
++		# PostgreSQL: `SELECT MAX(x) FROM t ORDER BY creation` is invalid (creation would have
++		# to be aggregated). The default ordering must not be applied to such queries.
++		sql = frappe.qb.get_query(
++			"User", fields=[{"MAX": "creation"}], filters={"enabled": 1}, order_by="creation desc"
++		).get_sql()
++		self.assertNotIn("ORDER BY", sql.upper())
++
++		# and the everyday caller, which passes the default ordering implicitly
++		self.assertIsNotNone(frappe.db.get_value("User", {"enabled": 1}, [{"MAX": "creation"}]))
++
++		# grouping keeps the existing behaviour (ordering is ignored with a warning)
++		sql = frappe.qb.get_query(
++			"User", fields=["user_type", {"MAX": "creation"}], group_by="user_type"
++		).get_sql()
++		self.assertIn("GROUP BY", sql.upper())
++
+ 	def ensure_system_manager(self, user_doc, should_have: bool):
+ 		"""Ensure user has/doesn't have System Manager role, with cleanup to restore original state."""
+ 		had_role = "System Manager" in [r.role for r in user_doc.roles]
+-- 
+2.43.0
+
