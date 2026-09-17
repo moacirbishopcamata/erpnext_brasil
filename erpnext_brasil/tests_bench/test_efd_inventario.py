@@ -29,6 +29,7 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from erpnext_brasil.integracao.efd_inventario import saldos_na_data
+from erpnext_brasil.tests_bench._cadastros import garantir_ano_fiscal
 
 MODULOS_COBERTOS = ("efd_inventario",)
 """Os módulos de `integracao/` que este arquivo exercita — declarados, lidos por
@@ -79,22 +80,7 @@ class TestSaldoNaData(FrappeTestCase):
 		# Duas entradas em datas distintas do ano corrente; o ano fiscal cobre as duas.
 		ano = str(frappe.utils.now_datetime().year)
 
-		# Por **cobertura**, não por nome: um site que já rodou o `before_tests` do ERPNext tem
-		# `_Test Fiscal Year <ano>`, e criar outro com o nome `<ano>` sobrepõe e é recusado.
-		ja_coberto = frappe.db.exists(
-			"Fiscal Year",
-			{"year_start_date": ("<=", f"{ano}-01-01"), "year_end_date": (">=", f"{ano}-12-31")},
-		)
-
-		if not ja_coberto:
-			frappe.get_doc(
-				{
-					"doctype": "Fiscal Year",
-					"year": ano,
-					"year_start_date": f"{ano}-01-01",
-					"year_end_date": f"{ano}-12-31",
-				}
-			).insert(ignore_permissions=True)
+		garantir_ano_fiscal(ano)
 
 		cls.ano = ano
 		frappe.db.commit()
