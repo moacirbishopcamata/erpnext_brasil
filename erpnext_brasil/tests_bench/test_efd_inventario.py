@@ -38,7 +38,6 @@ CNPJ = "11.222.333/0001-81"
 EMPRESA = "_Teste Consumo Indevido"
 """A mesma empresa dos outros testes de bench: um plano de contas a mais não provaria nada."""
 
-ITEM = "_Teste Inventario H"
 ARMAZEM = "Stores - _TCI"
 
 
@@ -77,25 +76,17 @@ class TestSaldoNaData(FrappeTestCase):
 				{"doctype": "Stock Entry Type", "name": "Material Receipt", "purpose": "Material Receipt"}
 			).insert(ignore_permissions=True)
 
-		if not frappe.db.exists("Item", ITEM):
-			frappe.get_doc(
-				{
-					"doctype": "Item",
-					"item_code": ITEM,
-					"item_name": "Item de teste do inventário",
-					"item_group": "Teste GS1",
-					"stock_uom": "Unidade",
-					"is_stock_item": 1,
-					"valuation_rate": 10,
-				}
-			).insert(ignore_permissions=True)
-
-		frappe.db.set_value("Item", ITEM, "valuation_rate", 10, update_modified=False)
-
 		# Duas entradas em datas distintas do ano corrente; o ano fiscal cobre as duas.
 		ano = str(frappe.utils.now_datetime().year)
 
-		if not frappe.db.exists("Fiscal Year", ano):
+		# Por **cobertura**, não por nome: um site que já rodou o `before_tests` do ERPNext tem
+		# `_Test Fiscal Year <ano>`, e criar outro com o nome `<ano>` sobrepõe e é recusado.
+		ja_coberto = frappe.db.exists(
+			"Fiscal Year",
+			{"year_start_date": ("<=", f"{ano}-01-01"), "year_end_date": (">=", f"{ano}-12-31")},
+		)
+
+		if not ja_coberto:
 			frappe.get_doc(
 				{
 					"doctype": "Fiscal Year",
@@ -107,6 +98,26 @@ class TestSaldoNaData(FrappeTestCase):
 
 		cls.ano = ano
 		frappe.db.commit()
+
+	def setUp(self):
+		"""Um item novo por teste — e por execução.
+
+		Entradas submetidas ficam no razão (o rollback do `FrappeTestCase` não as alcança), e
+		um item compartilhado faria o saldo de um teste somar as entradas do outro, e o de
+		uma execução somar as da anterior. Item próprio torna cada saldo previsível.
+		"""
+		self.item = f"_Teste Inventario H {frappe.generate_hash(length=8)}"
+		frappe.get_doc(
+			{
+				"doctype": "Item",
+				"item_code": self.item,
+				"item_name": "Item de teste do inventário",
+				"item_group": "Teste GS1",
+				"stock_uom": "Unidade",
+				"is_stock_item": 1,
+				"valuation_rate": 10,
+			}
+		).insert(ignore_permissions=True)
 
 	def _entrada(self, quantidade: int, data: str, hora: str) -> None:
 		doc = frappe.get_doc(
@@ -120,7 +131,7 @@ class TestSaldoNaData(FrappeTestCase):
 				"posting_time": hora,
 				"items": [
 					{
-						"item_code": ITEM,
+						"item_code": self.item,
 						"qty": quantidade,
 						"uom": "Unidade",
 						"basic_rate": 10,
@@ -135,7 +146,7 @@ class TestSaldoNaData(FrappeTestCase):
 
 	def _saldo(self, data: str) -> Decimal | None:
 		for item in saldos_na_data(EMPRESA, data):
-			if item.codigo_item == ITEM:
+			if item.codigo_item == self.item:
 				return item.quantidade
 
 		return None
@@ -161,7 +172,8 @@ class TestSaldoNaData(FrappeTestCase):
 		self._entrada(2, f"{self.ano}-03-01", "09:00:00")
 
 		for item in saldos_na_data(EMPRESA, f"{self.ano}-03-01"):
-			if item.codigo_item == ITEM:
+			if item.codigo_item == self.item:
+				self.assertEqual(Decimal("2"), item.quantidade)
 				self.assertEqual(Decimal("20.00"), item.valor_item)
 				self.assertEqual(Decimal("10.000000"), item.valor_unitario)
 				return
