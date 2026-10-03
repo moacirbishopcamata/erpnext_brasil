@@ -115,7 +115,7 @@ class TestNaturezasPadrao(unittest.TestCase):
 
 class TestMontagemDaNFe(unittest.TestCase):
 	def _identificacao(self, natureza):
-		from datetime import datetime
+		from datetime import datetime, timezone
 
 		from erpnext_brasil.fiscal.documento.nfe import Identificacao
 
@@ -126,7 +126,7 @@ class TestMontagemDaNFe(unittest.TestCase):
 			serie="1",
 			numero="123",
 			codigo_numerico="12345678",
-			emissao=datetime(2026, 1, 15, 10, 0, 0),
+			emissao=datetime(2026, 1, 15, 10, 0, 0, tzinfo=timezone.utc),
 		)
 
 	def test_natureza_longa_demais_e_recusada_na_montagem(self):

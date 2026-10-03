@@ -24,18 +24,55 @@
 - [x] 2.1 Criar `integracao/cte_documento.py` (mapeador `Sales Invoice` → `TCTe`, com `emit`/
       `tomador`/`vPrest` da fatura, remetente/destinatário do cadastro) — verificar com
       `test_arquitetura.py` que a peça pura de montagem não importa `frappe`
-- [ ] 2.2 Escrever `tests/test_cte_documento.py` cobrando a montagem válida, a recusa quando
+
+      **Concluída (2026-10-03).** Teste primeiro: `tests/test_cte_montagem.py` foi escrito contra
+      uma API inexistente, falhou, e a implementação veio depois. A regra do leiaute ficou em
+      `fiscal/cte_montagem.py` (pura); `integracao/cte_documento.py` só lê o cadastro e traduz.
+      Resolvidas as pendências do esqueleto: `cNF` sorteado, `infCarga`/`infModal` montados, ICMS
+      00/20/45/90/SN calculado (60 e `ICMSOutraUF` recusados nomeando o CST), tomador derivado
+      (`toma3` remetente/destinatário, `toma4` outros), `vRec`, `CRT` do emitente, remetente e
+      destinatário distintos. A árvore foi **validada contra o `cte_v4.00.xsd` oficial** (`sped-cte`,
+      `PL_CTe_400`) nos cinco grupos de ICMS e com duas quantidades de carga — só sem a assinatura.
+      Essa validação achou dois defeitos que os testes estruturais não pegavam: `infCte/@versao`
+      ausente em `montar_cte` e `dhEmi` sem fuso. Ficam fora, declarados: `infDoc`, `Comp`,
+      `ICMSUFFim`, modais não rodoviários. Camada Frappe ainda **não** exercitada em bench (6.2).
+- [x] 2.2 Escrever `tests/test_cte_documento.py` cobrando a montagem válida, a recusa quando
       falta dado obrigatório do leiaute e o número alocado entrando na chave — verificar que uma
       recusa por campo faltante nomeia o dado, e que a montagem nunca consome o número quando
       recusa
-- [ ] 2.3 Reusar `numero_do_documento(doc, 57, serie)` na numeração do CT-e e confirmar que a
+
+      **Concluída (2026-10-03).** 48 testes em `tests/test_cte_montagem.py` (montagem válida,
+      recusa nomeando o dado) e a costura em `tests/test_cte_documento.py`. O critério "nunca
+      consome o número quando recusa" ficou provado com a alocação injetada: dado faltando e CST
+      não suportado recusam com **zero** chamadas ao alocador.
+- [x] 2.3 Reusar `numero_do_documento(doc, 57, serie)` na numeração do CT-e e confirmar que a
       série `br_serie_cte` alimenta a chamada — verificar que uma emissão sem número livre falha
       alto antes de transmitir
+
+      **Concluída (2026-10-03).** `numero_do_documento` ganhou o parâmetro `campo` (padrão
+      `br_numero_nfe`, então `emissao_nfe` segue intacta); o mapeador passa `br_numero_cte`, o
+      modelo `57` e a série de `serie_padrao` (`br_serie_cte`, recusada se vazia). A alocação vem
+      **depois** da montagem de prova (`montar_cte_alocando_numero`), e uma falha dela sobe antes de
+      qualquer árvore. Lado Frappe (`alocar_numero` real, trava de linha) ainda sem bench: 6.2.
 - [ ] 2.4 Acrescentar os códigos de recusa de campo obrigatório do CT-e em
       `fiscal/codigos_de_erro.py` — verificar que o domínio conhece a recusa com número estável
 - [ ] 2.5 Registrar `Sales Invoice` no laço único de `setup/campos_documento.py` com
       `br_numero_cte` e `br_natureza_transporte` — verificar após `bench migrate` que os campos
       aparecem no formulário e que a geração continua num laço só, sem bloco duplicado
+
+      **Escopo ampliado (2026-10-03, decisão do usuário — "opção 1")**: o mapeador precisa de
+      dados que a fatura não guardava. Além dos dois campos acima, declarar no mesmo laço:
+      `br_tomador_cte` (Select: Remetente / Destinatário / Outros — "Outros" usa o cliente da
+      fatura como `toma4`), `br_remetente_cte` e `br_destinatario_cte` (Link `Customer`), a carga
+      (`br_valor_carga`, `br_produto_predominante`, `br_unidade_carga`, `br_tipo_medida_carga`,
+      `br_quantidade_carga`) e o ICMS (`br_cst_icms_cte`, `br_aliquota_icms_cte`,
+      `br_reducao_base_icms_cte`). O RNTRC já existe na `Company` (`br_rntrc`). Origem de cada
+      grupo conferida no `cteTiposBasico_v4.00.xsd` (sped-cte, `PL_CTe_400`), não de memória.
+
+      **Parcial (2026-10-03).** Declarados e testados sem bench: os campos do CT-e (11 novos, além de
+      `br_numero_cte` e `br_natureza_transporte`) entram só na `Sales Invoice` (extraídos do laço de `CABECALHOS`, onde iam para cinco documentos), sem
+      duplicata, e as tabelas rótulo→código (modal, tipo de serviço, tomador, unidade, CST) batem
+      com os Selects. **Falta** o critério de bench: `bench migrate` e ver os campos no formulário.
 
 ## 3. Transmissão e tela do CT-e
 

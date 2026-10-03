@@ -10,7 +10,7 @@ no `ide` move a chave junto.
 """
 
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from erpnext_brasil.fiscal.documento.chave_acesso import ler_chave, validar_chave
 from erpnext_brasil.fiscal.documento.nfe import (
@@ -32,7 +32,7 @@ from erpnext_brasil.fiscal.documento.nfe import (
 )
 from erpnext_brasil.fiscal.documento.serializacao import para_xml
 
-EMISSAO = datetime(2026, 8, 24, 14, 30, 0)
+EMISSAO = datetime(2026, 8, 24, 14, 30, 0, tzinfo=timezone(timedelta(hours=-3)))
 
 
 def identificacao(**ajustes) -> Identificacao:
@@ -287,7 +287,15 @@ class TestIde(unittest.TestCase):
 		self.assertEqual(self.grupo["tpAmb"], "2")
 
 	def test_data_com_fuso(self):
-		self.assertIn("T", self.grupo["dhEmi"])
+		"""`dhEmi` é `TDateTimeUTC` no XSD: o deslocamento é parte do valor, não enfeite."""
+		self.assertEqual(self.grupo["dhEmi"], "2026-08-24T14:30:00-03:00")
+
+	def test_data_sem_fuso_recusa_nomeando_a_emissao(self):
+		"""Antes só se conferia que havia um "T" — e a fixture era ingênua, então o teste mentia."""
+		with self.assertRaises(NFeInvalida) as ctx:
+			montar_ide(identificacao(emissao=datetime(2026, 8, 24, 14, 30, 0)), "x" * 44)
+
+		self.assertEqual(ctx.exception.campo, "emissao")
 
 	def test_natureza_obrigatoria(self):
 		with self.assertRaises(NFeInvalida) as ctx:

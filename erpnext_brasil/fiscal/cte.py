@@ -368,16 +368,20 @@ def montar_ide(identificacao: IdentificacaoCte, tomador: dict, chave: str) -> di
 	return grupo
 
 
-def montar_cte(infcte: dict, chave: str) -> dict:
+def montar_cte(infcte: dict, chave: str, versao: str = "4.00") -> dict:
 	"""Envolve `infCte` na raiz `CTe`, com o namespace do leiaute e o `Id` derivado.
 
 	Mesma disciplina de `fiscal.documento.nfe.montar_nfe`: o `Id` é `"CTe" + chave`,
 	nunca informado em paralelo — não há como divergir do que a chave realmente é.
+
+	`versao` é o atributo `infCte/@versao`, **obrigatório** no XSD (`use="required"`). Ficou de
+	fora até a árvore montada ser validada contra o `cte_v4.00.xsd` oficial: nenhum teste
+	estrutural o pedia, e o schema recusa o documento sem ele.
 	"""
 	return {
 		"CTe": {
 			"@xmlns": NAMESPACE_CTE,
-			"infCte": {**infcte, "@Id": f"CTe{chave}"},
+			"infCte": {**infcte, "@versao": versao, "@Id": f"CTe{chave}"},
 		}
 	}
 

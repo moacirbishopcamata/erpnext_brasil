@@ -47,6 +47,45 @@ TABELAS_DE_IMPOSTO = ("Sales Taxes and Charges", "Purchase Taxes and Charges")
 
 REGIMES_PIS_COFINS = "\n".join(["", "cumulativo", "nao_cumulativo"])
 
+MODAL_CTE_POR_ROTULO = {
+	"Rodoviário": "01",
+	"Aéreo": "02",
+	"Aquaviário": "03",
+	"Ferroviário": "04",
+	"Dutoviário": "05",
+	"Multimodal": "06",
+}
+"""`ide/modal` — o Select guarda o rótulo, o leiaute espera o código."""
+OPCOES_MODAL_CTE = "\n".join(["", *MODAL_CTE_POR_ROTULO])
+
+TIPO_SERVICO_CTE_POR_ROTULO = {
+	"Normal": "0",
+	"Subcontratação": "1",
+	"Redespacho": "2",
+	"Redespacho intermediário": "3",
+	"Serviço vinculado a multimodal": "4",
+}
+"""`ide/tpServ`."""
+OPCOES_TIPO_SERVICO_CTE = "\n".join(["", *TIPO_SERVICO_CTE_POR_ROTULO])
+
+OPCOES_TOMADOR_CTE = "\n".join(["", "Remetente", "Destinatário", "Outros"])
+TOMADOR_CTE_POR_ROTULO = {"Remetente": "0", "Destinatário": "3", "Outros": "4"}
+"""`toma3/toma` (0 remetente, 3 destinatário) e `toma4` (4 outros) do leiaute do CT-e."""
+
+UNIDADE_CARGA_POR_ROTULO = {
+	"M3": "00",
+	"KG": "01",
+	"TON": "02",
+	"Unidade": "03",
+	"Litros": "04",
+	"MMBTU": "05",
+}
+"""`infQ/cUnid` — as seis unidades da anotação do XSD."""
+OPCOES_UNIDADE_CARGA = "\n".join(["", *UNIDADE_CARGA_POR_ROTULO])
+
+CST_ICMS_CTE = ("00", "20", "40", "41", "51", "90", "SN")
+OPCOES_CST_ICMS_CTE = "\n".join(["", *CST_ICMS_CTE])
+
 
 def _entradas_do_item() -> list[dict]:
 	"""Alíquotas e valores acessórios informados pelo usuário."""
@@ -204,6 +243,226 @@ def _cfop_sugerido() -> dict:
 	}
 
 
+def _campos_de_transporte() -> list[dict]:
+	"""Os campos do CT-e na `Sales Invoice` — a fatura da prestação de transporte.
+
+	Só a venda emite CT-e: `Delivery Note`, `Purchase Invoice` e `POS Invoice` não recebem estes
+	campos. Declarados aqui, e não no laço de `CABECALHOS`, para não criar quinze Custom Fields
+	em documentos que nunca os leem.
+	"""
+	return [
+		{
+			"fieldname": "br_secao_transporte",
+			"label": "Transporte (CT-e)",
+			"fieldtype": "Section Break",
+			"insert_after": "br_protocolo_autorizacao",
+			"collapsible": 1,
+		},
+		{
+			"fieldname": "br_natureza_transporte",
+			"label": "Natureza de operação de transporte",
+			"fieldtype": "Data",
+			"insert_after": "br_secao_transporte",
+			"description": (
+				"Marcado como fatura de transporte na emissão do CT-e. "
+				"Preenchido manualmente — decide se o botão Emitir CT-e aparece."
+			),
+		},
+		{
+			"fieldname": "br_cfop_transporte",
+			"label": "CFOP do CT-e",
+			"fieldtype": "Data",
+			"insert_after": "br_natureza_transporte",
+			"description": "CFOP de 4 dígitos para o CT-e (ex.: 5352, 6352).",
+		},
+		{
+			"fieldname": "br_coluna_transporte",
+			"fieldtype": "Column Break",
+			"insert_after": "br_cfop_transporte",
+		},
+		{
+			"fieldname": "br_modal_cte",
+			"label": "Modal do CT-e",
+			"fieldtype": "Select",
+			"options": OPCOES_MODAL_CTE,
+			"default": "Rodoviário",
+			"insert_after": "br_coluna_transporte",
+		},
+		{
+			"fieldname": "br_tipo_servico_cte",
+			"label": "Tipo de serviço",
+			"fieldtype": "Select",
+			"options": OPCOES_TIPO_SERVICO_CTE,
+			"default": "Normal",
+			"insert_after": "br_modal_cte",
+		},
+		{
+			"fieldname": "br_secao_municipios",
+			"label": "Municípios de início/fim",
+			"fieldtype": "Section Break",
+			"insert_after": "br_tipo_servico_cte",
+			"collapsible": 1,
+		},
+		{
+			"fieldname": "br_municipio_inicio",
+			"label": "Código IBGE município de início",
+			"fieldtype": "Data",
+			"insert_after": "br_secao_municipios",
+			"description": "7 dígitos. Código IBGE do município de início da prestação.",
+		},
+		{
+			"fieldname": "br_municipio_inicio_nome",
+			"label": "Nome município de início",
+			"fieldtype": "Data",
+			"insert_after": "br_municipio_inicio",
+		},
+		{
+			"fieldname": "br_uf_inicio",
+			"label": "UF início",
+			"fieldtype": "Data",
+			"insert_after": "br_municipio_inicio_nome",
+			"description": "Sigla da UF (ex.: SP, RJ).",
+		},
+		{
+			"fieldname": "br_coluna_municipios",
+			"fieldtype": "Column Break",
+			"insert_after": "br_uf_inicio",
+		},
+		{
+			"fieldname": "br_municipio_fim",
+			"label": "Código IBGE município de fim",
+			"fieldtype": "Data",
+			"insert_after": "br_coluna_municipios",
+			"description": "7 dígitos. Código IBGE do município de fim da prestação.",
+		},
+		{
+			"fieldname": "br_municipio_fim_nome",
+			"label": "Nome município de fim",
+			"fieldtype": "Data",
+			"insert_after": "br_municipio_fim",
+		},
+		{
+			"fieldname": "br_uf_fim",
+			"label": "UF fim",
+			"fieldtype": "Data",
+			"insert_after": "br_municipio_fim_nome",
+			"description": "Sigla da UF (ex.: SP, RJ).",
+		},
+		{
+			"fieldname": "br_numero_cte",
+			"label": "Número do CT-e",
+			"fieldtype": "Data",
+			"read_only": 1,
+			"insert_after": "br_uf_fim",
+			"description": "Preenchido na emissão. Controle de numeração sequencial por série.",
+		},
+		{
+			"fieldname": "br_secao_partes_cte",
+			"label": "Partes do CT-e",
+			"fieldtype": "Section Break",
+			"insert_after": "br_numero_cte",
+			"collapsible": 1,
+		},
+		{
+			"fieldname": "br_tomador_cte",
+			"label": "Tomador do serviço",
+			"fieldtype": "Select",
+			"options": OPCOES_TOMADOR_CTE,
+			"insert_after": "br_secao_partes_cte",
+			"description": (
+				"Quem paga o frete. Remetente e Destinatário reaproveitam a parte já informada; "
+				"Outros usa o cliente desta fatura, com cadastro completo."
+			),
+		},
+		{
+			"fieldname": "br_remetente_cte",
+			"label": "Remetente da carga",
+			"fieldtype": "Link",
+			"options": "Customer",
+			"insert_after": "br_tomador_cte",
+		},
+		{
+			"fieldname": "br_destinatario_cte",
+			"label": "Destinatário da carga",
+			"fieldtype": "Link",
+			"options": "Customer",
+			"insert_after": "br_remetente_cte",
+		},
+		{
+			"fieldname": "br_coluna_partes_cte",
+			"fieldtype": "Column Break",
+			"insert_after": "br_destinatario_cte",
+		},
+		{
+			"fieldname": "br_produto_predominante",
+			"label": "Produto predominante",
+			"fieldtype": "Data",
+			"length": 60,
+			"insert_after": "br_coluna_partes_cte",
+			"description": "Natureza da carga (ex.: Grãos, Fertilizantes). Obrigatório no CT-e.",
+		},
+		{
+			"fieldname": "br_valor_carga",
+			"label": "Valor da carga",
+			"fieldtype": "Currency",
+			"insert_after": "br_produto_predominante",
+			"description": "Opcional no leiaute; base de seguro e de averbação.",
+		},
+		{
+			"fieldname": "br_quantidade_carga",
+			"label": "Quantidade da carga",
+			"fieldtype": "Float",
+			"precision": "4",
+			"insert_after": "br_valor_carga",
+		},
+		{
+			"fieldname": "br_unidade_carga",
+			"label": "Unidade da carga",
+			"fieldtype": "Select",
+			"options": OPCOES_UNIDADE_CARGA,
+			"insert_after": "br_quantidade_carga",
+		},
+		{
+			"fieldname": "br_tipo_medida_carga",
+			"label": "Tipo da medida",
+			"fieldtype": "Data",
+			"length": 20,
+			"default": "PESO BRUTO",
+			"insert_after": "br_unidade_carga",
+			"description": "Ex.: PESO BRUTO, PESO BASE DE CÁLCULO, CAIXAS.",
+		},
+		{
+			"fieldname": "br_secao_icms_cte",
+			"label": "ICMS do CT-e",
+			"fieldtype": "Section Break",
+			"insert_after": "br_tipo_medida_carga",
+			"collapsible": 1,
+		},
+		{
+			"fieldname": "br_cst_icms_cte",
+			"label": "CST do ICMS",
+			"fieldtype": "Select",
+			"options": OPCOES_CST_ICMS_CTE,
+			"insert_after": "br_secao_icms_cte",
+			"description": "SN = Simples Nacional. CST 60 e ICMS de outra UF ainda não são suportados.",
+		},
+		{
+			"fieldname": "br_aliquota_icms_cte",
+			"label": "Alíquota do ICMS (%)",
+			"fieldtype": "Percent",
+			"insert_after": "br_cst_icms_cte",
+			"description": "Informada, não deduzida: depende da rota e do tomador.",
+		},
+		{
+			"fieldname": "br_reducao_base_icms_cte",
+			"label": "Redução da base (%)",
+			"fieldtype": "Percent",
+			"insert_after": "br_aliquota_icms_cte",
+			"description": "Obrigatória no CST 20; opcional no 90.",
+		},
+	]
+
+
 def get_custom_fields() -> dict[str, list[dict]]:
 	campos = {}
 
@@ -295,112 +554,9 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"insert_after": "br_chave_acesso",
 				"no_copy": 1,
 			},
-			{
-				"fieldname": "br_secao_transporte",
-				"label": "Transporte (CT-e)",
-				"fieldtype": "Section Break",
-				"insert_after": "br_protocolo_autorizacao",
-				"collapsible": 1,
-			},
-			{
-				"fieldname": "br_natureza_transporte",
-				"label": "Natureza de operação de transporte",
-				"fieldtype": "Data",
-				"insert_after": "br_secao_transporte",
-				"description": (
-					"Marcado como fatura de transporte na emissão do CT-e. "
-					"Preenchido manualmente — decide se o botão Emitir CT-e aparece."
-				),
-			},
-			{
-				"fieldname": "br_cfop_transporte",
-				"label": "CFOP do CT-e",
-				"fieldtype": "Data",
-				"insert_after": "br_natureza_transporte",
-				"description": "CFOP de 4 dígitos para o CT-e (ex.: 5352, 6352).",
-			},
-			{
-				"fieldname": "br_coluna_transporte",
-				"fieldtype": "Column Break",
-				"insert_after": "br_cfop_transporte",
-			},
-			{
-				"fieldname": "br_modal_cte",
-				"label": "Modal do CT-e",
-				"fieldtype": "Select",
-				"options": "\nRodoviário\nAéreo\nAquaviário\nFerroviário\nDutoviário\nMultimodal",
-				"default": "Rodoviário",
-				"insert_after": "br_coluna_transporte",
-			},
-			{
-				"fieldname": "br_tipo_servico_cte",
-				"label": "Tipo de serviço",
-				"fieldtype": "Select",
-				"options": "\nNormal\nSubcontratação\nRedespacho\nRedespacho intermediário\nServiço vinculado a multimodal",
-				"default": "Normal",
-				"insert_after": "br_modal_cte",
-			},
-			{
-				"fieldname": "br_secao_municipios",
-				"label": "Municípios de início/fim",
-				"fieldtype": "Section Break",
-				"insert_after": "br_tipo_servico_cte",
-				"collapsible": 1,
-			},
-			{
-				"fieldname": "br_municipio_inicio",
-				"label": "Código IBGE município de início",
-				"fieldtype": "Data",
-				"insert_after": "br_secao_municipios",
-				"description": "7 dígitos. Código IBGE do município de início da prestação.",
-			},
-			{
-				"fieldname": "br_municipio_inicio_nome",
-				"label": "Nome município de início",
-				"fieldtype": "Data",
-				"insert_after": "br_municipio_inicio",
-			},
-			{
-				"fieldname": "br_uf_inicio",
-				"label": "UF início",
-				"fieldtype": "Data",
-				"insert_after": "br_municipio_inicio_nome",
-				"description": "Sigla da UF (ex.: SP, RJ).",
-			},
-			{
-				"fieldname": "br_coluna_municipios",
-				"fieldtype": "Column Break",
-				"insert_after": "br_uf_inicio",
-			},
-			{
-				"fieldname": "br_municipio_fim",
-				"label": "Código IBGE município de fim",
-				"fieldtype": "Data",
-				"insert_after": "br_coluna_municipios",
-				"description": "7 dígitos. Código IBGE do município de fim da prestação.",
-			},
-			{
-				"fieldname": "br_municipio_fim_nome",
-				"label": "Nome município de fim",
-				"fieldtype": "Data",
-				"insert_after": "br_municipio_fim",
-			},
-			{
-				"fieldname": "br_uf_fim",
-				"label": "UF fim",
-				"fieldtype": "Data",
-				"insert_after": "br_municipio_fim_nome",
-				"description": "Sigla da UF (ex.: SP, RJ).",
-			},
-			{
-				"fieldname": "br_numero_cte",
-				"label": "Número do CT-e",
-				"fieldtype": "Data",
-				"read_only": 1,
-				"insert_after": "br_uf_fim",
-				"description": "Preenchido na emissão. Controle de numeração sequencial por série.",
-			},
 		]
+
+	campos["Sales Invoice"] = campos["Sales Invoice"] + _campos_de_transporte()
 
 	for doctype in TABELAS_DE_IMPOSTO:
 		campos[doctype] = [

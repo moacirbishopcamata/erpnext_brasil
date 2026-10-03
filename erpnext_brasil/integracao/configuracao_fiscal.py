@@ -54,6 +54,9 @@ O que deliberadamente **não** virou configuração
 Sem teste dedicado — depende do Frappe (mesma disciplina dos módulos irmãos).
 """
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 import frappe
 
 from erpnext_brasil.setup.custom_fields import SERIE_POR_MODELO
@@ -171,3 +174,14 @@ def classificacao_tributaria_esocial(company: str) -> str:
 	validação do domínio.
 	"""
 	return (frappe.db.get_value("Company", company, "br_esocial_classificacao_tributaria") or "").strip()
+
+
+def agora_da_emissao() -> datetime:
+	"""O instante da emissão, **com** fuso — o que `dhEmi` exige.
+
+	Usa o fuso do site (`System Settings`), não o do servidor. É o instante da chamada, e não a
+	`posting_date` do documento: a data de lançamento é só uma data (meia-noite, sem fuso), e a
+	emissão fiscal acontece quando se transmite — reemitir hoje uma fatura de ontem tem `dhEmi` de
+	hoje. Também mantém o `AAMM` da chave no mesmo mês do `dhEmi`.
+	"""
+	return datetime.now(ZoneInfo(frappe.utils.get_system_timezone()))

@@ -124,14 +124,18 @@ def _abrir_serie(company: str, modelo: str, serie: str, nome: str) -> str:
 	return primeiro_numero()
 
 
-def numero_do_documento(doc, modelo: str, serie: str) -> str:
-	"""O `nNF` do documento: o já alocado, ou um novo.
+def numero_do_documento(doc, modelo: str, serie: str, campo: str = "br_numero_nfe") -> str:
+	"""O número do documento (`nNF`, `nCT`...): o já alocado, ou um novo.
 
 	Reemitir um documento que já tem número **não** consome outro. O número pertence ao
 	documento desde a primeira tentativa, inclusive quando a SEFAZ recusou — ver docstring
 	do módulo sobre por que rejeição não devolve o número.
+
+	`campo` é onde o documento guarda o número: `br_numero_nfe` por padrão (NF-e e NFC-e, que é
+	o que existia), `br_numero_cte` para o CT-e. A série e o modelo escolhem o contador; o campo
+	só diz onde o resultado fica — por isso é parâmetro, e não uma segunda função copiada.
 	"""
-	existente = (doc.get("br_numero_nfe") or "").strip()
+	existente = (doc.get(campo) or "").strip()
 
 	if existente:
 		try:
@@ -140,11 +144,11 @@ def numero_do_documento(doc, modelo: str, serie: str) -> str:
 			return validar_numero(existente)
 		except NumeracaoInvalida as erro:
 			frappe.throw(
-				f"O documento {doc.name} tem um número de NF-e inválido gravado: {erro}",
+				f"O documento {doc.name} tem um número inválido gravado em {campo}: {erro}",
 				title="Número inválido",
 			)
 
 	numero = alocar_numero(doc.company, modelo, serie)
-	doc.db_set("br_numero_nfe", numero, update_modified=False)
+	doc.db_set(campo, numero, update_modified=False)
 
 	return numero

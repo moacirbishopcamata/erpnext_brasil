@@ -89,7 +89,7 @@ class TestCodigoNumerico(unittest.TestCase):
 
 	def test_o_resultado_passa_na_validacao_da_identificacao(self):
 		"""Costura: o gerador não pode produzir o que `Identificacao.validar` recusa."""
-		from datetime import datetime
+		from datetime import datetime, timezone
 
 		from erpnext_brasil.fiscal.documento.nfe import Identificacao
 
@@ -102,7 +102,7 @@ class TestCodigoNumerico(unittest.TestCase):
 					serie="1",
 					numero=numero,
 					codigo_numerico=sortear_codigo_numerico(numero),
-					emissao=datetime(2026, 1, 15, 10, 0, 0),
+					emissao=datetime(2026, 1, 15, 10, 0, 0, tzinfo=timezone.utc),
 				).validar()
 
 
@@ -238,6 +238,53 @@ class TestCstDoIcms(unittest.TestCase):
 		campo = next(c for c in get_custom_fields()["Sales Invoice Item"] if c["fieldname"] == "br_cst_icms")
 
 		self.assertEqual(campo["fieldtype"], "Select")
+
+
+class TestEmissaoComFuso(unittest.TestCase):
+	"""Costura: a integração tem que entregar `dhEmi` com fuso, e o teste lê o fonte porque
+	`nfe_documento.py` e `cte_documento.py` importam `frappe`.
+
+	A NF-e passava `get_datetime(posting_date)` — data ingênua, à meia-noite — e a SEFAZ exige o
+	deslocamento (`TDateTimeUTC`). Usar o instante da emissão também alinha o `AAMM` da chave ao
+	mês do `dhEmi`.
+	"""
+
+	def _valor_de_emissao(self, arquivo: str, classe: str):
+		import ast
+		import pathlib
+
+		fonte = pathlib.Path(__file__).resolve().parents[1] / "integracao" / arquivo
+		arvore = ast.parse(fonte.read_text(encoding="utf-8"))
+
+		for no in ast.walk(arvore):
+			if isinstance(no, ast.Call) and getattr(no.func, "id", "") == classe:
+				for palavra in no.keywords:
+					if palavra.arg == "emissao":
+						return palavra.value
+
+		self.fail(f"{arquivo} não passa `emissao` a {classe}")
+
+	def _chamada(self, valor) -> str:
+		import ast
+
+		cauda = valor.right if isinstance(valor, ast.BoolOp) else valor
+
+		return getattr(getattr(cauda, "func", None), "id", "") or ast.dump(valor)
+
+	def test_a_nfe_usa_o_instante_com_fuso_e_nao_a_data_do_documento(self):
+		valor = self._valor_de_emissao("nfe_documento.py", "Identificacao")
+
+		self.assertEqual(self._chamada(valor), "agora_da_emissao")
+
+	def test_o_cte_usa_o_mesmo_ajudante(self):
+		import ast
+		import pathlib
+
+		fonte = pathlib.Path(__file__).resolve().parents[1] / "integracao" / "cte_documento.py"
+		texto = fonte.read_text(encoding="utf-8")
+
+		self.assertIn("agora_da_emissao()", texto)
+		self.assertNotIn("get_system_timezone", ast.dump(ast.parse(texto)))
 
 
 if __name__ == "__main__":

@@ -73,6 +73,7 @@ from erpnext_brasil.fiscal.documento.nfe import (
 )
 from erpnext_brasil.fiscal.documento.produto import montar_icmstot, montar_prod
 from erpnext_brasil.fiscal.impostos.apuracao import apurar_documento
+from erpnext_brasil.integracao.configuracao_fiscal import agora_da_emissao
 from erpnext_brasil.integracao.mapeamento import item_fiscal_de_linha, operacao_de_documento
 from erpnext_brasil.integracao.rastreabilidade import montar_rastro_da_linha
 from erpnext_brasil.setup.custom_fields import CRT_POR_REGIME, INDICADOR_IE_POR_ROTULO
@@ -213,7 +214,7 @@ def _identificacao(doc, endereco_emitente: dict, serie: str, ambiente: str) -> I
 		serie=serie,
 		numero=numero,
 		codigo_numerico=sortear_codigo_numerico(numero),
-		emissao=frappe.utils.get_datetime(doc.get("posting_date")),
+		emissao=agora_da_emissao(),
 		destino=DESTINO_INTERNA if uf_destino == uf_emitente else DESTINO_INTERESTADUAL,
 		modelo=MODELO_NFE,
 		ambiente="1" if ambiente == "producao" else "2",
