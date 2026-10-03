@@ -1,169 +1,224 @@
 # Copyright (c) 2026, ERPNext Brasil contributors
 # License: MIT. See license.txt
 
-"""Mapeia uma Sales Invoice de transporte para a árvore do CT-e.
+"""Mapeia uma `Sales Invoice` de transporte para a árvore do CT-e.
 
-Fecha o item (1) do change `fechar-laco-cte-mdfe`: a camada de integração entre o
-documento real do ERPNext e a montagem pura de `fiscal/cte.py`.
+Fecha o item 2.1 do change `fechar-laco-cte-mdfe`: a camada entre o documento real do ERPNext
+e a montagem pura de `fiscal/cte_montagem.py`.
 
-O que este módulo faz
----------------------
-Lê uma `Sales Invoice` que representa uma prestação de serviço de transporte e monta a
-árvore `TCTe` (sem assinar), reutilizando `fiscal/cte.py` para cada grupo. As peças
-puras de montagem (`montar_ide`, `montar_cte`, `montar_toma3`, `montar_toma4`,
-`montar_vprest`) são chamadas com dados extraídos do Frappe — este módulo é o único
-ponto que toca `frappe.get_cached_doc`.
+O que este módulo faz — e o que não faz
+-----------------------------------------
+Só **lê o cadastro e traduz** para `DadosCte`: `Company` → emitente, `Customer` → remetente,
+destinatário e tomador, campos `br_*` da fatura → prestação, carga e ICMS. Toda a regra do
+leiaute (ordem dos grupos, cálculo do ICMS, o que se recusa) mora em `fiscal/cte_montagem.py`,
+onde `tests/test_cte_montagem.py` a trava sem bench. A divisão existe porque este módulo importa
+`frappe` e a suíte pura não o alcança — a primeira versão tinha a regra aqui dentro, com `cNF`
+fixo, `infCTeNorm` vazio e um `imp` de mentira, e nada podia pegá-los.
 
-O que este módulo **se recusa** a inventar
-------------------------------------------
-- **Natureza da operação, CFOP, município de início/fim, modal, tipo de serviço**:
-  sem eles não há CT-e. Cada ausência levanta `DadosInsuficientes` dizendo qual
-  campo falta e **em qual cadastro**.
-- **Tomador**: se o Customer tem CNPJ/CPF, o tomador é o destinatário (toma3 código 3);
-  se não tem, `DadosInsuficientes` — nunca assumir "Outros" por suposição.
-- **`infDoc`** (referências de NF-e transportadas): ficou de fora da primeira entrega
-  por decisão de design (XSD permite CT-e sem infDoc; a origem das chaves não é
-  rastreável de uma Sales Invoice). Preenchido por iteração futura.
+O que **se recusa** a inventar
+-------------------------------
+Cada ausência levanta `DadosInsuficientes` dizendo qual dado falta e **em qual cadastro**:
+remetente, destinatário, tomador, CST/alíquota do ICMS, carga, RNTRC, CFOP, municípios. O
+tomador não é assumido: quem paga o frete vem de `br_tomador_cte`, e "Outros" usa o cliente da
+fatura com cadastro completo.
 
-Estado de verificação
----------------------
-Camada Frappe — requer bench para rodar. A peça pura (`fiscal/cte.py`) já está
-testada sem bench em `tests/test_cte.py`.
+O número **não é alocado aqui**: chega por parâmetro. Alocá-lo é a tarefa 2.3, e quem chama o faz
+dentro da transação do documento. A data de emissão é o instante da chamada, com o fuso do
+sistema — o XSD recusa `dhEmi` sem deslocamento.
+
+Estado de verificação: camada Frappe, **não** exercitada contra bench real (lacuna de
+`docs/gaps.md`, seção 2). A árvore que ela produz foi validada contra o `cte_v4.00.xsd` oficial
+nos cenários de ICMS 00/20/45/90/SN, só sem a assinatura.
 """
+
+from datetime import datetime
+from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 import frappe
 
-from erpnext_brasil.fiscal.codigos.uf import codigo_da_uf
-from erpnext_brasil.fiscal.cte import (
-	MODAL_RODOVIARIO,
-	TIPO_SERVICO_NORMAL,
-	TOMADOR_DESTINATARIO,
-	IdentificacaoCte,
-	montar_cte,
-	montar_ide,
-	montar_toma3,
+from erpnext_brasil.fiscal.cte import TomadorOutros
+from erpnext_brasil.fiscal.cte_montagem import (
+	CargaCte,
+	DadosCte,
+	EmitenteCte,
+	IcmsCte,
+	ParteCte,
+	QuantidadeCarga,
+	montar_cte_de_dados,
 )
 from erpnext_brasil.integracao.nfe_documento import (
+	DadosInsuficientes,
 	_endereco_vinculado,
+	_exigir,
 	_grupo_endereco,
+	_regime_tributario,
 )
+from erpnext_brasil.setup.campos_documento import (
+	MODAL_CTE_POR_ROTULO,
+	TIPO_SERVICO_CTE_POR_ROTULO,
+	TOMADOR_CTE_POR_ROTULO,
+	UNIDADE_CARGA_POR_ROTULO,
+)
+from erpnext_brasil.setup.custom_fields import INDICADOR_IE_POR_ROTULO
 
 __all__ = ["DadosInsuficientes", "montar_cte_do_documento"]
 
-
-class DadosInsuficientes(ValueError):
-	"""O documento não tem o que o CT-e exige — nunca preenchido por suposição."""
+TOMADOR_OUTROS = "4"
 
 
-def _exigir(valor, campo: str, onde: str) -> str:
-	texto = str(valor or "").strip()
+def _traduzir(rotulo, tabela: dict, campo: str, onde: str) -> str:
+	texto = _exigir(rotulo, campo, onde)
 
-	if not texto:
-		raise DadosInsuficientes(f"{campo} é obrigatório no CT-e e está vazio em {onde}")
+	if texto not in tabela:
+		raise DadosInsuficientes(f"{campo} {texto!r} em {onde} não é um dos valores {sorted(tabela)}")
 
-	return texto
+	return tabela[texto]
 
 
-def _emitente(company: str) -> dict:
-	"""O emitente do CT-e é a transportadora — a Company que emite a fatura de frete."""
+def _decimal(valor, campo: str, onde: str) -> Decimal:
+	return Decimal(str(_exigir(valor, campo, onde)))
+
+
+def _emitente(company: str) -> EmitenteCte:
+	"""O emitente é a transportadora — a `Company` que emite a fatura de frete."""
 	empresa = frappe.get_cached_doc("Company", company)
 	onde = f"Company {company}"
-	endereco = _grupo_endereco(_endereco_vinculado("Company", company), f"endereço da {onde}")
 
-	return {
-		"CNPJ": _exigir(empresa.get("tax_id"), "CNPJ do emitente", onde),
-		"xNome": _exigir(empresa.get("company_name"), "razão social", onde),
-		"IE": _exigir(empresa.get("br_inscricao_estadual"), "inscrição estadual", onde),
-		"enderEmit": endereco,
-	}
-
-
-def _remetente(doc) -> dict:
-	"""O remetente da carga é o Customer da fatura (quem contratou o transporte)."""
-	cliente = _exigir(doc.get("customer"), "cliente", f"{doc.doctype} {doc.name}")
-	parte = frappe.get_cached_doc("Customer", cliente)
-	onde = f"Customer {cliente}"
-	endereco = _grupo_endereco(_endereco_vinculado("Customer", cliente), f"endereço do {onde}")
-
-	documento = "".join(c for c in str(parte.get("tax_id") or "") if c.isalnum())
-
-	return {
-		"CNPJ": _exigir(documento, "CNPJ do remetente", onde),
-		"xNome": _exigir(parte.get("customer_name"), "razão social", onde),
-		"enderReme": endereco,
-	}
-
-
-def _destinatario(doc) -> dict:
-	"""O destinatário da carga — por enquanto, o mesmo Customer (prestação para um único
-	destinatário). Futuras itações podem suportar destinatário diferente do remetente."""
-	return _remetente(doc)
-
-
-def _identificacao(doc, endereco_emitente: dict, serie: str, ambiente: str) -> IdentificacaoCte:
-	"""O grupo `ide`. `cUF` e município de envio saem do emitente."""
-	numero = _exigir(doc.get("br_numero_cte"), "número do CT-e", f"{doc.doctype} {doc.name}")
-
-	uf_emitente = endereco_emitente["UF"]
-
-	return IdentificacaoCte(
-		uf=codigo_da_uf(uf_emitente),
-		cfop=_exigir(doc.get("br_cfop_transporte"), "CFOP do CT-e", f"{doc.doctype} {doc.name}"),
-		natureza_operacao=_exigir(
-			doc.get("br_natureza_operacao"), "natureza da operação", f"{doc.doctype} {doc.name}"
-		),
-		serie=serie,
-		numero=numero,
-		codigo_numerico="00000000",  # será sortado depois, placeholder
-		emissao=frappe.utils.get_datetime(doc.get("posting_date")),
-		modal=doc.get("br_modal_cte") or MODAL_RODOVIARIO,
-		tipo_servico=doc.get("br_tipo_servico_cte") or TIPO_SERVICO_NORMAL,
-		municipio_inicio=_exigir(
-			doc.get("br_municipio_inicio"), "município de início", f"{doc.doctype} {doc.name}"
-		),
-		municipio_inicio_nome=_exigir(
-			doc.get("br_municipio_inicio_nome"), "nome do município de início", f"{doc.doctype} {doc.name}"
-		),
-		uf_inicio=_exigir(doc.get("br_uf_inicio"), "UF de início", f"{doc.doctype} {doc.name}"),
-		municipio_fim=_exigir(doc.get("br_municipio_fim"), "município de fim", f"{doc.doctype} {doc.name}"),
-		municipio_fim_nome=_exigir(
-			doc.get("br_municipio_fim_nome"), "nome do município de fim", f"{doc.doctype} {doc.name}"
-		),
-		uf_fim=_exigir(doc.get("br_uf_fim"), "UF de fim", f"{doc.doctype} {doc.name}"),
-		municipio_envio=endereco_emitente["cMun"],
-		municipio_envio_nome=endereco_emitente["xMun"],
-		uf_envio=uf_emitente,
-		indicador_ie_tomador="1",  # TODO: derivar do Customer
-		ambiente="1" if ambiente == "producao" else "2",
+	return EmitenteCte(
+		cnpj=_exigir(empresa.get("tax_id"), "CNPJ do emitente", onde),
+		nome=_exigir(empresa.get("company_name"), "razão social", onde),
+		inscricao_estadual=_exigir(empresa.get("br_inscricao_estadual"), "inscrição estadual", onde),
+		regime_tributario=_regime_tributario(empresa, company),
+		endereco=_grupo_endereco(_endereco_vinculado("Company", company), f"endereço da {onde}"),
 	)
 
 
-def montar_cte_do_documento(doc, serie: str, ambiente: str) -> dict:
-	"""A árvore `CTe` completa e **ainda não assinada**, a partir de um documento.
+def _cliente(nome: str, papel: str) -> tuple[ParteCte, str]:
+	"""A parte (remetente/destinatário) e o `indIEToma` dela, caso seja o tomador."""
+	parte = frappe.get_cached_doc("Customer", nome)
+	onde = f"Customer {nome} ({papel})"
+	endereco = _grupo_endereco(_endereco_vinculado("Customer", nome), f"endereço do {onde}")
+	indicador = _traduzir(parte.get("br_indicador_ie"), INDICADOR_IE_POR_ROTULO, "indicador de IE", onde)
 
-	`serie` vem de `br_serie_cte` da Company; `ambiente` é `"producao"` ou `"homologacao"`.
+	return (
+		ParteCte(
+			documento=_exigir(parte.get("tax_id"), "CNPJ/CPF", onde),
+			nome=_exigir(parte.get("customer_name"), "razão social", onde),
+			endereco=endereco,
+			inscricao_estadual=str(parte.get("br_inscricao_estadual") or ""),
+		),
+		indicador,
+	)
+
+
+def _tomador(doc, indicador_rem: str, indicador_dest: str):
+	"""Papel, cadastro de `toma4` (só em "Outros") e `indIEToma` do tomador escolhido."""
+	onde = f"{doc.doctype} {doc.name}"
+	papel = _traduzir(doc.get("br_tomador_cte"), TOMADOR_CTE_POR_ROTULO, "tomador do serviço", onde)
+
+	if papel == "0":
+		return papel, None, indicador_rem
+
+	if papel == "3":
+		return papel, None, indicador_dest
+
+	pagador, indicador = _cliente(_exigir(doc.get("customer"), "cliente", onde), "tomador")
+	outros = TomadorOutros(
+		nome=pagador.nome,
+		cnpj_cpf=pagador.documento,
+		inscricao_estadual=pagador.inscricao_estadual,
+		endereco=pagador.endereco,
+	)
+
+	return papel, outros, indicador
+
+
+def _carga(doc) -> CargaCte:
+	onde = f"{doc.doctype} {doc.name}"
+	valor = doc.get("br_valor_carga")
+
+	return CargaCte(
+		produto_predominante=_exigir(doc.get("br_produto_predominante"), "produto predominante", onde),
+		quantidades=(
+			QuantidadeCarga(
+				unidade=_traduzir(
+					doc.get("br_unidade_carga"), UNIDADE_CARGA_POR_ROTULO, "unidade da carga", onde
+				),
+				tipo_medida=_exigir(doc.get("br_tipo_medida_carga"), "tipo da medida da carga", onde),
+				quantidade=_decimal(doc.get("br_quantidade_carga"), "quantidade da carga", onde),
+			),
+		),
+		valor=Decimal(str(valor)) if valor else None,
+	)
+
+
+def _icms(doc) -> IcmsCte:
+	onde = f"{doc.doctype} {doc.name}"
+	cst = _exigir(doc.get("br_cst_icms_cte"), "CST do ICMS do CT-e", onde)
+	sem_imposto = cst in {"40", "41", "51", "SN"}
+
+	return IcmsCte(
+		cst=cst,
+		aliquota=Decimal(0)
+		if sem_imposto
+		else _decimal(doc.get("br_aliquota_icms_cte"), "alíquota do ICMS", onde),
+		reducao_base=Decimal(str(doc.get("br_reducao_base_icms_cte") or 0)),
+	)
+
+
+def _municipio(doc, prefixo: str, rotulo: str) -> tuple[str, str, str]:
+	onde = f"{doc.doctype} {doc.name}"
+
+	return (
+		_exigir(doc.get(f"br_municipio_{prefixo}"), f"município de {rotulo}", onde),
+		_exigir(doc.get(f"br_municipio_{prefixo}_nome"), f"nome do município de {rotulo}", onde),
+		_exigir(doc.get(f"br_uf_{prefixo}"), f"UF de {rotulo}", onde),
+	)
+
+
+def montar_cte_do_documento(
+	doc, numero: str, serie: str, ambiente: str, agora: datetime | None = None
+) -> tuple[dict, str]:
+	"""A árvore `CTe` **não assinada** e a chave de acesso, a partir de uma fatura de transporte.
+
+	`numero` já alocado pelo chamador (tarefa 2.3); `serie` vem de `br_serie_cte` da `Company`;
+	`ambiente` é `"producao"` ou `"homologacao"`.
 	"""
-	emitente, endereco_emitente = _emitente(_exigir(doc.get("company"), "empresa", doc.name))
+	onde = f"{doc.doctype} {doc.name}"
+	remetente, indicador_rem = _cliente(
+		_exigir(doc.get("br_remetente_cte"), "remetente da carga", onde), "remetente"
+	)
+	destinatario, indicador_dest = _cliente(
+		_exigir(doc.get("br_destinatario_cte"), "destinatário da carga", onde), "destinatário"
+	)
+	papel, outros, indicador = _tomador(doc, indicador_rem, indicador_dest)
+	company = _exigir(doc.get("company"), "empresa", onde)
+	empresa = frappe.get_cached_doc("Company", company)
 
-	identificacao = _identificacao(doc, endereco_emitente, serie, ambiente)
+	dados = DadosCte(
+		emitente=_emitente(company),
+		remetente=remetente,
+		destinatario=destinatario,
+		tomador_papel=papel,
+		tomador_outros=outros,
+		indicador_ie_tomador=indicador,
+		cfop=_exigir(doc.get("br_cfop_transporte"), "CFOP do CT-e", onde),
+		natureza_operacao=_exigir(doc.get("br_natureza_transporte"), "natureza da operação", onde),
+		serie=serie,
+		numero=numero,
+		emissao=agora or datetime.now(ZoneInfo(frappe.utils.get_system_timezone())),
+		ambiente="1" if ambiente == "producao" else "2",
+		modal=_traduzir(doc.get("br_modal_cte"), MODAL_CTE_POR_ROTULO, "modal do CT-e", onde),
+		tipo_servico=_traduzir(
+			doc.get("br_tipo_servico_cte"), TIPO_SERVICO_CTE_POR_ROTULO, "tipo de serviço", onde
+		),
+		municipio_inicio=_municipio(doc, "inicio", "início"),
+		municipio_fim=_municipio(doc, "fim", "fim"),
+		valor_prestacao=_decimal(doc.get("grand_total"), "valor total da prestação", onde),
+		icms=_icms(doc),
+		carga=_carga(doc),
+		rntrc=_exigir(empresa.get("br_rntrc"), "RNTRC", f"Company {company}"),
+	)
 
-	tomador = montar_toma3(TOMADOR_DESTINATARIO)
-
-	rem = _remetente(doc)
-	dest = _destinatario(doc)
-
-	v_prest = {
-		"vTPrest": _exigir(doc.get("grand_total"), "valor total da prestação", f"{doc.doctype} {doc.name}"),
-	}
-
-	infcte = {
-		"ide": montar_ide(identificacao, tomador, ""),
-		"emit": emitente,
-		"rem": rem,
-		"dest": dest,
-		"vPrest": v_prest,
-		"imp": {"ICMS": {"ICMSOutraUF": {"CST": "90"}}},  # placeholder — será implementado na task 2.x
-		"infCTeNorm": {},
-	}
-
-	return montar_cte(infcte, "")
+	return montar_cte_de_dados(dados)
