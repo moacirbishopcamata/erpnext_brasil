@@ -108,6 +108,63 @@ class TestCamposLidosEstaoDeclarados(unittest.TestCase):
 		self.assertEqual(repetidos, [])
 
 
+def _constante(modulo: pathlib.Path, nome: str):
+	"""O valor literal de `NOME = "..."` no topo de um módulo, lido por `ast` (sem importá-lo)."""
+	for no in ast.parse(modulo.read_text(encoding="utf-8")).body:
+		if isinstance(no, ast.Assign) and any(getattr(a, "id", "") == nome for a in no.targets):
+			return ast.literal_eval(no.value)
+
+	raise AssertionError(f"{nome} não encontrado em {modulo.name}")
+
+
+class TestNumeracaoDoCte(unittest.TestCase):
+	"""Tarefa 2.3: a série e o campo do número do CT-e, sem quebrar o que a NF-e já usa."""
+
+	def test_o_modelo_57_usa_a_serie_do_cte_cadastrada_na_company(self):
+		self.assertEqual(custom_fields.SERIE_POR_MODELO["57"], "br_serie_cte")
+		self.assertIn("br_serie_cte", _declarados("Company"))
+
+	def test_o_mapeador_aloca_no_modelo_57_e_grava_em_br_numero_cte(self):
+		self.assertEqual(_constante(FONTE, "MODELO_CTE"), "57")
+		self.assertEqual(_constante(FONTE, "CAMPO_NUMERO"), "br_numero_cte")
+		self.assertIn("br_numero_cte", _declarados("Sales Invoice"))
+
+	def test_o_campo_do_numero_e_parametro_e_o_padrao_continua_o_da_nfe(self):
+		"""Generalizar sem alterar a chamada existente: `emissao_nfe` passa três argumentos."""
+		fonte = FONTE.parent / "numeracao_fiscal.py"
+		funcao = next(
+			n
+			for n in ast.parse(fonte.read_text(encoding="utf-8")).body
+			if isinstance(n, ast.FunctionDef) and n.name == "numero_do_documento"
+		)
+
+		self.assertEqual([a.arg for a in funcao.args.args], ["doc", "modelo", "serie", "campo"])
+		self.assertEqual([ast.literal_eval(d) for d in funcao.args.defaults], ["br_numero_nfe"])
+
+	def test_o_mapeador_so_aloca_pela_montagem_que_valida_antes(self):
+		"""Chamar `numero_do_documento` solto, antes da montagem, consumiria número numa recusa."""
+		codigo = ast.parse(FONTE.read_text(encoding="utf-8"))
+		chamadas = [
+			n.func.id for n in ast.walk(codigo) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+		]
+
+		self.assertIn("montar_cte_alocando_numero", chamadas)
+		self.assertNotIn("montar_cte_de_dados", chamadas)
+		# `numero_do_documento` aparece como argumento da montagem (lambda), nunca como chamada direta
+		# no corpo da função de montagem.
+		diretas = [
+			n
+			for f in codigo.body
+			if isinstance(f, ast.FunctionDef) and f.name == "montar_cte_do_documento"
+			for n in f.body
+			if isinstance(n, ast.Expr | ast.Assign)
+			and isinstance(getattr(n, "value", None), ast.Call)
+			and getattr(n.value.func, "id", "") == "numero_do_documento"
+		]
+
+		self.assertEqual(diretas, [])
+
+
 class TestTraducaoDosRotulos(unittest.TestCase):
 	def _confere(self, select: str, tabela: dict):
 		self.assertEqual(sorted(_opcoes(select) ^ set(tabela)), [], "opções do Select e tabela divergem")

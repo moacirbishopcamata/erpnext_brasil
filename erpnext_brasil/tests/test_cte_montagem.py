@@ -25,6 +25,7 @@ from erpnext_brasil.fiscal.cte_montagem import (
 	IcmsCte,
 	ParteCte,
 	QuantidadeCarga,
+	montar_cte_alocando_numero,
 	montar_cte_de_dados,
 )
 from erpnext_brasil.fiscal.documento.chave_acesso import ler_chave
@@ -76,7 +77,6 @@ def _dados(**mudancas) -> DadosCte:
 		cfop="5353",
 		natureza_operacao="Prestação de serviço de transporte",
 		serie="1",
-		numero="42",
 		emissao=datetime(2026, 10, 3, 9, 30, 0, tzinfo=timezone(timedelta(hours=-4))),
 		ambiente="2",
 		modal="01",
@@ -95,8 +95,8 @@ def _sorteio_fixo(_numero):
 	return "12345678"
 
 
-def _montar(**mudancas):
-	return montar_cte_de_dados(_dados(**mudancas), sortear=_sorteio_fixo)
+def _montar(numero="42", **mudancas):
+	return montar_cte_de_dados(_dados(**mudancas), numero, sortear=_sorteio_fixo)
 
 
 def _info(**mudancas) -> dict:
@@ -130,7 +130,7 @@ class TestMontagemValida(unittest.TestCase):
 		self.assertNotEqual(ide["cCT"], "00000000")
 
 	def test_o_codigo_numerico_do_sorteio_real_nao_repete_o_numero(self):
-		arvore, _ = montar_cte_de_dados(_dados(numero="87654321"))
+		arvore, _ = montar_cte_de_dados(_dados(), "87654321")
 		ide = arvore["CTe"]["infCte"]["ide"]
 
 		self.assertNotEqual(ide["cCT"].lstrip("0"), ide["nCT"].lstrip("0"))
@@ -326,7 +326,7 @@ class TestRecusas(unittest.TestCase):
 	def test_a_recusa_nao_produz_arvore_parcial(self):
 		"""Falha antes de devolver qualquer coisa — não há CT-e pela metade para transmitir."""
 		with self.assertRaises(CteInvalido):
-			montar_cte_de_dados(_dados(remetente=None), sortear=_sorteio_fixo)
+			montar_cte_de_dados(_dados(remetente=None), "42", sortear=_sorteio_fixo)
 
 
 class TestEmissaoSemFuso(unittest.TestCase):
@@ -335,6 +335,61 @@ class TestEmissaoSemFuso(unittest.TestCase):
 			_montar(emissao=datetime(2026, 10, 3, 9, 30, 0))
 
 		self.assertEqual(erro.exception.campo, "emissao")
+
+
+class TestAlocacaoDoNumero(unittest.TestCase):
+	"""Tarefa 2.3: o número só é consumido depois de tudo validado.
+
+	A numeração fiscal é sequencial e a lacuna só se justifica por inutilização — um número
+	gasto com um CT-e que nem chegou a ser montado é número perdido. Por isso a alocação vem
+	**depois** da validação, e é injetada: a pura não sabe de banco.
+	"""
+
+	def _alocador(self, numero="43"):
+		chamadas = []
+
+		def alocar():
+			chamadas.append(1)
+			return numero
+
+		return alocar, chamadas
+
+	def test_a_montagem_valida_aloca_uma_vez_e_o_numero_entra_na_chave(self):
+		alocar, chamadas = self._alocador("43")
+		arvore, chave = montar_cte_alocando_numero(_dados(), alocar, sortear=_sorteio_fixo)
+
+		self.assertEqual(len(chamadas), 1)
+		self.assertEqual(int(ler_chave(chave).numero), 43)
+		self.assertEqual(arvore["CTe"]["infCte"]["ide"]["nCT"], "43")
+
+	def test_dado_faltando_recusa_sem_consumir_numero(self):
+		alocar, chamadas = self._alocador()
+
+		with self.assertRaises(CteInvalido):
+			montar_cte_alocando_numero(_dados(remetente=None), alocar, sortear=_sorteio_fixo)
+
+		self.assertEqual(chamadas, [], "a recusa consumiu um número da série")
+
+	def test_icms_nao_suportado_recusa_sem_consumir_numero(self):
+		alocar, chamadas = self._alocador()
+
+		with self.assertRaises(CteInvalido):
+			montar_cte_alocando_numero(_dados(icms=IcmsCte(cst="60")), alocar, sortear=_sorteio_fixo)
+
+		self.assertEqual(chamadas, [])
+
+	def test_falha_da_alocacao_propaga_e_nao_devolve_arvore(self):
+		def sem_numero_livre():
+			raise RuntimeError("série esgotada")
+
+		with self.assertRaises(RuntimeError):
+			montar_cte_alocando_numero(_dados(), sem_numero_livre, sortear=_sorteio_fixo)
+
+	def test_o_numero_alocado_invalido_e_recusado(self):
+		alocar, _ = self._alocador("abc")
+
+		with self.assertRaises(Exception):  # noqa: B017 - qualquer recusa serve; o que importa é não montar
+			montar_cte_alocando_numero(_dados(), alocar, sortear=_sorteio_fixo)
 
 
 class TestIdentificacaoReaproveitada(unittest.TestCase):

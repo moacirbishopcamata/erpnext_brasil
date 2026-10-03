@@ -65,6 +65,7 @@ from erpnext_brasil.fiscal.cte import (
 from erpnext_brasil.fiscal.cte_rodoviario import RntrcInvalido, montar_rodo
 from erpnext_brasil.fiscal.documento.chave_acesso import montar_chave
 from erpnext_brasil.fiscal.documento.nfe import sortear_codigo_numerico
+from erpnext_brasil.fiscal.documento.numeracao import NumeracaoInvalida, validar_numero
 from erpnext_brasil.fiscal.natureza_operacao import NaturezaInvalida, validar_natureza
 from erpnext_brasil.fiscal.validators import validar_cpf_cnpj
 
@@ -75,6 +76,7 @@ __all__ = [
 	"IcmsCte",
 	"ParteCte",
 	"QuantidadeCarga",
+	"montar_cte_alocando_numero",
 	"montar_cte_de_dados",
 ]
 
@@ -156,7 +158,6 @@ class DadosCte:
 	cfop: str
 	natureza_operacao: str
 	serie: str
-	numero: str
 	emissao: datetime
 	ambiente: str
 	"""`1` produção, `2` homologação — o código do leiaute, não o nome."""
@@ -365,7 +366,7 @@ def _info_carga(carga: CargaCte) -> dict:
 	return grupo
 
 
-def _identificacao(dados: DadosCte, codigo_numerico: str) -> IdentificacaoCte:
+def _identificacao(dados: DadosCte, numero: str, codigo_numerico: str) -> IdentificacaoCte:
 	endereco = dados.emitente.endereco
 
 	try:
@@ -383,7 +384,7 @@ def _identificacao(dados: DadosCte, codigo_numerico: str) -> IdentificacaoCte:
 		cfop=dados.cfop,
 		natureza_operacao=natureza,
 		serie=dados.serie,
-		numero=dados.numero,
+		numero=numero,
 		codigo_numerico=codigo_numerico,
 		emissao=dados.emissao,
 		modal=dados.modal,
@@ -403,15 +404,20 @@ def _identificacao(dados: DadosCte, codigo_numerico: str) -> IdentificacaoCte:
 
 
 def montar_cte_de_dados(
-	dados: DadosCte, sortear: Callable[[str], str] = sortear_codigo_numerico
+	dados: DadosCte, numero: str, sortear: Callable[[str], str] = sortear_codigo_numerico
 ) -> tuple[dict, str]:
 	"""A árvore `CTe` **não assinada** e a chave de acesso de 44 posições.
 
-	O número vem em `dados.numero` — alocá-lo é da camada que conhece o banco (tarefa 2.3), e esta
-	função não consome nada: recusa antes de devolver qualquer árvore, então uma recusa nunca
-	deixa um CT-e pela metade. A chave é montada aqui, com o `cCT` sorteado, porque `ide/cDV` e o
+	O `numero` chega pronto — alocá-lo é da camada que conhece o banco, e esta função não consome
+	nada: recusa antes de devolver qualquer árvore, então uma recusa nunca deixa um CT-e pela
+	metade. Para alocar **depois** de validar, use `montar_cte_alocando_numero`. A chave é montada aqui, com o `cCT` sorteado, porque `ide/cDV` e o
 	`Id` dependem dela e não podem ser informados em paralelo.
 	"""
+	try:
+		numero = validar_numero(numero)
+	except NumeracaoInvalida as e:
+		raise CteInvalido(str(e), "numero") from e
+
 	if dados.emissao.tzinfo is None:
 		raise CteInvalido(
 			"a data de emissão (dhEmi) precisa trazer o fuso horário — o XSD recusa a data sem deslocamento",
@@ -436,8 +442,8 @@ def montar_cte_de_dados(
 	except RntrcInvalido as e:
 		raise CteInvalido(str(e), "rntrc") from e
 
-	codigo = sortear(str(dados.numero))
-	identificacao = _identificacao(dados, codigo)
+	codigo = sortear(numero)
+	identificacao = _identificacao(dados, numero, codigo)
 
 	chave = montar_chave(
 		uf=identificacao.uf,
@@ -445,7 +451,7 @@ def montar_cte_de_dados(
 		cnpj=emit["CNPJ"],
 		modelo="57",
 		serie=str(dados.serie),
-		numero=str(dados.numero),
+		numero=numero,
 		tipo_emissao=identificacao.tipo_emissao,
 		codigo_numerico=codigo,
 	)
@@ -464,3 +470,24 @@ def montar_cte_de_dados(
 	}
 
 	return montar_cte(infcte, chave), chave
+
+
+NUMERO_DE_PROVA = "1"
+"""Número descartável da montagem de prova — só prova que os dados valem, nunca vai a documento."""
+
+
+def montar_cte_alocando_numero(
+	dados: DadosCte, alocar: Callable[[], str], sortear: Callable[[str], str] = sortear_codigo_numerico
+) -> tuple[dict, str]:
+	"""Como `montar_cte_de_dados`, mas o número só é consumido **depois** de tudo validar.
+
+	A numeração fiscal é sequencial, e lacuna só se justifica por inutilização de faixa. Um número
+	gasto com um CT-e que nem chegou a ser montado é um número perdido — e quem aloca (`alocar`,
+	do banco) trava a linha da série até o fim da transação. Por isso há duas montagens: a
+	primeira, com `NUMERO_DE_PROVA`, existe só para recusar antes de tocar na série; a segunda usa
+	o número de verdade. Se `alocar` falhar (sem série, sem número livre), a exceção sobe daqui e
+	nenhuma árvore é devolvida — falha alto antes de qualquer transmissão.
+	"""
+	montar_cte_de_dados(dados, NUMERO_DE_PROVA, sortear)
+
+	return montar_cte_de_dados(dados, alocar(), sortear)

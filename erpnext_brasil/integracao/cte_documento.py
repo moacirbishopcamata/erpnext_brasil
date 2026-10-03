@@ -22,8 +22,9 @@ remetente, destinatário, tomador, CST/alíquota do ICMS, carga, RNTRC, CFOP, mu
 tomador não é assumido: quem paga o frete vem de `br_tomador_cte`, e "Outros" usa o cliente da
 fatura com cadastro completo.
 
-O número **não é alocado aqui**: chega por parâmetro. Alocá-lo é a tarefa 2.3, e quem chama o faz
-dentro da transação do documento. A data de emissão é o instante da chamada, com o fuso do
+O número é alocado **aqui, mas só depois** de a montagem de prova validar tudo
+(`montar_cte_alocando_numero`): a série vem de `br_serie_cte` e `numero_do_documento` reaproveita
+o número de uma reemissão. A data de emissão é o instante da chamada, com o fuso do
 sistema — o XSD recusa `dhEmi` sem deslocamento.
 
 Estado de verificação: camada Frappe, **não** exercitada contra bench real (lacuna de
@@ -45,8 +46,9 @@ from erpnext_brasil.fiscal.cte_montagem import (
 	IcmsCte,
 	ParteCte,
 	QuantidadeCarga,
-	montar_cte_de_dados,
+	montar_cte_alocando_numero,
 )
+from erpnext_brasil.integracao.configuracao_fiscal import serie_padrao
 from erpnext_brasil.integracao.nfe_documento import (
 	DadosInsuficientes,
 	_endereco_vinculado,
@@ -54,6 +56,7 @@ from erpnext_brasil.integracao.nfe_documento import (
 	_grupo_endereco,
 	_regime_tributario,
 )
+from erpnext_brasil.integracao.numeracao_fiscal import numero_do_documento
 from erpnext_brasil.setup.campos_documento import (
 	MODAL_CTE_POR_ROTULO,
 	TIPO_SERVICO_CTE_POR_ROTULO,
@@ -64,7 +67,8 @@ from erpnext_brasil.setup.custom_fields import INDICADOR_IE_POR_ROTULO
 
 __all__ = ["DadosInsuficientes", "montar_cte_do_documento"]
 
-TOMADOR_OUTROS = "4"
+MODELO_CTE = "57"
+CAMPO_NUMERO = "br_numero_cte"
 
 
 def _traduzir(rotulo, tabela: dict, campo: str, onde: str) -> str:
@@ -177,13 +181,13 @@ def _municipio(doc, prefixo: str, rotulo: str) -> tuple[str, str, str]:
 	)
 
 
-def montar_cte_do_documento(
-	doc, numero: str, serie: str, ambiente: str, agora: datetime | None = None
-) -> tuple[dict, str]:
+def montar_cte_do_documento(doc, ambiente: str, agora: datetime | None = None) -> tuple[dict, str]:
 	"""A árvore `CTe` **não assinada** e a chave de acesso, a partir de uma fatura de transporte.
 
-	`numero` já alocado pelo chamador (tarefa 2.3); `serie` vem de `br_serie_cte` da `Company`;
-	`ambiente` é `"producao"` ou `"homologacao"`.
+	A série vem de `br_serie_cte` da `Company` e o número é alocado aqui, **depois** de todo o
+	cadastro validar — uma recusa por dado faltante nunca consome número da série. Reemitir uma
+	fatura que já tem `br_numero_cte` reaproveita o número. `ambiente` é `"producao"` ou
+	`"homologacao"`. Chamar dentro da transação do documento (a alocação não faz `commit`).
 	"""
 	onde = f"{doc.doctype} {doc.name}"
 	remetente, indicador_rem = _cliente(
@@ -195,6 +199,7 @@ def montar_cte_do_documento(
 	papel, outros, indicador = _tomador(doc, indicador_rem, indicador_dest)
 	company = _exigir(doc.get("company"), "empresa", onde)
 	empresa = frappe.get_cached_doc("Company", company)
+	serie = _exigir(serie_padrao(company, MODELO_CTE), "série do CT-e (br_serie_cte)", f"Company {company}")
 
 	dados = DadosCte(
 		emitente=_emitente(company),
@@ -206,7 +211,6 @@ def montar_cte_do_documento(
 		cfop=_exigir(doc.get("br_cfop_transporte"), "CFOP do CT-e", onde),
 		natureza_operacao=_exigir(doc.get("br_natureza_transporte"), "natureza da operação", onde),
 		serie=serie,
-		numero=numero,
 		emissao=agora or datetime.now(ZoneInfo(frappe.utils.get_system_timezone())),
 		ambiente="1" if ambiente == "producao" else "2",
 		modal=_traduzir(doc.get("br_modal_cte"), MODAL_CTE_POR_ROTULO, "modal do CT-e", onde),
@@ -221,4 +225,6 @@ def montar_cte_do_documento(
 		rntrc=_exigir(empresa.get("br_rntrc"), "RNTRC", f"Company {company}"),
 	)
 
-	return montar_cte_de_dados(dados)
+	return montar_cte_alocando_numero(
+		dados, lambda: numero_do_documento(doc, MODELO_CTE, serie, CAMPO_NUMERO)
+	)

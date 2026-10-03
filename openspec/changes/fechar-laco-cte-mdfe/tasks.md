@@ -36,19 +36,24 @@
       Essa validação achou dois defeitos que os testes estruturais não pegavam: `infCte/@versao`
       ausente em `montar_cte` e `dhEmi` sem fuso. Ficam fora, declarados: `infDoc`, `Comp`,
       `ICMSUFFim`, modais não rodoviários. Camada Frappe ainda **não** exercitada em bench (6.2).
-- [ ] 2.2 Escrever `tests/test_cte_documento.py` cobrando a montagem válida, a recusa quando
+- [x] 2.2 Escrever `tests/test_cte_documento.py` cobrando a montagem válida, a recusa quando
       falta dado obrigatório do leiaute e o número alocado entrando na chave — verificar que uma
       recusa por campo faltante nomeia o dado, e que a montagem nunca consome o número quando
       recusa
 
-      **Parcial (2026-10-03).** Coberto: montagem válida, recusa nomeando o dado (43 testes em
-      `tests/test_cte_montagem.py`) e a costura cadastro↔campos em `tests/test_cte_documento.py`.
-      **Falta** só o critério "nunca consome o número quando recusa": a montagem pura recebe o
-      número pronto e não aloca nada, então a ordem *validar antes de alocar* só pode ser provada
-      quando a 2.3 ligar a alocação. Fechar a 2.2 junto com a 2.3.
-- [ ] 2.3 Reusar `numero_do_documento(doc, 57, serie)` na numeração do CT-e e confirmar que a
+      **Concluída (2026-10-03).** 48 testes em `tests/test_cte_montagem.py` (montagem válida,
+      recusa nomeando o dado) e a costura em `tests/test_cte_documento.py`. O critério "nunca
+      consome o número quando recusa" ficou provado com a alocação injetada: dado faltando e CST
+      não suportado recusam com **zero** chamadas ao alocador.
+- [x] 2.3 Reusar `numero_do_documento(doc, 57, serie)` na numeração do CT-e e confirmar que a
       série `br_serie_cte` alimenta a chamada — verificar que uma emissão sem número livre falha
       alto antes de transmitir
+
+      **Concluída (2026-10-03).** `numero_do_documento` ganhou o parâmetro `campo` (padrão
+      `br_numero_nfe`, então `emissao_nfe` segue intacta); o mapeador passa `br_numero_cte`, o
+      modelo `57` e a série de `serie_padrao` (`br_serie_cte`, recusada se vazia). A alocação vem
+      **depois** da montagem de prova (`montar_cte_alocando_numero`), e uma falha dela sobe antes de
+      qualquer árvore. Lado Frappe (`alocar_numero` real, trava de linha) ainda sem bench: 6.2.
 - [ ] 2.4 Acrescentar os códigos de recusa de campo obrigatório do CT-e em
       `fiscal/codigos_de_erro.py` — verificar que o domínio conhece a recusa com número estável
 - [ ] 2.5 Registrar `Sales Invoice` no laço único de `setup/campos_documento.py` com
