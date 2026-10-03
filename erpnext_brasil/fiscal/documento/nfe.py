@@ -175,6 +175,15 @@ class Identificacao:
 
 	def validar(self) -> None:
 		"""Pré-condições do grupo `ide`, incluindo a regra da rejeição 897."""
+		if self.emissao.tzinfo is None:
+			# `dhEmi` é `TDateTimeUTC` no XSD: o deslocamento (`-03:00`) faz parte do valor, e uma
+			# data ingênua serializa sem ele. A integração entregava `get_datetime(posting_date)`
+			# e só um teste que olhava a presença de um "T" a deixava passar.
+			raise NFeInvalida(
+				"A data de emissão (dhEmi) precisa trazer o fuso horário — o XSD recusa a data sem deslocamento",
+				"emissao",
+			)
+
 		numero = limpar(self.numero).lstrip("0") or "0"
 		codigo = limpar(self.codigo_numerico).lstrip("0") or "0"
 

@@ -34,7 +34,6 @@ nos cenários de ICMS 00/20/45/90/SN, só sem a assinatura.
 
 from datetime import datetime
 from decimal import Decimal
-from zoneinfo import ZoneInfo
 
 import frappe
 
@@ -48,7 +47,7 @@ from erpnext_brasil.fiscal.cte_montagem import (
 	QuantidadeCarga,
 	montar_cte_alocando_numero,
 )
-from erpnext_brasil.integracao.configuracao_fiscal import serie_padrao
+from erpnext_brasil.integracao.configuracao_fiscal import agora_da_emissao, serie_padrao
 from erpnext_brasil.integracao.nfe_documento import (
 	DadosInsuficientes,
 	_endereco_vinculado,
@@ -211,7 +210,7 @@ def montar_cte_do_documento(doc, ambiente: str, agora: datetime | None = None) -
 		cfop=_exigir(doc.get("br_cfop_transporte"), "CFOP do CT-e", onde),
 		natureza_operacao=_exigir(doc.get("br_natureza_transporte"), "natureza da operação", onde),
 		serie=serie,
-		emissao=agora or datetime.now(ZoneInfo(frappe.utils.get_system_timezone())),
+		emissao=agora or agora_da_emissao(),
 		ambiente="1" if ambiente == "producao" else "2",
 		modal=_traduzir(doc.get("br_modal_cte"), MODAL_CTE_POR_ROTULO, "modal do CT-e", onde),
 		tipo_servico=_traduzir(
