@@ -295,6 +295,111 @@ def get_custom_fields() -> dict[str, list[dict]]:
 				"insert_after": "br_chave_acesso",
 				"no_copy": 1,
 			},
+			{
+				"fieldname": "br_secao_transporte",
+				"label": "Transporte (CT-e)",
+				"fieldtype": "Section Break",
+				"insert_after": "br_protocolo_autorizacao",
+				"collapsible": 1,
+			},
+			{
+				"fieldname": "br_natureza_transporte",
+				"label": "Natureza de operação de transporte",
+				"fieldtype": "Data",
+				"insert_after": "br_secao_transporte",
+				"description": (
+					"Marcado como fatura de transporte na emissão do CT-e. "
+					"Preenchido manualmente — decide se o botão Emitir CT-e aparece."
+				),
+			},
+			{
+				"fieldname": "br_cfop_transporte",
+				"label": "CFOP do CT-e",
+				"fieldtype": "Data",
+				"insert_after": "br_natureza_transporte",
+				"description": "CFOP de 4 dígitos para o CT-e (ex.: 5352, 6352).",
+			},
+			{
+				"fieldname": "br_coluna_transporte",
+				"fieldtype": "Column Break",
+				"insert_after": "br_cfop_transporte",
+			},
+			{
+				"fieldname": "br_modal_cte",
+				"label": "Modal do CT-e",
+				"fieldtype": "Select",
+				"options": "\nRodoviário\nAéreo\nAquaviário\nFerroviário\nDutoviário\nMultimodal",
+				"default": "Rodoviário",
+				"insert_after": "br_coluna_transporte",
+			},
+			{
+				"fieldname": "br_tipo_servico_cte",
+				"label": "Tipo de serviço",
+				"fieldtype": "Select",
+				"options": "\nNormal\nSubcontratação\nRedespacho\nRedespacho intermediário\nServiço vinculado a multimodal",
+				"default": "Normal",
+				"insert_after": "br_modal_cte",
+			},
+			{
+				"fieldname": "br_secao_municipios",
+				"label": "Municípios de início/fim",
+				"fieldtype": "Section Break",
+				"insert_after": "br_tipo_servico_cte",
+				"collapsible": 1,
+			},
+			{
+				"fieldname": "br_municipio_inicio",
+				"label": "Código IBGE município de início",
+				"fieldtype": "Data",
+				"insert_after": "br_secao_municipios",
+				"description": "7 dígitos. Código IBGE do município de início da prestação.",
+			},
+			{
+				"fieldname": "br_municipio_inicio_nome",
+				"label": "Nome município de início",
+				"fieldtype": "Data",
+				"insert_after": "br_municipio_inicio",
+			},
+			{
+				"fieldname": "br_uf_inicio",
+				"label": "UF início",
+				"fieldtype": "Data",
+				"insert_after": "br_municipio_inicio_nome",
+				"description": "Sigla da UF (ex.: SP, RJ).",
+			},
+			{
+				"fieldname": "br_coluna_municipios",
+				"fieldtype": "Column Break",
+				"insert_after": "br_uf_inicio",
+			},
+			{
+				"fieldname": "br_municipio_fim",
+				"label": "Código IBGE município de fim",
+				"fieldtype": "Data",
+				"insert_after": "br_coluna_municipios",
+				"description": "7 dígitos. Código IBGE do município de fim da prestação.",
+			},
+			{
+				"fieldname": "br_municipio_fim_nome",
+				"label": "Nome município de fim",
+				"fieldtype": "Data",
+				"insert_after": "br_municipio_fim",
+			},
+			{
+				"fieldname": "br_uf_fim",
+				"label": "UF fim",
+				"fieldtype": "Data",
+				"insert_after": "br_municipio_fim_nome",
+				"description": "Sigla da UF (ex.: SP, RJ).",
+			},
+			{
+				"fieldname": "br_numero_cte",
+				"label": "Número do CT-e",
+				"fieldtype": "Data",
+				"read_only": 1,
+				"insert_after": "br_uf_fim",
+				"description": "Preenchido na emissão. Controle de numeração sequencial por série.",
+			},
 		]
 
 	for doctype in TABELAS_DE_IMPOSTO:

@@ -21,7 +21,7 @@
 
 ## 2. Costura pura do CT-e
 
-- [ ] 2.1 Criar `integracao/cte_documento.py` (mapeador `Sales Invoice` → `TCTe`, com `emit`/
+- [x] 2.1 Criar `integracao/cte_documento.py` (mapeador `Sales Invoice` → `TCTe`, com `emit`/
       `tomador`/`vPrest` da fatura, remetente/destinatário do cadastro) — verificar com
       `test_arquitetura.py` que a peça pura de montagem não importa `frappe`
 - [ ] 2.2 Escrever `tests/test_cte_documento.py` cobrando a montagem válida, a recusa quando

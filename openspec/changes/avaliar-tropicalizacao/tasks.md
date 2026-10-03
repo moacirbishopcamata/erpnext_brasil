@@ -23,4 +23,4 @@
 
 - [x] 4.1 Conferir que `docs/avaliacao-tropicalizacao.md` tem data de atualização e referência a `gaps.md` como fonte canônica
 - [x] 4.2 Rodar a suíte pura (2847 testes OK) e de arquitetura (5 testes OK) para garantir que nenhuma alteração documental quebrou nada
-- [ ] 4.3 Commitar o change `avaliar-tropicalizacao` com mensagem `docs(openspec): avaliação consolidada da tropicalização do ERPNext`
+- [x] 4.3 Commitar o change `avaliar-tropicalizacao` com mensagem `docs(openspec): avaliação consolidada da tropicalização do ERPNext`
