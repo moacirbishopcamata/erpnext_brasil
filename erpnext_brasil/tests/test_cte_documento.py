@@ -155,7 +155,7 @@ class TestNumeracaoDoCte(unittest.TestCase):
 		diretas = [
 			n
 			for f in codigo.body
-			if isinstance(f, ast.FunctionDef) and f.name == "montar_cte_do_documento"
+			if isinstance(f, ast.FunctionDef) and f.name in {"_montar", "montar_cte_do_documento"}
 			for n in f.body
 			if isinstance(n, ast.Expr | ast.Assign)
 			and isinstance(getattr(n, "value", None), ast.Call)
@@ -163,6 +163,52 @@ class TestNumeracaoDoCte(unittest.TestCase):
 		]
 
 		self.assertEqual(diretas, [])
+
+
+class TestRecusaComCodigoNaFronteira(unittest.TestCase):
+	"""Tarefa 2.4: quem chama `montar_cte_do_documento` trata **um** tipo, com número estável.
+
+	O mapeador reaproveita `_exigir` da NF-e, que levanta `DadosInsuficientes` (sem código). Na
+	fronteira ele vira `CteInvalido` com o código de "dado ausente", para o botão da tela (3.5)
+	chamar `frappe.throw(erro.mensagem_com_codigo)` sem conhecer as duas classes.
+	"""
+
+	def _funcao(self, nome: str) -> ast.FunctionDef:
+		return next(
+			n
+			for n in ast.parse(FONTE.read_text(encoding="utf-8")).body
+			if isinstance(n, ast.FunctionDef) and n.name == nome
+		)
+
+	def test_dados_insuficientes_vira_cte_invalido_com_o_codigo_de_ausente(self):
+		tratadores = [
+			n for n in ast.walk(self._funcao("montar_cte_do_documento")) if isinstance(n, ast.ExceptHandler)
+		]
+		capturados = [ast.unparse(t.type) for t in tratadores if t.type is not None]
+
+		self.assertIn("DadosInsuficientes", capturados)
+
+		levantado = ast.dump(next(t for t in tratadores if ast.unparse(t.type) == "DadosInsuficientes"))
+
+		self.assertIn("CteInvalido", levantado)
+		self.assertIn("DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE", levantado)
+
+	def test_rotulo_desconhecido_e_dado_invalido_e_nao_ausente(self):
+		"""Um Select com valor fora da tabela não é "falta preencher" — é "corrigir"."""
+		corpo = ast.dump(self._funcao("_traduzir"))
+
+		self.assertIn("CteInvalido", corpo)
+		self.assertIn("DOCUMENTO_CTE_DADO_INVALIDO", corpo)
+
+	def test_a_fronteira_nao_engole_a_recusa_da_montagem(self):
+		"""Só `DadosInsuficientes` é capturada; `CteInvalido` da montagem pura sobe como está."""
+		tratadores = [
+			ast.unparse(n.type)
+			for n in ast.walk(self._funcao("montar_cte_do_documento"))
+			if isinstance(n, ast.ExceptHandler) and n.type is not None
+		]
+
+		self.assertEqual(tratadores, ["DadosInsuficientes"])
 
 
 class TestTraducaoDosRotulos(unittest.TestCase):

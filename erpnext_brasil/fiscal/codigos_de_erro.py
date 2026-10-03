@@ -47,6 +47,10 @@ __all__ = [
 	"DOCUMENTO_APURACAO_IMPOSSIVEL",
 	"DOCUMENTO_CHAVE_DE_ACESSO_INVALIDA",
 	"DOCUMENTO_CLASSIFICACAO_INCOMPATIVEL",
+	"DOCUMENTO_CONSOLIDADO_NAO_EMITE",
+	"DOCUMENTO_CONTINGENCIA_INDISPONIVEL_PARA_PESSOA_FISICA",
+	"DOCUMENTO_CTE_DADO_INVALIDO",
+	"DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE",
 	"ESTOQUE_PERDA_EM_FINALIDADE_INCOMPATIVEL",
 	"ESTOQUE_PERDA_SEM_VALOR",
 	"ESTOQUE_SOBRA_CLASSIFICADA_COMO_PERDA",
@@ -111,6 +115,19 @@ não está implementado. Recusar a venda é o único dano reversível: o cupom e
 documento que a SEFAZ nunca aceitará não é.
 """
 
+DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE = 1206
+"""O CT-e exige um dado que o cadastro não tem — remetente, destinatário, carga, IE do emitente.
+
+Dois códigos bastam para a máquina decidir o que fazer: este manda **preencher** um cadastro; o
+`1207` manda **corrigir** o que já está preenchido. *Qual* dado é, vai na mensagem e em
+`CteInvalido.campo` — um código por campo seriam dezenas de números para a mesma ação.
+"""
+
+DOCUMENTO_CTE_DADO_INVALIDO = 1207
+"""O CT-e tem o dado, mas o leiaute ou a regra o recusa: CST de ICMS não suportado, CNPJ com
+dígito errado, unidade de carga fora do domínio, data de emissão sem fuso, RNTRC malformado.
+"""
+
 # --------------------------------------------------------------------------------- estoque
 ESTOQUE_PERDA_EM_FINALIDADE_INCOMPATIVEL = 1001
 """Tipo de perda num `Stock Entry` cuja finalidade não é baixa."""
@@ -140,6 +157,8 @@ TODOS = {
 	DOCUMENTO_APURACAO_IMPOSSIVEL,
 	DOCUMENTO_CONSOLIDADO_NAO_EMITE,
 	DOCUMENTO_CONTINGENCIA_INDISPONIVEL_PARA_PESSOA_FISICA,
+	DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE,
+	DOCUMENTO_CTE_DADO_INVALIDO,
 	ESTOQUE_PERDA_EM_FINALIDADE_INCOMPATIVEL,
 	ESTOQUE_SOBRA_CLASSIFICADA_COMO_PERDA,
 	ESTOQUE_PERDA_SEM_VALOR,

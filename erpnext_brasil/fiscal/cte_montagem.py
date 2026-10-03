@@ -49,6 +49,10 @@ from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from erpnext_brasil.fiscal.codigos.uf import UfDesconhecida, codigo_da_uf
+from erpnext_brasil.fiscal.codigos_de_erro import (
+	DOCUMENTO_CTE_DADO_INVALIDO,
+	DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE,
+)
 from erpnext_brasil.fiscal.cte import (
 	MODAL_RODOVIARIO,
 	TOMADOR_DESTINATARIO,
@@ -188,11 +192,20 @@ def _decimal(valor, campo: str) -> Decimal:
 	return numero
 
 
+def _ausente_se_vazio(valor) -> int:
+	"""`1206` quando o dado não foi informado, `1207` quando foi e o leiaute o recusa."""
+	return DOCUMENTO_CTE_DADO_INVALIDO if str(valor or "").strip() else DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE
+
+
 def _texto(valor, campo: str, rotulo: str, minimo: int = 1, maximo: int = 60) -> str:
 	texto = str(valor or "").strip()
 
 	if not minimo <= len(texto) <= maximo:
-		raise CteInvalido(f"{rotulo} deve ter de {minimo} a {maximo} caracteres, recebido {texto!r}", campo)
+		raise CteInvalido(
+			f"{rotulo} deve ter de {minimo} a {maximo} caracteres, recebido {texto!r}",
+			campo,
+			_ausente_se_vazio(texto),
+		)
 
 	return texto
 
@@ -201,7 +214,9 @@ def _endereco(endereco: dict, campo: str, rotulo: str) -> dict:
 	faltando = [c for c in _CAMPOS_DO_ENDERECO if not str((endereco or {}).get(c) or "").strip()]
 
 	if faltando:
-		raise CteInvalido(f"endereço de {rotulo} sem {', '.join(faltando)}", campo)
+		raise CteInvalido(
+			f"endereço de {rotulo} sem {', '.join(faltando)}", campo, DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE
+		)
 
 	return {c: str(endereco[c]).strip() for c in _CAMPOS_DO_ENDERECO}
 
@@ -210,7 +225,7 @@ def _documento(valor: str, campo: str, rotulo: str) -> str:
 	try:
 		return validar_cpf_cnpj(valor)
 	except ValueError as e:
-		raise CteInvalido(f"CPF/CNPJ de {rotulo} inválido: {e}", campo) from e
+		raise CteInvalido(f"CPF/CNPJ de {rotulo} inválido: {e}", campo, _ausente_se_vazio(valor)) from e
 
 
 def _emit(emitente: EmitenteCte) -> dict:
@@ -220,12 +235,17 @@ def _emit(emitente: EmitenteCte) -> dict:
 		raise CteInvalido("o emitente do CT-e é a transportadora e precisa de CNPJ", "emitente")
 
 	if not str(emitente.inscricao_estadual or "").strip():
-		raise CteInvalido("inscrição estadual do emitente é obrigatória no CT-e", "emitente")
+		raise CteInvalido(
+			"inscrição estadual do emitente é obrigatória no CT-e",
+			"emitente",
+			DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE,
+		)
 
 	if emitente.regime_tributario not in {"1", "2", "3"}:
 		raise CteInvalido(
 			f"regime tributário (CRT) do emitente deve ser 1, 2 ou 3, recebido {emitente.regime_tributario!r}",
 			"emitente",
+			_ausente_se_vazio(emitente.regime_tributario),
 		)
 
 	return {
@@ -239,7 +259,11 @@ def _emit(emitente: EmitenteCte) -> dict:
 
 def _parte(parte: ParteCte | None, campo: str, tag_endereco: str) -> dict:
 	if parte is None:
-		raise CteInvalido(f"o CT-e exige {campo} da carga e ele não foi informado", campo)
+		raise CteInvalido(
+			f"o CT-e exige {campo} da carga e ele não foi informado",
+			campo,
+			DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE,
+		)
 
 	documento = _documento(parte.documento, campo, campo)
 	grupo: dict = {"CNPJ" if len(documento) == 14 else "CPF": documento}
@@ -259,12 +283,16 @@ def _tomador(dados: DadosCte) -> dict:
 
 	if dados.tomador_papel == TOMADOR_OUTROS:
 		if dados.tomador_outros is None:
-			raise CteInvalido('tomador "Outros" exige o cadastro completo do tomador', "tomador")
+			raise CteInvalido(
+				'tomador "Outros" exige o cadastro completo do tomador',
+				"tomador",
+				DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE,
+			)
 
 		try:
 			return montar_toma4(dados.tomador_outros)
 		except CteInvalido as e:
-			raise CteInvalido(str(e), "tomador") from e
+			raise CteInvalido(str(e), "tomador", e.codigo) from e
 
 	raise CteInvalido(
 		f"papel do tomador deve ser 0 (remetente), 3 (destinatário) ou 4 (outros), "
@@ -294,6 +322,7 @@ def _icms(icms: IcmsCte, valor_prestacao: Decimal) -> dict:
 			f"CST {cst!r} do ICMS do CT-e não é suportado — montados: "
 			f"{sorted(CST_COM_IMPOSTO | CST_ISENCAO)} e SN (Simples Nacional)",
 			"icms",
+			_ausente_se_vazio(cst),
 		)
 
 	aliquota = _decimal(icms.aliquota, "icms")
@@ -306,7 +335,11 @@ def _icms(icms: IcmsCte, valor_prestacao: Decimal) -> dict:
 		raise CteInvalido(f"redução da base deve estar entre 0 e 100, recebida {reducao}", "icms")
 
 	if cst == "20" and reducao == 0:
-		raise CteInvalido("CST 20 (base reduzida) exige a redução da base de cálculo", "icms")
+		raise CteInvalido(
+			"CST 20 (base reduzida) exige a redução da base de cálculo",
+			"icms",
+			DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE,
+		)
 
 	base = (valor_prestacao * (Decimal(100) - reducao) / Decimal(100)).quantize(
 		_CENTAVOS, rounding=ROUND_HALF_UP
@@ -337,7 +370,11 @@ def _info_carga(carga: CargaCte) -> dict:
 	grupo["proPred"] = _texto(carga.produto_predominante, "carga", "produto predominante")
 
 	if not carga.quantidades:
-		raise CteInvalido("a carga precisa de ao menos uma quantidade (infQ)", "carga")
+		raise CteInvalido(
+			"a carga precisa de ao menos uma quantidade (infQ)",
+			"carga",
+			DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE,
+		)
 
 	quantidades = []
 
@@ -440,7 +477,7 @@ def montar_cte_de_dados(
 	try:
 		modal = montar_rodo(dados.rntrc)
 	except RntrcInvalido as e:
-		raise CteInvalido(str(e), "rntrc") from e
+		raise CteInvalido(str(e), "rntrc", _ausente_se_vazio(dados.rntrc)) from e
 
 	codigo = sortear(numero)
 	identificacao = _identificacao(dados, numero, codigo)

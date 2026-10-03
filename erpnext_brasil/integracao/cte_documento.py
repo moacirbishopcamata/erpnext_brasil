@@ -37,7 +37,11 @@ from decimal import Decimal
 
 import frappe
 
-from erpnext_brasil.fiscal.cte import TomadorOutros
+from erpnext_brasil.fiscal.codigos_de_erro import (
+	DOCUMENTO_CTE_DADO_INVALIDO,
+	DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE,
+)
+from erpnext_brasil.fiscal.cte import CteInvalido, TomadorOutros
 from erpnext_brasil.fiscal.cte_montagem import (
 	CargaCte,
 	DadosCte,
@@ -74,7 +78,11 @@ def _traduzir(rotulo, tabela: dict, campo: str, onde: str) -> str:
 	texto = _exigir(rotulo, campo, onde)
 
 	if texto not in tabela:
-		raise DadosInsuficientes(f"{campo} {texto!r} em {onde} não é um dos valores {sorted(tabela)}")
+		raise CteInvalido(
+			f"{campo} {texto!r} em {onde} não é um dos valores {sorted(tabela)}",
+			campo,
+			DOCUMENTO_CTE_DADO_INVALIDO,
+		)
 
 	return tabela[texto]
 
@@ -180,7 +188,7 @@ def _municipio(doc, prefixo: str, rotulo: str) -> tuple[str, str, str]:
 	)
 
 
-def montar_cte_do_documento(doc, ambiente: str, agora: datetime | None = None) -> tuple[dict, str]:
+def _montar(doc, ambiente: str, agora: datetime | None) -> tuple[dict, str]:
 	"""A árvore `CTe` **não assinada** e a chave de acesso, a partir de uma fatura de transporte.
 
 	A série vem de `br_serie_cte` da `Company` e o número é alocado aqui, **depois** de todo o
@@ -227,3 +235,22 @@ def montar_cte_do_documento(doc, ambiente: str, agora: datetime | None = None) -
 	return montar_cte_alocando_numero(
 		dados, lambda: numero_do_documento(doc, MODELO_CTE, serie, CAMPO_NUMERO)
 	)
+
+
+def montar_cte_do_documento(doc, ambiente: str, agora: datetime | None = None) -> tuple[dict, str]:
+	"""A árvore `CTe` **não assinada** e a chave de acesso, a partir de uma fatura de transporte.
+
+	Toda recusa sai como `CteInvalido`, com `codigo` (`fiscal/codigos_de_erro.py`) e `campo`: o
+	`DadosInsuficientes` dos leitores de cadastro vira "dado obrigatório ausente" (1206), e a
+	montagem pura já levanta o seu com 1206 ou 1207. Quem exibe usa `erro.mensagem_com_codigo`.
+
+	⚠️ Um regime tributário que não tem CRT correspondente também chega aqui como
+	`DadosInsuficientes` (leitor compartilhado com a NF-e) e sai como 1206, embora seja, a rigor,
+	um valor a corrigir. A mensagem nomeia o problema; separar os dois pede mexer no leitor da NF-e.
+
+	Chamar dentro da transação do documento (a alocação do número não faz `commit`).
+	"""
+	try:
+		return _montar(doc, ambiente, agora)
+	except DadosInsuficientes as erro:
+		raise CteInvalido(str(erro), "", DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE) from erro
