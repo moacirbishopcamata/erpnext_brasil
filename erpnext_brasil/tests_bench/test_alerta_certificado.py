@@ -111,19 +111,29 @@ class TestAlertaDeCertificado(FrappeTestCase):
 
 		doc = frappe.get_doc("Company", nome)
 
-		if not doc.get("br_certificado_a1"):
-			arquivo = frappe.get_doc(
-				{
-					"doctype": "File",
-					"file_name": f"{abreviacao}.pfx",
-					"attached_to_doctype": "Company",
-					"attached_to_name": nome,
-					"is_private": 1,
-					"content": conteudo,
-				}
-			).insert(ignore_permissions=True)
+		# ⚠️ O certificado é **regerado e reanexado a cada execução**, não só na primeira.
+		# `_pfx` dá validade relativa a "agora" (`DIAS_ATE_VENCER`); guardar o anexo da primeira
+		# execução congelava essa validade, e semanas depois o teste esperava 20 dias de um
+		# certificado que já vencera (falhou em 2026-10-03: `20 != -5`). Mesma armadilha do
+		# "setup idempotente por existência" de `test_cfop_sugestao`, agora com o relógio.
+		anterior = doc.get("br_certificado_a1")
 
-			doc.br_certificado_a1 = arquivo.file_url
+		if anterior:
+			for antigo in frappe.get_all("File", filters={"file_url": anterior}, pluck="name"):
+				frappe.delete_doc("File", antigo, force=True, ignore_permissions=True)
+
+		arquivo = frappe.get_doc(
+			{
+				"doctype": "File",
+				"file_name": f"{abreviacao}.pfx",
+				"attached_to_doctype": "Company",
+				"attached_to_name": nome,
+				"is_private": 1,
+				"content": conteudo,
+			}
+		).insert(ignore_permissions=True)
+
+		doc.br_certificado_a1 = arquivo.file_url
 
 		# ⚠️ `br_senha_certificado_a1` é `Password`: o Frappe criptografa no save e só
 		# devolve por `get_password`. Gravar direto na coluna guardaria texto puro, e o
