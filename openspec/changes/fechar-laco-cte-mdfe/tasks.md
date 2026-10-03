@@ -21,9 +21,25 @@
 
 ## 2. Costura pura do CT-e
 
-- [x] 2.1 Criar `integracao/cte_documento.py` (mapeador `Sales Invoice` → `TCTe`, com `emit`/
+- [ ] 2.1 Criar `integracao/cte_documento.py` (mapeador `Sales Invoice` → `TCTe`, com `emit`/
       `tomador`/`vPrest` da fatura, remetente/destinatário do cadastro) — verificar com
       `test_arquitetura.py` que a peça pura de montagem não importa `frappe`
+
+      **Reaberta (2026-10-03): o esqueleto existe, o mapeador não está completo.** Ordem de
+      trabalho: **escrever o teste da 2.2 primeiro** — ele deve falhar hoje, e a falha mostra o
+      que falta. Pendências conhecidas do esqueleto em `cte_documento.py`:
+      - `cNF` fixo `"00000000"` (placeholder) — o código numérico entra na chave de acesso e
+        não pode ser constante nem igual ao número do documento;
+      - `infCTeNorm` vazio (sem `infCarga` e `infModal`) — a árvore não valida no leiaute;
+      - `imp` com `ICMSOutraUF` CST `90` fixo (placeholder) — derivar do cadastro fiscal ou
+        recusar com `DadosInsuficientes`, nunca assumir;
+      - tomador fixo em `TOMADOR_DESTINATARIO` e `indicador_ie_tomador="1"` (TODO) — derivar do
+        cadastro, como a docstring do módulo promete;
+      - remetente e destinatário são o mesmo `Customer`;
+      - número lido de `br_numero_cte`, sem alocação (tarefa 2.3);
+      - `vPrest` só com `vTPrest` (sem componentes `Comp`);
+      - nada importa o módulo e `hooks.py` não o cita (ligação é a tarefa 3.5).
+      Fechar a 2.1 só quando o teste da 2.2 passar sem placeholder.
 - [ ] 2.2 Escrever `tests/test_cte_documento.py` cobrando a montagem válida, a recusa quando
       falta dado obrigatório do leiaute e o número alocado entrando na chave — verificar que uma
       recusa por campo faltante nomeia o dado, e que a montagem nunca consome o número quando
