@@ -32,6 +32,12 @@ jobs:
         with:
           python-version: '3.12'
 
+      # `lxml` é a única dependência da suíte pura: o leitor/assinador de XML a importa.
+      # Num bench ela vem junto com o frappe; aqui, sem bench, precisa ser instalada —
+      # sem isso 80 testes falham com `ModuleNotFoundError`.
+      - name: Instalar lxml
+        run: pip install lxml
+
       - name: Rodar a suíte
         run: python -m unittest discover -s erpnext_brasil/tests -t .
 

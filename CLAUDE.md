@@ -9,6 +9,7 @@ Localização fiscal brasileira para o ERPNext, distribuída como **app Frappe s
 A suíte pura roda em qualquer máquina, sem bench, site ou banco (é o que o CI executa):
 
 ```sh
+pip install lxml                                                          # única dependência da suíte pura; sem ela ~80 testes dão ModuleNotFoundError
 python -m unittest discover -s erpnext_brasil/tests -t .                 # tudo
 python -m unittest erpnext_brasil.tests.test_cfop                         # um módulo
 python -m unittest erpnext_brasil.tests.test_cfop.NomeDaClasse.test_x     # um teste
