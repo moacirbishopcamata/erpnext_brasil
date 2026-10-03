@@ -94,11 +94,25 @@
       `TransporteSefaz`, com `dormir` injetado —
       verificar em homologação que o documento é autorizado e que a chave gravada bate com a da
       camada pura; conferia do envelope contra o pacote de esquemas antes de codificar
+
+      **Parcial (2026-10-03) — código e testes prontos; falta a prova em homologação.** Envelope e
+      resposta conferidos em fonte **secundária** (`sped-cte`/`sped-common`, XSD `PL_CTe_400`), não no
+      MOC: o CT-e **manda** `cteCabecMsg` (`cUF`+`versaoDados`), leva o `CTe` direto (sem
+      `enviCTe`) em **GZip+Base64** dentro de `cteDadosMsg`, e a ação SOAP vai no `Content-Type`;
+      `retCTe` com um `cStat` só (autorizado 100/150, denegado 110/205/301). Novos:
+      `fiscal/documento/soap_cte.py`, `fiscal/documento/resposta_cte.py`,
+      `integracao/autorizacao_sefaz_cte.py` e `TransporteSefaz.transmitir_cte` (49+6 testes). `dormir`
+      ficou de fora de propósito: serviço síncrono, sem o que esperar. **Falta** autorizar um CT-e em
+      homologação com certificado A1 real e conferir a chave devolvida contra a da camada pura.
 - [ ] 3.2 Registrar em `Transmissao Fiscal` o desfecho em todos os casos (autorizado, rejeitado,
       denegado) e gravar chave/protocolo no documento de origem — verificar com teste de bench
       que relê do banco por caminho independente
 - [ ] 3.3 Confirmar que o bloqueio por consumo indevido recusa o envio do CT-e **antes** de
       chamar a SEFAZ — verificar com teste que conta as chamadas ao transporte (zero)
+
+      **Parcial (2026-10-03).** `test_transporte_cte.py` prova que a guarda recusa o CT-e com **zero**
+      chamadas à sessão HTTP, e que o registrador recebe o `656`. **Falta** o encadeamento na tela/ação
+      que cria o transporte com `guarda`/`registrador` reais (3.5).
 - [ ] 3.4 Implementar o envio de cancelamento (110111) e CC-e (110110) por família, com desfecho
       registrado e sem reenviar evento já aceito — verificar um teste por evento, incluindo o
       cancelamento de documento já cancelado

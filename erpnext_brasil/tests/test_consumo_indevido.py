@@ -186,9 +186,14 @@ class TestACosturaDaGuarda(unittest.TestCase):
 				self.assertIn("registrador", argumentos)
 
 	def test_toda_resposta_passa_pelo_registro(self):
-		"""Quatro pontos de retorno para a SEFAZ: autorização, consulta, evento e
-		inutilização. Um retorno sem envoltório é um 656 que ninguém anota."""
-		self.assertEqual(4, _TRANSPORTE.count("self._registrar("))
+		"""Cinco pontos de retorno para a SEFAZ: autorização da NF-e, autorização do CT-e
+		(`transmitir_cte`, tarefa 3.1), consulta, evento e inutilização. Um retorno sem
+		envoltório é um 656 que ninguém anota — e o `656` vale para os três documentos.
+
+		O número subiu de 4 para 5 com o CT-e, e subirá de novo com o MDF-e: cada família nova de
+		documento é um ponto de retorno novo, e este teste existe para que ele entre **por** `_registrar`
+		em vez de ao lado dele."""
+		self.assertEqual(5, _TRANSPORTE.count("self._registrar("))
 
 	def test_garantir_liberado_levanta_em_vez_de_devolver(self):
 		"""Segundo eixo. Um booleano que o chamador esquece de conferir devolve o
