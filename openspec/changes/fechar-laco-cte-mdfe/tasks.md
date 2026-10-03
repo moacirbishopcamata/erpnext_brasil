@@ -65,7 +65,7 @@
       leitores vira `CteInvalido` 1206, para o botão da 3.5 tratar um tipo só. Junto: `__all__`
       de `codigos_de_erro` estava sem 1204 e 1205. Limite conhecido: regime tributário sem CRT
       correspondente sai como 1206 (leitor compartilhado com a NF-e).
-- [ ] 2.5 Registrar `Sales Invoice` no laço único de `setup/campos_documento.py` com
+- [x] 2.5 Registrar `Sales Invoice` no laço único de `setup/campos_documento.py` com
       `br_numero_cte` e `br_natureza_transporte` — verificar após `bench migrate` que os campos
       aparecem no formulário e que a geração continua num laço só, sem bloco duplicado
 
@@ -78,10 +78,14 @@
       `br_reducao_base_icms_cte`). O RNTRC já existe na `Company` (`br_rntrc`). Origem de cada
       grupo conferida no `cteTiposBasico_v4.00.xsd` (sped-cte, `PL_CTe_400`), não de memória.
 
-      **Parcial (2026-10-03).** Declarados e testados sem bench: os campos do CT-e (11 novos, além de
-      `br_numero_cte` e `br_natureza_transporte`) entram só na `Sales Invoice` (extraídos do laço de `CABECALHOS`, onde iam para cinco documentos), sem
-      duplicata, e as tabelas rótulo→código (modal, tipo de serviço, tomador, unidade, CST) batem
-      com os Selects. **Falta** o critério de bench: `bench migrate` e ver os campos no formulário.
+      **Concluída (2026-10-03).** Declarados e testados sem bench: os campos do CT-e (11 novos, além de
+      `br_numero_cte` e `br_natureza_transporte`) entram só na `Sales Invoice` (extraídos do laço de
+      `CABECALHOS`), sem duplicata, e as tabelas rótulo→código (modal, tipo de serviço, tomador, unidade,
+      CST) batem com os Selects. **Critério de bench atendido:** `bench migrate` em `v16.localhost`
+      (MariaDB) e `v16pg.localhost` (PostgreSQL), pilha em Frappe 16.36.1, ERPNext 16.37.0, HRMS 16.20.1;
+      12 Custom Fields `br_*cte*` criados nos dois, e `tests_bench/test_cte_documento.py` confere no
+      `frappe.get_meta` que existem na `Sales Invoice` e não vazam para `Delivery Note`,
+      `Purchase Invoice`, `Purchase Receipt` nem `POS Invoice`.
 
 ## 3. Transmissão e tela do CT-e
 
@@ -148,6 +152,10 @@
 - [ ] 6.2 Teste de bench que salva um `Sales Invoice` de transporte e um `Shipment` reais, relê do
       banco e confere que os campos fiscais e a chave persistiram — verificar relendo por caminho
       de consulta independente e comparando com o que a camada pura montou
+      **Parcial (2026-10-03).** Lado do CT-e feito: `tests_bench/test_cte_documento.py` (8 testes) salva
+      uma `Sales Invoice` de transporte real, monta a árvore, e relê do banco por `frappe.db.get_value`
+      o `br_numero_cte` e o contador de `Numeracao Fiscal` (aloca uma vez, reemissão reaproveita, recusa
+      não consome) — passa em MariaDB e em PostgreSQL. **Falta** o `Shipment` (MDF-e, bloco 4).
 - [ ] 6.3 Documentar as duas frentes em `docs/cte-operacional.md` e `docs/mdfe-operacional.md`,
       marcar como pagos os gaps de `cte_extracao` órfão e dos módulos sem bench em `docs/gaps.md`
       — verificar que os gaps deixam de constar como abertos
