@@ -81,6 +81,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 
+from erpnext_brasil.fiscal.codigos_de_erro import (
+	DOCUMENTO_CTE_DADO_INVALIDO,
+	DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE,
+	formatar,
+)
 from erpnext_brasil.fiscal.documento.assinatura import Assinador, montar_signature
 from erpnext_brasil.fiscal.documento.chave_acesso import ChaveInvalida, ler_chave
 from erpnext_brasil.fiscal.documento.serializacao import para_xml
@@ -182,11 +187,22 @@ _PAPEIS_TOMA3 = {TOMADOR_REMETENTE, TOMADOR_EXPEDIDOR, TOMADOR_RECEBEDOR, TOMADO
 
 
 class CteInvalido(ValueError):
-	"""Dado que impediria a autorização do CT-e."""
+	"""Dado que impediria a autorização do CT-e.
 
-	def __init__(self, mensagem: str, campo: str = ""):
+	`campo` diz qual dado, `codigo` diz o que fazer com ele (`fiscal/codigos_de_erro.py`): o
+	padrão é `DOCUMENTO_CTE_DADO_INVALIDO`, e quem sabe que o dado simplesmente **não foi
+	informado** passa `DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE`.
+	"""
+
+	def __init__(self, mensagem: str, campo: str = "", codigo: int = DOCUMENTO_CTE_DADO_INVALIDO):
 		super().__init__(mensagem)
 		self.campo = campo
+		self.codigo = codigo
+
+	@property
+	def mensagem_com_codigo(self) -> str:
+		"""O texto que o usuário vê, com o número na frente — o que vai para o `frappe.throw`."""
+		return formatar(self.codigo, str(self))
 
 
 def _natureza(valor) -> str:
@@ -483,7 +499,7 @@ def montar_toma4(tomador: TomadorOutros) -> dict:
 	`validar_cpf_cnpj`, a mesma validação de `fiscal.documento.nfe.montar_dest`.
 	"""
 	if not limpar(tomador.nome):
-		raise CteInvalido("Tomador (toma4) precisa de nome", "nome")
+		raise CteInvalido("Tomador (toma4) precisa de nome", "nome", DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE)
 
 	try:
 		documento = validar_cpf_cnpj(tomador.cnpj_cpf)
@@ -507,7 +523,11 @@ def montar_toma4(tomador: TomadorOutros) -> dict:
 		grupo["fone"] = tomador.fone.strip()
 
 	if not tomador.endereco:
-		raise CteInvalido("Tomador (toma4) precisa de endereço (enderToma é obrigatório no XSD)", "endereco")
+		raise CteInvalido(
+			"Tomador (toma4) precisa de endereço (enderToma é obrigatório no XSD)",
+			"endereco",
+			DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE,
+		)
 
 	grupo["enderToma"] = dict(tomador.endereco)
 

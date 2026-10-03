@@ -80,6 +80,18 @@ class TestORegistroDeCodigos(unittest.TestCase):
 		self.assertEqual(publicados, TODOS)
 
 
+class TestOsNomesPublicados(unittest.TestCase):
+	def test_all_cobre_toda_constante_de_codigo(self):
+		"""`__all__` ficou para trás de `TODOS` (1204 e 1205 faltavam) — quem importa por `*` não os via."""
+		constantes = {
+			nome
+			for nome, valor in vars(codigos_de_erro).items()
+			if nome.isupper() and isinstance(valor, int) and nome != "PRIMEIRO_CODIGO"
+		}
+
+		self.assertEqual(sorted(constantes - set(codigos_de_erro.__all__)), [])
+
+
 class TestAFormatacao(unittest.TestCase):
 	def test_o_codigo_vem_primeiro(self):
 		"""Fica visível numa captura de tela cortada, e quem procura por prefixo acha sem

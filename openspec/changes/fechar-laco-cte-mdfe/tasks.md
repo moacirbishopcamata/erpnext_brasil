@@ -54,8 +54,17 @@
       modelo `57` e a série de `serie_padrao` (`br_serie_cte`, recusada se vazia). A alocação vem
       **depois** da montagem de prova (`montar_cte_alocando_numero`), e uma falha dela sobe antes de
       qualquer árvore. Lado Frappe (`alocar_numero` real, trava de linha) ainda sem bench: 6.2.
-- [ ] 2.4 Acrescentar os códigos de recusa de campo obrigatório do CT-e em
+- [x] 2.4 Acrescentar os códigos de recusa de campo obrigatório do CT-e em
       `fiscal/codigos_de_erro.py` — verificar que o domínio conhece a recusa com número estável
+
+      **Concluída (2026-10-03).** Dois códigos na faixa 12xx: `1206` dado obrigatório ausente (manda
+      preencher um cadastro) e `1207` dado inválido (manda corrigir o que está preenchido); o
+      *qual* dado vai em `CteInvalido.campo` e na mensagem. `CteInvalido` ganhou `codigo` e
+      `mensagem_com_codigo` (`[1206] ...`), então o domínio conhece a recusa; os números estão
+      fixados em teste. Na fronteira de `integracao/cte_documento.py` o `DadosInsuficientes` dos
+      leitores vira `CteInvalido` 1206, para o botão da 3.5 tratar um tipo só. Junto: `__all__`
+      de `codigos_de_erro` estava sem 1204 e 1205. Limite conhecido: regime tributário sem CRT
+      correspondente sai como 1206 (leitor compartilhado com a NF-e).
 - [ ] 2.5 Registrar `Sales Invoice` no laço único de `setup/campos_documento.py` com
       `br_numero_cte` e `br_natureza_transporte` — verificar após `bench migrate` que os campos
       aparecem no formulário e que a geração continua num laço só, sem bloco duplicado

@@ -17,6 +17,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
+from erpnext_brasil.fiscal import codigos_de_erro as codigos
 from erpnext_brasil.fiscal.cte import CteInvalido, IdentificacaoCte, TomadorOutros
 from erpnext_brasil.fiscal.cte_montagem import (
 	CargaCte,
@@ -327,6 +328,74 @@ class TestRecusas(unittest.TestCase):
 		"""Falha antes de devolver qualquer coisa — não há CT-e pela metade para transmitir."""
 		with self.assertRaises(CteInvalido):
 			montar_cte_de_dados(_dados(remetente=None), "42", sortear=_sorteio_fixo)
+
+
+class TestCodigosDeRecusa(unittest.TestCase):
+	"""Tarefa 2.4: a recusa carrega um número estável — o que a máquina (e o JS do Desk) lê.
+
+	Dois códigos bastam para decidir o que fazer: `AUSENTE` manda a pessoa preencher um cadastro;
+	`INVALIDO` manda corrigir o que está preenchido. Qual dado é vai em `campo` e na mensagem.
+	"""
+
+	def _erro(self, **mudancas) -> CteInvalido:
+		with self.assertRaises(CteInvalido) as erro:
+			_montar(**mudancas)
+
+		return erro.exception
+
+	def test_os_numeros_publicados_nao_mudam(self):
+		"""Código publicado não muda de significado — este teste é a trava, não a documentação."""
+		self.assertEqual(codigos.DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE, 1206)
+		self.assertEqual(codigos.DOCUMENTO_CTE_DADO_INVALIDO, 1207)
+
+	def test_dado_que_nao_foi_informado_e_ausente(self):
+		casos = {
+			"remetente": dict(remetente=None),
+			"destinatario": dict(destinatario=None),
+			"emitente": dict(emitente=_emitente(inscricao_estadual="")),
+			"carga": dict(carga=_carga(produto_predominante=" ")),
+			"carga sem quantidade": dict(carga=_carga(quantidades=())),
+			"tomador": dict(tomador_papel="4", tomador_outros=None),
+		}
+
+		for nome, mudancas in casos.items():
+			with self.subTest(nome=nome):
+				self.assertEqual(
+					self._erro(**mudancas).codigo, codigos.DOCUMENTO_CTE_DADO_OBRIGATORIO_AUSENTE
+				)
+
+	def test_dado_informado_que_o_leiaute_recusa_e_invalido(self):
+		quantidade = QuantidadeCarga(unidade="09", tipo_medida="PESO BRUTO", quantidade=Decimal("1"))
+		casos = {
+			"icms": dict(icms=IcmsCte(cst="60", aliquota=Decimal("12"))),
+			"unidade": dict(carga=_carga(quantidades=(quantidade,))),
+			"rntrc": dict(rntrc="123"),
+			"valor": dict(valor_prestacao=Decimal("0")),
+			"documento": dict(remetente=_parte("11444777000162", "Remetente SA")),
+			"tomador": dict(tomador_papel="7"),
+			"fuso": dict(emissao=datetime(2026, 10, 3, 9, 30, 0)),
+			"modal": dict(modal="99"),
+		}
+
+		for nome, mudancas in casos.items():
+			with self.subTest(nome=nome):
+				self.assertEqual(self._erro(**mudancas).codigo, codigos.DOCUMENTO_CTE_DADO_INVALIDO)
+
+	def test_numero_alocado_invalido_e_dado_invalido(self):
+		with self.assertRaises(CteInvalido) as erro:
+			montar_cte_de_dados(_dados(), "abc", sortear=_sorteio_fixo)
+
+		self.assertEqual(erro.exception.codigo, codigos.DOCUMENTO_CTE_DADO_INVALIDO)
+
+	def test_a_mensagem_formatada_leva_o_codigo_no_inicio_e_o_texto_inteiro(self):
+		erro = self._erro(remetente=None)
+
+		self.assertTrue(erro.mensagem_com_codigo.startswith("[1206] "))
+		self.assertIn(str(erro), erro.mensagem_com_codigo)
+
+	def test_o_codigo_padrao_de_quem_nao_classificou_e_invalido(self):
+		"""Os `raise CteInvalido` antigos de `fiscal/cte.py` não passam `codigo`."""
+		self.assertEqual(CteInvalido("qualquer coisa").codigo, codigos.DOCUMENTO_CTE_DADO_INVALIDO)
 
 
 class TestEmissaoSemFuso(unittest.TestCase):
