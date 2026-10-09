@@ -24,8 +24,8 @@ Esta é a fila proposta. Nada foi implementado.
 | Relatório | Fonte | Para quê |
 |---|---|---|
 | ✅ **Notas por situação e rejeição** (`Notas por Situacao`, 2026-10-09) | `Transmissao Fiscal` (`situacao`, `codigo_status`, `tipo`, `ambiente`) | quantas autorizadas, rejeitadas, denegadas; ranking dos `cStat` de rejeição |
-| **Lacunas de numeração** | `Numeracao Fiscal` × `Transmissao Fiscal` | números alocados sem desfecho (inutilização pendente) |
-| **Bloqueios por consumo indevido** | `Bloqueio Sefaz` | CNPJ bloqueado, desde quando, quanto falta (regra do 656) |
+| ✅ **Lacunas de numeração** (`Lacunas de Numeracao`) | `Numeracao Fiscal` × `Transmissao Fiscal` | números alocados sem desfecho (inutilização pendente) |
+| ✅ **Bloqueios por consumo indevido** (`Bloqueios SEFAZ`) | `Bloqueio Sefaz` | CNPJ bloqueado, desde quando, quanto falta (regra do 656) |
 | **NFC-e pendentes de transmissão** | `Pendencia NFCe` (`transmitir_ate`, `tentativas`) | contingência a vencer — o prazo é legal |
 | **Desvio do relógio** | `Transmissao Fiscal` (`deslocamento_relogio_ms`, `instante_corrigido`) | quando o `dhEmi` foi corrigido e por quanto (ver `fonte-de-tempo.md`) |
 | **Arquivos SPED por competência** | `Arquivo SPED` | gerado/entregue/recibo por tipo e período |
@@ -92,3 +92,9 @@ são três e valida o molde antes de multiplicar.
 `registros_fiscais/report/notas_por_situacao/` + `tests_bench/test_relatorio_notas.py` (6 testes reais). É o molde dos
 demais: empresa e período obrigatórios, nada descartado em silêncio, aviso para autorização sem chave. O nome vai sem
 acento, como os DocTypes do app (`Transmissao Fiscal`), porque o Frappe deriva o diretório do nome.
+
+## Primeira leva completa (2026-10-09)
+
+Os três relatórios da ordem sugerida (1) estão entregues: `Notas por Situacao`, `Lacunas de Numeracao` e `Bloqueios SEFAZ`, cada um com consulta pura, Script Report e teste de bench com dados reais.
+
+⚠️ **Limite de `Lacunas de Numeracao`:** o app ainda não grava a faixa inutilizada em `Transmissao Fiscal`; um número já inutilizado na SEFAZ aparece como candidato. Fechar isso exige registrar a inutilização (`integracao/inutilizacao_sefaz.py` envia, mas o resultado não vira registro) — fica como gap.

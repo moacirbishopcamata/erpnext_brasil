@@ -787,3 +787,12 @@ Para reproduzir esta varredura:
   é importado por outro módulo, ou tem `@frappe.whitelist()`. Nenhum dos três é órfão.
 - **Pendências declaradas**: extrair bullets sob cabeçalhos "Ainda por implementar",
   "Fora de escopo", "Pendências", "O que falta", ignorando linhas com `~~`.
+
+## 🟡 Inutilização não vira registro — 2026-10-09
+
+`TransporteSefaz.inutilizar` envia o pedido (`integracao/inutilizacao_sefaz.py`), mas nenhum chamador grava o
+resultado em `Transmissao Fiscal` (`tipo = "Inutilização"`, que existe nas opções do DocType), nem há ação ou botão
+que a dispare. Consequência medida pelo relatório `Lacunas de Numeracao`: um número já inutilizado na SEFAZ continua
+aparecendo como candidato à inutilização. Fecha com: ação "Inutilizar faixa" a partir do relatório, gravando a faixa
+(`nNFIni`–`nNFFin`), o protocolo e o `cStat`, e o relatório passando a descontar as faixas aceitas. 🔒 O envio real
+depende de certificado A1 e homologação.
