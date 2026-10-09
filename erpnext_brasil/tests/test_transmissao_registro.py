@@ -88,7 +88,7 @@ class TestInvariantes(unittest.TestCase):
 			validar_registro(_registro(tipo="Inutilização", chave_acesso=CHAVE))
 
 	def test_inutilizacao_sem_chave_e_valida(self):
-		validar_registro(_registro(tipo="Inutilização", chave_acesso=""))
+		validar_registro(_registro(tipo="Inutilização", chave_acesso="", numero_inicial=2, numero_final=3))
 
 	def test_chave_invalida_e_erro(self):
 		"""Reaproveita a validação da família NF-e: dígito verificador de verdade."""

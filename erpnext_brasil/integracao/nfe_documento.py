@@ -80,7 +80,7 @@ from erpnext_brasil.integracao.mapeamento import item_fiscal_de_linha, operacao_
 from erpnext_brasil.integracao.rastreabilidade import montar_rastro_da_linha
 from erpnext_brasil.setup.custom_fields import CRT_POR_REGIME, INDICADOR_IE_POR_ROTULO
 
-__all__ = ["DadosInsuficientes", "montar_nfe_do_documento"]
+__all__ = ["DadosInsuficientes", "emitente_da_empresa", "montar_nfe_do_documento"]
 
 
 # Campos do cabeçalho que a apuração consome — a mesma lista de `documento.apurar_impostos`.
@@ -159,6 +159,10 @@ def _emitente(company: str) -> tuple[Emitente, dict]:
 	)
 
 	return emitente, endereco
+
+
+emitente_da_empresa = _emitente
+"""Nome público para quem precisa do CNPJ e da UF do emitente sem montar um documento (ex.: inutilização)."""
 
 
 def _regime_tributario(empresa, company: str) -> str:

@@ -7,9 +7,8 @@ A numeração fiscal é sequencial; cada número consumido precisa terminar em a
 inutilização de faixa (`fiscal/documento/inutilizacao.py`). O contador de `Numeracao Fiscal` diz até onde se
 consumiu; as `Transmissao Fiscal` dizem o que aconteceu com cada número. Esta função cruza os dois.
 
-⚠️ Limite declarado: o app **ainda não grava a faixa inutilizada** em `Transmissao Fiscal`, então um número
-inutilizado na SEFAZ continua aparecendo aqui como "sem desfecho". O relatório lista **candidatos** à inutilização, não
-lacunas já justificadas — e é por isso que ele existe: o que aparece é o que precisa ser conferido.
+Faixas já inutilizadas (`Transmissao Fiscal` do tipo Inutilização, aceita pela SEFAZ) fecham os números que cobrem:
+o que sobra são **candidatos** à inutilização — exatamente o que precisa ser conferido.
 """
 
 __all__ = ["DESFECHOS_QUE_FECHAM", "faixas_sem_desfecho"]
@@ -36,17 +35,24 @@ def _motivo(situacoes: set[str]) -> str | None:
 
 
 def faixas_sem_desfecho(
-	ultimo_numero: int, situacoes_por_numero: dict[int, set[str]], primeiro: int = 1
+	ultimo_numero: int,
+	situacoes_por_numero: dict[int, set[str]],
+	primeiro: int = 1,
+	inutilizadas: tuple[tuple[int, int], ...] = (),
 ) -> list[dict]:
 	"""Faixas consecutivas de números `primeiro..ultimo_numero` que não terminaram em desfecho que feche.
 
-	`situacoes_por_numero`: `{número: {situações das transmissões com esse número}}`. Números fora do intervalo
+	`situacoes_por_numero`: `{número: {situações das transmissões com esse número}}`. `inutilizadas`: faixas
+	`(inicial, final)` já aceitas pela SEFAZ — números nelas não são lacuna. Números fora do intervalo
 	consumido são ignorados. Números consecutivos com o **mesmo motivo** viram uma faixa só (é como a inutilização
 	é pedida: `nNFIni`–`nNFFin`).
 	"""
 	faixas: list[dict] = []
 
 	for numero in range(primeiro, ultimo_numero + 1):
+		if any(ini <= numero <= fim for ini, fim in inutilizadas):
+			continue
+
 		motivo = _motivo(situacoes_por_numero.get(numero, set()))
 
 		if motivo is None:

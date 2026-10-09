@@ -75,6 +75,7 @@ __all__ = [
 	"assinar_inutilizacao",
 	"interpretar_retorno_inutilizacao",
 	"montar_inutilizacao",
+	"validar_faixa_a_inutilizar",
 ]
 
 VERSAO_INUTILIZACAO = "4.00"
@@ -121,6 +122,33 @@ def _numero_ou_erro(valor: str, campo: str) -> str:
 		raise InutilizacaoInvalida(f"{campo} não pode ter mais de 9 dígitos, recebido {valor!r}", campo)
 
 	return texto
+
+
+def validar_faixa_a_inutilizar(inicio: int, fim: int, ultimo_numero: int, fechados: set[int]) -> None:
+	"""A faixa pedida só pode cobrir números **consumidos** e **sem desfecho que feche**.
+
+	- acima de `ultimo_numero` seria inutilizar número que o contador ainda vai alocar;
+	- em `fechados` (autorizado, denegado, cancelado ou já inutilizado) a SEFAZ recusaria — melhor recusar antes,
+	  com o número que atrapalha na mensagem, do que gastar uma chamada e um registro de rejeição.
+	"""
+	if inicio < 1 or fim < inicio:
+		raise InutilizacaoInvalida(f"faixa inválida: {inicio}-{fim}", "faixa")
+
+	if fim > ultimo_numero:
+		raise InutilizacaoInvalida(
+			f"a faixa vai até {fim}, mas a série só consumiu até {ultimo_numero}: não se inutiliza número "
+			"que ainda não foi alocado",
+			"faixa",
+		)
+
+	ocupados = sorted(n for n in fechados if inicio <= n <= fim)
+
+	if ocupados:
+		raise InutilizacaoInvalida(
+			f"a faixa {inicio}-{fim} inclui número(s) que já têm desfecho e não podem ser inutilizados: "
+			f"{ocupados[:5]}",
+			"faixa",
+		)
 
 
 def _formatar_id(cuf: str, ano: str, cnpj: str, modelo: str, serie: str, nfini: str, nffin: str) -> str:

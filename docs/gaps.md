@@ -788,11 +788,15 @@ Para reproduzir esta varredura:
 - **Pendências declaradas**: extrair bullets sob cabeçalhos "Ainda por implementar",
   "Fora de escopo", "Pendências", "O que falta", ignorando linhas com `~~`.
 
-## 🟡 Inutilização não vira registro — 2026-10-09
+## ~~🟡 Inutilização não vira registro~~ — pago em 2026-10-09
 
-`TransporteSefaz.inutilizar` envia o pedido (`integracao/inutilizacao_sefaz.py`), mas nenhum chamador grava o
-resultado em `Transmissao Fiscal` (`tipo = "Inutilização"`, que existe nas opções do DocType), nem há ação ou botão
-que a dispare. Consequência medida pelo relatório `Lacunas de Numeracao`: um número já inutilizado na SEFAZ continua
-aparecendo como candidato à inutilização. Fecha com: ação "Inutilizar faixa" a partir do relatório, gravando a faixa
-(`nNFIni`–`nNFFin`), o protocolo e o `cStat`, e o relatório passando a descontar as faixas aceitas. 🔒 O envio real
-depende de certificado A1 e homologação.
+`integracao/inutilizacao_fiscal.inutilizar_faixa(numeracao, inicial, final, justificativa)` envia a inutilização e grava
+o resultado em `Transmissao Fiscal` (`tipo = "Inutilização"`, documento = a série `Numeracao Fiscal`, com
+`numero_inicial`, `numero_final` e `justificativa`, campos novos do DocType). Recusa **antes de chamar** a SEFAZ faixa
+acima do contador ou com número que já tem desfecho (`validar_faixa_a_inutilizar`); rejeição é gravada e commitada
+antes do erro. O relatório `Lacunas de Numeracao` desconta as faixas aceitas.
+
+### O que ficou de fora
+- 🔒 O envio real depende de certificado A1 e homologação: o bench usa transporte falso.
+- Falta o botão "Inutilizar faixa" no relatório/tela; hoje a função é whitelisted, sem interface.
+- Os campos novos exigem `bench migrate` nos sites (o teste de bench faz `reload_doc` só no site em que roda).

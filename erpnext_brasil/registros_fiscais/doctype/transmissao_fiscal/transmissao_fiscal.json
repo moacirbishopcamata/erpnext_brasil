@@ -25,6 +25,10 @@
   "recebido_em",
   "instante_corrigido",
   "deslocamento_relogio_ms",
+  "secao_faixa",
+  "numero_inicial",
+  "numero_final",
+  "justificativa",
   "secao_xml",
   "xml_enviado",
   "xml_retorno"
@@ -151,6 +155,30 @@
    "label": "Deslocamento do relógio aplicado (ms)",
    "read_only": 1,
    "description": "Somado ao relógio do servidor para obter o instante de emissão (dhEmi). Só vale quando 'Instante corrigido' está marcado: o Frappe grava 0 em campo numérico vazio, então 0 sozinho não distingue 'sem correção' de 'corrigido em 0 ms'."
+  },
+  {
+   "depends_on": "eval:doc.tipo==\"Inutilização\"",
+   "fieldname": "secao_faixa",
+   "fieldtype": "Section Break",
+   "label": "Faixa inutilizada"
+  },
+  {
+   "description": "nNFIni. Só em inutilização; o documento é a série (Numeracao Fiscal).",
+   "fieldname": "numero_inicial",
+   "fieldtype": "Int",
+   "label": "Número inicial"
+  },
+  {
+   "description": "nNFFin.",
+   "fieldname": "numero_final",
+   "fieldtype": "Int",
+   "label": "Número final"
+  },
+  {
+   "description": "xJust: de 15 a 255 caracteres.",
+   "fieldname": "justificativa",
+   "fieldtype": "Small Text",
+   "label": "Justificativa"
   },
   {
    "collapsible": 1,
