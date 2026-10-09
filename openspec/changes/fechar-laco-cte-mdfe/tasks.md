@@ -247,6 +247,6 @@
 - [ ] 6.3 Documentar as duas frentes em `docs/cte-operacional.md` e `docs/mdfe-operacional.md`,
       marcar como pagos os gaps de `cte_extracao` órfão e dos módulos sem bench em `docs/gaps.md`
       — verificar que os gaps deixam de constar como abertos
-- [ ] 6.4 Rodar a suíte pura, a de bench e o `ruff`, e conferir o bump de versão em
+- [x] 6.4 Rodar a suíte pura, a de bench e o `ruff`, e conferir o bump de versão em
       `erpnext_brasil/__init__.py` no mesmo commit — verificar que tudo está verde antes do
       commit local

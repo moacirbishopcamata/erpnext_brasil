@@ -148,3 +148,13 @@ servidor usar NTS.
 - Saber se o Observatório Nacional oferece servidor NTP próprio além do NTP.br (a página da Hora Legal
   consultada devolveu 404) e a política de uso dos servidores `.st1` para clientes de aplicação.
 - Tolerância de `dhEmi` no MOC, para calibrar os limites (tarefa 6.2).
+
+## Tolerância de `dhEmi` na SEFAZ — fonte secundária (2026-10-09)
+
+Sites de integradores (oobj, Alterdata, nfe.io, Omie) citam a regra **B09-10 do MOC**: a Rejeição 703 sai quando
+`dhEmi` é **posterior** ao recebimento, com **tolerância de até 5 minutos** pelo sincronismo entre emissor e SEFAZ.
+⚠️ Nenhuma dessas páginas é o MOC; o texto oficial não foi aberto, então o número fica como **referência, não como
+regra**. Consequência para os padrões: o limite crítico de 60 s é **mais estrito** que 5 min (recusa antes de a SEFAZ
+recusar) e o de aviso de 1 s é só alerta — os dois estão do lado seguro. Calibrar de verdade (tarefa 6.2) pede o MOC
+vigente; até lá a guarda segue ligada pelos padrões atuais. A 704 (NFC-e, data atrasada) tem descrição vaga e
+contraditória nas fontes: não foi usada.
