@@ -1,7 +1,7 @@
 # Correções para o Frappe — a devolver ao projeto
 
-Patches feitos sobre o Frappe **16.31.0** (`version-16`, commit `6a329d0684`), no clone do
-bench-16 (`~/frappe-bench-16/apps/frappe`, branch `fix/postgres-link-filters-already-decoded`),
+Patches feitos sobre o Frappe **16.51.0** (tag `v16.51.0`; reaplicados em 2026-10-09, `git apply --check` limpo
+nos três), no clone do bench-16 (`~/frappe-bench-16/apps/frappe`, branch `frappe-v16-pg-patches`),
 provados no site PostgreSQL `v16pg.localhost`. O Frappe é MIT, como este app: a correção
 volta para a comunidade, e enquanto o PR não entra, estes arquivos são a forma de reaplicá-la
 em qualquer bench.
@@ -26,6 +26,7 @@ frappe/core/doctype/doctype/doctype.py`.
 |---|---|---|
 | `0001-fix-doctype-accept-already-decoded-link_filters-on-P.patch` | `validate_link_filters` fazia `json.loads` num valor que a coluna `json` do Postgres já devolve decodificado → "Link Filters must be valid JSON" ao inserir **qualquer** Custom Field num DocType com `link_filters` (o ERPNext usa em `Company`). Passa a usar `frappe.parse_json`. Teste novo: `test_link_filters_already_decoded_are_accepted`. | `bench execute ...validate_fields_for_doctype --args '["Company"]'` — falhava, passa |
 | `0002-fix-query-do-not-apply-default-ORDER-BY-to-aggregate.patch` | `get_value(dt, filtros, [{"MAX": campo}])` gerava `SELECT MAX(...) ... ORDER BY creation` — Postgres recusa ("creation must appear in the GROUP BY clause"). O motor passa a não aplicar ordenação a consulta só de agregados, como já faz com `DISTINCT`/`GROUP BY`. Teste novo: `test_aggregate_only_query_drops_default_order_by`. | `bench execute frappe.db.get_value --args '["User", {"enabled": 1}, [{"MAX": "creation"}]]'` — falhava, devolve o valor; e o caso real do ERPNext (`stock_closing_entry.py:31`) deixa de derrubar o `before_tests` |
+| `0003-chore-deps-bump-pypdf-Werkzeug-PyJWT-oauthlib-and-We.patch` | Sobe `pypdf` 6.19.0, `Werkzeug` 3.1.9, `PyJWT~=2.15.0`, `oauthlib~=4.0.0`, `WeasyPrint==70.0`: a `develop` já tem pypdf/PyJWT/oauthlib, a `version-16` não (PR #43668 sem backport; #43624 fechado). Não é de PostgreSQL | PDF gerado, JWT e servidor OAuth em teste de fumaça (a suíte do Frappe não foi rodada); `docs/auditoria-da-pilha.md` |
 
 ## Texto sugerido para os PRs (em inglês, como o projeto pede)
 

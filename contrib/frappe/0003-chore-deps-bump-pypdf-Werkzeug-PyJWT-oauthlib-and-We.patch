@@ -1,0 +1,60 @@
+From e1943d75cbac268506899d24be6cafb2d4b31416 Mon Sep 17 00:00:00 2001
+From: ninte <moacirbishopcamata@gmail.com>
+Date: Fri, 9 Oct 2026 14:54:50 -0400
+Subject: [PATCH 3/3] chore(deps): bump pypdf, Werkzeug, PyJWT, oauthlib and
+ WeasyPrint (security fixes)
+
+pypdf 6.15.0 has 11 CVEs fixed up to 6.19.0 (22 OSV records, CVE and GHSA duplicated),
+the version develop already pins. Werkzeug 3.1.6 is affected by CVE-2026-102598
+(safe_join on Windows device names), fixed in 3.1.9. PyJWT 2.13.0 and oauthlib 3.3.1
+have published advisories; develop already pins PyJWT~=2.15.0 and oauthlib~=4.0.0
+(PR #43668, not backported to version-16). WeasyPrint 69 and 70 are security releases
+(CVE-2026-49452, CVE-2026-55073); the bump PR to version-16-hotfix was closed unmerged.
+version-16 still pins the old versions as of v16.51.0.
+---
+ pyproject.toml | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/pyproject.toml b/pyproject.toml
+index 5ef0d1af75..a820b42256 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -16,22 +16,22 @@ dependencies = [
+     "GitPython~=3.1.45",
+     "Jinja2~=3.1.6",
+     "Pillow~=12.3.0",
+-    "PyJWT~=2.13.0",
++    "PyJWT~=2.15.0",
+     "duckdb~=1.4.3",
+     "pyarrow~=25.0.0",
+     # We depend on internal attributes,
+     # do NOT add loose requirements on PyMySQL versions.
+     "PyMySQL==1.1.2",
+-    "pypdf==6.15.0",
++    "pypdf==6.19.0",
+     "PyPika @ git+https://github.com/frappe/pypika@7ef6e40215d46cd531e8c4e58650b84c11abbd04",
+     "mysqlclient==2.2.7",
+     "PyQRCode~=1.2.1",
+     "PyYAML~=6.0.3",
+     "RestrictedPython~=8.5",
+-    "WeasyPrint==68.0",
++    "WeasyPrint==70.0",
+     "typst~=0.15.0",
+     "pydyf==0.12.1",
+-    "Werkzeug==3.1.6",
++    "Werkzeug==3.1.9",
+     "Whoosh~=2.7.4",
+     "beautifulsoup4~=4.13.5",
+     "bleach-allowlist~=1.0.3",
+@@ -49,7 +49,7 @@ dependencies = [
+     "MarkupSafe~=3.0.3",
+     "nh3~=0.3.2",
+     "num2words~=0.5.14",
+-    "oauthlib~=3.3.1",
++    "oauthlib~=4.0.0",
+     "openpyxl~=3.1.5",
+     "xlsxwriter~=3.2.9",
+     "orjson~=3.11.5",
+-- 
+2.43.0
+

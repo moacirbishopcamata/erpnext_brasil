@@ -46,7 +46,7 @@
       servidor** — verificar a versão no ar e os três sites respondendo
 - [ ] 4.8 Subir o Python do venv de 3.14.6 para 3.14.8 (recriando o venv, com cópia do atual) — verificar `pip check`, a
       suíte de bench e que o venv antigo foi guardado para voltar
-- [ ] 4.9 Regenerar `contrib/frappe/` (0001 e 0002 rebaseados) e acrescentar o 0003 (pins de `pypdf`/`Werkzeug`) com texto de
+- [x] 4.9 Regenerar `contrib/frappe/` (0001 e 0002 rebaseados) e acrescentar o 0003 (pins de `pypdf`/`Werkzeug`) com texto de
       PR em inglês — verificar `git apply --check` de cada patch contra a ponta atual do `version-16`
 
 ## 5. Roteiro: cada item vira uma mudança própria
