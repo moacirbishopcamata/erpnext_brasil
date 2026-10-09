@@ -59,5 +59,22 @@ class TestFaixasSemDesfecho(unittest.TestCase):
 		self.assertEqual(faixas_sem_desfecho(0, {}), [])
 
 
+class TestFaixasInutilizadas(unittest.TestCase):
+	def test_faixa_inutilizada_deixa_de_ser_lacuna(self):
+		self.assertEqual(
+			faixas_sem_desfecho(5, {1: {"Autorizado"}, 5: {"Autorizado"}}, inutilizadas=((2, 4),)), []
+		)
+
+	def test_faixa_parcial_deixa_o_resto_como_candidato(self):
+		faixas = faixas_sem_desfecho(5, {1: {"Autorizado"}, 5: {"Autorizado"}}, inutilizadas=((2, 3),))
+
+		self.assertEqual([(f["inicio"], f["fim"]) for f in faixas], [(4, 4)])
+
+	def test_inutilizada_no_meio_separa_as_faixas_de_mesmo_motivo(self):
+		faixas = faixas_sem_desfecho(5, {1: {"Autorizado"}, 5: {"Autorizado"}}, inutilizadas=((3, 3),))
+
+		self.assertEqual([(f["inicio"], f["fim"]) for f in faixas], [(2, 2), (4, 4)])
+
+
 if __name__ == "__main__":
 	unittest.main()

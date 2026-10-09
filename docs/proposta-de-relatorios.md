@@ -97,4 +97,4 @@ acento, como os DocTypes do app (`Transmissao Fiscal`), porque o Frappe deriva o
 
 Os três relatórios da ordem sugerida (1) estão entregues: `Notas por Situacao`, `Lacunas de Numeracao` e `Bloqueios SEFAZ`, cada um com consulta pura, Script Report e teste de bench com dados reais.
 
-⚠️ **Limite de `Lacunas de Numeracao`:** o app ainda não grava a faixa inutilizada em `Transmissao Fiscal`; um número já inutilizado na SEFAZ aparece como candidato. Fechar isso exige registrar a inutilização (`integracao/inutilizacao_sefaz.py` envia, mas o resultado não vira registro) — fica como gap.
+✅ O limite de `Lacunas de Numeracao` (inutilização que não virava registro) foi fechado depois: ver `docs/gaps.md`, "Inutilização não vira registro".

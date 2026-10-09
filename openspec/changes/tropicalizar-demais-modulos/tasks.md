@@ -42,7 +42,7 @@
 - [x] 4.5 Baixar o MariaDB 10.11.19 ao lado do 10.11.9 — verificado: sha256 igual ao de `sha256sums.txt` do arquivo oficial
 - [x] 4.6 Migrar os três sites e rodar os testes de bench — verificar `bench migrate` sem erro nos três e os módulos de bench
       do app passando
-- [ ] 4.7 Trocar o MariaDB 10.11.9 pelo 10.11.19 com `mariadb-upgrade`, **quando nenhuma outra sessão estiver usando o
+- [x] 4.7 Trocar o MariaDB 10.11.9 pelo 10.11.19 com `mariadb-upgrade`, **quando nenhuma outra sessão estiver usando o
       servidor** — verificar a versão no ar e os três sites respondendo
 - [ ] 4.8 Subir o Python do venv de 3.14.6 para 3.14.8 (recriando o venv, com cópia do atual) — verificar `pip check`, a
       suíte de bench e que o venv antigo foi guardado para voltar

@@ -108,7 +108,35 @@ def validar_registro(dados: dict) -> None:
 		raise RegistroInvalido(f"ambiente deve ser um de {list(AMBIENTES)}, recebido {ambiente!r}")
 
 	_validar_chave(tipo, (dados.get("chave_acesso") or "").strip())
+	_validar_faixa(tipo, dados)
 	_validar_coerencia_do_resultado(situacao, dados)
+
+
+def _inteiro(valor) -> int:
+	try:
+		return int(valor or 0)
+	except (TypeError, ValueError):
+		return -1
+
+
+def _validar_faixa(tipo: str, dados: dict) -> None:
+	"""A faixa (`nNFIni`–`nNFFin`) é de inutilização e só dela.
+
+	Inutilização sem faixa não diz o que foi inutilizado; faixa em outro tipo seria um número que não pertence a
+	nenhuma transmissão. O Frappe grava 0 em `Int` vazio, então 0 significa "sem faixa".
+	"""
+	inicial, final = _inteiro(dados.get("numero_inicial")), _inteiro(dados.get("numero_final"))
+
+	if tipo != TIPO_INUTILIZACAO:
+		if inicial or final:
+			raise RegistroInvalido("faixa de numeração só existe em inutilização")
+
+		return
+
+	if inicial < 1 or final < inicial:
+		raise RegistroInvalido(
+			f"inutilização exige faixa válida (inicial >= 1 e final >= inicial), recebido {inicial}-{final}"
+		)
 
 
 def _validar_chave(tipo: str, chave: str) -> None:

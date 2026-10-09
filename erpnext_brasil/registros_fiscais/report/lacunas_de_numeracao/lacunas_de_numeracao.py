@@ -7,8 +7,8 @@
 import frappe
 from frappe import _
 
-from erpnext_brasil.fiscal.documento.chave_acesso import ler_chave
 from erpnext_brasil.fiscal.relatorio_numeracao import faixas_sem_desfecho
+from erpnext_brasil.integracao.serie_fiscal import faixas_inutilizadas, situacoes_por_numero
 
 
 def _colunas() -> list[dict]:
@@ -22,28 +22,6 @@ def _colunas() -> list[dict]:
 	]
 
 
-def situacoes_por_numero(company: str, modelo: str, serie: str) -> dict[int, set[str]]:
-	"""`{número: {situações}}` das autorizações da série. Chave ilegível não entra: o `DocType` já valida a chave."""
-	registros = frappe.get_all(
-		"Transmissao Fiscal",
-		filters={"company": company, "tipo": "Autorização", "chave_acesso": ["is", "set"]},
-		fields=["chave_acesso", "situacao"],
-		limit_page_length=0,
-	)
-	resultado: dict[int, set[str]] = {}
-
-	for registro in registros:
-		try:
-			chave = ler_chave(registro.chave_acesso)
-		except ValueError:
-			continue
-
-		if chave.modelo == modelo and int(chave.serie) == int(serie):
-			resultado.setdefault(int(chave.numero), set()).add(registro.situacao)
-
-	return resultado
-
-
 def execute(filters=None):
 	filtros = frappe._dict(filters or {})
 
@@ -53,7 +31,7 @@ def execute(filters=None):
 	series = frappe.get_all(
 		"Numeracao Fiscal",
 		filters={"company": filtros.company},
-		fields=["modelo", "serie", "ultimo_numero"],
+		fields=["name", "modelo", "serie", "ultimo_numero"],
 		order_by="modelo, serie",
 		limit_page_length=0,
 	)
@@ -63,12 +41,12 @@ def execute(filters=None):
 		ultimo = int(serie.ultimo_numero or 0)
 
 		for faixa in faixas_sem_desfecho(
-			ultimo, situacoes_por_numero(filtros.company, serie.modelo, serie.serie)
+			ultimo,
+			situacoes_por_numero(filtros.company, serie.modelo, serie.serie),
+			inutilizadas=faixas_inutilizadas(serie.name),
 		):
 			linhas.append({"modelo": serie.modelo, "serie": serie.serie, **faixa})
 
-	aviso = _(
-		"Candidatas à inutilização: o app ainda não registra a faixa já inutilizada, então ela também aparece aqui."
-	)
+	aviso = _("Candidatas à inutilização: faixas já inutilizadas pelo app não aparecem.")
 
 	return _colunas(), linhas, aviso
