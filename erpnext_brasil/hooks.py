@@ -160,11 +160,16 @@ for _doctype in ("Subcontracting Order", "Subcontracting Receipt"):
 # (`fiscal/documento/validade_certificado.py`) raciocina em dias — verificar de hora em
 # hora repetiria o mesmo alerta 24 vezes no dia do marco.
 scheduler_events = {
+	# De hora em hora, e não a cada emissão: o NTP.br não publica limite de uso, e a guarda de
+	# emissão lê a última medição do cache em vez de abrir socket (design de `fonte-de-tempo-ntp-br`).
+	"hourly": [
+		"erpnext_brasil.integracao.medicao_do_relogio.medir_e_guardar",
+	],
 	"daily": [
 		"erpnext_brasil.integracao.alerta_certificado.verificar_validade_dos_certificados",
 		# Módulo diferente do de cima de propósito: é alerta de risco fiscal, não de
 		# certificado. Mesma frequência porque as duas respondem à mesma pergunta —
 		# "o que vai parar de funcionar em breve?".
 		"erpnext_brasil.integracao.alerta_fiscal.verificar_transicao_da_reforma",
-	]
+	],
 }
