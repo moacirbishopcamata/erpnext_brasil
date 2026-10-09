@@ -23,7 +23,7 @@ Esta é a fila proposta. Nada foi implementado.
 
 | Relatório | Fonte | Para quê |
 |---|---|---|
-| **Notas por situação e rejeição** | `Transmissao Fiscal` (`situacao`, `codigo_status`, `tipo`, `ambiente`) | quantas autorizadas, rejeitadas, denegadas; ranking dos `cStat` de rejeição |
+| ✅ **Notas por situação e rejeição** (`Notas por Situacao`, 2026-10-09) | `Transmissao Fiscal` (`situacao`, `codigo_status`, `tipo`, `ambiente`) | quantas autorizadas, rejeitadas, denegadas; ranking dos `cStat` de rejeição |
 | **Lacunas de numeração** | `Numeracao Fiscal` × `Transmissao Fiscal` | números alocados sem desfecho (inutilização pendente) |
 | **Bloqueios por consumo indevido** | `Bloqueio Sefaz` | CNPJ bloqueado, desde quando, quanto falta (regra do 656) |
 | **NFC-e pendentes de transmissão** | `Pendencia NFCe` (`transmitir_ate`, `tentativas`) | contingência a vencer — o prazo é legal |
@@ -85,3 +85,10 @@ Sem relatório proposto: o app `healthcare` não está instalado e o módulo (TI
 
 Cada relatório vira um item pequeno e independente (consulta pura + Script Report + teste de bench); a primeira leva
 são três e valida o molde antes de multiplicar.
+
+## Primeiro relatório entregue (2026-10-09)
+
+`Notas por Situacao` (Registros Fiscais): `fiscal/relatorio_notas.py` (consulta pura, 8 testes) + Script Report em
+`registros_fiscais/report/notas_por_situacao/` + `tests_bench/test_relatorio_notas.py` (6 testes reais). É o molde dos
+demais: empresa e período obrigatórios, nada descartado em silêncio, aviso para autorização sem chave. O nome vai sem
+acento, como os DocTypes do app (`Transmissao Fiscal`), porque o Frappe deriva o diretório do nome.
