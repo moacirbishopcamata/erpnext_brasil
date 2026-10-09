@@ -123,9 +123,21 @@
       **Parcial (2026-10-03).** `test_transporte_cte.py` prova que a guarda recusa o CT-e com **zero**
       chamadas à sessão HTTP, e que o registrador recebe o `656`. **Falta** o encadeamento na tela/ação
       que cria o transporte com `guarda`/`registrador` reais (3.5).
-- [ ] 3.4 Implementar o envio de cancelamento (110111) e CC-e (110110) por família, com desfecho
+- [x] 3.4 Implementar o envio de cancelamento (110111) e CC-e (110110) por família, com desfecho
       registrado e sem reenviar evento já aceito — verificar um teste por evento, incluindo o
       cancelamento de documento já cancelado
+
+      **Concluída (2026-10-09), sem a prova em homologação.** `integracao/eventos_cte.py`
+      (`cancelar_cte`, `corrigir_cte`) monta o evento, e `TransporteSefaz.transmitir_evento_cte` o
+      assina e envia por `CTeRecepcaoEventoV4` (`eventos_sefaz_cte.py`; sem lote, corpo em texto,
+      resposta `retEventoCTe` com 135/136 e 155 só no cancelamento). Cancelamento de CT-e já cancelado
+      recusa antes de chamar a SEFAZ; a carta avança `nSeqEvento` (1 a 20) e a rejeitada não o consome;
+      toda rejeição fica gravada (`commit` antes do `throw`). `tests_bench/test_eventos_cte.py` (9) passou
+      em `v16.localhost`; 16 testes puros novos em `tests/test_eventos_sefaz_cte.py`.
+      **Achado:** os montadores de evento do CT-e tinham a forma da NF-e (raiz `evento`, campos soltos em
+      `detEvento`) e a SEFAZ os recusaria; cancelamento e CC-e foram corrigidos, os outros 8 estão em
+      `docs/gaps.md`. **Falta** enviar um evento em homologação e confirmar o cabeçalho SOAP.
+
 - [ ] 3.5 Adicionar o botão "Emitir CT-e" na `Sales Invoice` (só para fatura de transporte) e os
       botões de cancelar/corrigir conforme o estado — verificar em `doctype_js` que o CTA
       aparece/desaparece pelo estado do `Transmissao Fiscal`, no formato de `emissao_nfe.js`
