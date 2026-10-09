@@ -138,9 +138,20 @@
       `detEvento`) e a SEFAZ os recusaria; cancelamento e CC-e foram corrigidos, os outros 8 estão em
       `docs/gaps.md`. **Falta** enviar um evento em homologação e confirmar o cabeçalho SOAP.
 
-- [ ] 3.5 Adicionar o botão "Emitir CT-e" na `Sales Invoice` (só para fatura de transporte) e os
+- [x] 3.5 Adicionar o botão "Emitir CT-e" na `Sales Invoice` (só para fatura de transporte) e os
       botões de cancelar/corrigir conforme o estado — verificar em `doctype_js` que o CTA
       aparece/desaparece pelo estado do `Transmissao Fiscal`, no formato de `emissao_nfe.js`
+
+      **Concluída (2026-10-09), sem clique em site real.** `public/js/emissao_cte.js`, ligado ao lado de
+      `emissao_nfe.js` em `doctype_js` (lista). "Fatura de transporte" = `br_natureza_transporte`
+      preenchida; cada arquivo se cala na fatura do outro. A situação vem de `situacao_fiscal` com
+      `familia: "cte"`: **achado** — sem separar pelo modelo da chave (posições 21-22), o CT-e apareceria
+      como "NF-e: Autorizado"; `da_familia` (puro) faz a separação e a NF-e segue como padrão. Emissão
+      síncrona (sem fila), justificativa de 15 a 255, carta como tabela grupo/campo/novo valor. Travado em
+      `test_costura_cliente.TestBotoesFiscaisDoCte` (12) e `test_situacao_fiscal.TestFamiliaDoRegistro` (6);
+      bench: `test_a_situacao_do_cte_nao_vaza_para_a_da_nfe`. **Falta** abrir uma fatura de transporte no
+      navegador e clicar (lacuna de `docs/gaps.md`, seção 2).
+
 - [ ] 3.6 Fatorar em módulos se `integracao/` passar de 320 linhas — verificar com a conferência
       de tamanho existente
 

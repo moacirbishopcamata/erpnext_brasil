@@ -15,10 +15,13 @@ Módulo puro: roda sem bench.
 import unittest
 
 from erpnext_brasil.fiscal.documento.situacao_fiscal import (
+	FAMILIA_CTE,
+	FAMILIA_NFE,
 	SITUACAO_NAO_EMITIDO,
 	SITUACOES_DO_DOCUMENTO,
 	RegistroLido,
 	SituacaoFiscal,
+	da_familia,
 	situacao_do_documento,
 )
 from erpnext_brasil.fiscal.documento.transmissao_registro import (
@@ -227,3 +230,52 @@ class TestVocabulario(unittest.TestCase):
 
 if __name__ == "__main__":
 	unittest.main()
+
+
+class TestFamiliaDoRegistro(unittest.TestCase):
+	"""Uma fatura de transporte tem o CT-e e, se houver, a NF-e no mesmo `documento`.
+
+	Teste-âncora: `test_cte_autorizado_nao_aparece_como_nfe_autorizada`. Sem separar pelo modelo da
+	chave, a tela de NF-e anunciaria "Autorizado" para uma fatura que só tem CT-e, e ofereceria
+	"Cancelar NF-e" para algo que não é NF-e.
+	"""
+
+	def setUp(self):
+		from erpnext_brasil.fiscal.documento.chave_acesso import montar_chave
+
+		self.chave_cte = montar_chave("11", "2610", "11222333000181", "57", "1", "42", "1", "12345678")
+		self.chave_nfe = montar_chave("11", "2610", "11222333000181", "55", "1", "43", "1", "12345678")
+		self.cte = RegistroLido(TIPO_AUTORIZACAO, SITUACAO_AUTORIZADO, self.chave_cte, "111")
+		self.nfe = RegistroLido(TIPO_AUTORIZACAO, SITUACAO_AUTORIZADO, self.chave_nfe, "222")
+
+	def test_cte_autorizado_nao_aparece_como_nfe_autorizada(self):
+		situacao = situacao_do_documento(da_familia([self.cte], FAMILIA_NFE))
+
+		self.assertEqual(situacao.situacao, SITUACAO_NAO_EMITIDO)
+
+	def test_cada_familia_ve_so_a_sua_historia(self):
+		registros = [self.cte, self.nfe]
+
+		self.assertEqual(da_familia(registros, FAMILIA_CTE), (self.cte,))
+		self.assertEqual(da_familia(registros, FAMILIA_NFE), (self.nfe,))
+
+	def test_registro_sem_chave_continua_na_familia_da_nfe(self):
+		sem_chave = RegistroLido(TIPO_AUTORIZACAO, SITUACAO_REJEITADO)
+
+		self.assertEqual(da_familia([sem_chave], FAMILIA_NFE), (sem_chave,))
+		self.assertEqual(da_familia([sem_chave], FAMILIA_CTE), ())
+
+	def test_chave_malformada_nao_some_da_tela(self):
+		malformada = RegistroLido(TIPO_AUTORIZACAO, SITUACAO_AUTORIZADO, "123")
+
+		self.assertEqual(da_familia([malformada], FAMILIA_NFE), (malformada,))
+
+	def test_o_evento_do_cte_fica_na_familia_do_cte(self):
+		cancelamento = RegistroLido(TIPO_CANCELAMENTO, SITUACAO_CANCELADO, self.chave_cte, "333")
+		situacao = situacao_do_documento(da_familia([self.cte, cancelamento], FAMILIA_CTE))
+
+		self.assertEqual(situacao.situacao, SITUACAO_CANCELADO)
+
+	def test_familia_desconhecida_levanta(self):
+		with self.assertRaises(ValueError):
+			da_familia([], "mdfe")

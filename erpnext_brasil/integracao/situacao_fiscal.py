@@ -31,7 +31,12 @@ from dataclasses import asdict
 
 import frappe
 
-from erpnext_brasil.fiscal.documento.situacao_fiscal import RegistroLido, situacao_do_documento
+from erpnext_brasil.fiscal.documento.situacao_fiscal import (
+	FAMILIA_NFE,
+	RegistroLido,
+	da_familia,
+	situacao_do_documento,
+)
 from erpnext_brasil.integracao.fila_fiscal import esta_na_fila
 
 __all__ = ["registros_do_documento", "situacao_fiscal"]
@@ -67,19 +72,22 @@ def registros_do_documento(doctype: str, name: str) -> list[RegistroLido]:
 
 
 @frappe.whitelist()
-def situacao_fiscal(doctype: str, name: str) -> dict:
+def situacao_fiscal(doctype: str, name: str, familia: str = FAMILIA_NFE) -> dict:
 	"""Situação fiscal do documento, para a tela.
 
 	Devolve os campos de `SituacaoFiscal` — `situacao`, `chave_acesso`, `protocolo`,
 	`registro`, `cartas_de_correcao`, `registros`, `motivos` — mais `emitido` e `vale`,
 	que são propriedades e não entram no `asdict`.
 
+	`familia` é `"nfe"` (padrão: NF-e e NFC-e) ou `"cte"`: a fatura de transporte tem as duas
+	histórias no mesmo documento, e cada botão pergunta só pela sua.
+
 	Nunca levanta por ausência de registro: documento sem transmissão é o caso comum, e
 	tem resposta própria (`Não emitido`).
 	"""
 	frappe.has_permission(doctype, "read", doc=name, throw=True)
 
-	situacao = situacao_do_documento(registros_do_documento(doctype, name))
+	situacao = situacao_do_documento(da_familia(registros_do_documento(doctype, name), familia))
 
 	# `em_fila` **não** vem dos registros: vem da fila. É o estado que existe entre o
 	# clique e o `Transmissao Fiscal`, e não pertence ao domínio fiscal — um documento

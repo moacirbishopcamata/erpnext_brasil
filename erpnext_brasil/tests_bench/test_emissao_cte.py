@@ -27,6 +27,7 @@ from frappe.tests.utils import FrappeTestCase
 
 from erpnext_brasil.fiscal.documento.porta import Autorizacao, RespostaTransmissao
 from erpnext_brasil.integracao.emissao_cte import emitir_cte
+from erpnext_brasil.integracao.situacao_fiscal import situacao_fiscal
 from erpnext_brasil.tests_bench.test_cte_documento import TestCteDocumento
 
 MODULOS_COBERTOS = ("emissao_cte",)
@@ -176,3 +177,16 @@ class TestEmissaoCte(FrappeTestCase):
 		self.assertIn("[1206]", str(contexto.exception))
 		self.assertEqual(TransporteFalso.chamadas, 0)
 		self.assertEqual(self._registros(fatura.name), [])
+
+	def test_a_situacao_do_cte_nao_vaza_para_a_da_nfe(self):
+		"""Costura da 3.5: a tela de NF-e e a de CT-e perguntam pela mesma fatura, cada uma pela sua família."""
+		fatura = self._fatura()
+		TransporteFalso.resposta = "autorizado"
+		emitir_cte("Sales Invoice", fatura.name)
+
+		do_cte = situacao_fiscal("Sales Invoice", fatura.name, "cte")
+		da_nfe = situacao_fiscal("Sales Invoice", fatura.name)
+
+		self.assertEqual((do_cte["situacao"], do_cte["vale"]), ("Autorizado", True))
+		self.assertEqual(do_cte["protocolo"], PROTOCOLO)
+		self.assertEqual((da_nfe["situacao"], da_nfe["emitido"]), ("Não emitido", False))

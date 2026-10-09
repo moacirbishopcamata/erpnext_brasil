@@ -22,7 +22,9 @@ app_include_js = "/assets/erpnext_brasil/js/desk_transitions.js"
 # `doctype_js` em vez de `app_include_js` para o botão de emissão: ele só faz sentido num
 # DocType, e carregar em toda página do Desk seria peso morto em 99% das telas.
 doctype_js = {
-	"Sales Invoice": "public/js/emissao_nfe.js",
+	# Dois arquivos na mesma tela: a fatura comum emite NF-e, a de transporte (com
+	# `br_natureza_transporte`) emite CT-e. Cada um se cala na fatura do outro.
+	"Sales Invoice": ["public/js/emissao_nfe.js", "public/js/emissao_cte.js"],
 	# A entrada fica no `Purchase Invoice` porque é ali que a nota do fornecedor vira
 	# escrituração. O botão só aparece em rascunho: depois do submit o documento já foi
 	# escriturado com o que tem.

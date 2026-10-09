@@ -44,12 +44,19 @@ from erpnext_brasil.fiscal.documento.transmissao_registro import (
 )
 
 __all__ = [
+	"FAMILIA_CTE",
+	"FAMILIA_NFE",
 	"SITUACAO_NAO_EMITIDO",
 	"SITUACOES_DO_DOCUMENTO",
 	"RegistroLido",
 	"SituacaoFiscal",
+	"da_familia",
 	"situacao_do_documento",
 ]
+
+FAMILIA_NFE = "nfe"
+FAMILIA_CTE = "cte"
+_MODELO_CTE = "57"
 
 SITUACAO_NAO_EMITIDO = "Não emitido"
 """Nenhuma transmissão registrada. **Não** é o mesmo que rejeitado.
@@ -133,6 +140,25 @@ class SituacaoFiscal:
 	def vale(self) -> bool:
 		"""O documento vale perante o Fisco neste momento."""
 		return self.situacao == SITUACAO_AUTORIZADO
+
+
+def da_familia(registros, familia: str) -> tuple[RegistroLido, ...]:
+	"""Só os registros da família pedida: o CT-e (modelo 57) ou o resto (NF-e e NFC-e).
+
+	Uma fatura de transporte acumula `Transmissao Fiscal` do CT-e no mesmo `documento`; lidos juntos
+	com os da NF-e, um CT-e autorizado apareceria como "NF-e: Autorizado". O modelo está nas
+	posições 21-22 da chave de acesso (`chave_acesso.ler_chave`) — lido por fatia, e não por
+	`ler_chave`, que valida o dígito verificador: aqui basta separar, e uma chave malformada deve
+	continuar visível na tela em vez de sumir. Registro sem chave fica na família da NF-e, como
+	sempre ficou.
+	"""
+	if familia not in (FAMILIA_NFE, FAMILIA_CTE):
+		raise ValueError(f"família desconhecida: {familia!r}")
+
+	def eh_cte(registro: RegistroLido) -> bool:
+		return len(registro.chave_acesso) == 44 and registro.chave_acesso[20:22] == _MODELO_CTE
+
+	return tuple(r for r in registros if eh_cte(r) == (familia == FAMILIA_CTE))
 
 
 def _mais_definitiva(uma: str, outra: str) -> str:
