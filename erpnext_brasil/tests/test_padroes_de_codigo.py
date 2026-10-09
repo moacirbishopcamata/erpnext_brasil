@@ -49,7 +49,7 @@ class TestLint(unittest.TestCase):
 		A mensagem de falha traz a saída inteira do `ruff`: quem quebrar o padrão vê o
 		que quebrou sem precisar rodar nada à mão.
 		"""
-		resultado = _rodar_ruff("check", "erpnext_brasil/")
+		resultado = _rodar_ruff("check", "erpnext_brasil/", "scripts/")
 
 		self.assertEqual(
 			resultado.returncode,
@@ -66,7 +66,7 @@ class TestFormatacao(unittest.TestCase):
 		Mesma escolha do `erpnext`, para que contribuição circule entre os dois
 		repositórios sem reformatação — o motivo está registrado no `pyproject.toml`.
 		"""
-		resultado = _rodar_ruff("format", "--check", "erpnext_brasil/")
+		resultado = _rodar_ruff("format", "--check", "erpnext_brasil/", "scripts/")
 
 		self.assertEqual(
 			resultado.returncode,

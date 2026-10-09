@@ -62,6 +62,8 @@ quando a fonte é secundária.
 | Boleto bancário (CNAB 240/400, emissão + conciliação de retorno) | pronto |
 | Pix (payload BR Code, `Company.chave_pix`) | pronto |
 | **RH/folha**: eSocial (S-1010/S-1200/S-1299/S-2200/S-2299), INSS, FGTS, IRRF | pronto |
+| **PostgreSQL** como banco do bench (Frappe experimental, ERPNext não oficial) | provado em site real — 2 patches ao Frappe em `contrib/frappe/`, ver `docs/postgresql.md` |
+| **Cherry** — configuração do bench por tela (`scripts/cherry/`, MIT) | v0.1.0 — banco, portas/Redis, sites, `apps.txt`; ver `docs/cherry.md` |
 | Transmissão real ao SEFAZ (certificado A1 de verdade) | bloqueado — sem certificado/homologação disponível para testar |
 | NFS-e, modais aéreo/aquaviário/ferroviário de CT-e/MDF-e | não iniciado |
 
@@ -475,6 +477,17 @@ Ver [`docs/docker-compose.md`](docs/docker-compose.md) — caminho alternativo a
 WSL2 nativo (que é o ambiente de desenvolvimento efetivamente confirmado funcionando,
 ver [`docs/ambiente-dev-bench.md`](docs/ambiente-dev-bench.md)); o compose ainda não foi
 build-testado de ponta a ponta.
+
+## Banco de dados
+
+MariaDB é o banco de referência (`docs/banco-do-bench-v16.md`). **PostgreSQL também funciona**
+— provado com PostgreSQL 18.6 e Frappe 16.31, ERPNext 16.33 e hrms 16.19 instalados e migrados
+num site real — com duas ressalvas honestas: o Frappe o declara *experimental*, e o ERPNext não
+o suporta oficialmente. Foram precisos dois patches no próprio Frappe (`contrib/frappe/`, a
+devolver ao projeto) e um contorno no `install.py`. Tudo em [`docs/postgresql.md`](docs/postgresql.md).
+
+A configuração do bench — banco, portas, Redis, sites, `apps.txt` — tem uma tela: o
+[Cherry](docs/cherry.md) (`python scripts/cherry/cherry.py`, só tkinter, licença MIT).
 
 ## Dependências
 

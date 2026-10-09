@@ -27,6 +27,8 @@ Como rodar
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
+from erpnext_brasil.tests_bench._cadastros import garantir_ano_fiscal
+
 MODULOS_COBERTOS = ("perda_estoque",)
 """Os módulos de `integracao/` que este arquivo exercita — **declarados**, não inferidos.
 
@@ -101,15 +103,7 @@ class TestPerdaNoEstoque(FrappeTestCase):
 		# se quer num ambiente de teste.
 		ano = str(frappe.utils.now_datetime().year)
 
-		if not frappe.db.exists("Fiscal Year", ano):
-			frappe.get_doc(
-				{
-					"doctype": "Fiscal Year",
-					"year": ano,
-					"year_start_date": f"{ano}-01-01",
-					"year_end_date": f"{ano}-12-31",
-				}
-			).insert(ignore_permissions=True)
+		garantir_ano_fiscal(ano)
 
 		# ⚠️ Fora do `if not exists`, e de propósito.
 		#
