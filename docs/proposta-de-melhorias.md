@@ -12,14 +12,14 @@ Itens marcados 🔒 dependem de fonte legal, certificado ou SEFAZ que não estã
 | ✅ A2 | **`test_party` leva ~10 min** (14 testes) e é o gargalo de qualquer ciclo de bench | 602 s medidos | a empresa é recriada por teste; criar uma vez por classe (`setUpClass`) e reverter por teste |
 | ✅ A3 | **`run-tests` do Frappe gasta >10 min em registros globais** antes do primeiro teste | `test_oauth20` e `test_pdf` interrompidos | usar `--skip-before-tests` no roteiro padrão e documentar em `docs/como-rodar.md` |
 | ✅ A4 | **Auditor lista como "indeterminado" o que o OSV resolve** (3 CVEs do Frappe com `last_affected = 16.31.0`) | `docs/auditoria-da-pilha.md` | `faixa_afeta` aceitar `last_affected` do OSV como fallback quando o GitHub não traz faixa |
-| A5 | **`pdfkit` 1.0.0 sem correção** (CVE-2025-26240, alta) | auditoria | confirmar que nenhum caminho do app chama `from_string` com dado externo; acompanhar o upstream; avaliar trocar o motor de PDF do Frappe (já usa WeasyPrint) |
+| A5 (confirmado: o app não chama pdfkit) | **`pdfkit` 1.0.0 sem correção** (CVE-2025-26240, alta) | auditoria | confirmar que nenhum caminho do app chama `from_string` com dado externo; acompanhar o upstream; `grep` em `erpnext_brasil/` e `scripts/` não acha `pdfkit` nem `from_string`; o uso é do Frappe (ver `docs/auditoria-da-pilha.md`). Acompanhar o upstream |
 | ✅ A6 | **`docs/gaps.md` desatualizado**: ainda diz que `natOp` não valida 60 caracteres, mas `nfe.py` já valida (`_natureza`) | `nfe.py:135` | revisar a seção 5 contra o código e riscar o que foi pago |
 
 ## B. Gaps de costura e cobertura
 
 | # | Item | Evidência | Como fechar |
 |---|---|---|---|
-| B1 | **`folha` é o único módulo ligado no `hooks.py` sem teste de bench** (12/13) | `scripts/cobertura_de_bench.py` | teste que grava um documento de folha e relê por outro caminho |
+| ✅ B1 | **`folha` é o único módulo ligado no `hooks.py` sem teste de bench** (12/13) | `scripts/cobertura_de_bench.py` | teste que grava um documento de folha e relê por outro caminho |
 | B2 | **Só cancelamento e CC-e do CT-e têm envio**; os outros nove eventos existem só como montagem | `gaps.md` (CT-e) | adaptador + botão por evento, começando por Comprovante de Entrega e Prestação em Desacordo |
 | B3 | **Guarda de relógio fora do MDF-e e da NFC-e** | `gaps.md` (fonte de tempo) | ligar quando o ponto de emissão existir (`fechar-laco-cte-mdfe` 5.2) |
 | B4 | **CI não roda bench**: Custom Field, hook e DocType só são provados à mão | `CLAUDE.md` | job opcional no CI com MariaDB + Redis e o roteiro de `scripts/subir.sh`, ao menos no PostgreSQL e MariaDB |

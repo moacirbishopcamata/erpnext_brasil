@@ -14,7 +14,7 @@ documentado que, num site real, não é alcançado por nada.
 |---|---|
 | Gaps de costura confirmados (código inalcançável ou inerte) | **5** |
 | Campos que a integração usava e a instalação nunca criava | **31** — todos corrigidos |
-| Módulos de integração sem teste de bench | 26 de 31 |
+| Módulos de integração sem teste de bench | ~~26 de 31~~ — **0 de 13** ligados no `hooks.py` (2026-10-09, `scripts/cobertura_de_bench.py`) |
 | Itens pendentes declarados em `docs/` | 69 |
 | Documentos desatualizados encontrados | 2 |
 | Fontes a reconferir | 2 |
