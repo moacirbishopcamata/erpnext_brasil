@@ -104,9 +104,19 @@
       `integracao/autorizacao_sefaz_cte.py` e `TransporteSefaz.transmitir_cte` (49+6 testes). `dormir`
       ficou de fora de propósito: serviço síncrono, sem o que esperar. **Falta** autorizar um CT-e em
       homologação com certificado A1 real e conferir a chave devolvida contra a da camada pura.
-- [ ] 3.2 Registrar em `Transmissao Fiscal` o desfecho em todos os casos (autorizado, rejeitado,
+- [x] 3.2 Registrar em `Transmissao Fiscal` o desfecho em todos os casos (autorizado, rejeitado,
       denegado) e gravar chave/protocolo no documento de origem — verificar com teste de bench
       que relê do banco por caminho independente
+
+      **Concluída (2026-10-09).** `integracao/emissao_cte.py` (`emitir_cte`): monta, assina, transmite
+      e grava o `Transmissao Fiscal` em autorizado, rejeitado e denegado; chave e protocolo vão para
+      `br_chave_acesso`/`br_protocolo_autorizacao` só quando autorizado; não reenvia CT-e já
+      autorizado; recusa de cadastro (1206/1207) sai sem registro e sem chamar a SEFAZ.
+      `tests_bench/test_emissao_cte.py` (5 testes, transporte falso) passou em `v16.localhost`, e o
+      teste-âncora falha sem o `commit` (conferido). **Achado:** `frappe.throw` desfaz a transação e
+      levava o registro da rejeição junto; `emissao_nfe.emitir_nfe` tinha o mesmo defeito e ganhou o
+      `commit` antes do `throw` (travado em `tests/test_emissao_commit_antes_do_throw.py`).
+
 - [ ] 3.3 Confirmar que o bloqueio por consumo indevido recusa o envio do CT-e **antes** de
       chamar a SEFAZ — verificar com teste que conta as chamadas ao transporte (zero)
 

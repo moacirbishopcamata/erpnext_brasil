@@ -201,6 +201,10 @@ def emitir_nfe(
 	registro = _registrar(doc, assinada, resposta, ambiente, chave)
 
 	if not resposta.autorizada:
+		# `commit` explícito: `throw` desfaz a transação do request/worker e levaria o registro
+		# junto, deixando a rejeição sem rastro — o oposto do que a docstring do módulo promete.
+		# Mesmo motivo de `consumo_indevido.registrar_resposta`.
+		frappe.db.commit()
 		frappe.throw(
 			_("A SEFAZ recusou a NF-e ({0}): {1}. Detalhes no registro {2}.").format(
 				resposta.codigo, resposta.mensagem, registro

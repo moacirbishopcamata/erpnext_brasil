@@ -61,10 +61,19 @@ def _mapear(retorno: RetornoCte, chave_enviada: str) -> RespostaTransmissao:
 			f"A SEFAZ respondeu pela chave {retorno.chave}, mas o documento enviado é {chave_enviada}"
 		)
 
+	# O que a SEFAZ disse, guardado cru: sem isto o `xml_retorno` do `Transmissao Fiscal` ficaria `{}`.
+	bruto = {
+		"cStat": retorno.codigo,
+		"xMotivo": retorno.motivo,
+		"nProt": retorno.protocolo,
+		"chCTe": retorno.chave,
+	}
+
 	if retorno.autorizado:
 		return RespostaTransmissao(
 			codigo=retorno.codigo,
 			mensagem=retorno.motivo,
+			bruto=bruto,
 			autorizacao=Autorizacao(
 				protocolo=retorno.protocolo,
 				recebido_em=retorno.recebido_em or datetime.now().astimezone(),
@@ -72,7 +81,9 @@ def _mapear(retorno: RetornoCte, chave_enviada: str) -> RespostaTransmissao:
 			),
 		)
 
-	return RespostaTransmissao(codigo=retorno.codigo, mensagem=retorno.motivo, denegado=retorno.denegado)
+	return RespostaTransmissao(
+		codigo=retorno.codigo, mensagem=retorno.motivo, denegado=retorno.denegado, bruto=bruto
+	)
 
 
 def enviar_autorizacao_cte(documento: dict, contexto: ContextoSefaz) -> RespostaTransmissao:
