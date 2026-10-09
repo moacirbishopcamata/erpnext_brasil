@@ -267,7 +267,8 @@ class TestEmissaoComFuso(unittest.TestCase):
 	def _chamada(self, valor) -> str:
 		import ast
 
-		cauda = valor.right if isinstance(valor, ast.BoolOp) else valor
+		# `agora or agora_da_emissao()`: o que conta é o último operando (o `BoolOp` tem `values`).
+		cauda = valor.values[-1] if isinstance(valor, ast.BoolOp) else valor
 
 		return getattr(getattr(cauda, "func", None), "id", "") or ast.dump(valor)
 

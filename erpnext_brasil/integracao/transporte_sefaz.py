@@ -50,8 +50,10 @@ from erpnext_brasil.fiscal.documento.porta import (
 )
 from erpnext_brasil.integracao.assinador_local import AssinadorLocal, carregar_certificado
 from erpnext_brasil.integracao.autorizacao_sefaz import consultar_situacao, enviar_autorizacao
+from erpnext_brasil.integracao.autorizacao_sefaz_cte import enviar_autorizacao_cte
 from erpnext_brasil.integracao.contexto_sefaz import ContextoSefaz
 from erpnext_brasil.integracao.eventos_sefaz import TransporteIndisponivel, enviar_evento
+from erpnext_brasil.integracao.eventos_sefaz_cte import enviar_evento_cte
 from erpnext_brasil.integracao.tls_certificado import ArquivosTls
 
 __all__ = ["TransporteIndisponivel", "TransporteSefaz"]
@@ -185,6 +187,27 @@ class TransporteSefaz:
 				tentativas_consulta_recibo=self._tentativas_consulta_recibo,
 				intervalo_consulta_recibo=self._intervalo_consulta_recibo,
 			)
+		)
+
+	def transmitir_cte(self, documento: dict) -> RespostaTransmissao:
+		"""Envia o CT-e (a árvore `CTe` já assinada) por `CTeRecepcaoSincV4` — síncrono e unitário.
+
+		Método **próprio**, e não `transmitir` generalizado por modelo (`design.md`, decisão 3):
+		`transmitir` fala `NFeAutorizacao4` com lote e recibo, e fazê-lo conhecer um segundo envelope
+		deixaria o teste da NF-e dependente de o CT-e não regredir. A guarda de consumo indevido e o
+		registrador do `656` são os mesmos: `_contexto` e `_registrar` valem para os três documentos.
+		"""
+		return self._registrar(enviar_autorizacao_cte(documento, self._contexto()))
+
+	def transmitir_evento_cte(self, evento: dict, chave_acesso: str) -> RespostaTransmissao:
+		"""Assina e envia um `eventoCTe` (cancelamento, CC-e) por `CTeRecepcaoEventoV4`.
+
+		Um método só para os dois eventos, e fora de `cancelar`/`corrigir`: aqueles montam o evento
+		da NF-e e `test_arquitetura` limita este arquivo. Quem monta o evento é a camada Frappe
+		(`eventos_cte.py`), que lê o autor e o protocolo; o transporte só assina e envia.
+		"""
+		return self._registrar(
+			enviar_evento_cte(evento, self._contexto(), chave_acesso=chave_acesso, assinador=self._assinador)
 		)
 
 	def consultar(self, chave_acesso: str) -> ResultadoConsulta:

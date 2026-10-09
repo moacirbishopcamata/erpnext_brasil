@@ -138,8 +138,10 @@ class TestNumeracaoDoCte(unittest.TestCase):
 			if isinstance(n, ast.FunctionDef) and n.name == "numero_do_documento"
 		)
 
-		self.assertEqual([a.arg for a in funcao.args.args], ["doc", "modelo", "serie", "campo"])
-		self.assertEqual([ast.literal_eval(d) for d in funcao.args.defaults], ["br_numero_nfe"])
+		# `company` veio com o MDF-e: o `Shipment` não tem `doc.company`. Os dois extras têm padrão,
+		# então a chamada de três argumentos da NF-e segue valendo.
+		self.assertEqual([a.arg for a in funcao.args.args], ["doc", "modelo", "serie", "campo", "company"])
+		self.assertEqual([ast.literal_eval(d) for d in funcao.args.defaults], ["br_numero_nfe", None])
 
 	def test_o_mapeador_so_aloca_pela_montagem_que_valida_antes(self):
 		"""Chamar `numero_do_documento` solto, antes da montagem, consumiria número numa recusa."""

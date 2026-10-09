@@ -83,6 +83,17 @@ UNIDADE_CARGA_POR_ROTULO = {
 """`infQ/cUnid` — as seis unidades da anotação do XSD."""
 OPCOES_UNIDADE_CARGA = "\n".join(["", *UNIDADE_CARGA_POR_ROTULO])
 
+RODADO_MDFE_POR_ROTULO = {
+	"Truck": "01",
+	"Toco": "02",
+	"Cavalo mecânico": "03",
+	"VAN": "04",
+	"Utilitário": "05",
+	"Outros": "06",
+}
+"""`veicTracao/tpRod` — os seis tipos de rodado da anotação do XSD do MDF-e."""
+OPCOES_RODADO_MDFE = "\n".join(["", *RODADO_MDFE_POR_ROTULO])
+
 CST_ICMS_CTE = ("00", "20", "40", "41", "51", "90", "SN")
 OPCOES_CST_ICMS_CTE = "\n".join(["", *CST_ICMS_CTE])
 
@@ -463,6 +474,86 @@ def _campos_de_transporte() -> list[dict]:
 	]
 
 
+def _campos_de_mdfe() -> list[dict]:
+	"""Os campos do MDF-e no `Shipment` — a viagem que o manifesto representa.
+
+	O `Shipment` do ERPNext não modela veículo nem motorista (`design.md`, decisão 2); os dados da
+	viagem moram aqui, no próprio documento, e não num DocType novo nem no `Vehicle` do core. O RNTRC
+	vem da `Company`. Município e UF de carregamento/descarga saem dos endereços do `Shipment`.
+	"""
+	return [
+		{
+			"fieldname": "br_secao_mdfe",
+			"label": "Manifesto (MDF-e)",
+			"fieldtype": "Section Break",
+			"insert_after": "total_weight",
+			"collapsible": 1,
+		},
+		{
+			"fieldname": "br_numero_mdfe",
+			"label": "Número do MDF-e",
+			"fieldtype": "Data",
+			"insert_after": "br_secao_mdfe",
+			"read_only": 1,
+			"no_copy": 1,
+			"description": "Alocado na emissão; a reemissão do mesmo Shipment reaproveita.",
+		},
+		{
+			"fieldname": "br_placa_mdfe",
+			"label": "Placa do veículo de tração",
+			"fieldtype": "Data",
+			"length": 7,
+			"insert_after": "br_numero_mdfe",
+			"description": "Sem hífen (ex.: ABC1D23).",
+		},
+		{
+			"fieldname": "br_tara_mdfe",
+			"label": "Tara do veículo (kg)",
+			"fieldtype": "Data",
+			"insert_after": "br_placa_mdfe",
+		},
+		{
+			"fieldname": "br_rodado_mdfe",
+			"label": "Tipo de rodado",
+			"fieldtype": "Select",
+			"options": OPCOES_RODADO_MDFE,
+			"insert_after": "br_tara_mdfe",
+		},
+		{
+			"fieldname": "br_coluna_mdfe",
+			"fieldtype": "Column Break",
+			"insert_after": "br_rodado_mdfe",
+		},
+		{
+			"fieldname": "br_condutor_nome_mdfe",
+			"label": "Nome do motorista",
+			"fieldtype": "Data",
+			"insert_after": "br_coluna_mdfe",
+		},
+		{
+			"fieldname": "br_condutor_cpf_mdfe",
+			"label": "CPF do motorista",
+			"fieldtype": "Data",
+			"length": 11,
+			"insert_after": "br_condutor_nome_mdfe",
+			"description": "Só dígitos (11).",
+		},
+		{
+			"fieldname": "br_placa_reboque_mdfe",
+			"label": "Placa do reboque (opcional)",
+			"fieldtype": "Data",
+			"length": 7,
+			"insert_after": "br_condutor_cpf_mdfe",
+		},
+		{
+			"fieldname": "br_tara_reboque_mdfe",
+			"label": "Tara do reboque (kg)",
+			"fieldtype": "Data",
+			"insert_after": "br_placa_reboque_mdfe",
+		},
+	]
+
+
 def get_custom_fields() -> dict[str, list[dict]]:
 	campos = {}
 
@@ -557,6 +648,7 @@ def get_custom_fields() -> dict[str, list[dict]]:
 		]
 
 	campos["Sales Invoice"] = campos["Sales Invoice"] + _campos_de_transporte()
+	campos["Shipment"] = _campos_de_mdfe()
 
 	for doctype in TABELAS_DE_IMPOSTO:
 		campos[doctype] = [

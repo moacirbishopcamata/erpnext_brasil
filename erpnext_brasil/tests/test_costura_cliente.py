@@ -220,6 +220,121 @@ class TestBotoesFiscais(unittest.TestCase):
 				self.assertIn("freeze: true", _bloco(self._fonte(), funcao))
 
 
+class TestBotoesFiscaisDoCte(unittest.TestCase):
+	"""Os botões da fatura de transporte (`emissao_cte.js`), tarefa 3.5.
+
+	Teste-âncora: `test_cada_tela_se_cala_na_fatura_do_outro`. Sem a guarda dos dois lados, a fatura
+	de transporte ganharia "Emitir NF-e" e "Emitir CT-e" juntos, e o número da série é consumido.
+	"""
+
+	def _fonte(self) -> str:
+		return (RAIZ / "public" / "js" / "emissao_cte.js").read_text(encoding="utf-8")
+
+	def _refresh(self) -> str:
+		return _sem_comentarios(_bloco(self._fonte(), "refresh(frm) {"))
+
+	def _area(self) -> str:
+		return _sem_comentarios(_bloco(self._fonte(), "function montar_area_cte"))
+
+	def test_cada_tela_se_cala_na_fatura_do_outro(self):
+		nfe = _sem_comentarios(
+			_bloco((RAIZ / "public" / "js" / "emissao_nfe.js").read_text(encoding="utf-8"), "refresh(frm) {")
+		)
+
+		self.assertIn("br_natureza_transporte", nfe)
+		self.assertIn("!frm.doc.br_natureza_transporte", self._refresh())
+		self.assertIn("docstatus !== 1", self._refresh())
+
+	def test_os_dois_arquivos_estao_ligados_na_fatura(self):
+		from erpnext_brasil import hooks
+
+		self.assertEqual(
+			hooks.doctype_js["Sales Invoice"], ["public/js/emissao_nfe.js", "public/js/emissao_cte.js"]
+		)
+
+	def test_a_tela_pergunta_so_pela_familia_do_cte(self):
+		"""Sem `familia: "cte"` os registros do CT-e seriam lidos como NF-e."""
+		self.assertIn('familia: "cte"', self._refresh())
+		self.assertNotIn("br_chave_acesso", self._refresh())
+
+	def test_a_emissao_depende_de_nao_haver_documento_perante_o_fisco(self):
+		area = self._area()
+
+		self.assertLess(area.index("!situacao.emitido"), area.index("Emitir CT-e"))
+
+	def test_os_eventos_dependem_de_o_documento_valer(self):
+		area = self._area()
+		guarda = area.index("!situacao.vale")
+
+		for rotulo in ("Cancelar CT-e", "Carta de Correção do CT-e"):
+			with self.subTest(botao=rotulo):
+				self.assertLess(guarda, area.index(rotulo))
+
+	def test_toda_situacao_do_dominio_tem_cor_declarada(self):
+		from erpnext_brasil.fiscal.documento.situacao_fiscal import SITUACOES_DO_DOCUMENTO
+
+		cores = _bloco(self._fonte(), "const COR_DA_SITUACAO_CTE")
+
+		for situacao in SITUACOES_DO_DOCUMENTO:
+			with self.subTest(situacao=situacao):
+				self.assertIn(situacao, cores)
+
+	def test_pede_confirmacao_antes_de_emitir_e_diz_o_ambiente(self):
+		bloco = _bloco(self._fonte(), "function confirmar_e_emitir_cte")
+
+		self.assertIn("frappe.confirm", bloco)
+		self.assertIn("br_ambiente_sefaz", bloco)
+
+	def test_pede_confirmacao_antes_de_cancelar(self):
+		self.assertIn("frappe.confirm", _bloco(self._fonte(), "function pedir_justificativa_e_cancelar_cte"))
+
+	def test_o_limite_da_justificativa_espelha_o_do_dominio(self):
+		"""255, não 256 como na NF-e. Quem valida de verdade é o domínio puro."""
+		from erpnext_brasil.fiscal.documento.evento_cte import (
+			JUSTIFICATIVA_MAXIMA_CTE,
+			JUSTIFICATIVA_MINIMA_CTE,
+		)
+
+		fonte = self._fonte()
+
+		self.assertIn(f"JUSTIFICATIVA_MINIMA_CTE = {JUSTIFICATIVA_MINIMA_CTE};", fonte)
+		self.assertIn(f"JUSTIFICATIVA_MAXIMA_CTE = {JUSTIFICATIVA_MAXIMA_CTE};", fonte)
+		self.assertIn(
+			"< JUSTIFICATIVA_MINIMA_CTE", _bloco(fonte, "function pedir_justificativa_e_cancelar_cte")
+		)
+
+	def test_a_carta_e_uma_lista_estruturada_com_os_limites_do_xsd(self):
+		bloco = _sem_comentarios(_bloco(self._fonte(), "function pedir_correcoes_e_corrigir_cte"))
+
+		for campo in ("grupo_alterado", "campo_alterado", "valor_alterado", "numero_item_alterado"):
+			with self.subTest(campo=campo):
+				self.assertIn(campo, bloco)
+
+		self.assertIn("length: 20", bloco)
+		self.assertIn("length: 500", bloco)
+		self.assertNotIn("texto_correcao", bloco, "texto livre é a CC-e da NF-e")
+
+	def test_o_numero_do_item_so_vai_quando_preenchido(self):
+		bloco = _sem_comentarios(_bloco(self._fonte(), "function montar_correcao_cte"))
+
+		self.assertIn("if (linha.numero_item_alterado)", bloco)
+
+	def test_toda_chamada_a_sefaz_congela_a_tela(self):
+		for funcao in ("function emitir_cte", "function cancelar_cte", "function corrigir_cte"):
+			with self.subTest(funcao=funcao):
+				self.assertIn("freeze: true", _bloco(self._fonte(), funcao))
+
+	def test_nao_redeclara_nomes_do_arquivo_da_nfe(self):
+		"""Os `.js` de um DocType dividem o escopo global: `const`/`function` repetido quebra um dos dois."""
+		nfe = _sem_comentarios((RAIZ / "public" / "js" / "emissao_nfe.js").read_text(encoding="utf-8"))
+		cte = _sem_comentarios(self._fonte())
+		declaracao = re.compile(r"^(?:const|function)\s+(\w+)", re.MULTILINE)
+
+		repetidos = set(declaracao.findall(nfe)) & set(declaracao.findall(cte))
+
+		self.assertEqual(repetidos, set())
+
+
 class TestBotaoDeEntradaDeNfe(unittest.TestCase):
 	"""O botão que faltava para `importar_nfe` — achado por varredura de costura dois
 	commits depois de o método ser escrito, não por alguém tentar usá-lo."""

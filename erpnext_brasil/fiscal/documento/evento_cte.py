@@ -240,8 +240,10 @@ from erpnext_brasil.fiscal.cte import (
 	TIPO_CTE_NORMAL,
 )
 from erpnext_brasil.fiscal.cte_rodoviario import RntrcInvalido, validar_rntrc
+from erpnext_brasil.fiscal.documento.assinatura import montar_signature
 from erpnext_brasil.fiscal.documento.chave_acesso import ler_chave, validar_chave
 from erpnext_brasil.fiscal.documento.evento import EventoInvalido, assinar_evento
+from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.validators import validar_cnpj, validar_cpf_cnpj
 
 __all__ = [
@@ -288,6 +290,7 @@ __all__ = [
 	"ParteGtv",
 	"TomadorEpec",
 	"assinar_evento",
+	"assinar_evento_cte",
 	"calcular_hash_entrega",
 	"montar_env_evento_cte",
 	"montar_evento_cancelamento_comprovante_entrega_cte",
@@ -420,6 +423,41 @@ def _formatar_id_cte(chave: str, tipo_evento: str, numero_sequencia: int) -> str
 	return f"ID{tipo_evento}{chave}{numero_sequencia:03d}"
 
 
+def _evento_cte(inf_evento: dict, elemento: str | None = None) -> dict:
+	"""A raiz `eventoCTe` — **não** `evento`, o nome do elemento da NF-e.
+
+	`TEvento` é o tipo, e a raiz do documento enviado ao `CTeRecepcaoEventoV4` é `eventoCTe`
+	(`eventoCTe_v4.00.xsd`: `<xs:element name="eventoCTe" type="TEvento">`; `sped-cte`,
+	`Tools::sefazEvento`, monta `<eventoCTe xmlns=… versao=…>`).
+
+	`detEvento` é `xs:any` (`eventoCTeTiposBasico_v4.00.xsd`): o XML específico do evento — o
+	`elemento` raiz do XSD dele (`evCECTe`, `evGTV`…) — vai **dentro** dele, e só o atributo
+	`versaoEvento` fica ao lado. Os montadores escrevem os campos soltos em `detEvento` e este
+	helper os acomoda no `elemento`, para a forma ficar num lugar só.
+	"""
+	if elemento is not None:
+		detalhe = inf_evento["detEvento"]
+		corpo = {chave: valor for chave, valor in detalhe.items() if chave != "@versaoEvento"}
+		inf_evento = {
+			**inf_evento,
+			"detEvento": {"@versaoEvento": detalhe["@versaoEvento"], elemento: corpo},
+		}
+
+	return {"eventoCTe": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+
+
+def assinar_evento_cte(grupo_evento: dict, assinador) -> dict:
+	"""Assina o `eventoCTe` (`Signature` irmã de `infEvento`, obrigatória em `TEvento`).
+
+	Irmã de `evento.assinar_evento`, que lê a raiz `evento` da NF-e; a mecânica é a mesma.
+	"""
+	evento = grupo_evento["eventoCTe"]
+	id_elemento = evento["infEvento"]["@Id"]
+	material = assinador.assinar(para_xml(grupo_evento).encode("utf-8"), id_elemento)
+
+	return {"eventoCTe": {**evento, **montar_signature(id_elemento, material)}}
+
+
 @dataclass(frozen=True)
 class CorrecaoCte:
 	"""Um item de `infCorrecao` — uma correção campo a campo (não texto livre, ver
@@ -524,13 +562,15 @@ def montar_evento_cancelamento_cte(
 		"nSeqEvento": str(numero_sequencia),
 		"detEvento": {
 			"@versaoEvento": _VERSAO_LEIAUTE_CTE,
-			"descEvento": "Cancelamento",
-			"nProt": protocolo_limpo,
-			"xJust": texto_justificativa,
+			"evCancCTe": {
+				"descEvento": "Cancelamento",
+				"nProt": protocolo_limpo,
+				"xJust": texto_justificativa,
+			},
 		},
 	}
 
-	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+	return _evento_cte(inf_evento)
 
 
 def montar_evento_correcao_cte(
@@ -577,13 +617,15 @@ def montar_evento_correcao_cte(
 		"nSeqEvento": str(numero_sequencia),
 		"detEvento": {
 			"@versaoEvento": _VERSAO_LEIAUTE_CTE,
-			"descEvento": "Carta de Correção",
-			"infCorrecao": [_montar_inf_correcao(c) for c in correcoes],
-			"xCondUso": XCONDUSO_CCE_CTE,
+			"evCCeCTe": {
+				"descEvento": "Carta de Correção",
+				"infCorrecao": [_montar_inf_correcao(c) for c in correcoes],
+				"xCondUso": XCONDUSO_CCE_CTE,
+			},
 		},
 	}
 
-	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+	return _evento_cte(inf_evento)
 
 
 def calcular_hash_entrega(chave_acesso: str, imagem_base64: str) -> str:
@@ -725,7 +767,7 @@ def montar_evento_comprovante_entrega_cte(
 		"detEvento": det_evento,
 	}
 
-	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+	return _evento_cte(inf_evento, "evCECTe")
 
 
 @dataclass(frozen=True)
@@ -845,7 +887,7 @@ def montar_evento_epec_cte(
 		"detEvento": det_evento,
 	}
 
-	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+	return _evento_cte(inf_evento, "evEPECCTe")
 
 
 def _montar_evento_cancelamento_protocolo(
@@ -853,6 +895,7 @@ def _montar_evento_cancelamento_protocolo(
 	protocolo: str,
 	protocolo_evento_cancelado: str,
 	campo_protocolo_evento: str,
+	elemento: str,
 	desc_evento: str,
 	tipo_evento: str,
 	cnpj_autor: str,
@@ -905,7 +948,7 @@ def _montar_evento_cancelamento_protocolo(
 		},
 	}
 
-	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+	return _evento_cte(inf_evento, elemento)
 
 
 def montar_evento_cancelamento_comprovante_entrega_cte(
@@ -933,6 +976,7 @@ def montar_evento_cancelamento_comprovante_entrega_cte(
 		protocolo=protocolo,
 		protocolo_evento_cancelado=protocolo_comprovante_entrega,
 		campo_protocolo_evento="nProtCE",
+		elemento="evCancCECTe",
 		desc_evento="Cancelamento do Comprovante de Entrega do CT-e",
 		tipo_evento=TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE,
 		cnpj_autor=cnpj_autor,
@@ -965,6 +1009,7 @@ def montar_evento_cancelamento_insucesso_entrega_cte(
 		protocolo=protocolo,
 		protocolo_evento_cancelado=protocolo_insucesso_entrega,
 		campo_protocolo_evento="nProtIE",
+		elemento="evCancIECTe",
 		desc_evento="Cancelamento do Insucesso de Entrega do CT-e",
 		tipo_evento=TIPO_EVENTO_CANCELAMENTO_INSUCESSO_ENTREGA_CTE,
 		cnpj_autor=cnpj_autor,
@@ -1084,7 +1129,7 @@ def montar_evento_insucesso_entrega_cte(
 		"detEvento": det_evento,
 	}
 
-	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+	return _evento_cte(inf_evento, "evIECTe")
 
 
 @dataclass(frozen=True)
@@ -1284,7 +1329,7 @@ def montar_evento_gtv_cte(
 		},
 	}
 
-	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+	return _evento_cte(inf_evento, "evGTV")
 
 
 def montar_evento_prestacao_desacordo_cte(
@@ -1341,7 +1386,7 @@ def montar_evento_prestacao_desacordo_cte(
 		},
 	}
 
-	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+	return _evento_cte(inf_evento, "evPrestDesacordo")
 
 
 def montar_evento_cancelamento_prestacao_desacordo_cte(
@@ -1398,7 +1443,7 @@ def montar_evento_cancelamento_prestacao_desacordo_cte(
 		},
 	}
 
-	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+	return _evento_cte(inf_evento, "evCancPrestDesacordo")
 
 
 def montar_evento_registro_multimodal_cte(
@@ -1467,7 +1512,7 @@ def montar_evento_registro_multimodal_cte(
 		"detEvento": det_evento,
 	}
 
-	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+	return _evento_cte(inf_evento, "evRegMultimodal")
 
 
 def montar_env_evento_cte(eventos: list[dict], id_lote: str) -> dict:
@@ -1487,6 +1532,6 @@ def montar_env_evento_cte(eventos: list[dict], id_lote: str) -> dict:
 			"@xmlns": NAMESPACE_CTE,
 			"@versao": _VERSAO_LEIAUTE_CTE,
 			"idLote": id_lote.strip(),
-			"evento": [e["evento"] for e in eventos],
+			"evento": [e.get("evento") or e["eventoCTe"] for e in eventos],
 		}
 	}

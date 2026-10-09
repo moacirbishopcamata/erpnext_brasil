@@ -94,34 +94,114 @@
       `TransporteSefaz`, com `dormir` injetado —
       verificar em homologação que o documento é autorizado e que a chave gravada bate com a da
       camada pura; conferia do envelope contra o pacote de esquemas antes de codificar
-- [ ] 3.2 Registrar em `Transmissao Fiscal` o desfecho em todos os casos (autorizado, rejeitado,
+
+      **Parcial (2026-10-03) — código e testes prontos; falta a prova em homologação.** Envelope e
+      resposta conferidos em fonte **secundária** (`sped-cte`/`sped-common`, XSD `PL_CTe_400`), não no
+      MOC: o CT-e **manda** `cteCabecMsg` (`cUF`+`versaoDados`), leva o `CTe` direto (sem
+      `enviCTe`) em **GZip+Base64** dentro de `cteDadosMsg`, e a ação SOAP vai no `Content-Type`;
+      `retCTe` com um `cStat` só (autorizado 100/150, denegado 110/205/301). Novos:
+      `fiscal/documento/soap_cte.py`, `fiscal/documento/resposta_cte.py`,
+      `integracao/autorizacao_sefaz_cte.py` e `TransporteSefaz.transmitir_cte` (49+6 testes). `dormir`
+      ficou de fora de propósito: serviço síncrono, sem o que esperar. **Falta** autorizar um CT-e em
+      homologação com certificado A1 real e conferir a chave devolvida contra a da camada pura.
+- [x] 3.2 Registrar em `Transmissao Fiscal` o desfecho em todos os casos (autorizado, rejeitado,
       denegado) e gravar chave/protocolo no documento de origem — verificar com teste de bench
       que relê do banco por caminho independente
+
+      **Concluída (2026-10-09).** `integracao/emissao_cte.py` (`emitir_cte`): monta, assina, transmite
+      e grava o `Transmissao Fiscal` em autorizado, rejeitado e denegado; chave e protocolo vão para
+      `br_chave_acesso`/`br_protocolo_autorizacao` só quando autorizado; não reenvia CT-e já
+      autorizado; recusa de cadastro (1206/1207) sai sem registro e sem chamar a SEFAZ.
+      `tests_bench/test_emissao_cte.py` (5 testes, transporte falso) passou em `v16.localhost`, e o
+      teste-âncora falha sem o `commit` (conferido). **Achado:** `frappe.throw` desfaz a transação e
+      levava o registro da rejeição junto; `emissao_nfe.emitir_nfe` tinha o mesmo defeito e ganhou o
+      `commit` antes do `throw` (travado em `tests/test_emissao_commit_antes_do_throw.py`).
+
 - [ ] 3.3 Confirmar que o bloqueio por consumo indevido recusa o envio do CT-e **antes** de
       chamar a SEFAZ — verificar com teste que conta as chamadas ao transporte (zero)
-- [ ] 3.4 Implementar o envio de cancelamento (110111) e CC-e (110110) por família, com desfecho
+
+      **Parcial (2026-10-03).** `test_transporte_cte.py` prova que a guarda recusa o CT-e com **zero**
+      chamadas à sessão HTTP, e que o registrador recebe o `656`. **Falta** o encadeamento na tela/ação
+      que cria o transporte com `guarda`/`registrador` reais (3.5).
+- [x] 3.4 Implementar o envio de cancelamento (110111) e CC-e (110110) por família, com desfecho
       registrado e sem reenviar evento já aceito — verificar um teste por evento, incluindo o
       cancelamento de documento já cancelado
-- [ ] 3.5 Adicionar o botão "Emitir CT-e" na `Sales Invoice` (só para fatura de transporte) e os
+
+      **Concluída (2026-10-09), sem a prova em homologação.** `integracao/eventos_cte.py`
+      (`cancelar_cte`, `corrigir_cte`) monta o evento, e `TransporteSefaz.transmitir_evento_cte` o
+      assina e envia por `CTeRecepcaoEventoV4` (`eventos_sefaz_cte.py`; sem lote, corpo em texto,
+      resposta `retEventoCTe` com 135/136 e 155 só no cancelamento). Cancelamento de CT-e já cancelado
+      recusa antes de chamar a SEFAZ; a carta avança `nSeqEvento` (1 a 20) e a rejeitada não o consome;
+      toda rejeição fica gravada (`commit` antes do `throw`). `tests_bench/test_eventos_cte.py` (9) passou
+      em `v16.localhost`; 16 testes puros novos em `tests/test_eventos_sefaz_cte.py`.
+      **Achado:** os montadores de evento do CT-e tinham a forma da NF-e (raiz `evento`, campos soltos em
+      `detEvento`) e a SEFAZ os recusaria; cancelamento e CC-e foram corrigidos, os outros 8 estão em
+      `docs/gaps.md`. **Falta** enviar um evento em homologação e confirmar o cabeçalho SOAP.
+
+- [x] 3.5 Adicionar o botão "Emitir CT-e" na `Sales Invoice` (só para fatura de transporte) e os
       botões de cancelar/corrigir conforme o estado — verificar em `doctype_js` que o CTA
       aparece/desaparece pelo estado do `Transmissao Fiscal`, no formato de `emissao_nfe.js`
-- [ ] 3.6 Fatorar em módulos se `integracao/` passar de 320 linhas — verificar com a conferência
+
+      **Concluída (2026-10-09), sem clique em site real.** `public/js/emissao_cte.js`, ligado ao lado de
+      `emissao_nfe.js` em `doctype_js` (lista). "Fatura de transporte" = `br_natureza_transporte`
+      preenchida; cada arquivo se cala na fatura do outro. A situação vem de `situacao_fiscal` com
+      `familia: "cte"`: **achado** — sem separar pelo modelo da chave (posições 21-22), o CT-e apareceria
+      como "NF-e: Autorizado"; `da_familia` (puro) faz a separação e a NF-e segue como padrão. Emissão
+      síncrona (sem fila), justificativa de 15 a 255, carta como tabela grupo/campo/novo valor. Travado em
+      `test_costura_cliente.TestBotoesFiscaisDoCte` (12) e `test_situacao_fiscal.TestFamiliaDoRegistro` (6);
+      bench: `test_a_situacao_do_cte_nao_vaza_para_a_da_nfe`. **Falta** abrir uma fatura de transporte no
+      navegador e clicar (lacuna de `docs/gaps.md`, seção 2).
+
+- [x] 3.6 Fatorar em módulos se `integracao/` passar de 320 linhas — verificar com a conferência
       de tamanho existente
+
+      **Concluída (2026-10-09), sem fatoração necessária.** O maior módulo de `integracao/` é
+      `transporte_sefaz.py` com 299 linhas (limite 320); os novos do CT-e têm 91 a 228. Para não
+      estourar o limite, o evento do CT-e entrou como **um** método no transporte
+      (`transmitir_evento_cte`) e a montagem ficou em `eventos_cte.py`, em vez de `cancelar`/`corrigir`
+      duplicados lá. `test_arquitetura.TestCamadaDeIntegracao.test_toda_regra_fica_do_lado_puro` segue verde.
 
 ## 4. Costura pura do MDF-e
 
-- [ ] 4.1 Chamar `referencias_do_shipment` a partir de `integracao/mdfe_documento.py`, agrupando
+- [x] 4.1 Chamar `referencias_do_shipment` a partir de `integracao/mdfe_documento.py`, agrupando
       por município de descarga com o `MunicipioDescarga` de `mapeamento_cte.py` — verificar que
       `cte_extracao` deixa de ser órfão (a suíte o exercita a partir do `Shipment`)
-- [ ] 4.2 Escrever `tests/test_mdfe_documento.py` cobrindo: agrupamento por município, recusa
+
+      **Concluída (2026-10-09).** `integracao/mdfe_documento.py` chama `referencias_do_shipment` e agrupa com
+      `agrupar_por_municipio_descarga`; `cte_extracao` e `mapeamento_cte` deixam de ser órfãos (travado em
+      `tests/test_mdfe_documento.py::TestCteExtracaoDeixaDeSerOrfao`, e exercitado em bench). A montagem pura
+      que faltava para encadear os grupos ficou em `fiscal/mdfe_montagem.py`, irmã de `cte_montagem.py`.
+
+- [x] 4.2 Escrever `tests/test_mdfe_documento.py` cobrindo: agrupamento por município, recusa
       quando um documento referenciado não tem município e recusa quando não há carga nenhuma —
       verificar uma recusa por caso, cada uma nomeando o dado faltante
-- [ ] 4.3 Montar os dados da viagem (veículo, motorista, RNTRC/CIOT) a partir dos campos `br_*`
+
+      **Concluída (2026-10-09).** `tests/test_mdfe_montagem.py` (23 testes): agrupamento por município preservando
+      a ordem, e uma recusa por caso nomeando o dado (sem carga, município sem documento, valor e peso não
+      positivos, sem RNTRC, veículo sem condutor/placa, emitente CPF, endereço incompleto, data sem fuso, modal,
+      UF, número). Mutação conferida: tirar a validação da carga derruba 5 testes.
+
+- [x] 4.3 Montar os dados da viagem (veículo, motorista, RNTRC/CIOT) a partir dos campos `br_*`
       do `Shipment` e alocar o número por série 58 — verificar que o número entra na chave e que
       a montagem recusa quando falta dado da viagem
-- [ ] 4.4 Registar `Shipment` no laço único de `setup/campos_documento.py` (`br_numero_mdfe` +
+
+      **Concluída (2026-10-09).** Veículo (tração e reboque opcional), motorista e RNTRC (da `Company`) vêm dos
+      campos `br_*_mdfe` do `Shipment`; a série 58 vem de `br_serie_mdfe` e o número é alocado só depois de a
+      montagem de prova validar, entrando na chave. **Achado:** o `Shipment` do core não tem `company`, então
+      `numero_do_documento` ganhou o parâmetro `company` (a empresa é a de `pickup_company`). Valor da carga =
+      soma de `grand_total` das notas **com chave** (não o `value_of_goods`, campo livre). **Limites
+      declarados:** só `tpEmit` 2 e emitente CNPJ (a chave leva CNPJ); sem `infCIOT` — `montar_rodo` só produz
+      `infANTT/RNTRC`.
+
+- [x] 4.4 Registar `Shipment` no laço único de `setup/campos_documento.py` (`br_numero_mdfe` +
       campos da viagem) — verificar após `bench migrate` que os campos aparecem no formulário
       do `Shipment`
+
+      **Concluída (2026-10-09).** 10 Custom Fields no `Shipment` (`br_numero_mdfe` + viagem), declarados em
+      `setup/campos_documento.py` e criados em `v16.localhost` por `criar_campos_fiscais`; o bench confere pelo
+      `frappe.get_meta` que existem no `Shipment` e não vazam para `Sales Invoice`, `Delivery Note` nem
+      `Purchase Invoice`. Não rodei `bench migrate` completo (evita patches de outras mudanças no banco
+      compartilhado); a função é a mesma que o `after_migrate` chama. **Falta** o PostgreSQL (`v16pg`).
 
 ## 5. Transmissão e tela do MDF-e
 
@@ -133,6 +213,11 @@
 - [ ] 5.2 Registrar em `Transmissao Fiscal` o desfecho (autorizado, rejeitado, denegado) e gravar
       chave/protocolo no `Shipment` — verificar com teste de bench que relê do banco por caminho
       independente
+
+      **Acrescentado (2026-10-09):** a emissão do MDF-e também chama `garantir_relogio_confiavel()` (mudança
+      `fonte-de-tempo-ntp-br`, tarefa 4.3) como **primeira instrução**, antes de alocar número — incluir a
+      função em `tests/test_guarda_de_relogio.py::EMISSOES`.
+
 - [ ] 5.3 Confirmar o bloqueio por consumo indevido recusando o envio do MDF-e **antes** de
       chamar a SEFAZ — verificar com teste que conta as chamadas ao transporte (zero)
 - [ ] 5.4 Implementar encerramento (110112) e cancelamento do MDF-e com desfecho registrado e sem
@@ -152,7 +237,10 @@
 - [ ] 6.2 Teste de bench que salva um `Sales Invoice` de transporte e um `Shipment` reais, relê do
       banco e confere que os campos fiscais e a chave persistiram — verificar relendo por caminho
       de consulta independente e comparando com o que a camada pura montou
-      **Parcial (2026-10-03).** Lado do CT-e feito: `tests_bench/test_cte_documento.py` (8 testes) salva
+      **Parcial (2026-10-09): CT-e e `Shipment` feitos, falta o PostgreSQL do MDF-e.** `tests_bench/test_mdfe_documento.py`
+      (11 testes) salva `Shipment` e `Delivery Note` reais, monta a árvore e relê o `br_numero_mdfe` e o contador por
+      `frappe.db.get_value`; passa em MariaDB.
+      **(2026-10-03)** Lado do CT-e feito: `tests_bench/test_cte_documento.py` (8 testes) salva
       uma `Sales Invoice` de transporte real, monta a árvore, e relê do banco por `frappe.db.get_value`
       o `br_numero_cte` e o contador de `Numeracao Fiscal` (aloca uma vez, reemissão reaproveita, recusa
       não consome) — passa em MariaDB e em PostgreSQL. **Falta** o `Shipment` (MDF-e, bloco 4).

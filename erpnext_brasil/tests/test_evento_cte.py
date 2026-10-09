@@ -41,7 +41,7 @@ from erpnext_brasil.fiscal.documento.evento_cte import (
 	InfGtv,
 	ParteGtv,
 	TomadorEpec,
-	assinar_evento,
+	assinar_evento_cte,
 	calcular_hash_entrega,
 	montar_env_evento_cte,
 	montar_evento_cancelamento_comprovante_entrega_cte,
@@ -85,6 +85,19 @@ class AssinadorFalso:
 		return MaterialAssinatura(digest="ZGlnZXN0", assinatura="YXNzaW5hdHVyYQ==", certificado="Y2VydA==")
 
 
+def _det(evento: dict) -> dict:
+	"""O corpo do evento: o elemento-raiz do XSD dele (`evCECTe`, `evGTV`…) dentro de `detEvento`.
+
+	`detEvento` é `xs:any`; ao lado do corpo só fica o atributo `versaoEvento`.
+	"""
+	det = evento["eventoCTe"]["infEvento"]["detEvento"]
+	corpos = [chave for chave in det if chave != "@versaoEvento"]
+
+	assert len(corpos) == 1, f"detEvento deve ter um só corpo, tem {corpos}"
+
+	return det[corpos[0]]
+
+
 class TestMontarEventoCancelamentoCte(unittest.TestCase):
 	def setUp(self):
 		self.chave = _chave_cte()
@@ -98,7 +111,7 @@ class TestMontarEventoCancelamentoCte(unittest.TestCase):
 
 	def test_usa_chcte_nao_chnfe(self):
 		"""Achado real: o campo é chCTe, não chNFe (diferente da NF-e)."""
-		inf_evento = self.evento["evento"]["infEvento"]
+		inf_evento = self.evento["eventoCTe"]["infEvento"]
 
 		self.assertEqual(inf_evento["chCTe"], self.chave)
 		self.assertNotIn("chNFe", inf_evento)
@@ -106,7 +119,7 @@ class TestMontarEventoCancelamentoCte(unittest.TestCase):
 	def test_versao_fica_no_atributo_versaoevento_nao_em_verevento(self):
 		"""Achado real: o CT-e não tem elemento verEvento -- a versão é um atributo
 		de detEvento, diferente da NF-e."""
-		inf_evento = self.evento["evento"]["infEvento"]
+		inf_evento = self.evento["eventoCTe"]["infEvento"]
 
 		self.assertNotIn("verEvento", inf_evento)
 		self.assertEqual(inf_evento["detEvento"]["@versaoEvento"], "4.00")
@@ -114,18 +127,36 @@ class TestMontarEventoCancelamentoCte(unittest.TestCase):
 	def test_id_tem_53_digitos_apos_id(self):
 		"""Achado real: nSeqEvento entra com 3 dígitos no @Id do CT-e, não 2 como na
 		NF-e -- o padrão é ID[0-9]{53}, não ID[0-9]{52}."""
-		id_elemento = self.evento["evento"]["infEvento"]["@Id"]
+		id_elemento = self.evento["eventoCTe"]["infEvento"]["@Id"]
 
 		self.assertTrue(id_elemento.startswith("ID"))
 		self.assertEqual(len(id_elemento), len("ID") + 53)
 		self.assertTrue(id_elemento.endswith("001"))
 
 	def test_tp_evento_e_o_mesmo_da_nfe(self):
-		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_CANCELAMENTO_CTE)
+		self.assertEqual(self.evento["eventoCTe"]["infEvento"]["tpEvento"], TIPO_EVENTO_CANCELAMENTO_CTE)
 		self.assertEqual(TIPO_EVENTO_CANCELAMENTO_CTE, "110111")
 
 	def test_namespace_e_o_do_cte(self):
-		self.assertEqual(self.evento["evento"]["@xmlns"], NAMESPACE_CTE)
+		self.assertEqual(self.evento["eventoCTe"]["@xmlns"], NAMESPACE_CTE)
+
+	def test_a_raiz_e_eventocte_e_o_corpo_vem_dentro_de_evcanccte(self):
+		"""Achado da 3.4: `eventoCTe_v4.00.xsd` declara a raiz `eventoCTe` (não `evento`) e
+		`detEvento` é `xs:any` — o XML específico do evento (`evCancCTe`) vai **dentro** dele."""
+		self.assertNotIn("evento", self.evento)
+
+		det_evento = self.evento["eventoCTe"]["infEvento"]["detEvento"]
+
+		self.assertEqual(set(det_evento), {"@versaoEvento", "evCancCTe"})
+		self.assertEqual(
+			set(det_evento["evCancCTe"]), {"descEvento", "nProt", "xJust"}, "campos soltos em detEvento"
+		)
+
+	def test_o_xml_serializado_tem_a_forma_do_leiaute(self):
+		xml = para_xml(assinar_evento_cte(self.evento, AssinadorFalso()))
+
+		self.assertTrue(xml.startswith("<eventoCTe"), xml[:60])
+		self.assertIn("<evCancCTe><descEvento>Cancelamento</descEvento>", xml)
 
 	def test_justificativa_com_256_caracteres_e_invalida(self):
 		"""Achado real: o limite do CT-e é 255, não 256 como a NF-e -- reaproveitar a
@@ -152,7 +183,7 @@ class TestMontarEventoCancelamentoCte(unittest.TestCase):
 			data_evento="2026-08-31T10:00:00-03:00",
 		)
 
-		self.assertEqual(len(evento["evento"]["infEvento"]["detEvento"]["xJust"]), 255)
+		self.assertEqual(len(evento["eventoCTe"]["infEvento"]["detEvento"]["evCancCTe"]["xJust"]), 255)
 
 	def test_limites_de_justificativa_confirmados(self):
 		self.assertEqual(JUSTIFICATIVA_MINIMA_CTE, 15)
@@ -181,11 +212,11 @@ class TestAssinarEventoReaproveitado(unittest.TestCase):
 		)
 		assinador = AssinadorFalso()
 
-		assinado = assinar_evento(evento, assinador)
+		assinado = assinar_evento_cte(evento, assinador)
 
-		self.assertEqual(assinador.recebido[1], evento["evento"]["infEvento"]["@Id"])
-		self.assertIn("Signature", assinado["evento"])
-		self.assertNotIn("Signature", assinado["evento"]["infEvento"])
+		self.assertEqual(assinador.recebido[1], evento["eventoCTe"]["infEvento"]["@Id"])
+		self.assertIn("Signature", assinado["eventoCTe"])
+		self.assertNotIn("Signature", assinado["eventoCTe"]["infEvento"])
 
 	def test_documento_assinado_serializa(self):
 		chave = _chave_cte()
@@ -197,7 +228,7 @@ class TestAssinarEventoReaproveitado(unittest.TestCase):
 			data_evento="2026-08-31T10:00:00-03:00",
 		)
 
-		assinado = assinar_evento(evento, AssinadorFalso())
+		assinado = assinar_evento_cte(evento, AssinadorFalso())
 		xml = para_xml(assinado)
 
 		self.assertIn("<infEvento", xml)
@@ -254,7 +285,7 @@ class TestMontarEventoCorrecaoCte(unittest.TestCase):
 	def test_e_estruturado_nao_texto_livre(self):
 		"""Achado real: a CC-e do CT-e não tem xCorrecao (texto livre) -- tem
 		infCorrecao, uma lista estruturada de alterações campo a campo."""
-		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		det_evento = self.evento["eventoCTe"]["infEvento"]["detEvento"]["evCCeCTe"]
 
 		self.assertNotIn("xCorrecao", det_evento)
 		self.assertEqual(
@@ -275,7 +306,7 @@ class TestMontarEventoCorrecaoCte(unittest.TestCase):
 			data_evento="2026-08-31T10:00:00-03:00",
 		)
 
-		inf_correcao = evento["evento"]["infEvento"]["detEvento"]["infCorrecao"]
+		inf_correcao = evento["eventoCTe"]["infEvento"]["detEvento"]["evCCeCTe"]["infCorrecao"]
 		self.assertEqual(len(inf_correcao), 2)
 		self.assertEqual(inf_correcao[0]["campoAlterado"], "natOp")
 		self.assertEqual(inf_correcao[1]["campoAlterado"], "xNome")
@@ -292,14 +323,14 @@ class TestMontarEventoCorrecaoCte(unittest.TestCase):
 	def test_xconduso_cita_convenio_sinief_06_89_nao_o_da_nfe(self):
 		"""Achado real: base legal diferente da NF-e (Art. 58-B do Convênio SINIEF
 		06/89, não o Art. 7º do Convênio S/N de 1970)."""
-		xconduso = self.evento["evento"]["infEvento"]["detEvento"]["xCondUso"]
+		xconduso = self.evento["eventoCTe"]["infEvento"]["detEvento"]["evCCeCTe"]["xCondUso"]
 
 		self.assertIn("CONVÊNIO/SINIEF 06/89", xconduso.upper())
 		self.assertIn("Art. 58-B", xconduso)
 		self.assertNotIn("Art. 7º", xconduso)
 
 	def test_tp_evento_e_o_mesmo_numero_da_nfe(self):
-		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_CORRECAO_CTE)
+		self.assertEqual(self.evento["eventoCTe"]["infEvento"]["tpEvento"], TIPO_EVENTO_CORRECAO_CTE)
 		self.assertEqual(TIPO_EVENTO_CORRECAO_CTE, "110110")
 
 	def test_sem_correcoes_levanta_erro(self):
@@ -325,7 +356,7 @@ class TestMontarEventoCorrecaoCte(unittest.TestCase):
 			)
 
 	def test_documento_assinado_serializa(self):
-		assinado = assinar_evento(self.evento, AssinadorFalso())
+		assinado = assinar_evento_cte(self.evento, AssinadorFalso())
 		xml = para_xml(assinado)
 
 		self.assertIn("<infCorrecao", xml)
@@ -341,7 +372,7 @@ def _montar_inf_correcao_publica(correcao: CorrecaoCte) -> dict:
 		cnpj_autor=_CNPJ_VALIDO,
 		data_evento="2026-08-31T10:00:00-03:00",
 	)
-	return evento["evento"]["infEvento"]["detEvento"]["infCorrecao"][0]
+	return evento["eventoCTe"]["infEvento"]["detEvento"]["evCCeCTe"]["infCorrecao"][0]
 
 
 def _chave_nfe() -> str:
@@ -396,11 +427,13 @@ class TestMontarEventoComprovanteEntregaCte(unittest.TestCase):
 		)
 
 	def test_tp_evento_e_codigo_proprio_sem_equivalente_na_nfe(self):
-		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE)
+		self.assertEqual(
+			self.evento["eventoCTe"]["infEvento"]["tpEvento"], TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE
+		)
 		self.assertEqual(TIPO_EVENTO_COMPROVANTE_ENTREGA_CTE, "110180")
 
 	def test_campos_basicos(self):
-		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		det_evento = _det(self.evento)
 
 		self.assertEqual(det_evento["descEvento"], "Comprovante de Entrega do CT-e")
 		self.assertEqual(det_evento["nDoc"], "123456789")
@@ -424,7 +457,7 @@ class TestMontarEventoComprovanteEntregaCte(unittest.TestCase):
 			longitude=-46.63,
 		)
 
-		det_evento = evento["evento"]["infEvento"]["detEvento"]
+		det_evento = _det(evento)
 		self.assertEqual(det_evento["latitude"], "-23.500000")
 		self.assertEqual(det_evento["longitude"], "-46.630000")
 
@@ -459,7 +492,7 @@ class TestMontarEventoComprovanteEntregaCte(unittest.TestCase):
 			chaves_nfe_entregues=[chave_nfe],
 		)
 
-		self.assertEqual(evento["evento"]["infEvento"]["detEvento"]["infEntrega"], [{"chNFe": chave_nfe}])
+		self.assertEqual(_det(evento)["infEntrega"], [{"chNFe": chave_nfe}])
 
 	def test_infentrega_recusa_chave_que_nao_e_de_nfe(self):
 		with self.assertRaises(EventoInvalido):
@@ -491,7 +524,7 @@ class TestMontarEventoComprovanteEntregaCte(unittest.TestCase):
 			)
 
 	def test_documento_assinado_serializa(self):
-		assinado = assinar_evento(self.evento, AssinadorFalso())
+		assinado = assinar_evento_cte(self.evento, AssinadorFalso())
 		xml = para_xml(assinado)
 
 		self.assertIn("<hashEntrega", xml)
@@ -568,21 +601,21 @@ class TestMontarEventoEpecCte(unittest.TestCase):
 		)
 
 	def test_tp_evento_e_codigo_proprio(self):
-		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_EPEC_CTE)
+		self.assertEqual(self.evento["eventoCTe"]["infEvento"]["tpEvento"], TIPO_EVENTO_EPEC_CTE)
 		self.assertEqual(TIPO_EVENTO_EPEC_CTE, "110113")
 
 	def test_id_tem_53_digitos_apos_id(self):
-		id_elemento = self.evento["evento"]["infEvento"]["@Id"]
+		id_elemento = self.evento["eventoCTe"]["infEvento"]["@Id"]
 		self.assertEqual(len(id_elemento), len("ID") + 53)
 
 	def test_tpcte_fixo_em_0_mesmo_nao_sendo_parametro(self):
 		"""Achado real: o tpCTe do EPEC só aceita '0' (CT-e Normal) -- diferente do
 		tpCTe da ide, que aceita 0/1/3. Não é parâmetro da função."""
-		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		det_evento = _det(self.evento)
 		self.assertEqual(det_evento["tpCTe"], "0")
 
 	def test_campos_basicos(self):
-		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		det_evento = _det(self.evento)
 
 		self.assertEqual(det_evento["descEvento"], "EPEC")
 		self.assertEqual(det_evento["vICMS"], "100.00")
@@ -595,7 +628,7 @@ class TestMontarEventoEpecCte(unittest.TestCase):
 		self.assertNotIn("vICMSST", det_evento)
 
 	def test_toma4_esta_embutido_no_det_evento(self):
-		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		det_evento = _det(self.evento)
 		self.assertEqual(det_evento["toma4"]["toma"], TOMADOR_EPEC_OUTROS)
 		self.assertEqual(det_evento["toma4"]["CNPJ"], _CNPJ_VALIDO)
 
@@ -616,7 +649,7 @@ class TestMontarEventoEpecCte(unittest.TestCase):
 			valor_icms_st="10.00",
 		)
 
-		self.assertEqual(evento["evento"]["infEvento"]["detEvento"]["vICMSST"], "10.00")
+		self.assertEqual(_det(evento)["vICMSST"], "10.00")
 
 	def test_vtprest_pode_ser_zero_para_cte_complementar(self):
 		"""O XSD permite vTPrest zero para CT-e de complemento de valores."""
@@ -635,7 +668,7 @@ class TestMontarEventoEpecCte(unittest.TestCase):
 			data_evento="2026-08-31T10:00:01-03:00",
 		)
 
-		self.assertEqual(evento["evento"]["infEvento"]["detEvento"]["vTPrest"], "0.00")
+		self.assertEqual(_det(evento)["vTPrest"], "0.00")
 
 	def test_modal_invalido_levanta_erro(self):
 		with self.assertRaises(EventoInvalido):
@@ -670,7 +703,7 @@ class TestMontarEventoEpecCte(unittest.TestCase):
 			data_evento="2026-08-31T10:00:01-03:00",
 		)
 
-		self.assertEqual(evento["evento"]["infEvento"]["detEvento"]["modal"], MODAL_AEREO)
+		self.assertEqual(_det(evento)["modal"], MODAL_AEREO)
 
 	def test_justificativa_com_256_caracteres_e_invalida(self):
 		with self.assertRaises(EventoInvalido):
@@ -690,7 +723,7 @@ class TestMontarEventoEpecCte(unittest.TestCase):
 			)
 
 	def test_documento_assinado_serializa(self):
-		assinado = assinar_evento(self.evento, AssinadorFalso())
+		assinado = assinar_evento_cte(self.evento, AssinadorFalso())
 		xml = para_xml(assinado)
 
 		self.assertIn("<toma4>", xml)
@@ -713,20 +746,20 @@ class TestMontarEventoCancelamentoComprovanteEntregaCte(unittest.TestCase):
 		"""Achado real: 'CE' aqui é Comprovante de Entrega, não Carta de Correção --
 		tpEvento 110181, diferente de 110110 (CC-e) e 110180 (comprovante de entrega)."""
 		self.assertEqual(
-			self.evento["evento"]["infEvento"]["tpEvento"],
+			self.evento["eventoCTe"]["infEvento"]["tpEvento"],
 			TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE,
 		)
 		self.assertEqual(TIPO_EVENTO_CANCELAMENTO_COMPROVANTE_ENTREGA_CTE, "110181")
 
 	def test_dois_protocolos_distintos_nao_o_mesmo_repetido(self):
-		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		det_evento = _det(self.evento)
 
 		self.assertEqual(det_evento["nProt"], "135260000000001")
 		self.assertEqual(det_evento["nProtCE"], "135260000000002")
 		self.assertNotEqual(det_evento["nProt"], det_evento["nProtCE"])
 
 	def test_desc_evento_fixo(self):
-		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		det_evento = _det(self.evento)
 		self.assertEqual(det_evento["descEvento"], "Cancelamento do Comprovante de Entrega do CT-e")
 
 	def test_sem_protocolo_do_cte_levanta_erro(self):
@@ -750,7 +783,7 @@ class TestMontarEventoCancelamentoComprovanteEntregaCte(unittest.TestCase):
 			)
 
 	def test_documento_assinado_serializa(self):
-		assinado = assinar_evento(self.evento, AssinadorFalso())
+		assinado = assinar_evento_cte(self.evento, AssinadorFalso())
 		xml = para_xml(assinado)
 
 		self.assertIn("<nProtCE>", xml)
@@ -770,11 +803,11 @@ class TestMontarEventoInsucessoEntregaCte(unittest.TestCase):
 		)
 
 	def test_tp_evento_e_110190(self):
-		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_INSUCESSO_ENTREGA_CTE)
+		self.assertEqual(self.evento["eventoCTe"]["infEvento"]["tpEvento"], TIPO_EVENTO_INSUCESSO_ENTREGA_CTE)
 		self.assertEqual(TIPO_EVENTO_INSUCESSO_ENTREGA_CTE, "110190")
 
 	def test_desc_evento_e_campos_basicos(self):
-		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		det_evento = _det(self.evento)
 
 		self.assertEqual(det_evento["descEvento"], "Insucesso na Entrega do CT-e")
 		self.assertEqual(det_evento["tpMotivo"], MOTIVO_INSUCESSO_RECEBEDOR_NAO_ENCONTRADO)
@@ -804,7 +837,7 @@ class TestMontarEventoInsucessoEntregaCte(unittest.TestCase):
 			justificativa_motivo="a" * 256,
 		)
 
-		self.assertEqual(len(evento["evento"]["infEvento"]["detEvento"]["xJustMotivo"]), 256)
+		self.assertEqual(len(_det(evento)["xJustMotivo"]), 256)
 
 	def test_xjustmotivo_aceita_256_diferente_de_tjust_255(self):
 		"""Achado real: xJustMotivo usa TString (15-256), não TJust (15-255) -- 256
@@ -818,7 +851,7 @@ class TestMontarEventoInsucessoEntregaCte(unittest.TestCase):
 			data_evento="2026-09-02T15:00:01-03:00",
 			justificativa_motivo="a" * 256,
 		)
-		self.assertEqual(len(evento["evento"]["infEvento"]["detEvento"]["xJustMotivo"]), 256)
+		self.assertEqual(len(_det(evento)["xJustMotivo"]), 256)
 
 	def test_justificativa_com_257_caracteres_e_invalida(self):
 		with self.assertRaises(EventoInvalido):
@@ -870,7 +903,7 @@ class TestMontarEventoInsucessoEntregaCte(unittest.TestCase):
 		)
 
 		esperado = calcular_hash_entrega(self.chave, "aW1hZ2VtLWZha2U=")
-		self.assertEqual(evento["evento"]["infEvento"]["detEvento"]["hashTentativaEntrega"], esperado)
+		self.assertEqual(_det(evento)["hashTentativaEntrega"], esperado)
 
 	def test_numero_tentativa_formatado_com_3_digitos(self):
 		evento = montar_evento_insucesso_entrega_cte(
@@ -883,7 +916,7 @@ class TestMontarEventoInsucessoEntregaCte(unittest.TestCase):
 			numero_tentativa=2,
 		)
 
-		self.assertEqual(evento["evento"]["infEvento"]["detEvento"]["nTentativa"], "002")
+		self.assertEqual(_det(evento)["nTentativa"], "002")
 
 	def test_infentrega_reusa_mesma_validacao_do_comprovante(self):
 		with self.assertRaises(EventoInvalido):
@@ -898,7 +931,7 @@ class TestMontarEventoInsucessoEntregaCte(unittest.TestCase):
 			)
 
 	def test_documento_assinado_serializa(self):
-		assinado = assinar_evento(self.evento, AssinadorFalso())
+		assinado = assinar_evento_cte(self.evento, AssinadorFalso())
 		xml = para_xml(assinado)
 
 		self.assertIn("<dhTentativaEntrega>", xml)
@@ -918,7 +951,7 @@ class TestMontarEventoCancelamentoInsucessoEntregaCte(unittest.TestCase):
 
 	def test_tp_evento_e_110191(self):
 		self.assertEqual(
-			self.evento["evento"]["infEvento"]["tpEvento"],
+			self.evento["eventoCTe"]["infEvento"]["tpEvento"],
 			TIPO_EVENTO_CANCELAMENTO_INSUCESSO_ENTREGA_CTE,
 		)
 		self.assertEqual(TIPO_EVENTO_CANCELAMENTO_INSUCESSO_ENTREGA_CTE, "110191")
@@ -926,13 +959,13 @@ class TestMontarEventoCancelamentoInsucessoEntregaCte(unittest.TestCase):
 	def test_usa_nprotie_nao_nprotce(self):
 		"""Achado real: mesma forma do evCancCECTe, mas o campo do segundo protocolo
 		é nProtIE, não nProtCE -- confirmado idêntico caso contrário."""
-		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		det_evento = _det(self.evento)
 
 		self.assertEqual(det_evento["nProtIE"], "135260000000003")
 		self.assertNotIn("nProtCE", det_evento)
 
 	def test_desc_evento_fixo(self):
-		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		det_evento = _det(self.evento)
 		self.assertEqual(det_evento["descEvento"], "Cancelamento do Insucesso de Entrega do CT-e")
 
 	def test_sem_protocolo_do_insucesso_levanta_erro(self):
@@ -946,7 +979,7 @@ class TestMontarEventoCancelamentoInsucessoEntregaCte(unittest.TestCase):
 			)
 
 	def test_documento_assinado_serializa(self):
-		assinado = assinar_evento(self.evento, AssinadorFalso())
+		assinado = assinar_evento_cte(self.evento, AssinadorFalso())
 		xml = para_xml(assinado)
 
 		self.assertIn("<nProtIE>", xml)
@@ -1049,18 +1082,18 @@ class TestMontarEventoGtvCte(unittest.TestCase):
 		)
 
 	def test_tp_evento_e_110170(self):
-		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_GTV_CTE)
+		self.assertEqual(self.evento["eventoCTe"]["infEvento"]["tpEvento"], TIPO_EVENTO_GTV_CTE)
 		self.assertEqual(TIPO_EVENTO_GTV_CTE, "110170")
 
 	def test_desc_evento_usa_forma_acentuada(self):
 		"""Achado real: o XSD aceita as duas grafias ('Informações'/'Informacoes') --
 		este projeto sempre grava a acentuada."""
-		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		det_evento = _det(self.evento)
 		self.assertEqual(det_evento["descEvento"], "Informações da GTV")
 		self.assertEqual(DESC_EVENTO_GTV, "Informações da GTV")
 
 	def test_infgtv_e_uma_lista(self):
-		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		det_evento = _det(self.evento)
 		self.assertEqual(len(det_evento["infGTV"]), 1)
 
 		inf_gtv = det_evento["infGTV"][0]
@@ -1091,7 +1124,7 @@ class TestMontarEventoGtvCte(unittest.TestCase):
 			data_evento="2026-09-02T17:00:00-03:00",
 		)
 
-		inf_gtv_list = evento["evento"]["infEvento"]["detEvento"]["infGTV"]
+		inf_gtv_list = _det(evento)["infGTV"]
 		self.assertEqual(len(inf_gtv_list), 2)
 		self.assertEqual(inf_gtv_list[1]["serie"], "1")
 		self.assertEqual(inf_gtv_list[1]["placa"], "ABC1234")
@@ -1128,7 +1161,7 @@ class TestMontarEventoGtvCte(unittest.TestCase):
 			)
 
 	def test_documento_assinado_serializa(self):
-		assinado = assinar_evento(self.evento, AssinadorFalso())
+		assinado = assinar_evento_cte(self.evento, AssinadorFalso())
 		xml = para_xml(assinado)
 
 		self.assertIn("<infGTV>", xml)
@@ -1147,17 +1180,19 @@ class TestMontarEventoPrestacaoDesacordoCte(unittest.TestCase):
 
 	def test_tp_evento_e_610110_fora_da_familia_110xxx(self):
 		"""Achado real: primeiro tpEvento fora do padrão 110xxx desta frente."""
-		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_PRESTACAO_DESACORDO_CTE)
+		self.assertEqual(
+			self.evento["eventoCTe"]["infEvento"]["tpEvento"], TIPO_EVENTO_PRESTACAO_DESACORDO_CTE
+		)
 		self.assertEqual(TIPO_EVENTO_PRESTACAO_DESACORDO_CTE, "610110")
 		self.assertFalse(TIPO_EVENTO_PRESTACAO_DESACORDO_CTE.startswith("110"))
 
 	def test_ind_desacordo_oper_sempre_1(self):
-		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		det_evento = _det(self.evento)
 		self.assertEqual(det_evento["indDesacordoOper"], INDICADOR_DESACORDO_OPERACAO)
 		self.assertEqual(INDICADOR_DESACORDO_OPERACAO, "1")
 
 	def test_desc_evento_usa_forma_acentuada(self):
-		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		det_evento = _det(self.evento)
 		self.assertEqual(det_evento["descEvento"], "Prestação do Serviço em Desacordo")
 
 	def test_observacao_curta_demais_levanta_erro(self):
@@ -1179,7 +1214,7 @@ class TestMontarEventoPrestacaoDesacordoCte(unittest.TestCase):
 			)
 
 	def test_documento_assinado_serializa(self):
-		assinado = assinar_evento(self.evento, AssinadorFalso())
+		assinado = assinar_evento_cte(self.evento, AssinadorFalso())
 		xml = para_xml(assinado)
 
 		self.assertIn("<indDesacordoOper>", xml)
@@ -1198,7 +1233,7 @@ class TestMontarEventoCancelamentoPrestacaoDesacordoCte(unittest.TestCase):
 
 	def test_tp_evento_e_610111(self):
 		self.assertEqual(
-			self.evento["evento"]["infEvento"]["tpEvento"],
+			self.evento["eventoCTe"]["infEvento"]["tpEvento"],
 			TIPO_EVENTO_CANCELAMENTO_PRESTACAO_DESACORDO_CTE,
 		)
 		self.assertEqual(TIPO_EVENTO_CANCELAMENTO_PRESTACAO_DESACORDO_CTE, "610111")
@@ -1206,7 +1241,7 @@ class TestMontarEventoCancelamentoPrestacaoDesacordoCte(unittest.TestCase):
 	def test_so_tem_nprotevprestdes_sem_nprot_do_cte(self):
 		"""Achado real: diferente de evCancCECTe/evCancIECTe, este cancelamento não
 		carrega nProt do CT-e -- só o protocolo do evento cancelado."""
-		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		det_evento = _det(self.evento)
 
 		self.assertEqual(det_evento["nProtEvPrestDes"], "135260000000004")
 		self.assertNotIn("nProt", det_evento)
@@ -1221,7 +1256,7 @@ class TestMontarEventoCancelamentoPrestacaoDesacordoCte(unittest.TestCase):
 			)
 
 	def test_documento_assinado_serializa(self):
-		assinado = assinar_evento(self.evento, AssinadorFalso())
+		assinado = assinar_evento_cte(self.evento, AssinadorFalso())
 		xml = para_xml(assinado)
 
 		self.assertIn("<nProtEvPrestDes>", xml)
@@ -1241,15 +1276,17 @@ class TestMontarEventoRegistroMultimodalCte(unittest.TestCase):
 	def test_tp_evento_e_110160_de_volta_ao_padrao_110xxx(self):
 		"""Achado real: volta ao padrão 110xxx -- não segue a exceção 610xxx do
 		evento anterior (prestação em desacordo)."""
-		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_REGISTRO_MULTIMODAL_CTE)
+		self.assertEqual(
+			self.evento["eventoCTe"]["infEvento"]["tpEvento"], TIPO_EVENTO_REGISTRO_MULTIMODAL_CTE
+		)
 		self.assertEqual(TIPO_EVENTO_REGISTRO_MULTIMODAL_CTE, "110160")
 
 	def test_desc_evento_tem_uma_unica_grafia(self):
-		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		det_evento = _det(self.evento)
 		self.assertEqual(det_evento["descEvento"], "Registro Multimodal")
 
 	def test_ndoc_ausente_por_padrao(self):
-		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		det_evento = _det(self.evento)
 		self.assertNotIn("nDoc", det_evento)
 
 	def test_ndoc_numerico_aceito(self):
@@ -1260,7 +1297,7 @@ class TestMontarEventoRegistroMultimodalCte(unittest.TestCase):
 			data_evento="2026-09-02T20:00:00-03:00",
 			numero_documento="12345678901234",
 		)
-		det_evento = evento["evento"]["infEvento"]["detEvento"]
+		det_evento = _det(evento)
 		self.assertEqual(det_evento["nDoc"], "12345678901234")
 
 	def test_ndoc_nao_numerico_levanta_erro(self):
@@ -1293,7 +1330,7 @@ class TestMontarEventoRegistroMultimodalCte(unittest.TestCase):
 			cnpj_autor=_CNPJ_VALIDO,
 			data_evento="2026-09-02T20:00:00-03:00",
 		)
-		self.assertEqual(len(evento["evento"]["infEvento"]["detEvento"]["xRegistro"]), 1000)
+		self.assertEqual(len(_det(evento)["xRegistro"]), 1000)
 
 	def test_registro_com_1001_caracteres_levanta_erro(self):
 		with self.assertRaises(EventoInvalido):
@@ -1305,7 +1342,7 @@ class TestMontarEventoRegistroMultimodalCte(unittest.TestCase):
 			)
 
 	def test_documento_assinado_serializa(self):
-		assinado = assinar_evento(self.evento, AssinadorFalso())
+		assinado = assinar_evento_cte(self.evento, AssinadorFalso())
 		xml = para_xml(assinado)
 
 		self.assertIn("<xRegistro>", xml)
@@ -1314,3 +1351,89 @@ class TestMontarEventoRegistroMultimodalCte(unittest.TestCase):
 
 if __name__ == "__main__":
 	unittest.main()
+
+
+class TestFormaDoEventoCte(unittest.TestCase):
+	"""Todo montador devolve `eventoCTe` com o corpo do evento **dentro** de `detEvento`.
+
+	Achado da 3.4: os montadores nasceram com a forma da NF-e (raiz `evento`, campos soltos em
+	`detEvento`). `eventoCTe_v4.00.xsd` declara a raiz `eventoCTe` e `detEvento` como `xs:any`, e cada
+	XSD de evento tem o seu elemento-raiz — os nomes abaixo foram lidos um a um nos XSDs do `sped-cte`
+	(`schemes/PL_CTe_400`), não deduzidos do nome do arquivo.
+
+	Teste-âncora: `test_nenhum_montador_devolve_a_raiz_da_nfe`.
+	"""
+
+	ELEMENTO_POR_MONTADOR = {  # noqa: RUF012
+		"montar_evento_cancelamento_cte": "evCancCTe",
+		"montar_evento_correcao_cte": "evCCeCTe",
+		"montar_evento_comprovante_entrega_cte": "evCECTe",
+		"montar_evento_epec_cte": "evEPECCTe",
+		"montar_evento_insucesso_entrega_cte": "evIECTe",
+		"montar_evento_gtv_cte": "evGTV",
+		"montar_evento_prestacao_desacordo_cte": "evPrestDesacordo",
+		"montar_evento_cancelamento_prestacao_desacordo_cte": "evCancPrestDesacordo",
+		"montar_evento_registro_multimodal_cte": "evRegMultimodal",
+	}
+	ELEMENTO_DOS_CANCELAMENTOS_DE_ENTREGA = {  # noqa: RUF012
+		"montar_evento_cancelamento_comprovante_entrega_cte": "evCancCECTe",
+		"montar_evento_cancelamento_insucesso_entrega_cte": "evCancIECTe",
+	}
+
+	def _arvore(self):
+		import ast
+		import pathlib
+
+		from erpnext_brasil.fiscal.documento import evento_cte
+
+		return ast.parse(pathlib.Path(evento_cte.__file__).read_text(encoding="utf-8"))
+
+	def _funcao(self, nome: str):
+		import ast
+
+		return next(n for n in ast.walk(self._arvore()) if isinstance(n, ast.FunctionDef) and n.name == nome)
+
+	def test_nenhum_montador_devolve_a_raiz_da_nfe(self):
+		self.assertNotIn('{"evento":', ast_texto(self._arvore()))
+
+	def test_cada_montador_usa_o_elemento_do_seu_xsd(self):
+		import ast
+
+		for montador, esperado in self.ELEMENTO_POR_MONTADOR.items():
+			with self.subTest(montador=montador):
+				textos = {n.value for n in ast.walk(self._funcao(montador)) if isinstance(n, ast.Constant)}
+
+				self.assertIn(esperado, textos)
+
+	def test_os_dois_cancelamentos_de_entrega_passam_o_elemento_ao_helper(self):
+		import ast
+
+		for montador, esperado in self.ELEMENTO_DOS_CANCELAMENTOS_DE_ENTREGA.items():
+			with self.subTest(montador=montador):
+				palavras = {
+					k.arg: k.value.value
+					for n in ast.walk(self._funcao(montador))
+					if isinstance(n, ast.Call)
+					for k in n.keywords
+					if isinstance(k.value, ast.Constant)
+				}
+
+				self.assertEqual(palavras.get("elemento"), esperado)
+
+	def test_o_corpo_e_unico_e_o_atributo_de_versao_fica_ao_lado(self):
+		evento = montar_evento_cancelamento_cte(
+			chave_acesso=_chave_cte(),
+			protocolo="135260000000001",
+			justificativa="Justificativa válida com mais de quinze caracteres.",
+			cnpj_autor=_CNPJ_VALIDO,
+			data_evento="2026-10-09T10:00:00-03:00",
+		)
+		det = evento["eventoCTe"]["infEvento"]["detEvento"]
+
+		self.assertEqual(set(det), {"@versaoEvento", "evCancCTe"})
+
+
+def ast_texto(arvore) -> str:
+	import ast
+
+	return ast.unparse(arvore).replace("'", '"')

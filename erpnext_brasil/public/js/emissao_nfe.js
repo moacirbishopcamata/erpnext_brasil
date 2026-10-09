@@ -59,6 +59,12 @@ frappe.ui.form.on("Sales Invoice", {
 			return;
 		}
 
+		// Fatura de transporte emite CT-e, não NF-e: os botões dela estão em `emissao_cte.js`.
+		// Oferecer os dois para a mesma prestação convidaria a emitir o documento errado.
+		if (frm.doc.br_natureza_transporte) {
+			return;
+		}
+
 		// A situação vem do servidor, não de `br_chave_acesso`. O campo local diz que
 		// houve emissão e nada além: uma nota cancelada continua com a chave preenchida,
 		// e decidir por ele oferecia "Cancelar NF-e" para algo já cancelado.

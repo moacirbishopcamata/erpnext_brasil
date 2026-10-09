@@ -22,7 +22,9 @@ app_include_js = "/assets/erpnext_brasil/js/desk_transitions.js"
 # `doctype_js` em vez de `app_include_js` para o botão de emissão: ele só faz sentido num
 # DocType, e carregar em toda página do Desk seria peso morto em 99% das telas.
 doctype_js = {
-	"Sales Invoice": "public/js/emissao_nfe.js",
+	# Dois arquivos na mesma tela: a fatura comum emite NF-e, a de transporte (com
+	# `br_natureza_transporte`) emite CT-e. Cada um se cala na fatura do outro.
+	"Sales Invoice": ["public/js/emissao_nfe.js", "public/js/emissao_cte.js"],
 	# A entrada fica no `Purchase Invoice` porque é ali que a nota do fornecedor vira
 	# escrituração. O botão só aparece em rascunho: depois do submit o documento já foi
 	# escriturado com o que tem.
@@ -158,11 +160,16 @@ for _doctype in ("Subcontracting Order", "Subcontracting Receipt"):
 # (`fiscal/documento/validade_certificado.py`) raciocina em dias — verificar de hora em
 # hora repetiria o mesmo alerta 24 vezes no dia do marco.
 scheduler_events = {
+	# De hora em hora, e não a cada emissão: o NTP.br não publica limite de uso, e a guarda de
+	# emissão lê a última medição do cache em vez de abrir socket (design de `fonte-de-tempo-ntp-br`).
+	"hourly": [
+		"erpnext_brasil.integracao.medicao_do_relogio.medir_e_guardar",
+	],
 	"daily": [
 		"erpnext_brasil.integracao.alerta_certificado.verificar_validade_dos_certificados",
 		# Módulo diferente do de cima de propósito: é alerta de risco fiscal, não de
 		# certificado. Mesma frequência porque as duas respondem à mesma pergunta —
 		# "o que vai parar de funcionar em breve?".
 		"erpnext_brasil.integracao.alerta_fiscal.verificar_transicao_da_reforma",
-	]
+	],
 }

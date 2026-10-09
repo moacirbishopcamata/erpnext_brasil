@@ -480,6 +480,53 @@ exige certificado A1 real. E o bench v16 (`~/frappe-bench-16`) tem o código, ma
 nunca foi criado**: o banco `_a78420228ee6f61e` não existe, e a criação falha por acesso
 negado do root do MariaDB.
 
+## ~~🔴 Eventos do CT-e com a forma do evento da NF-e~~ — pago em 2026-10-09
+
+Achado na tarefa 3.4 de `fechar-laco-cte-mdfe`, ao escrever o envio. `eventoCTe_v4.00.xsd`
+declara a raiz `eventoCTe` (`<xs:element name="eventoCTe" type="TEvento">`) e `detEvento` como
+`xs:any` — o XML específico do evento (`evCancCTe`, `evCCeCTe`…) vai **dentro** dele. Os
+montadores de `fiscal/documento/evento_cte.py` devolviam raiz `evento` (nome da NF-e) e os campos
+soltos em `detEvento`; a SEFAZ recusaria o documento. `sped-cte` (`Tools::sefazEvento`) monta
+a mesma forma que o XSD.
+
+### ✅ Implementado
+
+Os **11** montadores passam por `_evento_cte(inf_evento, elemento)`, que devolve a raiz `eventoCTe`
+e acomoda os campos no elemento-raiz do XSD do evento (nomes lidos um a um nos XSDs do `sped-cte`):
+`evCancCTe`, `evCCeCTe`, `evCECTe`, `evCancCECTe`, `evIECTe`, `evCancIECTe`, `evEPECCTe`, `evGTV`,
+`evPrestDesacordo`, `evCancPrestDesacordo` e `evRegMultimodal`. `assinar_evento_cte` assina a nova
+raiz. `tests/test_evento_cte.py::TestFormaDoEventoCte` trava a raiz e o elemento de cada um.
+
+### O que ficou de fora
+
+- **Só cancelamento e CC-e têm envio** (`eventos_cte.py`). Os outros nove existem como montagem
+  pura e correta, sem adaptador Frappe nem botão.
+- `montar_env_evento_cte` modela um lote `envEvento` que o CT-e não usa (o `eventoCTe` vai direto);
+  ficou tolerante às duas raízes, sem uso real.
+- O cabeçalho SOAP `cteCabecMsg` do evento foi copiado da autorização por analogia; confirmar em
+  homologação junto com a 3.1.
+- A ordem dos filhos dentro de cada `ev*` não foi reconferida montador a montador nesta passagem; os
+  testes por evento seguem como estavam.
+
+## 🟡 Fonte de tempo (NTP.br): o que a mudança `fonte-de-tempo-ntp-br` deixa de fora — 2026-10-09
+
+Medição, alerta, guarda de emissão (NF-e e CT-e) e correção opcional do `dhEmi` estão implementados e
+testados (`docs/fonte-de-tempo.md`). Ficam:
+
+- 🔴 **Limites padrão sem fonte oficial.** Aviso a partir de 1 s e crítico a partir de 60 s são escolha
+  de engenharia; a tolerância de `dhEmi` está no MOC e não foi verificada. A guarda nasce **ligada**, e
+  só deve ficar assim depois da calibração (tarefa 6.2 da mudança). Resolve: ler o MOC e ajustar os
+  padrões em `fiscal/relogio_politica.py`.
+- 🟡 **Guarda no MDF-e e na NFC-e.** A função é a mesma; falta o ponto de emissão existir
+  (`fechar-laco-cte-mdfe` 5.2 e `emitir-nfce-do-pos` 4.3a, já anotados lá).
+- 🟡 **SNTP sem autenticação.** O app não faz NTS; a defesa é o consenso entre fontes. Se a ameaça de
+  forjamento no caminho for relevante, é mudança à parte (cliente NTS-KE).
+- 🟡 **Política de uso dos servidores `.st1`** para clientes de aplicação não é publicada; a medição é
+  horária por cautela. Confirmar com o NIC.br.
+- 🟡 **Servidor NTP próprio do Observatório Nacional** não confirmado (a página da Hora Legal
+  consultada devolveu 404).
+- 🟡 **Sem prova em PostgreSQL** do cache e do campo novo do `Transmissao Fiscal`.
+
 ## Método
 s expostos e quem os chama
 
