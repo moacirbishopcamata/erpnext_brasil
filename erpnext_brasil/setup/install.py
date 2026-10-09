@@ -15,6 +15,7 @@ from erpnext_brasil.integracao.depreciacao_ativo import instalar_livro_fiscal, i
 from erpnext_brasil.integracao.folha import COMPONENTES_DESTE_MODULO
 from erpnext_brasil.integracao.seed_codigos import criar_listas_de_codigos
 from erpnext_brasil.setup.campos import todos_os_campos
+from erpnext_brasil.setup.modelo_de_endereco import instalar_modelo_de_endereco
 
 
 def after_install():
@@ -23,6 +24,7 @@ def after_install():
 	criar_componentes_salariais()
 	criar_depreciacao_fiscal()
 	criar_indices()
+	instalar_modelo_de_endereco()
 
 
 def after_migrate():
@@ -31,6 +33,7 @@ def after_migrate():
 	criar_componentes_salariais()
 	criar_depreciacao_fiscal()
 	criar_indices()
+	instalar_modelo_de_endereco()
 
 
 INDICES = {

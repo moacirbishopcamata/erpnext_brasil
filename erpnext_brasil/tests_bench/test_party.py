@@ -28,6 +28,8 @@ o `insert()` devolveu — mesma disciplina que achou os dois bugs de
 `certificado_a1.py`.
 """
 
+from unittest import mock
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
@@ -184,6 +186,74 @@ class TestValidarCodigoMunicipio(_EmpresaBrasileiraMixin, FrappeTestCase):
 
 		with self.assertRaises(frappe.ValidationError):
 			validar_codigo_municipio(doc)
+
+	def _endereco(self, codigo: str, estado: str = "RO"):
+		doc = frappe.new_doc("Address")
+		doc.state = estado
+		doc.br_codigo_municipio_ibge = codigo
+
+		return doc
+
+	def test_digito_trocado_levanta_erro_dizendo_o_digito_esperado(self):
+		with self.assertRaises(frappe.ValidationError) as contexto:
+			validar_codigo_municipio(self._endereco("1100206"))
+
+		self.assertIn("deveria ser 5", str(contexto.exception))
+		self.assertIn("[1103]", str(contexto.exception), "o código de erro estável do cadastro")
+
+	def test_municipio_de_outra_uf_levanta_erro(self):
+		with self.assertRaises(frappe.ValidationError) as contexto:
+			validar_codigo_municipio(self._endereco("1100205", "SP"))
+
+		self.assertIn("é de RO", str(contexto.exception))
+
+	def test_municipio_real_que_viola_a_regra_do_digito_e_aceito(self):
+		doc = self._endereco("2202251", "Piauí")  # Canavieira (PI), uma das 9 exceções do IBGE
+
+		validar_codigo_municipio(doc)
+
+		self.assertEqual(doc.br_codigo_municipio_ibge, "2202251")
+
+	def test_excecao_do_administrador_vem_do_site_config(self):
+		with mock.patch.dict(frappe.conf, {"brasil_municipios_excecao_dv": ["1100206"]}):
+			validar_codigo_municipio(self._endereco("1100206"))
+
+		with self.assertRaises(frappe.ValidationError):
+			validar_codigo_municipio(self._endereco("1100206"))
+
+	def test_configuracao_invalida_nao_trava_o_cadastro_mas_fica_registrada(self):
+		with (
+			mock.patch.dict(frappe.conf, {"brasil_municipios_excecao_dv": "1100206"}),
+			mock.patch("erpnext_brasil.integracao.party.frappe.log_error") as registrar,
+		):
+			with self.assertRaises(frappe.ValidationError):
+				validar_codigo_municipio(self._endereco("1100206"))
+
+			validar_codigo_municipio(self._endereco("1100205"))
+
+		registrar.assert_called()
+		self.assertIn("brasil_municipios_excecao_dv", registrar.call_args.kwargs["message"])
+
+	def test_o_insert_real_recusa_o_codigo_invalido_e_grava_o_valido(self):
+		base = {
+			"doctype": "Address",
+			"address_title": "_Teste município",
+			"address_type": "Billing",
+			"address_line1": "Rua A",
+			"city": "Porto Velho",
+			"state": "RO",
+			"country": "Brazil",
+		}
+
+		with self.assertRaises(frappe.ValidationError):
+			frappe.get_doc({**base, "br_codigo_municipio_ibge": "1100206"}).insert(ignore_permissions=True)
+
+		endereco = frappe.get_doc({**base, "br_codigo_municipio_ibge": "1100205"}).insert(
+			ignore_permissions=True
+		)
+		self._docs_criados.append(("Address", endereco.name))
+
+		self.assertEqual(frappe.db.get_value("Address", endereco.name, "br_codigo_municipio_ibge"), "1100205")
 
 
 class TestValidarNcm(_EmpresaBrasileiraMixin, FrappeTestCase):

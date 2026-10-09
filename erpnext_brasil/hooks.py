@@ -102,7 +102,14 @@ doc_events = {
 		]
 	},
 	"Address": {"validate": "erpnext_brasil.integracao.party.validar_codigo_municipio"},
-	"Item": {"validate": "erpnext_brasil.integracao.party.validar_ncm"},
+	"Item": {
+		"validate": [
+			"erpnext_brasil.integracao.party.validar_ncm",
+			"erpnext_brasil.integracao.valoracao_estoque.avisar_valoracao_lifo",
+		]
+	},
+	# O método de valoração padrão também mora aqui, não só no item.
+	"Stock Settings": {"validate": "erpnext_brasil.integracao.valoracao_estoque.avisar_valoracao_lifo"},
 	# O livro fiscal do ativo é conferido em `validate` porque as duas configurações que
 	# ele recusa — método sobre saldo residual e rateio diário — são **válidas** no
 	# ERPNext e produzem números plausíveis. O erro não aparece no primeiro período; sem
