@@ -169,6 +169,31 @@ def classificar_advisories(
 	return afetam, indeterminados
 
 
+def ultima_afetada(vuln_osv: dict) -> str | None:
+	"""Maior `last_affected` que o OSV declara para o registro (ou `None`).
+
+	O GitHub às vezes publica o advisory sem faixa de versão (`tbd`), e o OSV extrai dele "afeta até X"; com isso um
+	advisory antes indeterminado vira "não afeta" para quem está acima de X."""
+	versoes = []
+
+	for afetado in vuln_osv.get("affected") or []:
+		for faixa in afetado.get("ranges") or []:
+			eventos = list(faixa.get("events") or [])
+			eventos += (faixa.get("database_specific") or {}).get("extracted_events") or []
+			versoes += [e["last_affected"] for e in eventos if e.get("last_affected")]
+
+	if not versoes:
+		return None
+
+	maior = versoes[0]
+
+	for v in versoes[1:]:
+		if comparar_versoes(v, maior) > 0:
+			maior = v
+
+	return maior
+
+
 def _por_cve(vulnerabilidades: list[dict]) -> dict[str, dict]:
 	"""Um registro por CVE: o OSV traz o mesmo CVE em GHSA e PYSEC."""
 	unicas: dict[str, dict] = {}
@@ -290,7 +315,25 @@ def auditar(instalados: dict, fontes, hoje: datetime.date | None = None) -> Rela
 		avisos = tentar(f"advisories de {projeto}", lambda projeto=projeto: fontes.advisories(projeto), [])
 		afetam, indeterminados = classificar_advisories(avisos, versao, projeto)
 		relatorio.vulnerabilidades += afetam
-		relatorio.indeterminados += indeterminados
+
+		consultar = getattr(fontes, "vuln_osv", None)
+
+		for achado in indeterminados:
+			registro = (
+				tentar(
+					f"OSV de {achado.identificador}",
+					lambda i=achado.identificador, c=consultar: c(i),
+					None,
+				)
+				if consultar
+				else None
+			)
+			ultima = ultima_afetada(registro) if registro else None
+
+			if ultima and comparar_versoes(versao, ultima) > 0:
+				continue  # o OSV diz "afeta até X" e a instalada é maior: não afeta
+
+			relatorio.indeterminados.append(achado)
 
 	bibliotecas = instalados.get("bibliotecas", {})
 
@@ -361,6 +404,9 @@ class FontesReais:
 		return _buscar(
 			f"https://api.github.com/repos/frappe/{projeto}/security-advisories?state=published&per_page=100"
 		)
+
+	def vuln_osv(self, identificador: str) -> dict:
+		return _buscar(f"https://api.osv.dev/v1/vulns/{identificador}")
 
 	def osv(self, bibliotecas: dict) -> list[list[dict]]:
 		consulta = {

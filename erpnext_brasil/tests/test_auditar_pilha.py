@@ -21,6 +21,7 @@ from scripts.auditar_pilha import (
 	classificar_advisories,
 	comparar_versoes,
 	faixa_afeta,
+	ultima_afetada,
 )
 
 HOJE = datetime.date(2026, 10, 9)
@@ -280,6 +281,77 @@ class TestAuditar(unittest.TestCase):
 		self.assertEqual(relatorio.vulnerabilidades, [])
 		self.assertEqual([i.identificador for i in relatorio.indeterminados], ["CVE-2026-53569"])
 		self.assertEqual(relatorio.codigo_de_saida, 0)
+
+	def test_ultima_afetada_le_o_last_affected_do_osv(self):
+		registro = {
+			"affected": [
+				{
+					"ranges": [
+						{
+							"events": [{"introduced": "0"}],
+							"database_specific": {"extracted_events": [{"last_affected": "16.31.0"}]},
+						}
+					]
+				}
+			]
+		}
+
+		self.assertEqual(ultima_afetada(registro), "16.31.0")
+		self.assertIsNone(ultima_afetada({"affected": []}))
+
+	def test_indeterminado_acima_do_last_affected_do_osv_nao_afeta(self):
+		fontes = FontesFalsas(
+			avisos={
+				"frappe": [_aviso("CVE-2026-53569", "medium", ("tbd", "tbd"))],
+				"erpnext": [],
+				"hrms": [],
+				"bench": [],
+			}
+		)
+		fontes.vuln_osv = lambda identificador: {
+			"affected": [{"ranges": [{"events": [{"last_affected": "16.31.0"}]}]}]
+		}
+
+		relatorio = auditar(_instalados(), fontes, HOJE)  # frappe 16.51.0 > 16.31.0
+
+		self.assertEqual(relatorio.indeterminados, [])
+		self.assertEqual(relatorio.vulnerabilidades, [])
+
+	def test_indeterminado_dentro_do_last_affected_continua_indeterminado(self):
+		fontes = FontesFalsas(
+			avisos={
+				"frappe": [_aviso("CVE-2026-53569", "medium", ("tbd", "tbd"))],
+				"erpnext": [],
+				"hrms": [],
+				"bench": [],
+			}
+		)
+		fontes.vuln_osv = lambda identificador: {
+			"affected": [{"ranges": [{"events": [{"last_affected": "16.99.0"}]}]}]
+		}
+
+		relatorio = auditar(_instalados(), fontes, HOJE)
+
+		self.assertEqual([i.identificador for i in relatorio.indeterminados], ["CVE-2026-53569"])
+
+	def test_osv_fora_do_ar_nao_esconde_o_indeterminado(self):
+		fontes = FontesFalsas(
+			avisos={
+				"frappe": [_aviso("CVE-2026-53569", "medium", ("tbd", "tbd"))],
+				"erpnext": [],
+				"hrms": [],
+				"bench": [],
+			}
+		)
+
+		def fora_do_ar(identificador):
+			raise OSError("osv fora do ar")
+
+		fontes.vuln_osv = fora_do_ar
+
+		relatorio = auditar(_instalados(), fontes, HOJE)
+
+		self.assertEqual([i.identificador for i in relatorio.indeterminados], ["CVE-2026-53569"])
 
 	def test_o_mesmo_cve_em_ghsa_e_pysec_conta_uma_vez(self):
 		duplicado = [

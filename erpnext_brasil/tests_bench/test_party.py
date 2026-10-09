@@ -92,18 +92,41 @@ class _EmpresaBrasileiraMixin:
 
 		frappe.db.commit()
 
-	def setUp(self):
-		self._flag_anterior = frappe.local.flags.company
+	@classmethod
+	def _garantir_empresa(cls):
+		"""A `Company` é criada **uma vez por classe** (criar uma é o passo mais caro do arquivo) e reaproveitada se
+		uma execução interrompida a deixou: sobra de teste não pode derrubar o módulo seguinte."""
+		nome = "_Test Empresa BR (erpnext_brasil)"
 
-		self.empresa = frappe.get_doc(
+		if frappe.db.exists("Company", nome):
+			return frappe.get_doc("Company", nome)
+
+		empresa = frappe.get_doc(
 			{
 				"doctype": "Company",
-				"company_name": "_Test Empresa BR (erpnext_brasil)",
+				"company_name": nome,
 				"abbr": "TEBREB",
 				"default_currency": "BRL",
 				"country": "Brazil",
 			}
 		).insert(ignore_permissions=True)
+		frappe.db.commit()
+
+		return empresa
+
+	@classmethod
+	def tearDownClass(cls):
+		nome = "_Test Empresa BR (erpnext_brasil)"
+
+		if frappe.db.exists("Company", nome):
+			frappe.delete_doc("Company", nome, force=True, ignore_permissions=True)
+			frappe.db.commit()
+
+		super().tearDownClass()
+
+	def setUp(self):
+		self._flag_anterior = frappe.local.flags.company
+		self.empresa = self._garantir_empresa()
 
 		frappe.local.flags.company = self.empresa.name
 		self._docs_criados: list[tuple[str, str]] = []
@@ -113,8 +136,6 @@ class _EmpresaBrasileiraMixin:
 
 		for doctype, nome in reversed(self._docs_criados):
 			frappe.delete_doc(doctype, nome, force=True, ignore_permissions=True)
-
-		frappe.delete_doc("Company", self.empresa.name, force=True, ignore_permissions=True)
 
 
 class TestValidarTaxId(_EmpresaBrasileiraMixin, FrappeTestCase):

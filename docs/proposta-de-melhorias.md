@@ -8,12 +8,12 @@ Itens marcados 🔒 dependem de fonte legal, certificado ou SEFAZ que não estã
 
 | # | Item | Evidência | Como fechar |
 |---|---|---|---|
-| A1 | **Teste de bench deixa sobra e quebra o seguinte.** `test_party` cria a `Company` em `setUp` e faz `commit`; uma execução interrompida deixa `_Test Empresa BR` e todo o módulo passa a falhar com `DuplicateEntryError` | falha de 14 testes nesta sessão | criar a empresa com `exists`-ou-reusa, ou limpar no `setUpClass`; não depender do `tearDown` |
-| A2 | **`test_party` leva ~10 min** (14 testes) e é o gargalo de qualquer ciclo de bench | 602 s medidos | a empresa é recriada por teste; criar uma vez por classe (`setUpClass`) e reverter por teste |
-| A3 | **`run-tests` do Frappe gasta >10 min em registros globais** antes do primeiro teste | `test_oauth20` e `test_pdf` interrompidos | usar `--skip-before-tests` no roteiro padrão e documentar em `docs/como-rodar.md` |
-| A4 | **Auditor lista como "indeterminado" o que o OSV resolve** (3 CVEs do Frappe com `last_affected = 16.31.0`) | `docs/auditoria-da-pilha.md` | `faixa_afeta` aceitar `last_affected` do OSV como fallback quando o GitHub não traz faixa |
+| ✅ A1 | **Teste de bench deixa sobra e quebra o seguinte.** `test_party` cria a `Company` em `setUp` e faz `commit`; uma execução interrompida deixa `_Test Empresa BR` e todo o módulo passa a falhar com `DuplicateEntryError` | falha de 14 testes nesta sessão | criar a empresa com `exists`-ou-reusa, ou limpar no `setUpClass`; não depender do `tearDown` |
+| ✅ A2 | **`test_party` leva ~10 min** (14 testes) e é o gargalo de qualquer ciclo de bench | 602 s medidos | a empresa é recriada por teste; criar uma vez por classe (`setUpClass`) e reverter por teste |
+| ✅ A3 | **`run-tests` do Frappe gasta >10 min em registros globais** antes do primeiro teste | `test_oauth20` e `test_pdf` interrompidos | usar `--skip-before-tests` no roteiro padrão e documentar em `docs/como-rodar.md` |
+| ✅ A4 | **Auditor lista como "indeterminado" o que o OSV resolve** (3 CVEs do Frappe com `last_affected = 16.31.0`) | `docs/auditoria-da-pilha.md` | `faixa_afeta` aceitar `last_affected` do OSV como fallback quando o GitHub não traz faixa |
 | A5 | **`pdfkit` 1.0.0 sem correção** (CVE-2025-26240, alta) | auditoria | confirmar que nenhum caminho do app chama `from_string` com dado externo; acompanhar o upstream; avaliar trocar o motor de PDF do Frappe (já usa WeasyPrint) |
-| A6 | **`docs/gaps.md` desatualizado**: ainda diz que `natOp` não valida 60 caracteres, mas `nfe.py` já valida (`_natureza`) | `nfe.py:135` | revisar a seção 5 contra o código e riscar o que foi pago |
+| ✅ A6 | **`docs/gaps.md` desatualizado**: ainda diz que `natOp` não valida 60 caracteres, mas `nfe.py` já valida (`_natureza`) | `nfe.py:135` | revisar a seção 5 contra o código e riscar o que foi pago |
 
 ## B. Gaps de costura e cobertura
 

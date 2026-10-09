@@ -87,6 +87,20 @@ O script também reconhece bench em **PostgreSQL** (`db_type` no `common_site_co
 não sobe banco nenhum, só confere que a porta responde — o servidor está fora do WSL
 ([postgresql.md](postgresql.md)).
 
+## Rodar testes de bench sem esperar o Frappe criar os registros globais
+
+`bench --site <site> run-tests --app erpnext_brasil --module <módulo>` cria, antes do primeiro teste, os registros de
+teste de **todas** as dependências do Frappe — mais de 10 minutos neste bench, e o teste só começa depois. Com o site já
+preparado (migrado, com os registros de uma execução anterior), passe `--skip-before-tests`:
+
+```sh
+bench --site v16.localhost run-tests --skip-before-tests --app erpnext_brasil --module erpnext_brasil.tests_bench.test_party
+```
+
+⚠️ Em site novo, rode uma vez **sem** a opção para criar os registros. Rodar de dentro de `sites/` quando o comando
+for `python -m frappe.utils.bench_helper` (do contrário: `apps.txt Not Found`). Testes do módulo `test_party` criam a
+`Company` de teste uma vez por classe e reaproveitam a que uma execução interrompida deixou.
+
 ## Parar
 
 `Ctrl+C` encerra **só o servidor web**. MariaDB e Redis continuam — de propósito: eles
