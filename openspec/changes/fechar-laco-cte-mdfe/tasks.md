@@ -163,18 +163,45 @@
 
 ## 4. Costura pura do MDF-e
 
-- [ ] 4.1 Chamar `referencias_do_shipment` a partir de `integracao/mdfe_documento.py`, agrupando
+- [x] 4.1 Chamar `referencias_do_shipment` a partir de `integracao/mdfe_documento.py`, agrupando
       por município de descarga com o `MunicipioDescarga` de `mapeamento_cte.py` — verificar que
       `cte_extracao` deixa de ser órfão (a suíte o exercita a partir do `Shipment`)
-- [ ] 4.2 Escrever `tests/test_mdfe_documento.py` cobrindo: agrupamento por município, recusa
+
+      **Concluída (2026-10-09).** `integracao/mdfe_documento.py` chama `referencias_do_shipment` e agrupa com
+      `agrupar_por_municipio_descarga`; `cte_extracao` e `mapeamento_cte` deixam de ser órfãos (travado em
+      `tests/test_mdfe_documento.py::TestCteExtracaoDeixaDeSerOrfao`, e exercitado em bench). A montagem pura
+      que faltava para encadear os grupos ficou em `fiscal/mdfe_montagem.py`, irmã de `cte_montagem.py`.
+
+- [x] 4.2 Escrever `tests/test_mdfe_documento.py` cobrindo: agrupamento por município, recusa
       quando um documento referenciado não tem município e recusa quando não há carga nenhuma —
       verificar uma recusa por caso, cada uma nomeando o dado faltante
-- [ ] 4.3 Montar os dados da viagem (veículo, motorista, RNTRC/CIOT) a partir dos campos `br_*`
+
+      **Concluída (2026-10-09).** `tests/test_mdfe_montagem.py` (23 testes): agrupamento por município preservando
+      a ordem, e uma recusa por caso nomeando o dado (sem carga, município sem documento, valor e peso não
+      positivos, sem RNTRC, veículo sem condutor/placa, emitente CPF, endereço incompleto, data sem fuso, modal,
+      UF, número). Mutação conferida: tirar a validação da carga derruba 5 testes.
+
+- [x] 4.3 Montar os dados da viagem (veículo, motorista, RNTRC/CIOT) a partir dos campos `br_*`
       do `Shipment` e alocar o número por série 58 — verificar que o número entra na chave e que
       a montagem recusa quando falta dado da viagem
-- [ ] 4.4 Registar `Shipment` no laço único de `setup/campos_documento.py` (`br_numero_mdfe` +
+
+      **Concluída (2026-10-09).** Veículo (tração e reboque opcional), motorista e RNTRC (da `Company`) vêm dos
+      campos `br_*_mdfe` do `Shipment`; a série 58 vem de `br_serie_mdfe` e o número é alocado só depois de a
+      montagem de prova validar, entrando na chave. **Achado:** o `Shipment` do core não tem `company`, então
+      `numero_do_documento` ganhou o parâmetro `company` (a empresa é a de `pickup_company`). Valor da carga =
+      soma de `grand_total` das notas **com chave** (não o `value_of_goods`, campo livre). **Limites
+      declarados:** só `tpEmit` 2 e emitente CNPJ (a chave leva CNPJ); sem `infCIOT` — `montar_rodo` só produz
+      `infANTT/RNTRC`.
+
+- [x] 4.4 Registar `Shipment` no laço único de `setup/campos_documento.py` (`br_numero_mdfe` +
       campos da viagem) — verificar após `bench migrate` que os campos aparecem no formulário
       do `Shipment`
+
+      **Concluída (2026-10-09).** 10 Custom Fields no `Shipment` (`br_numero_mdfe` + viagem), declarados em
+      `setup/campos_documento.py` e criados em `v16.localhost` por `criar_campos_fiscais`; o bench confere pelo
+      `frappe.get_meta` que existem no `Shipment` e não vazam para `Sales Invoice`, `Delivery Note` nem
+      `Purchase Invoice`. Não rodei `bench migrate` completo (evita patches de outras mudanças no banco
+      compartilhado); a função é a mesma que o `after_migrate` chama. **Falta** o PostgreSQL (`v16pg`).
 
 ## 5. Transmissão e tela do MDF-e
 
@@ -205,7 +232,10 @@
 - [ ] 6.2 Teste de bench que salva um `Sales Invoice` de transporte e um `Shipment` reais, relê do
       banco e confere que os campos fiscais e a chave persistiram — verificar relendo por caminho
       de consulta independente e comparando com o que a camada pura montou
-      **Parcial (2026-10-03).** Lado do CT-e feito: `tests_bench/test_cte_documento.py` (8 testes) salva
+      **Parcial (2026-10-09): CT-e e `Shipment` feitos, falta o PostgreSQL do MDF-e.** `tests_bench/test_mdfe_documento.py`
+      (11 testes) salva `Shipment` e `Delivery Note` reais, monta a árvore e relê o `br_numero_mdfe` e o contador por
+      `frappe.db.get_value`; passa em MariaDB.
+      **(2026-10-03)** Lado do CT-e feito: `tests_bench/test_cte_documento.py` (8 testes) salva
       uma `Sales Invoice` de transporte real, monta a árvore, e relê do banco por `frappe.db.get_value`
       o `br_numero_cte` e o contador de `Numeracao Fiscal` (aloca uma vez, reemissão reaproveita, recusa
       não consome) — passa em MariaDB e em PostgreSQL. **Falta** o `Shipment` (MDF-e, bloco 4).

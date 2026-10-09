@@ -124,7 +124,9 @@ def _abrir_serie(company: str, modelo: str, serie: str, nome: str) -> str:
 	return primeiro_numero()
 
 
-def numero_do_documento(doc, modelo: str, serie: str, campo: str = "br_numero_nfe") -> str:
+def numero_do_documento(
+	doc, modelo: str, serie: str, campo: str = "br_numero_nfe", company: str | None = None
+) -> str:
 	"""O número do documento (`nNF`, `nCT`...): o já alocado, ou um novo.
 
 	Reemitir um documento que já tem número **não** consome outro. O número pertence ao
@@ -134,6 +136,9 @@ def numero_do_documento(doc, modelo: str, serie: str, campo: str = "br_numero_nf
 	`campo` é onde o documento guarda o número: `br_numero_nfe` por padrão (NF-e e NFC-e, que é
 	o que existia), `br_numero_cte` para o CT-e. A série e o modelo escolhem o contador; o campo
 	só diz onde o resultado fica — por isso é parâmetro, e não uma segunda função copiada.
+
+	`company` só é passada por quem não tem `doc.company`: o `Shipment` não tem o campo (a empresa
+	do MDF-e é a de `pickup_company`), então o MDF-e informa a série a que pertence.
 	"""
 	existente = (doc.get(campo) or "").strip()
 
@@ -148,7 +153,7 @@ def numero_do_documento(doc, modelo: str, serie: str, campo: str = "br_numero_nf
 				title="Número inválido",
 			)
 
-	numero = alocar_numero(doc.company, modelo, serie)
+	numero = alocar_numero(company or doc.company, modelo, serie)
 	doc.db_set(campo, numero, update_modified=False)
 
 	return numero
