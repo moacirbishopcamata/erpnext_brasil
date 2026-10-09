@@ -13,6 +13,9 @@ significa, ver [`versoes-frappe-erpnext.md`](versoes-frappe-erpnext.md).
   aquele branch específico exigir — conferir com `bench` no momento da instalação.
 - **Node.js** e **Yarn** — exigidos pelo próprio `bench` para os assets do Frappe.
 - **MariaDB 10.6+** (mínimo recomendado pelo Frappe) ou o que a versão do bench exigir.
+  **PostgreSQL** também funciona (provado com 18.6 — ver [`postgresql.md`](postgresql.md)),
+  mas o Frappe o declara experimental e o ERPNext não o suporta oficialmente; exige o
+  cliente `psql` na máquina do bench e as correções listadas naquela página.
 - **Redis** — dois processos, cache e fila (o próprio `bench init` gera a configuração
   com as portas certas).
 - **`bench`, o CLI do Frappe** (`pipx install frappe-bench` ou `pip install --user

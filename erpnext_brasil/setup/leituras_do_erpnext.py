@@ -80,6 +80,7 @@ LEITURAS: dict[str, tuple[str, ...]] = {
 	# ⚠️ `parent` é lido com alias (`parent as item_code`) — o campo real é `parent`, e é
 	# ele que precisa existir. Declarar o alias esconderia a dependência verdadeira.
 	"Stock Ledger Entry": (
+		"creation",
 		"item_code",
 		"name",
 		"posting_date",

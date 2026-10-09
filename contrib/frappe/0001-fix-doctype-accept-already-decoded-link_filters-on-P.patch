@@ -1,0 +1,66 @@
+From be5c9f4aa8e40d5899ce9f9da98e5ce51526240c Mon Sep 17 00:00:00 2001
+From: Moacir Bishop Camata <moacirbishopcamata@gmail.com>
+Date: Thu, 17 Sep 2026 17:23:49 -0400
+Subject: [PATCH 1/2] fix(doctype): accept already-decoded link_filters on
+ PostgreSQL
+
+`link_filters` is a JSON field. MariaDB returns it as text, but PostgreSQL's
+`json` column comes back from psycopg2 already decoded (a list). `validate_link_filters`
+called `json.loads` on that list, raised TypeError and reported
+"Invalid Filters ... must be valid JSON" for a perfectly valid value.
+
+Any Custom Field inserted on a DocType whose fields carry `link_filters` (ERPNext sets
+it on Company.default_wip_warehouse) failed on PostgreSQL. Use `frappe.parse_json`, which
+parses strings and passes decoded values through, and add a test for the decoded case.
+---
+ frappe/core/doctype/doctype/doctype.py      |  4 +++-
+ frappe/core/doctype/doctype/test_doctype.py | 17 +++++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/frappe/core/doctype/doctype/doctype.py b/frappe/core/doctype/doctype/doctype.py
+index 1ef8cc1938..1f599b5d02 100644
+--- a/frappe/core/doctype/doctype/doctype.py
++++ b/frappe/core/doctype/doctype/doctype.py
+@@ -1741,8 +1741,10 @@ def validate_fields(meta: Meta):
+ 		if not link_filters_value:
+ 			return
+ 
++		# `link_filters` is a JSON field: MariaDB returns it as text, PostgreSQL's `json`
++		# column comes back already decoded (list/dict). `parse_json` handles both.
+ 		try:
+-			link_filters = json.loads(link_filters_value)
++			link_filters = frappe.parse_json(link_filters_value)
+ 		except (TypeError, ValueError):
+ 			frappe.throw(
+ 				_("Invalid Link Filters for field {0}. Link Filters must be valid JSON.").format(
+diff --git a/frappe/core/doctype/doctype/test_doctype.py b/frappe/core/doctype/doctype/test_doctype.py
+index 2e755514dd..c483e99f30 100644
+--- a/frappe/core/doctype/doctype/test_doctype.py
++++ b/frappe/core/doctype/doctype/test_doctype.py
+@@ -691,6 +691,23 @@ class TestDocType(IntegrationTestCase):
+ 
+ 		self.assertRaises(frappe.ValidationError, doctype.insert)
+ 
++	def test_link_filters_already_decoded_are_accepted(self):
++		# PostgreSQL returns JSON columns already decoded; validation must not
++		# re-parse a list as if it were a string.
++		doctype = new_doctype(
++			fields=[
++				{
++					"label": "User",
++					"fieldname": "user",
++					"fieldtype": "Link",
++					"options": "User",
++					"link_filters": [["User", "enabled", "=", 1]],
++				}
++			]
++		)
++
++		validate_fields(doctype)
++
+ 	def test_missing_link_filters_field_is_allowed(self):
+ 		doctype = new_doctype()
+ 		doctype.fields[0].__dict__.pop("link_filters", None)
+-- 
+2.43.0
+

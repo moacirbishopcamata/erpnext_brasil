@@ -98,7 +98,22 @@ REDIS_CACHE="${REDIS_CACHE:-${LEITURA_DE_PORTAS##* }}"
 
 amarelo "Bench: $BENCH  |  Redis fila $REDIS_QUEUE, cache $REDIS_CACHE"
 
-if [ ! -x "$BASE_MARIADB/bin/mariadbd" ]; then
+# O banco padrão do bench vem do `common_site_config.json` (`db_type`; ausente = mariadb).
+# Com PostgreSQL o servidor fica **fora** deste script — nesta máquina, no Windows, alcançado
+# do WSL pela rede espelhada (docs/postgresql.md) — então só se confere que a porta responde.
+DB_TYPE="$(python3 -c "import json,sys; c=json.load(open(sys.argv[1])); print(c.get('db_type') or 'mariadb')" "$BENCH/sites/common_site_config.json" 2>/dev/null || echo mariadb)"
+DB_HOST="$(python3 -c "import json,sys; c=json.load(open(sys.argv[1])); print(c.get('db_host') or '127.0.0.1')" "$BENCH/sites/common_site_config.json" 2>/dev/null || echo 127.0.0.1)"
+PORTA_POSTGRES="${PORTA_POSTGRES:-$(python3 -c "import json,sys; c=json.load(open(sys.argv[1])); print(c.get('db_port') or 5432)" "$BENCH/sites/common_site_config.json" 2>/dev/null || echo 5432)}"
+
+if [ "$DB_TYPE" = "postgres" ]; then
+	if timeout 3 bash -c "echo > /dev/tcp/$DB_HOST/$PORTA_POSTGRES" 2>/dev/null; then
+		verde "PostgreSQL responde em $DB_HOST:$PORTA_POSTGRES (servidor externo a este script)"
+	else
+		vermelho "O bench usa PostgreSQL, mas nada responde em $DB_HOST:$PORTA_POSTGRES"
+		amarelo "Suba o serviço do PostgreSQL (no Windows: services.msc → postgresql) e rode de novo."
+		exit 1
+	fi
+elif [ ! -x "$BASE_MARIADB/bin/mariadbd" ]; then
 	vermelho "MariaDB não encontrado em $BASE_MARIADB"
 	amarelo "Baixe o tarball genérico (não precisa de sudo):"
 	amarelo "  curl -LO https://archive.mariadb.org/mariadb-10.11.9/bintar-linux-systemd-x86_64/mariadb-10.11.9-linux-systemd-x86_64.tar.gz"
@@ -108,7 +123,9 @@ fi
 
 # ---------------------------------------------------------------- MariaDB
 
-if no_ar "$PORTA_MARIADB"; then
+if [ "$DB_TYPE" = "postgres" ]; then
+	: # nada a subir — ver acima
+elif no_ar "$PORTA_MARIADB"; then
 	verde "MariaDB já no ar na porta $PORTA_MARIADB"
 else
 	# O datadir fica em ext4 de propósito. Em `/mnt/g` (drvfs) o InnoDB **corrompe o
@@ -166,7 +183,7 @@ subir_redis "$REDIS_QUEUE" "redis-queue-$REDIS_QUEUE" queue.rdb
 
 if [ -n "$SO_SERVICOS" ]; then
 	echo
-	verde "MariaDB e Redis no ar. Servidor web não foi iniciado (SO_SERVICOS)."
+	verde "Banco ($DB_TYPE) e Redis no ar. Servidor web não foi iniciado (SO_SERVICOS)."
 	exit 0
 fi
 
@@ -213,7 +230,7 @@ fi
 echo
 verde "Pilha pronta. Subindo o servidor em http://localhost:$PORTA"
 verde "Site: $SITE"
-amarelo "Ctrl+C encerra o servidor; MariaDB e Redis continuam no ar."
+amarelo "Ctrl+C encerra o servidor; banco e Redis continuam no ar."
 echo
 
 # `bench serve` e não `bench start`: o `start` usa o Procfile, que sobe outro Redis nas

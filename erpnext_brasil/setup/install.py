@@ -133,4 +133,29 @@ def criar_campos_fiscais(update: bool = True):
 	for doctype in ausentes:
 		del campos[doctype]
 
-	create_custom_fields(campos, ignore_validate=frappe.flags.in_patch, update=update)
+	create_custom_fields(
+		campos, ignore_validate=frappe.flags.in_patch or revalidacao_quebra_neste_banco(), update=update
+	)
+
+
+def revalidacao_quebra_neste_banco() -> bool:
+	"""No PostgreSQL, a revalidação que o Frappe faz ao inserir um Custom Field derruba a
+	instalação — e o defeito é do framework, não deste app.
+
+	O que acontece, lido na fonte (frappe 16.31, `core/doctype/doctype/doctype.py`,
+	`validate_link_filters`): ao inserir **qualquer** Custom Field, o Frappe revalida todos
+	os campos do DocType, e faz `json.loads(docfield.link_filters)`. `link_filters` é
+	`fieldtype: JSON` — no MariaDB é coluna de texto e chega como string; no PostgreSQL é
+	coluna `json`, e o psycopg2 já a devolve **decodificada** (uma lista). `json.loads(lista)`
+	levanta `TypeError`, que o Frappe traduz em "Link Filters must be valid JSON". O ERPNext
+	preenche `link_filters` em `Company` (`default_wip_warehouse`), então o primeiro campo
+	nosso em `Company` já morre — provado em `v16pg.localhost`, PostgreSQL 18.6.
+
+	O contorno é o mesmo que o próprio Frappe usa no assistente de configuração
+	(`create_custom_fields` liga `ignore_validate` quando `in_setup_wizard`): pular a
+	revalidação, que só existe para pegar conflito de nome e campo malformado — e isso a
+	suíte pura já confere sem banco (`tests/test_costura_campos_e_hooks.py`,
+	`tests/test_prefixo_dos_campos.py`). Só em Postgres: no MariaDB a validação roda como
+	sempre. Ver `docs/postgresql.md`.
+	"""
+	return frappe.conf.db_type == "postgres"

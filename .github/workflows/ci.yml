@@ -59,7 +59,29 @@ jobs:
       # A configuração vive em `pyproject.toml`: linha de 110, tabulação, aspas duplas —
       # as mesmas do erpnext, para que quem vem de lá não estranhe.
       - name: ruff check
-        run: ruff check erpnext_brasil/
+        run: ruff check erpnext_brasil/ scripts/
 
       - name: ruff format
-        run: ruff format --check erpnext_brasil/
+        run: ruff format --check erpnext_brasil/ scripts/
+
+  cherry:
+    name: Cherry (núcleo, com cobertura)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar coverage
+        run: pip install coverage
+
+      # Só o núcleo (`config.py`): a interface (`test_app.py`) precisa de display e pula aqui.
+      # O piso é sobre o núcleo, que é onde mora toda escrita de arquivo — ver docs/cherry.md.
+      - name: Testes do Cherry com cobertura
+        run: |
+          python -m coverage run --include="scripts/cherry/config.py" -m unittest scripts.cherry.test_config scripts.cherry.test_app
+          python -m coverage report -m --fail-under=95

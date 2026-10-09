@@ -1,5 +1,12 @@
 # Ambiente de desenvolvimento: bench Frappe local (Windows 11 + WSL2 + Docker)
 
+> **Atualização de 2026-09-17 — PostgreSQL do Windows alcançado do WSL.** Diferente do
+> MariaDB nativo do Windows (seção abaixo, inalcançável do WSL), o **PostgreSQL 18.6
+> instalado no Windows responde em `127.0.0.1:5432` dentro do WSL** pela rede espelhada, e o
+> bench-16 criou o site `v16pg.localhost` nele. Receita, obstáculos e correções em
+> [`postgresql.md`](postgresql.md); a configuração dos arquivos do bench passou a ter uma
+> tela, o [Cherry](cherry.md).
+
 ## Atualização: Redis e MariaDB nativos agora disponíveis no Windows
 
 Desde 2026-08-31, a máquina de desenvolvimento tem **Memurai for Redis v8.2-RC3** e
