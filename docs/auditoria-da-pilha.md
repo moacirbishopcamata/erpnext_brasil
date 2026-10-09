@@ -18,7 +18,7 @@ python3 scripts/auditar_pilha.py --bench ~/frappe-bench-16        # --json para 
 | HRMS | 16.20.1 | **16.50.0** | |
 | bench (CLI) | 5.31.0 | 5.31.0 | já era a última no PyPI |
 | Redis | 7.0.15 (pacote Ubuntu) | **7.2.16** (compilado em espaço de usuário) | sha256 conferido |
-| MariaDB | 10.11.9 | 10.11.19 baixado; **troca pendente** | só com o servidor compartilhado livre |
+| MariaDB | 10.11.9 | **10.11.19** (trocado em 2026-10-09) | desligamento limpo, cópia do datadir (498 MB) em `~/mariadb-data.bak-10.11.9-*`; `mariadb-upgrade` dispensado (mesma série 10.11); testes de bench passam |
 | Python (venv) | 3.14.6 | 3.14.6; **3.14.8 pendente** | recriar o venv com cópia do atual |
 | Node | 24.21.0 | 24.21.0 | já era a última da série |
 | pypdf / Werkzeug / urllib3 | 6.15.0 / 3.1.6 / 2.7.0 | 6.19.0 / 3.1.9 / 2.8.0 | CVEs corrigidos |
@@ -52,5 +52,6 @@ devolver ao upstream, não esconder.
 - **Avisos "indeterminados"**: CVE-2026-63654, CVE-2026-62315 e CVE-2026-53569 vêm do GitHub sem faixa de
   versão. Conferidos no OSV: todos têm `last_affected = 16.31.0`, e a instalada é a 16.51.0 — **não afetam**.
   O script ainda os lista como indeterminados porque lê só a faixa do GitHub.
-- Trocar o MariaDB (10.11.9 → 10.11.19, com `mariadb-upgrade`) e o Python (3.14.6 → 3.14.8).
+- Trocar o Python (3.14.6 → 3.14.8): recriar o venv do bench com cópia do atual.
+- ⚠️ MariaDB: o servidor é compartilhado com outra sessão; a troca só foi feita com autorização explícita do usuário, depois de confirmar zero conexões. O `subir.sh` chamado com `| tail` fica pendurado (o `mariadbd` herda o pipe): redirecione para arquivo.
 - O backup do `banking/yarn.lock` do ERPNext foi salvo à parte antes da atualização.
