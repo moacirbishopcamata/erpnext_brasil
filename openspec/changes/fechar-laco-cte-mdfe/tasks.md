@@ -152,8 +152,14 @@
       bench: `test_a_situacao_do_cte_nao_vaza_para_a_da_nfe`. **Falta** abrir uma fatura de transporte no
       navegador e clicar (lacuna de `docs/gaps.md`, seção 2).
 
-- [ ] 3.6 Fatorar em módulos se `integracao/` passar de 320 linhas — verificar com a conferência
+- [x] 3.6 Fatorar em módulos se `integracao/` passar de 320 linhas — verificar com a conferência
       de tamanho existente
+
+      **Concluída (2026-10-09), sem fatoração necessária.** O maior módulo de `integracao/` é
+      `transporte_sefaz.py` com 299 linhas (limite 320); os novos do CT-e têm 91 a 228. Para não
+      estourar o limite, o evento do CT-e entrou como **um** método no transporte
+      (`transmitir_evento_cte`) e a montagem ficou em `eventos_cte.py`, em vez de `cancelar`/`corrigir`
+      duplicados lá. `test_arquitetura.test_modulos_de_integracao_nao_crescem_demais` segue verde.
 
 ## 4. Costura pura do MDF-e
 
