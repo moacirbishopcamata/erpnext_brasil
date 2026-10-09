@@ -43,6 +43,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 | [relatorios.md](relatorios.md) | Os quatro tipos de `Report`: Builder (sem código), Query (SQL), Script (Python) e Custom; a checagem de SQL que recusa CTE por olhar só a primeira palavra, o fato de Query Report **ignorar permissão por registro**, o auto-`prepared_report` aos 15 s e os arquivos que `developer_mode` grava no app |
 | [ambiente-dev-bench.md](ambiente-dev-bench.md) | Bench Frappe local (Windows 11 + WSL2 + Docker): decisões, obstáculos e como reproduzir; Memurai/MariaDB nativos como alternativa ainda não testada |
 | [auditoria-da-pilha.md](auditoria-da-pilha.md) | Versões e CVE da pilha do bench (Frappe, ERPNext, HRMS, libs, Redis, MariaDB, Python): antes → depois e pendências |
+| [proposta-de-melhorias.md](proposta-de-melhorias.md) | Fila proposta de bugs, gaps e otimizações (2026-10-09), com evidência e ordem |
 | [fonte-de-tempo.md](fonte-de-tempo.md) | Relógio de emissão contra o NTP.br: medição, política e guarda antes de numerar |
 | [integracao-party-bench.md](integracao-party-bench.md) | Testes reais (bench) de `integracao/party.py`: achado de que a Company padrão do site pode mascarar `_pais_e_brasil()`, e um CNPJ com dígitos repetidos que passou na validação |
 | [nfce-qrcode.md](nfce-qrcode.md) | QR Code da NFC-e: algoritmo do hash, `infNFeSupl`, CDATA, o que falta (contingência, tabela de UF) |
