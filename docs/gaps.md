@@ -480,6 +480,25 @@ exige certificado A1 real. E o bench v16 (`~/frappe-bench-16`) tem o código, ma
 nunca foi criado**: o banco `_a78420228ee6f61e` não existe, e a criação falha por acesso
 negado do root do MariaDB.
 
+## 🔴 Eventos do CT-e: 8 montadores com a forma do evento da NF-e — 2026-10-09
+
+Achado na tarefa 3.4 de `fechar-laco-cte-mdfe`, ao escrever o envio. `eventoCTe_v4.00.xsd`
+declara a raiz `eventoCTe` (`<xs:element name="eventoCTe" type="TEvento">`) e `detEvento` como
+`xs:any` — o XML específico do evento (`evCancCTe`, `evCCeCTe`…) vai **dentro** dele. Os
+montadores de `fiscal/documento/evento_cte.py` devolviam raiz `evento` (nome da NF-e) e os campos
+soltos em `detEvento`; a SEFAZ recusaria o documento. `sped-cte` (`Tools::sefazEvento`) monta
+a mesma forma que o XSD.
+
+- ✅ **Corrigidos**: `montar_evento_cancelamento_cte` e `montar_evento_correcao_cte` (raiz
+  `eventoCTe`, corpo em `evCancCTe`/`evCCeCTe`), com `assinar_evento_cte`.
+- 🔴 **Ainda com a forma antiga**: comprovante de entrega e seu cancelamento, insucesso de entrega e
+  seu cancelamento, EPEC, GTV, prestação em desacordo e seu cancelamento, registro multimodal.
+  Cada um precisa do mesmo ajuste (raiz + wrapper com o nome do `ev*` do XSD) e do teste de forma.
+- ⚠️ `montar_env_evento_cte` modela um lote `envEvento` que o CT-e não usa (o `eventoCTe` vai
+  direto); ficou tolerante às duas raízes, sem uso real.
+- ⚠️ O cabeçalho SOAP `cteCabecMsg` do evento foi copiado da autorização por analogia; confirmar em
+  homologação junto com a 3.1.
+
 ## Método
 s expostos e quem os chama
 

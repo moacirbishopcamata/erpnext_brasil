@@ -38,9 +38,13 @@ from datetime import datetime
 __all__ = [
 	"AUTORIZADOS",
 	"DENEGADOS",
+	"REGISTRADOS",
+	"REGISTRADOS_CANCELAMENTO",
 	"RetornoCte",
 	"RetornoCteInvalido",
+	"RetornoEventoCte",
 	"interpretar_retorno_cte",
+	"interpretar_retorno_evento_cte",
 ]
 
 AUTORIZADOS = {"100", "150"}
@@ -131,3 +135,86 @@ def interpretar_retorno_cte(xml: str | bytes) -> RetornoCte:
 		chave=_texto(inf, "chCTe"),
 		recebido_em=recebido_em,
 	)
+
+
+REGISTRADOS = {"135", "136"}
+"""`cStat` de evento registrado: 135 (vinculado ao CT-e) e 136 (registrado, não vinculado)."""
+REGISTRADOS_CANCELAMENTO = REGISTRADOS | {"155"}
+"""O cancelamento aceita ainda o 155 (cancelamento fora do prazo). Fonte: `sped-cte`,
+`Complements::addEventoCTeProtocol` — secundária, não o MOC."""
+
+TIPO_CANCELAMENTO = "110111"
+
+
+@dataclass(frozen=True)
+class RetornoEventoCte:
+	"""O que a SEFAZ respondeu a um evento — dado, não decisão da integração."""
+
+	codigo: str
+	motivo: str
+	tipo_evento: str = ""
+	protocolo: str = ""
+	chave: str = ""
+	registrado_em: datetime | None = None
+
+	@property
+	def registrado(self) -> bool:
+		aceitos = REGISTRADOS_CANCELAMENTO if self.tipo_evento == TIPO_CANCELAMENTO else REGISTRADOS
+
+		return self.codigo in aceitos
+
+
+def interpretar_retorno_evento_cte(xml: str | bytes) -> RetornoEventoCte:
+	"""Lê o `retEventoCTe` da resposta (já sem o envelope SOAP, ou ainda embrulhado).
+
+	Não há `retEnvEvento` de lote como na NF-e: a raiz é `retEventoCTe` e o `cStat` que decide é o
+	de `infEvento` (`TRetEvento`, `eventoCTeTiposBasico_v4.00.xsd`).
+	"""
+	from lxml import etree
+
+	bruto = xml.encode("utf-8") if isinstance(xml, str) else xml
+
+	try:
+		raiz = etree.fromstring(bruto)
+	except etree.XMLSyntaxError as e:
+		raise RetornoCteInvalido(f"Resposta do evento do CT-e não é XML válido: {e}") from e
+
+	ret = (
+		raiz
+		if _local(raiz) == "retEventoCTe"
+		else next((n for n in raiz.iter() if _local(n) == "retEventoCTe"), None)
+	)
+
+	if ret is None:
+		raise RetornoCteInvalido("Resposta sem retEventoCTe — não é o retorno de um evento do CT-e")
+
+	inf = _filho(ret, "infEvento")
+
+	if inf is None:
+		raise RetornoCteInvalido("retEventoCTe sem infEvento")
+
+	codigo = _texto(inf, "cStat")
+
+	if not codigo:
+		raise RetornoCteInvalido("infEvento sem cStat")
+
+	registro = _texto(inf, "dhRegEvento")
+
+	try:
+		registrado_em = datetime.fromisoformat(registro) if registro else None
+	except ValueError as e:
+		raise RetornoCteInvalido(f"dhRegEvento inválido: {registro!r}") from e
+
+	retorno = RetornoEventoCte(
+		codigo=codigo,
+		motivo=_texto(inf, "xMotivo"),
+		tipo_evento=_texto(inf, "tpEvento"),
+		protocolo=_texto(inf, "nProt"),
+		chave=_texto(inf, "chCTe"),
+		registrado_em=registrado_em,
+	)
+
+	if retorno.registrado and not retorno.protocolo:
+		raise RetornoCteInvalido(f"cStat {codigo} (registrado) sem nProt — sem protocolo não há registro")
+
+	return retorno

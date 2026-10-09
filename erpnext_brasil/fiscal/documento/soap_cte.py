@@ -37,13 +37,19 @@ from erpnext_brasil.fiscal.documento.soap import NAMESPACE_SOAP12, EnvelopeSoapI
 
 __all__ = [
 	"ACAO_AUTORIZACAO",
+	"ACAO_EVENTO",
 	"NAMESPACE_AUTORIZACAO",
+	"NAMESPACE_EVENTO",
 	"OPERACAO_AUTORIZACAO",
+	"OPERACAO_EVENTO",
 	"SERVICO_AUTORIZACAO",
+	"SERVICO_EVENTO",
 	"VERSAO_DADOS",
 	"compactar",
 	"content_type_autorizacao",
+	"content_type_evento",
 	"montar_envelope_autorizacao",
+	"montar_envelope_evento",
 ]
 
 _NAMESPACE_WSDL_BASE = "http://www.portalfiscal.inf.br/cte/wsdl"
@@ -59,9 +65,22 @@ NAMESPACE_AUTORIZACAO = f"{_NAMESPACE_WSDL_BASE}/{OPERACAO_AUTORIZACAO}"
 ACAO_AUTORIZACAO = f'"{NAMESPACE_AUTORIZACAO}/{METODO_AUTORIZACAO}"'
 
 
+SERVICO_EVENTO = "CteRecepcaoEvento"
+OPERACAO_EVENTO = "CTeRecepcaoEventoV4"
+METODO_EVENTO = "cteRecepcaoEvento"
+
+NAMESPACE_EVENTO = f"{_NAMESPACE_WSDL_BASE}/{OPERACAO_EVENTO}"
+ACAO_EVENTO = f'"{NAMESPACE_EVENTO}/{METODO_EVENTO}"'
+
+
 def content_type_autorizacao() -> str:
 	"""O `Content-Type` do POST, com a ação SOAP — é onde o SOAP 1.2 a leva."""
 	return f"application/soap+xml; charset=utf-8; action={ACAO_AUTORIZACAO}"
+
+
+def content_type_evento() -> str:
+	"""O `Content-Type` do POST do evento, com a ação SOAP."""
+	return f"application/soap+xml; charset=utf-8; action={ACAO_EVENTO}"
 
 
 def compactar(xml: str) -> str:
@@ -96,6 +115,38 @@ def montar_envelope_autorizacao(xml_cte: str, codigo_uf: str) -> str:
 		"</soap12:Header>"
 		"<soap12:Body>"
 		f'<cteDadosMsg xmlns="{NAMESPACE_AUTORIZACAO}">{compactar(xml_cte)}</cteDadosMsg>'
+		"</soap12:Body>"
+		"</soap12:Envelope>"
+	)
+
+
+def montar_envelope_evento(xml_evento: str, codigo_uf: str) -> str:
+	"""Envolve o `eventoCTe` (já serializado e assinado) no envelope SOAP 1.2 de `CTeRecepcaoEventoV4`.
+
+	Diferente da autorização, o corpo **não** é compactado: `sped-cte`, `Tools::sefazEvento`, monta
+	`<cteDadosMsg xmlns="…">$request</cteDadosMsg>` com o XML em texto (o GZip+Base64 só aparece em
+	`sefazEnviaCTe`). Também não há lote: o `eventoCTe` entra direto, sem `envEvento`.
+
+	⚠️ O cabeçalho `cteCabecMsg` é o mesmo da autorização, por analogia com ela — a biblioteca o
+	monta em `Common/Tools.php` (`sendRequest`), que não foi lido para o evento. Confirmar em homologação.
+	"""
+	if not (xml_evento or "").strip():
+		raise EnvelopeSoapInvalido("XML do evento vazio: nada para enviar à SEFAZ")
+
+	if not (len(codigo_uf or "") == 2 and codigo_uf.isdigit()):
+		raise EnvelopeSoapInvalido(f"cUF do cabeçalho deve ter dois dígitos, recebido {codigo_uf!r}")
+
+	return (
+		'<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+		'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
+		f'xmlns:soap12="{NAMESPACE_SOAP12}">'
+		"<soap12:Header>"
+		f'<cteCabecMsg xmlns="{NAMESPACE_EVENTO}">'
+		f"<cUF>{codigo_uf}</cUF><versaoDados>{VERSAO_DADOS}</versaoDados>"
+		"</cteCabecMsg>"
+		"</soap12:Header>"
+		"<soap12:Body>"
+		f'<cteDadosMsg xmlns="{NAMESPACE_EVENTO}">{xml_evento}</cteDadosMsg>'
 		"</soap12:Body>"
 		"</soap12:Envelope>"
 	)

@@ -42,6 +42,7 @@ from erpnext_brasil.fiscal.documento.evento_cte import (
 	ParteGtv,
 	TomadorEpec,
 	assinar_evento,
+	assinar_evento_cte,
 	calcular_hash_entrega,
 	montar_env_evento_cte,
 	montar_evento_cancelamento_comprovante_entrega_cte,
@@ -98,7 +99,7 @@ class TestMontarEventoCancelamentoCte(unittest.TestCase):
 
 	def test_usa_chcte_nao_chnfe(self):
 		"""Achado real: o campo é chCTe, não chNFe (diferente da NF-e)."""
-		inf_evento = self.evento["evento"]["infEvento"]
+		inf_evento = self.evento["eventoCTe"]["infEvento"]
 
 		self.assertEqual(inf_evento["chCTe"], self.chave)
 		self.assertNotIn("chNFe", inf_evento)
@@ -106,7 +107,7 @@ class TestMontarEventoCancelamentoCte(unittest.TestCase):
 	def test_versao_fica_no_atributo_versaoevento_nao_em_verevento(self):
 		"""Achado real: o CT-e não tem elemento verEvento -- a versão é um atributo
 		de detEvento, diferente da NF-e."""
-		inf_evento = self.evento["evento"]["infEvento"]
+		inf_evento = self.evento["eventoCTe"]["infEvento"]
 
 		self.assertNotIn("verEvento", inf_evento)
 		self.assertEqual(inf_evento["detEvento"]["@versaoEvento"], "4.00")
@@ -114,18 +115,36 @@ class TestMontarEventoCancelamentoCte(unittest.TestCase):
 	def test_id_tem_53_digitos_apos_id(self):
 		"""Achado real: nSeqEvento entra com 3 dígitos no @Id do CT-e, não 2 como na
 		NF-e -- o padrão é ID[0-9]{53}, não ID[0-9]{52}."""
-		id_elemento = self.evento["evento"]["infEvento"]["@Id"]
+		id_elemento = self.evento["eventoCTe"]["infEvento"]["@Id"]
 
 		self.assertTrue(id_elemento.startswith("ID"))
 		self.assertEqual(len(id_elemento), len("ID") + 53)
 		self.assertTrue(id_elemento.endswith("001"))
 
 	def test_tp_evento_e_o_mesmo_da_nfe(self):
-		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_CANCELAMENTO_CTE)
+		self.assertEqual(self.evento["eventoCTe"]["infEvento"]["tpEvento"], TIPO_EVENTO_CANCELAMENTO_CTE)
 		self.assertEqual(TIPO_EVENTO_CANCELAMENTO_CTE, "110111")
 
 	def test_namespace_e_o_do_cte(self):
-		self.assertEqual(self.evento["evento"]["@xmlns"], NAMESPACE_CTE)
+		self.assertEqual(self.evento["eventoCTe"]["@xmlns"], NAMESPACE_CTE)
+
+	def test_a_raiz_e_eventocte_e_o_corpo_vem_dentro_de_evcanccte(self):
+		"""Achado da 3.4: `eventoCTe_v4.00.xsd` declara a raiz `eventoCTe` (não `evento`) e
+		`detEvento` é `xs:any` — o XML específico do evento (`evCancCTe`) vai **dentro** dele."""
+		self.assertNotIn("evento", self.evento)
+
+		det_evento = self.evento["eventoCTe"]["infEvento"]["detEvento"]
+
+		self.assertEqual(set(det_evento), {"@versaoEvento", "evCancCTe"})
+		self.assertEqual(
+			set(det_evento["evCancCTe"]), {"descEvento", "nProt", "xJust"}, "campos soltos em detEvento"
+		)
+
+	def test_o_xml_serializado_tem_a_forma_do_leiaute(self):
+		xml = para_xml(assinar_evento_cte(self.evento, AssinadorFalso()))
+
+		self.assertTrue(xml.startswith("<eventoCTe"), xml[:60])
+		self.assertIn("<evCancCTe><descEvento>Cancelamento</descEvento>", xml)
 
 	def test_justificativa_com_256_caracteres_e_invalida(self):
 		"""Achado real: o limite do CT-e é 255, não 256 como a NF-e -- reaproveitar a
@@ -152,7 +171,7 @@ class TestMontarEventoCancelamentoCte(unittest.TestCase):
 			data_evento="2026-08-31T10:00:00-03:00",
 		)
 
-		self.assertEqual(len(evento["evento"]["infEvento"]["detEvento"]["xJust"]), 255)
+		self.assertEqual(len(evento["eventoCTe"]["infEvento"]["detEvento"]["evCancCTe"]["xJust"]), 255)
 
 	def test_limites_de_justificativa_confirmados(self):
 		self.assertEqual(JUSTIFICATIVA_MINIMA_CTE, 15)
@@ -181,11 +200,11 @@ class TestAssinarEventoReaproveitado(unittest.TestCase):
 		)
 		assinador = AssinadorFalso()
 
-		assinado = assinar_evento(evento, assinador)
+		assinado = assinar_evento_cte(evento, assinador)
 
-		self.assertEqual(assinador.recebido[1], evento["evento"]["infEvento"]["@Id"])
-		self.assertIn("Signature", assinado["evento"])
-		self.assertNotIn("Signature", assinado["evento"]["infEvento"])
+		self.assertEqual(assinador.recebido[1], evento["eventoCTe"]["infEvento"]["@Id"])
+		self.assertIn("Signature", assinado["eventoCTe"])
+		self.assertNotIn("Signature", assinado["eventoCTe"]["infEvento"])
 
 	def test_documento_assinado_serializa(self):
 		chave = _chave_cte()
@@ -197,7 +216,7 @@ class TestAssinarEventoReaproveitado(unittest.TestCase):
 			data_evento="2026-08-31T10:00:00-03:00",
 		)
 
-		assinado = assinar_evento(evento, AssinadorFalso())
+		assinado = assinar_evento_cte(evento, AssinadorFalso())
 		xml = para_xml(assinado)
 
 		self.assertIn("<infEvento", xml)
@@ -254,7 +273,7 @@ class TestMontarEventoCorrecaoCte(unittest.TestCase):
 	def test_e_estruturado_nao_texto_livre(self):
 		"""Achado real: a CC-e do CT-e não tem xCorrecao (texto livre) -- tem
 		infCorrecao, uma lista estruturada de alterações campo a campo."""
-		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		det_evento = self.evento["eventoCTe"]["infEvento"]["detEvento"]["evCCeCTe"]
 
 		self.assertNotIn("xCorrecao", det_evento)
 		self.assertEqual(
@@ -275,7 +294,7 @@ class TestMontarEventoCorrecaoCte(unittest.TestCase):
 			data_evento="2026-08-31T10:00:00-03:00",
 		)
 
-		inf_correcao = evento["evento"]["infEvento"]["detEvento"]["infCorrecao"]
+		inf_correcao = evento["eventoCTe"]["infEvento"]["detEvento"]["evCCeCTe"]["infCorrecao"]
 		self.assertEqual(len(inf_correcao), 2)
 		self.assertEqual(inf_correcao[0]["campoAlterado"], "natOp")
 		self.assertEqual(inf_correcao[1]["campoAlterado"], "xNome")
@@ -292,14 +311,14 @@ class TestMontarEventoCorrecaoCte(unittest.TestCase):
 	def test_xconduso_cita_convenio_sinief_06_89_nao_o_da_nfe(self):
 		"""Achado real: base legal diferente da NF-e (Art. 58-B do Convênio SINIEF
 		06/89, não o Art. 7º do Convênio S/N de 1970)."""
-		xconduso = self.evento["evento"]["infEvento"]["detEvento"]["xCondUso"]
+		xconduso = self.evento["eventoCTe"]["infEvento"]["detEvento"]["evCCeCTe"]["xCondUso"]
 
 		self.assertIn("CONVÊNIO/SINIEF 06/89", xconduso.upper())
 		self.assertIn("Art. 58-B", xconduso)
 		self.assertNotIn("Art. 7º", xconduso)
 
 	def test_tp_evento_e_o_mesmo_numero_da_nfe(self):
-		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_CORRECAO_CTE)
+		self.assertEqual(self.evento["eventoCTe"]["infEvento"]["tpEvento"], TIPO_EVENTO_CORRECAO_CTE)
 		self.assertEqual(TIPO_EVENTO_CORRECAO_CTE, "110110")
 
 	def test_sem_correcoes_levanta_erro(self):
@@ -325,7 +344,7 @@ class TestMontarEventoCorrecaoCte(unittest.TestCase):
 			)
 
 	def test_documento_assinado_serializa(self):
-		assinado = assinar_evento(self.evento, AssinadorFalso())
+		assinado = assinar_evento_cte(self.evento, AssinadorFalso())
 		xml = para_xml(assinado)
 
 		self.assertIn("<infCorrecao", xml)
@@ -341,7 +360,7 @@ def _montar_inf_correcao_publica(correcao: CorrecaoCte) -> dict:
 		cnpj_autor=_CNPJ_VALIDO,
 		data_evento="2026-08-31T10:00:00-03:00",
 	)
-	return evento["evento"]["infEvento"]["detEvento"]["infCorrecao"][0]
+	return evento["eventoCTe"]["infEvento"]["detEvento"]["evCCeCTe"]["infCorrecao"][0]
 
 
 def _chave_nfe() -> str:

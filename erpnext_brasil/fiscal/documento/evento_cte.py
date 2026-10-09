@@ -240,8 +240,10 @@ from erpnext_brasil.fiscal.cte import (
 	TIPO_CTE_NORMAL,
 )
 from erpnext_brasil.fiscal.cte_rodoviario import RntrcInvalido, validar_rntrc
+from erpnext_brasil.fiscal.documento.assinatura import montar_signature
 from erpnext_brasil.fiscal.documento.chave_acesso import ler_chave, validar_chave
 from erpnext_brasil.fiscal.documento.evento import EventoInvalido, assinar_evento
+from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.validators import validar_cnpj, validar_cpf_cnpj
 
 __all__ = [
@@ -288,6 +290,7 @@ __all__ = [
 	"ParteGtv",
 	"TomadorEpec",
 	"assinar_evento",
+	"assinar_evento_cte",
 	"calcular_hash_entrega",
 	"montar_env_evento_cte",
 	"montar_evento_cancelamento_comprovante_entrega_cte",
@@ -420,6 +423,29 @@ def _formatar_id_cte(chave: str, tipo_evento: str, numero_sequencia: int) -> str
 	return f"ID{tipo_evento}{chave}{numero_sequencia:03d}"
 
 
+def _evento_cte(inf_evento: dict) -> dict:
+	"""A raiz `eventoCTe` — **não** `evento`, o nome do elemento da NF-e.
+
+	`TEvento` é o tipo, e a raiz do documento enviado ao `CTeRecepcaoEventoV4` é `eventoCTe`
+	(`eventoCTe_v4.00.xsd`: `<xs:element name="eventoCTe" type="TEvento">`; `sped-cte`,
+	`Tools::sefazEvento`, monta `<eventoCTe xmlns=… versao=…>`). Só o cancelamento e a CC-e usam
+	esta forma por enquanto — ver `docs/gaps.md`.
+	"""
+	return {"eventoCTe": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+
+
+def assinar_evento_cte(grupo_evento: dict, assinador) -> dict:
+	"""Assina o `eventoCTe` (`Signature` irmã de `infEvento`, obrigatória em `TEvento`).
+
+	Irmã de `evento.assinar_evento`, que lê a raiz `evento` da NF-e; a mecânica é a mesma.
+	"""
+	evento = grupo_evento["eventoCTe"]
+	id_elemento = evento["infEvento"]["@Id"]
+	material = assinador.assinar(para_xml(grupo_evento).encode("utf-8"), id_elemento)
+
+	return {"eventoCTe": {**evento, **montar_signature(id_elemento, material)}}
+
+
 @dataclass(frozen=True)
 class CorrecaoCte:
 	"""Um item de `infCorrecao` — uma correção campo a campo (não texto livre, ver
@@ -524,13 +550,15 @@ def montar_evento_cancelamento_cte(
 		"nSeqEvento": str(numero_sequencia),
 		"detEvento": {
 			"@versaoEvento": _VERSAO_LEIAUTE_CTE,
-			"descEvento": "Cancelamento",
-			"nProt": protocolo_limpo,
-			"xJust": texto_justificativa,
+			"evCancCTe": {
+				"descEvento": "Cancelamento",
+				"nProt": protocolo_limpo,
+				"xJust": texto_justificativa,
+			},
 		},
 	}
 
-	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+	return _evento_cte(inf_evento)
 
 
 def montar_evento_correcao_cte(
@@ -577,13 +605,15 @@ def montar_evento_correcao_cte(
 		"nSeqEvento": str(numero_sequencia),
 		"detEvento": {
 			"@versaoEvento": _VERSAO_LEIAUTE_CTE,
-			"descEvento": "Carta de Correção",
-			"infCorrecao": [_montar_inf_correcao(c) for c in correcoes],
-			"xCondUso": XCONDUSO_CCE_CTE,
+			"evCCeCTe": {
+				"descEvento": "Carta de Correção",
+				"infCorrecao": [_montar_inf_correcao(c) for c in correcoes],
+				"xCondUso": XCONDUSO_CCE_CTE,
+			},
 		},
 	}
 
-	return {"evento": {"@xmlns": NAMESPACE_CTE, "@versao": _VERSAO_LEIAUTE_CTE, "infEvento": inf_evento}}
+	return _evento_cte(inf_evento)
 
 
 def calcular_hash_entrega(chave_acesso: str, imagem_base64: str) -> str:
@@ -1487,6 +1517,6 @@ def montar_env_evento_cte(eventos: list[dict], id_lote: str) -> dict:
 			"@xmlns": NAMESPACE_CTE,
 			"@versao": _VERSAO_LEIAUTE_CTE,
 			"idLote": id_lote.strip(),
-			"evento": [e["evento"] for e in eventos],
+			"evento": [e.get("evento") or e["eventoCTe"] for e in eventos],
 		}
 	}
