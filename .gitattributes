@@ -10,3 +10,6 @@
 # JavaScript do Desk: o `bench build` concatena os arquivos do app, e misturar fins de
 # linha entre eles produz diff ruidoso onde nada mudou de verdade.
 *.js text eol=lf
+
+# Patches de contrib/ vão para `git am`: CRLF no checkout do Windows os invalida.
+*.patch text eol=lf

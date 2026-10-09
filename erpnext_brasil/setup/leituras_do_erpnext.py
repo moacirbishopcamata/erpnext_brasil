@@ -94,6 +94,12 @@ LEITURAS: dict[str, tuple[str, ...]] = {
 	# `lft`/`rgt` são o *nested set*: se o ERPNext trocar a implementação da árvore, o
 	# total por endereço do Navegador para de somar os descendentes.
 	# ----------------------------------------------------------------- frappe
+	"Address Template": ("country", "is_default", "template"),
+	# `instalar_modelo_de_endereco` consulta (e só cria, nunca sobrescreve) o modelo do Brasil. O `country`
+	# é único; `is_default` decide se o Frappe promoveria o nosso a padrão de todos os países. Se o Frappe
+	# renomear qualquer um dos três, o endereço brasileiro volta a sair sem número e bairro — sem erro.
+	"Country": (),
+	# Só a existência do registro "Brazil": o `country` do modelo é um Link e recusaria um país ausente.
 	"Dynamic Link": ("parent",),
 	# A ligação entre `Address` e a parte (Company/Customer/Supplier). É por ela que se
 	# descobre a UF de quem emite e de quem recebe — e a UF decide CFOP, alíquota

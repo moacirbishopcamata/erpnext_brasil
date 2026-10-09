@@ -297,10 +297,9 @@ Já registrado em `docs/nfce-qrcode.md` como pendente com fonte inacessível. Co
   teste (`assertNotIn("natOp", grupo)`), porque manifesto não é operação tributável.
 - ❌ **Não há campo de natureza da operação em nenhum DocType** — mesmo problema de
   família do gap 1.2: o valor tem de vir de algum lugar e não vem.
-- ❌ `natOp` **não valida o limite de 60 caracteres** que o XSD oficial declara
-  (`leiauteNFe_v4.00.xsd`: `TString`, `minLength 1`, `maxLength 60`, lido localmente).
-  Uma natureza longa demais passa na montagem e é recusada pela SEFAZ. O projeto já tem
-  precedente de validar tamanho (`JUSTIFICATIVA_CONTINGENCIA_MAXIMA`).
+- ✅ `natOp` **valida o limite de 60 caracteres** do XSD oficial (`leiauteNFe_v4.00.xsd`: `TString`,
+  `minLength 1`, `maxLength 60`) em `fiscal/documento/nfe.py` (`_natureza`) — conferido em 2026-10-09; a linha
+  anterior dizia que faltava.
 - ❌ Não há sugestão de natureza a partir do CFOP, apesar de `cfop_sugestao.py` já
   determinar o CFOP — e a descrição oficial de cada CFOP depende da fonte do gap 4.1.
 

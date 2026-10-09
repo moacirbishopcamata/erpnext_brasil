@@ -68,10 +68,10 @@
       servidor com NTS (chrony), o que liberar na rede (UDP 123 e, para NTS-KE, a porta a confirmar no
       NTP.br), o que o app mede e o que não pode fazer — verificar que o texto diz que a acuidade do
       resto do ERPNext depende do servidor
-- [ ] 6.2 Calibrar os limites padrão contra a tolerância de `dhEmi` do MOC e registrar a fonte — verificar
+- [ ] 6.2 (parcial, 2026-10-09: tolerância de 5 min só em fonte secundária; MOC oficial não aberto) Calibrar os limites padrão contra a tolerância de `dhEmi` do MOC e registrar a fonte — verificar
       que os padrões do design foram confirmados ou ajustados, e que a guarda só sobe para "ligada por
       padrão" depois disso; resolver as perguntas abertas do `design.md`
 - [x] 6.3 Registrar em `docs/gaps.md` o que ficou de fora (NTS no app, fonte via `chronyc`, NFC-e) —
       verificar que cada item aponta para a mudança ou decisão que o resolve
-- [ ] 6.4 Rodar a suíte pura, a de bench e o `ruff`, e subir a versão em `erpnext_brasil/__init__.py` no
+- [x] 6.4 Rodar a suíte pura, a de bench e o `ruff`, e subir a versão em `erpnext_brasil/__init__.py` no
       mesmo commit — verificar que tudo está verde antes do commit

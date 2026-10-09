@@ -15,6 +15,12 @@ fornecedor estrangeiro.
 import frappe
 from frappe import _
 
+from erpnext_brasil.fiscal.codigos.municipio import (
+	ExcecoesInvalidas,
+	MunicipioInvalido,
+	ler_excecoes,
+	validar_municipio,
+)
 from erpnext_brasil.fiscal.codigos_de_erro import (
 	CADASTRO_CODIGO_DE_MUNICIPIO_INVALIDO,
 	CADASTRO_CPF_CNPJ_INVALIDO,
@@ -44,6 +50,10 @@ def _pais_e_brasil() -> bool:
 		return frappe.get_cached_value("Company", empresa, "country") == "Brazil"
 
 	return frappe.get_system_settings("country") == "Brazil"
+
+
+pais_e_brasil = _pais_e_brasil
+"""Nome público para outros módulos de integração (ex.: `valoracao_estoque`), sem importar o privado."""
 
 
 def validar_tax_id(doc, method=None):
@@ -121,8 +131,32 @@ def validar_ie(doc, method=None):
 		)
 
 
+CHAVE_EXCECOES_DO_DIGITO = "brasil_municipios_excecao_dv"
+"""Códigos de município que o administrador libera da conferência do dígito verificador, em `site_config`.
+
+Existe porque o IBGE já atribuiu 9 códigos fora da regra (`fiscal/codigos/municipio.py`) e pode atribuir
+outros: sem esta saída, um município real novo travaria o cadastro até uma nova versão do app.
+"""
+
+
+def _excecoes_do_administrador() -> frozenset[str]:
+	"""A lista configurada. Valor inválido cai em "nenhuma exceção" **e fica registrado** — travar toda gravação
+	de endereço por um erro de digitação em `site_config` seria pior do que o erro."""
+	try:
+		return ler_excecoes(frappe.conf.get(CHAVE_EXCECOES_DO_DIGITO))
+	except ExcecoesInvalidas as erro:
+		frappe.log_error(
+			title="Município: configuração inválida", message=f"{CHAVE_EXCECOES_DO_DIGITO}: {erro}"
+		)
+
+		return frozenset()
+
+
 def validar_codigo_municipio(doc, method=None):
-	"""Valida o código IBGE do município em Address (7 dígitos)."""
+	"""Valida o código IBGE do município em Address: formato, UF do endereço e dígito verificador.
+
+	A regra e as exceções estão em `fiscal/codigos/municipio.py`, conferidas contra a lista oficial do IBGE.
+	"""
 	codigo = doc.get("br_codigo_municipio_ibge")
 
 	if not codigo or not _pais_e_brasil():
@@ -130,12 +164,11 @@ def validar_codigo_municipio(doc, method=None):
 
 	limpo = limpar(codigo)
 
-	if not limpo.isdigit() or len(limpo) != 7:
+	try:
+		validar_municipio(limpo, doc.get("state"), _excecoes_do_administrador())
+	except MunicipioInvalido as erro:
 		frappe.throw(
-			formatar(
-				CADASTRO_CODIGO_DE_MUNICIPIO_INVALIDO,
-				_("Código do Município (IBGE) deve ter 7 dígitos numéricos, recebido {0}").format(codigo),
-			),
+			formatar(CADASTRO_CODIGO_DE_MUNICIPIO_INVALIDO, str(erro)),
 			title=_("Documento fiscal inválido"),
 		)
 

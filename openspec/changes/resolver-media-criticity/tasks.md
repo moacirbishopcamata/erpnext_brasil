@@ -1,8 +1,8 @@
 ## 1. B2: Marcar tasks 1.4 e 1.5 do fechar-laco-cte-mdfe
 
-- [ ] 1.1 Marcar `[x]` na task 1.4 de `openspec/changes/fechar-laco-cte-mdfe/tasks.md`
+- [x] 1.1 Marcar `[x]` na task 1.4 de `openspec/changes/fechar-laco-cte-mdfe/tasks.md`
       (docs de Shipment já escritos)
-- [ ] 1.2 Marcar `[x]` na task 1.5 de `openspec/changes/fechar-laco-cte-mdfe/tasks.md`
+- [x] 1.2 Marcar `[x]` na task 1.5 de `openspec/changes/fechar-laco-cte-mdfe/tasks.md`
       (verificação de tipo do Transmissao Fiscal já feita)
 
 ## 2. B3: Decisão sobre openspec/specs/

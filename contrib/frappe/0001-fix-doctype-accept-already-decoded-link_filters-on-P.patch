@@ -1,7 +1,7 @@
-From be5c9f4aa8e40d5899ce9f9da98e5ce51526240c Mon Sep 17 00:00:00 2001
+From 33f602e5023e679692b390cd7b98862184f86707 Mon Sep 17 00:00:00 2001
 From: Moacir Bishop Camata <moacirbishopcamata@gmail.com>
 Date: Thu, 17 Sep 2026 17:23:49 -0400
-Subject: [PATCH 1/2] fix(doctype): accept already-decoded link_filters on
+Subject: [PATCH 1/3] fix(doctype): accept already-decoded link_filters on
  PostgreSQL
 
 `link_filters` is a JSON field. MariaDB returns it as text, but PostgreSQL's
@@ -18,10 +18,10 @@ parses strings and passes decoded values through, and add a test for the decoded
  2 files changed, 20 insertions(+), 1 deletion(-)
 
 diff --git a/frappe/core/doctype/doctype/doctype.py b/frappe/core/doctype/doctype/doctype.py
-index 1ef8cc1938..1f599b5d02 100644
+index c9be89d4ef..ab39979b48 100644
 --- a/frappe/core/doctype/doctype/doctype.py
 +++ b/frappe/core/doctype/doctype/doctype.py
-@@ -1741,8 +1741,10 @@ def validate_fields(meta: Meta):
+@@ -1750,8 +1750,10 @@ def validate_fields(meta: Meta):
  		if not link_filters_value:
  			return
  
@@ -32,12 +32,12 @@ index 1ef8cc1938..1f599b5d02 100644
 +			link_filters = frappe.parse_json(link_filters_value)
  		except (TypeError, ValueError):
  			frappe.throw(
- 				_("Invalid Link Filters for field {0}. Link Filters must be valid JSON.").format(
+ 				_("Invalid Filters for field {0}. Filters must be valid JSON.").format(
 diff --git a/frappe/core/doctype/doctype/test_doctype.py b/frappe/core/doctype/doctype/test_doctype.py
-index 2e755514dd..c483e99f30 100644
+index 9acaf2a7b4..e54f93a007 100644
 --- a/frappe/core/doctype/doctype/test_doctype.py
 +++ b/frappe/core/doctype/doctype/test_doctype.py
-@@ -691,6 +691,23 @@ class TestDocType(IntegrationTestCase):
+@@ -705,6 +705,23 @@ class TestDocType(IntegrationTestCase):
  
  		self.assertRaises(frappe.ValidationError, doctype.insert)
  

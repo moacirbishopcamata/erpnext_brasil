@@ -1,7 +1,7 @@
-From e1ebaf713a972f8c7e336a6c51b658380db21c2c Mon Sep 17 00:00:00 2001
+From d872548056e3935c9b6c0d07072c2e2a674a4936 Mon Sep 17 00:00:00 2001
 From: Moacir Bishop Camata <moacirbishopcamata@gmail.com>
 Date: Thu, 17 Sep 2026 17:27:12 -0400
-Subject: [PATCH 2/2] fix(query): do not apply default ORDER BY to
+Subject: [PATCH 2/3] fix(query): do not apply default ORDER BY to
  aggregate-only queries on PostgreSQL
 
 `frappe.db.get_value(doctype, filters, [{"MAX": "field"}])` builds
@@ -18,10 +18,10 @@ the same way DISTINCT/GROUP BY queries already skip it on PostgreSQL.
  2 files changed, 31 insertions(+), 1 deletion(-)
 
 diff --git a/frappe/database/query.py b/frappe/database/query.py
-index 2da0442743..22efeb7bfa 100644
+index 1377710fe5..b719b4d4b0 100644
 --- a/frappe/database/query.py
 +++ b/frappe/database/query.py
-@@ -318,7 +318,13 @@ class Engine:
+@@ -321,7 +321,13 @@ class Engine:
  			self.apply_group_by(group_by)
  
  		if order_by:
@@ -36,7 +36,7 @@ index 2da0442743..22efeb7bfa 100644
  				self.is_postgres and is_select and (distinct or group_by)
  			):  # ignore in Postgres since order by fields need to appear in select distinct
  				self.apply_order_by(order_by)
-@@ -341,6 +347,12 @@ class Engine:
+@@ -346,6 +352,12 @@ class Engine:
  		self.query.immutable = True
  		return self.query
  
@@ -50,7 +50,7 @@ index 2da0442743..22efeb7bfa 100644
  		self.fields = self.parse_fields(fields)
  
 diff --git a/frappe/tests/test_query.py b/frappe/tests/test_query.py
-index 8acd21f6a6..8db0066064 100644
+index 2781d951f5..cb3d69ede3 100644
 --- a/frappe/tests/test_query.py
 +++ b/frappe/tests/test_query.py
 @@ -67,6 +67,24 @@ class TestQuery(IntegrationTestCase):

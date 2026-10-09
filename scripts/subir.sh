@@ -35,7 +35,11 @@ set -u
 BENCH="${BENCH:-$HOME/frappe-bench-16}"
 PORTA="${PORTA:-8001}"
 DADOS_MARIADB="${DADOS_MARIADB:-$HOME/mariadb-data}"
-BASE_MARIADB="${BASE_MARIADB:-$HOME/mariadb-10.11.9-linux-systemd-x86_64}"
+BASE_MARIADB="${BASE_MARIADB:-$HOME/mariadb-10.11.19-linux-systemd-x86_64}"
+# Redis compilado em espaço de usuário (sem sudo). A 7.0 do apt está fora do suporte do upstream desde
+# 2024-07-29; a 7.2 segue suportada. Sem o binário compilado, cai no `redis-server` do sistema.
+BASE_REDIS="${BASE_REDIS:-$HOME/redis-7.2.16}"
+if [ -x "$BASE_REDIS/src/redis-server" ]; then REDIS_SERVER="$BASE_REDIS/src/redis-server"; else REDIS_SERVER="redis-server"; fi
 PORTA_MARIADB="${PORTA_MARIADB:-3306}"
 SO_SERVICOS="${SO_SERVICOS:-}"
 VOLUMES="${VOLUMES:-/mnt/g/erpnext-dados}"
@@ -67,7 +71,7 @@ exigir() {
 	exit 1
 }
 
-exigir redis-server "Instale com: sudo apt install redis-server"
+exigir "$REDIS_SERVER" "Compile a 7.2 (sem sudo): curl -LO https://download.redis.io/releases/redis-7.2.16.tar.gz && tar xzf redis-7.2.16.tar.gz -C ~ && make -C ~/redis-7.2.16 -j4"
 
 # ⚠️ As portas do Redis são **lidas do bench**, não fixadas aqui.
 #
@@ -116,8 +120,8 @@ if [ "$DB_TYPE" = "postgres" ]; then
 elif [ ! -x "$BASE_MARIADB/bin/mariadbd" ]; then
 	vermelho "MariaDB não encontrado em $BASE_MARIADB"
 	amarelo "Baixe o tarball genérico (não precisa de sudo):"
-	amarelo "  curl -LO https://archive.mariadb.org/mariadb-10.11.9/bintar-linux-systemd-x86_64/mariadb-10.11.9-linux-systemd-x86_64.tar.gz"
-	amarelo "  tar xzf mariadb-10.11.9-linux-systemd-x86_64.tar.gz -C ~"
+	amarelo "  curl -LO https://archive.mariadb.org/mariadb-10.11.19/bintar-linux-systemd-x86_64/mariadb-10.11.19-linux-systemd-x86_64.tar.gz"
+	amarelo "  tar xzf mariadb-10.11.19-linux-systemd-x86_64.tar.gz -C ~"
 	exit 1
 fi
 
@@ -169,7 +173,7 @@ subir_redis() {
 	fi
 
 	mkdir -p "$VOLUMES/$pasta"
-	redis-server --port "$porta" --dir "$VOLUMES/$pasta" \
+	"$REDIS_SERVER" --port "$porta" --dir "$VOLUMES/$pasta" \
 		--dbfilename "$arquivo" --save '60 1' --daemonize yes 2>&1 | tail -1
 
 	sleep 2
