@@ -87,7 +87,22 @@ def carregar_certificado_da_empresa(company: str) -> tuple[bytes, str]:
 		},
 	)
 
-	return arquivo.get_content(), senha
+	return _bytes_do_arquivo(arquivo), senha
+
+
+def _bytes_do_arquivo(arquivo) -> bytes:
+	"""Os bytes **crus** do `.pfx` — nunca `File.get_content()`.
+
+	`get_content()` (frappe 16) lê o arquivo e tenta decodificá-lo como texto em
+	`FILE_ENCODING_OPTIONS = ("utf-8-sig", "utf-8", "windows-1250", "windows-1252")`; como
+	`windows-1250` aceita quase qualquer byte, um PKCS#12 volta como `str` mojibake em vez de
+	`bytes`, e o `cryptography` recusa. Achado em `tests_bench/test_certificado_a1.py` rodando
+	no site Postgres em 2026-09-17 (`'…˙' != b'…\xff'`) — o defeito é do lado do arquivo,
+	não do banco, e valeria igual em MariaDB. Um certificado é binário por definição: lê-se em
+	`rb` pelo caminho que o próprio `File` resolve.
+	"""
+	with open(arquivo.get_full_path(), "rb") as conteudo:
+		return conteudo.read()
 
 
 def ambiente_sefaz_da_empresa(company: str) -> str:

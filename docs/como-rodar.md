@@ -76,6 +76,17 @@ comando que o contém, e já matou o próprio shell nesta sessão.
 O `start` usa o `Procfile`, que tentaria subir outro Redis nas mesmas portas e falharia.
 Quando o script chega ao fim, a infraestrutura já está de pé.
 
+## ⚠️ Não encadeie o script com um pipe
+
+`SO_SERVICOS=1 bash scripts/subir.sh | tail -4` **não retorna**: o `mariadbd` fica em segundo
+plano com o pipe herdado, o `tail` nunca vê o fim, e o `exit 0` do script não liberta ninguém.
+Aconteceu em 2026-09-17 num script de automação; quem chama de outro script deve redirecionar
+para arquivo (`> subir.log 2>&1`) ou não capturar a saída.
+
+O script também reconhece bench em **PostgreSQL** (`db_type` no `common_site_config.json`): aí
+não sobe banco nenhum, só confere que a porta responde — o servidor está fora do WSL
+([postgresql.md](postgresql.md)).
+
 ## Parar
 
 `Ctrl+C` encerra **só o servidor web**. MariaDB e Redis continuam — de propósito: eles

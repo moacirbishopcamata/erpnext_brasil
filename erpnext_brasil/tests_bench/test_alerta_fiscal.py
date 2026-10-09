@@ -32,6 +32,7 @@ from frappe.tests.utils import FrappeTestCase
 
 from erpnext_brasil.integracao.alerta_fiscal import verificar_prontidao_efd
 from erpnext_brasil.tests_bench import test_cfop_sugestao
+from erpnext_brasil.tests_bench._cadastros import garantir_ano_fiscal
 from erpnext_brasil.tests_bench.test_cadeia_do_documento import CHAVE
 from erpnext_brasil.tests_bench.test_cfop_sugestao import ITEM, LISTA, MATRIZ, OUTRO_GRUPO
 
@@ -54,15 +55,7 @@ class TestAlertaFiscal(FrappeTestCase):
 
 		ano = str(frappe.utils.now_datetime().year)
 
-		if not frappe.db.exists("Fiscal Year", ano):
-			frappe.get_doc(
-				{
-					"doctype": "Fiscal Year",
-					"year": ano,
-					"year_start_date": f"{ano}-01-01",
-					"year_end_date": f"{ano}-12-31",
-				}
-			).insert(ignore_permissions=True)
+		garantir_ano_fiscal(ano)
 
 		frappe.db.commit()
 

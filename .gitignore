@@ -15,3 +15,7 @@ __pycache__/
 # Configuração local de site/bench (contém senha de banco e chave de criptografia)
 site_config.json
 common_site_config.json
+
+# cobertura local do Cherry (scripts/cherry)
+.coverage
+htmlcov/

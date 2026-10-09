@@ -77,20 +77,27 @@ def saldos_na_data(company: str, data: str) -> list[ItemInventario]:
 	"""
 	# Um `Stock Ledger Entry` por item+depósito, o mais recente até a data. `qty_after_
 	# transaction` e `stock_value` já são acumulados, então basta o último de cada.
+	#
+	# `ROW_NUMBER()` em vez de `MAX(CONCAT(posting_date, posting_time, name))`: a versão
+	# anterior escolhia o "mais recente" ordenando **texto**, e a forma textual de uma data
+	# não é garantida — no PostgreSQL depende do `DateStyle` da sessão, que o Frappe não
+	# fixa. A função de janela ordena pelos tipos de verdade e existe nos dois bancos que o
+	# Frappe aceita (MariaDB ≥ 10.2, o Frappe exige ≥ 10.6; PostgreSQL). Ver
+	# `docs/postgresql.md`.
 	lancamentos = frappe.db.sql(
 		"""
 		SELECT sle.item_code, SUM(sle.qty_after_transaction) AS quantidade,
 		       SUM(sle.stock_value) AS valor
-		FROM `tabStock Ledger Entry` sle
-		INNER JOIN (
-			SELECT item_code, warehouse, MAX(CONCAT(posting_date, posting_time, name)) AS marca
+		FROM (
+			SELECT item_code, qty_after_transaction, stock_value,
+			       ROW_NUMBER() OVER (
+			           PARTITION BY item_code, warehouse
+			           ORDER BY posting_date DESC, posting_time DESC, creation DESC, name DESC
+			       ) AS posicao
 			FROM `tabStock Ledger Entry`
 			WHERE company = %(company)s AND posting_date <= %(data)s AND is_cancelled = 0
-			GROUP BY item_code, warehouse
-		) ultimo
-			ON ultimo.item_code = sle.item_code
-			AND ultimo.warehouse = sle.warehouse
-			AND CONCAT(sle.posting_date, sle.posting_time, sle.name) = ultimo.marca
+		) sle
+		WHERE sle.posicao = 1
 		GROUP BY sle.item_code
 		""",
 		{"company": company, "data": data},

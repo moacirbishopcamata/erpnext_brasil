@@ -719,6 +719,17 @@ emissão.
   replica é o modelo do ERPNext, que separa por papel comercial onde o fisco separa por
   modelo de documento.
 
+## PostgreSQL — 2026-09-17
+
+Segundo banco provado (`v16pg.localhost`): `new-site`, `install-app` de erpnext, erpnext_brasil
+e hrms, `migrate`, índice e campos conferidos. Dois bugs **do Frappe** em Postgres foram
+corrigidos em patches (`contrib/frappe/`) e um contorno ficou no `install.py` enquanto os PRs
+não entram; a única consulta SQL crua do app foi reescrita e ganhou teste de bench
+(`tests_bench/test_efd_inventario.py` — `efd_inventario` sai da lista de módulos sem
+cobertura real). Gaps que ficam declarados: **CI continua sem bench** (nem MariaDB nem
+Postgres); **`docker-compose.yml` continua só MariaDB**; **os PRs ao Frappe ainda não foram
+abertos**. Detalhe em [postgresql.md](postgresql.md).
+
 ## Método
 
 

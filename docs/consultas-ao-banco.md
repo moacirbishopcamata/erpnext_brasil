@@ -18,8 +18,9 @@ caminhos ao banco, do mais protegido ao mais cru — e o app escolhe qual usar e
 ## Onde este app está
 
 - **`frappe.get_all` em quase tudo** — 15 chamadas espalhadas pela integração.
-- **`frappe.db.sql` uma única vez**, em `efd_inventario.py`: a apuração do Bloco H precisa
-  de agregação por item e depósito num intervalo, e montar isso com `get_all` seria trazer
+- **`frappe.db.sql` três vezes** — a apuração do Bloco H em `efd_inventario.py` e duas
+  consultas do Navegador de Estoque (`navegador_estoque.py`), todas de leitura. A do Bloco H
+  precisa de agregação por item e depósito num intervalo, e montar isso com `get_all` seria trazer
   linhas demais para somar em Python.
 - **`frappe.qb` nenhuma vez.**
 
@@ -58,7 +59,7 @@ MariaDB e Postgres. É a saída quando `get_all` não basta e SQL cru é demais.
 
 ### 4. `frappe.db.sql` — quando nada mais serve
 
-Dá controle total e **não aplica permissão nenhuma**. O único uso do app está declarado na
+Dá controle total e **não aplica permissão nenhuma**. Cada uso do app está declarado na
 docstring do módulo que o usa.
 
 ⚠️ Duas armadilhas, as duas já registradas em outros documentos:
@@ -66,8 +67,12 @@ docstring do módulo que o usa.
 - **SQL de escrita não passa pelo `Document`** e portanto **não gera `Version`** — some da
   trilha de auditoria (ver [logs-e-auditoria.md](logs-e-auditoria.md)). É a razão de este
   app usar `db_set`/`get_doc` para escrever, e SQL só para ler.
-- **Portabilidade**: o ERPNext mantém compatibilidade com Postgres, e funções como `IF`,
-  `DATE_FORMAT` e `GROUP_CONCAT` são só de MySQL.
+- **Portabilidade**: quem mantém compatibilidade com Postgres é o **Frappe** (e a declara
+  experimental); o ERPNext não a garante — ver [postgresql.md](postgresql.md), onde a
+  afirmação anterior desta linha ("o ERPNext mantém compatibilidade") foi corrigida. Funções
+  como `IF`, `DATE_FORMAT` e `GROUP_CONCAT` são só de MySQL, e **ordenar texto de data**
+  (`MAX(CONCAT(posting_date, ...))`) depende do `DateStyle` no Postgres — foi por isso que a
+  consulta do Bloco H passou a usar `ROW_NUMBER()`.
 
 ## O índice que faltava — feito
 
@@ -154,4 +159,4 @@ aparece lá.
 - `frappe/database/schema.py` — `search_index` do DocField virando índice.
 - `frappe/hooks.py` — `permission_query_conditions`.
 - `frappe/__init__.py` — `frappe.qb`.
-- `erpnext_brasil/integracao/efd_inventario.py` — o único `frappe.db.sql` do app.
+- `erpnext_brasil/integracao/efd_inventario.py` e `navegador_estoque.py` — os `frappe.db.sql` do app.
