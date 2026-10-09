@@ -38,15 +38,14 @@ pré-visualização) — remove as linhas de INSS/IRRF de uma execução anterio
 recalcular, mesma disciplina de `integracao.documento._sincronizar_tabela_de_impostos`
 reescrever só o que este app gerou, preservando o resto da tabela.
 
-Estado de verificação: ainda não exercitado contra um `Salary Slip` real
+Estado de verificação: exercitado no bench (2026-10-09), sem folha completa
 -----------------------------------------------------------------------------------
-Diferente de `folha/inss.py` e `folha/irrf.py` (testados extensivamente sem bench),
-este módulo depende do Frappe e do `hrms` e não há bench disponível nesta sessão para
-rodar um `Salary Slip` de ponta a ponta — mesma limitação já registrada para
-`integracao/documento.py` e `integracao/party.py`, nenhum dos quais tem teste
-automatizado por este mesmo motivo. `SALARY_COMPONENT_NOMES` e a leitura de
-`doc.gross_pay` foram conferidas contra o código-fonte do `hrms` (`salary_slip.py`,
-`salary_detail.json`), não contra uma execução real.
+`tests_bench/test_folha.py` monta um `Salary Slip` real do `hrms` em memória (sem gravar), chama o método
+`apply_regional_deductions` do próprio `hrms` — decorado com `allow_regional`, que procura a chave de
+`regional_overrides` pelo nome `módulo.função` — e confere que INSS e IRRF entram em `deductions` com o valor da
+regra pura, que recalcular não duplica e que as outras deduções ficam. **Não** exercita estrutura salarial,
+funcionário e período: o holerite não é gravado nem processado de ponta a ponta. A decisão de país do `hrms` é
+`System Settings.country` (`hrms.get_region`), e o módulo confere também `Company.country`.
 """
 
 from decimal import Decimal
