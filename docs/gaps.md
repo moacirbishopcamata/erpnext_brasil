@@ -508,6 +508,25 @@ raiz. `tests/test_evento_cte.py::TestFormaDoEventoCte` trava a raiz e o elemento
 - A ordem dos filhos dentro de cada `ev*` não foi reconferida montador a montador nesta passagem; os
   testes por evento seguem como estavam.
 
+## 🟡 Fonte de tempo (NTP.br): o que a mudança `fonte-de-tempo-ntp-br` deixa de fora — 2026-10-09
+
+Medição, alerta, guarda de emissão (NF-e e CT-e) e correção opcional do `dhEmi` estão implementados e
+testados (`docs/fonte-de-tempo.md`). Ficam:
+
+- 🔴 **Limites padrão sem fonte oficial.** Aviso a partir de 1 s e crítico a partir de 60 s são escolha
+  de engenharia; a tolerância de `dhEmi` está no MOC e não foi verificada. A guarda nasce **ligada**, e
+  só deve ficar assim depois da calibração (tarefa 6.2 da mudança). Resolve: ler o MOC e ajustar os
+  padrões em `fiscal/relogio_politica.py`.
+- 🟡 **Guarda no MDF-e e na NFC-e.** A função é a mesma; falta o ponto de emissão existir
+  (`fechar-laco-cte-mdfe` 5.2 e `emitir-nfce-do-pos` 4.3a, já anotados lá).
+- 🟡 **SNTP sem autenticação.** O app não faz NTS; a defesa é o consenso entre fontes. Se a ameaça de
+  forjamento no caminho for relevante, é mudança à parte (cliente NTS-KE).
+- 🟡 **Política de uso dos servidores `.st1`** para clientes de aplicação não é publicada; a medição é
+  horária por cautela. Confirmar com o NIC.br.
+- 🟡 **Servidor NTP próprio do Observatório Nacional** não confirmado (a página da Hora Legal
+  consultada devolveu 404).
+- 🟡 **Sem prova em PostgreSQL** do cache e do campo novo do `Transmissao Fiscal`.
+
 ## Método
 s expostos e quem os chama
 

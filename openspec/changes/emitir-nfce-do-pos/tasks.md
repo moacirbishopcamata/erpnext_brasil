@@ -55,6 +55,9 @@
       independente
 - [ ] 4.3 Confirmar que o bloqueio por consumo indevido recusa a transmissão do POS **antes** de
       chamar a SEFAZ — verificar com teste que conta as chamadas ao transporte (zero)
+- [ ] 4.3a Chamar `garantir_relogio_confiavel()` (mudança `fonte-de-tempo-ntp-br`) como **primeira
+      instrução** da emissão da NFC-e, antes de alocar número — verificar incluindo a função de emissão
+      em `tests/test_guarda_de_relogio.py::EMISSOES`, que trava a posição da chamada
 - [ ] 4.4 Fatorar em módulos se `integracao/` passar de 320 linhas — verificar com a conferência
       de tamanho já existente
 

@@ -68,6 +68,8 @@ from erpnext_brasil.integracao.certificado_a1 import (
 from erpnext_brasil.integracao.cobranca_documento import montar_cobranca_do_documento
 from erpnext_brasil.integracao.configuracao_fiscal import serie_padrao
 from erpnext_brasil.integracao.consumo_indevido import garantir_liberado, registrar_resposta
+from erpnext_brasil.integracao.guarda_de_relogio import garantir_relogio_confiavel
+from erpnext_brasil.integracao.instante_de_emissao import instante_de_emissao
 from erpnext_brasil.integracao.nfe_documento import montar_nfe_do_documento
 from erpnext_brasil.integracao.numeracao_fiscal import numero_do_documento
 from erpnext_brasil.integracao.transporte_pagamento import pag_do_documento, transp_do_documento
@@ -92,7 +94,9 @@ def situacao_da_resposta(resposta) -> str:
 	return SITUACAO_DENEGADO if resposta.denegado else SITUACAO_REJEITADO
 
 
-def _registrar(doc, arvore: dict, resposta, ambiente: str, chave: str) -> str:
+def _registrar(
+	doc, arvore: dict, resposta, ambiente: str, chave: str, deslocamento_ms: float | None = None
+) -> str:
 	"""Grava o `Transmissao Fiscal` em qualquer desfecho. Devolve o nome do registro."""
 	autorizacao = resposta.autorizacao
 
@@ -111,6 +115,8 @@ def _registrar(doc, arvore: dict, resposta, ambiente: str, chave: str) -> str:
 			"protocolo": getattr(autorizacao, "protocolo", "") if autorizacao else "",
 			"xml_enviado": para_xml(arvore),
 			"xml_retorno": frappe.as_json(resposta.bruto),
+			"deslocamento_relogio_ms": deslocamento_ms,
+			"instante_corrigido": 0 if deslocamento_ms is None else 1,
 		}
 	)
 	registro.insert(ignore_permissions=True)
@@ -135,11 +141,16 @@ def emitir_nfe(
 	Devolve `{"situacao", "chave_acesso", "protocolo", "registro"}`. Rejeição e denegação
 	**também** são gravadas antes de virarem erro — ver docstring do módulo.
 	"""
+	# Primeira instrução, de propósito: antes de ler o documento e **antes de alocar número**. Um
+	# relógio comprovadamente errado recusa aqui, sem queimar número da série nem chamar a SEFAZ.
+	garantir_relogio_confiavel()
+
 	doc = frappe.get_doc(doctype, name)
 	doc.check_permission("submit")
 
 	ambiente = ambiente_sefaz_da_empresa(doc.company)
 	serie = serie_padrao(doc.company, MODELO_NFE)
+	instante = instante_de_emissao()
 
 	# Aloca antes de montar: o `nNF` entra na chave de acesso, que é derivada do `ide`.
 	# Fica na mesma transação do request, para que a trava da linha do contador só solte
@@ -172,6 +183,7 @@ def emitir_nfe(
 		transp=transp,
 		pag=pag,
 		cobr=cobr,
+		agora=instante.momento,
 	)
 	chave = arvore["NFe"]["infNFe"]["@Id"].removeprefix("NFe")
 
@@ -198,7 +210,7 @@ def emitir_nfe(
 	)
 	resposta = transporte.transmitir(assinada)
 
-	registro = _registrar(doc, assinada, resposta, ambiente, chave)
+	registro = _registrar(doc, assinada, resposta, ambiente, chave, instante.deslocamento_ms)
 
 	if not resposta.autorizada:
 		# `commit` explícito: `throw` desfaz a transação do request/worker e levaria o registro

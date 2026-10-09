@@ -52,6 +52,8 @@ from erpnext_brasil.integracao.certificado_a1 import (
 from erpnext_brasil.integracao.consumo_indevido import garantir_liberado, registrar_resposta
 from erpnext_brasil.integracao.cte_documento import montar_cte_do_documento
 from erpnext_brasil.integracao.emissao_nfe import AMBIENTE_POR_CHAVE, situacao_da_resposta
+from erpnext_brasil.integracao.guarda_de_relogio import garantir_relogio_confiavel
+from erpnext_brasil.integracao.instante_de_emissao import instante_de_emissao
 from erpnext_brasil.integracao.transporte_sefaz import TransporteSefaz
 
 __all__ = ["emitir_cte"]
@@ -71,7 +73,9 @@ def _ja_autorizado(doc) -> str | None:
 	)
 
 
-def _registrar(doc, arvore: dict, resposta, ambiente: str, chave: str) -> str:
+def _registrar(
+	doc, arvore: dict, resposta, ambiente: str, chave: str, deslocamento_ms: float | None = None
+) -> str:
 	"""Grava o `Transmissao Fiscal` em qualquer desfecho. Devolve o nome do registro."""
 	autorizacao = resposta.autorizacao
 
@@ -90,6 +94,8 @@ def _registrar(doc, arvore: dict, resposta, ambiente: str, chave: str) -> str:
 			"protocolo": autorizacao.protocolo if autorizacao else "",
 			"xml_enviado": para_xml(arvore),
 			"xml_retorno": frappe.as_json(resposta.bruto),
+			"deslocamento_relogio_ms": deslocamento_ms,
+			"instante_corrigido": 0 if deslocamento_ms is None else 1,
 		}
 	)
 	registro.insert(ignore_permissions=True)
@@ -104,6 +110,10 @@ def emitir_cte(doctype: str, name: str) -> dict:
 	Devolve `{"situacao", "chave_acesso", "protocolo", "registro"}`. Rejeição e denegação
 	**também** são gravadas antes de virarem erro — ver docstring do módulo.
 	"""
+	# Primeira instrução, de propósito: antes de ler o documento e **antes de alocar número**. Um
+	# relógio comprovadamente errado recusa aqui, sem queimar número da série nem chamar a SEFAZ.
+	garantir_relogio_confiavel()
+
 	doc = frappe.get_doc(doctype, name)
 	doc.check_permission("submit")
 
@@ -117,9 +127,10 @@ def emitir_cte(doctype: str, name: str) -> dict:
 		)
 
 	ambiente = ambiente_sefaz_da_empresa(doc.company)
+	instante = instante_de_emissao()
 
 	try:
-		arvore, chave = montar_cte_do_documento(doc, ambiente)
+		arvore, chave = montar_cte_do_documento(doc, ambiente, instante.momento)
 	except CteInvalido as erro:
 		frappe.throw(erro.mensagem_com_codigo)
 
@@ -141,7 +152,7 @@ def emitir_cte(doctype: str, name: str) -> dict:
 	)
 	resposta = transporte.transmitir_cte(assinada)
 
-	registro = _registrar(doc, assinada, resposta, ambiente, chave)
+	registro = _registrar(doc, assinada, resposta, ambiente, chave, instante.deslocamento_ms)
 
 	if not resposta.autorizada:
 		# `commit` explícito: `throw` desfaz a transação do request/worker e levaria o registro

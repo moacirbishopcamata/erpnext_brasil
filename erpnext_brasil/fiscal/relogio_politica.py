@@ -39,12 +39,15 @@ __all__ = [
 	"SERVIDORES_PADRAO",
 	"ConfiguracaoInvalida",
 	"ConfiguracaoRelogio",
+	"Correcao",
 	"UltimaMedicao",
 	"Veredito",
 	"avaliar",
+	"deslocamento_a_aplicar",
 	"deve_notificar",
 	"ler_configuracao",
 	"mensagem_de_alerta",
+	"mensagem_de_recusa",
 ]
 
 INTERVALO_DE_REAVISO_S = 86_400
@@ -263,3 +266,48 @@ def mensagem_de_alerta(veredito: Veredito, config: ConfiguracaoRelogio) -> tuple
 			"Sincronize o servidor com o NTP.br (de preferência com NTS) — ver docs/fonte-de-tempo.md."
 		),
 	)
+
+
+def mensagem_de_recusa(veredito: Veredito, config: ConfiguracaoRelogio) -> str:
+	"""O texto da emissão recusada: o desvio medido, o limite, o que **não** aconteceu e o que fazer."""
+	segundos = abs(veredito.desvio_ms) / 1000
+	sentido = "atrasado" if veredito.desvio_ms > 0 else "adiantado"
+
+	return (
+		f"Emissão recusada: o relógio do servidor está {sentido} cerca de {segundos:.1f} s em relação à "
+		f"Hora Legal Brasileira (NTP.br), acima do limite crítico de {config.limite_critico_ms / 1000:g} s. "
+		"Nenhum número da série foi consumido e nada foi enviado à SEFAZ. Sincronize o servidor com o "
+		"NTP.br e tente de novo — ver docs/fonte-de-tempo.md."
+	)
+
+
+@dataclass(frozen=True)
+class Correcao:
+	"""O deslocamento a somar ao relógio do servidor para obter o instante de emissão.
+
+	`segundos` é `None` quando **nada** se aplica — correção desligada, ou ligada mas sem medição
+	utilizável. `motivo` só é preenchido no segundo caso: é o que o app registra para o administrador
+	saber que a correção que ele ligou não teve efeito.
+	"""
+
+	segundos: float | None
+	motivo: str = ""
+
+
+def deslocamento_a_aplicar(
+	ultima: UltimaMedicao | None, agora: float, config: ConfiguracaoRelogio
+) -> Correcao:
+	"""Soma-se θ ao relógio local para chegar à hora legal: θ > 0 é relógio local atrasado.
+
+	Usa a **mesma régua** do alerta e da guarda (`avaliar`): medição ausente, vencida ou não confiável
+	não corrige nada, porque corrigir por um valor em que não se confia é pior que não corrigir.
+	"""
+	if not config.correcao_ligada:
+		return Correcao(None)
+
+	veredito = avaliar(ultima, agora, config)
+
+	if veredito.nivel == "sem_medicao":
+		return Correcao(None, f"correção do instante ligada, mas sem medição utilizável: {veredito.motivo}")
+
+	return Correcao(veredito.desvio_ms / 1000)

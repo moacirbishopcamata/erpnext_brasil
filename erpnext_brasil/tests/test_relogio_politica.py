@@ -22,6 +22,7 @@ from erpnext_brasil.fiscal.relogio_politica import (
 	deve_notificar,
 	ler_configuracao,
 	mensagem_de_alerta,
+	mensagem_de_recusa,
 )
 from erpnext_brasil.fiscal.tempo_ntp import Medicao
 
@@ -216,6 +217,20 @@ class TestNotificacao(unittest.TestCase):
 		config = ConfiguracaoRelogio(guarda_ligada=False)
 
 		self.assertNotIn("recusada", mensagem_de_alerta(Veredito("critico", 90_000.0), config)[1])
+
+
+class TestMensagemDeRecusa(unittest.TestCase):
+	def test_diz_o_desvio_o_limite_e_o_que_nao_aconteceu(self):
+		texto = mensagem_de_recusa(Veredito("critico", 90_000.0), CONFIG)
+
+		self.assertIn("90.0 s", texto)
+		self.assertIn("atrasado", texto)
+		self.assertIn("60 s", texto)
+		self.assertIn("Nenhum número da série foi consumido", texto)
+		self.assertIn("nada foi enviado à SEFAZ", texto)
+
+	def test_relogio_adiantado(self):
+		self.assertIn("adiantado", mensagem_de_recusa(Veredito("critico", -90_000.0), CONFIG))
 
 
 if __name__ == "__main__":

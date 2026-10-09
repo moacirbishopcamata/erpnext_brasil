@@ -213,6 +213,11 @@
 - [ ] 5.2 Registrar em `Transmissao Fiscal` o desfecho (autorizado, rejeitado, denegado) e gravar
       chave/protocolo no `Shipment` — verificar com teste de bench que relê do banco por caminho
       independente
+
+      **Acrescentado (2026-10-09):** a emissão do MDF-e também chama `garantir_relogio_confiavel()` (mudança
+      `fonte-de-tempo-ntp-br`, tarefa 4.3) como **primeira instrução**, antes de alocar número — incluir a
+      função em `tests/test_guarda_de_relogio.py::EMISSOES`.
+
 - [ ] 5.3 Confirmar o bloqueio por consumo indevido recusando o envio do MDF-e **antes** de
       chamar a SEFAZ — verificar com teste que conta as chamadas ao transporte (zero)
 - [ ] 5.4 Implementar encerramento (110112) e cancelamento do MDF-e com desfecho registrado e sem

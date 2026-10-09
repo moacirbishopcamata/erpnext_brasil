@@ -56,6 +56,8 @@ Estado de verificação: camada Frappe, ainda **não** exercitada contra bench r
 lacuna registrada em `docs/gaps.md`, seção 2.
 """
 
+from datetime import datetime
+
 import frappe
 
 from erpnext_brasil.fiscal.codigos.uf import codigo_da_uf
@@ -195,7 +197,9 @@ def _destinatario(doc) -> Destinatario:
 	)
 
 
-def _identificacao(doc, endereco_emitente: dict, serie: str, ambiente: str) -> Identificacao:
+def _identificacao(
+	doc, endereco_emitente: dict, serie: str, ambiente: str, agora: datetime | None = None
+) -> Identificacao:
 	"""O grupo `ide`. `cUF` e `cMunFG` saem do endereço do **emitente** — é onde o fato
 	gerador ocorre, não onde o destinatário está."""
 	uf_emitente = endereco_emitente["UF"]
@@ -214,7 +218,7 @@ def _identificacao(doc, endereco_emitente: dict, serie: str, ambiente: str) -> I
 		serie=serie,
 		numero=numero,
 		codigo_numerico=sortear_codigo_numerico(numero),
-		emissao=agora_da_emissao(),
+		emissao=agora or agora_da_emissao(),
 		destino=DESTINO_INTERNA if uf_destino == uf_emitente else DESTINO_INTERESTADUAL,
 		modelo=MODELO_NFE,
 		ambiente="1" if ambiente == "producao" else "2",
@@ -269,7 +273,9 @@ def _itens(doc):
 	return itens, produtos, apuracao
 
 
-def montar_nfe_do_documento(doc, serie: str, ambiente: str, transp: dict, pag: dict, cobr=None) -> dict:
+def montar_nfe_do_documento(
+	doc, serie: str, ambiente: str, transp: dict, pag: dict, cobr=None, agora: datetime | None = None
+) -> dict:
 	"""A árvore `NFe` completa e **ainda não assinada**, a partir de um documento.
 
 	`transp` e `pag` vêm de quem chama porque descrevem fatos da operação que este módulo
@@ -283,7 +289,7 @@ def montar_nfe_do_documento(doc, serie: str, ambiente: str, transp: dict, pag: d
 
 	return montar_nfe(
 		montar_infnfe(
-			identificacao=_identificacao(doc, endereco_emitente, serie, ambiente),
+			identificacao=_identificacao(doc, endereco_emitente, serie, ambiente, agora),
 			emitente=emitente,
 			destinatario=_destinatario(doc),
 			itens=itens,
