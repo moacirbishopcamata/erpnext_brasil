@@ -159,7 +159,7 @@
       `transporte_sefaz.py` com 299 linhas (limite 320); os novos do CT-e têm 91 a 228. Para não
       estourar o limite, o evento do CT-e entrou como **um** método no transporte
       (`transmitir_evento_cte`) e a montagem ficou em `eventos_cte.py`, em vez de `cancelar`/`corrigir`
-      duplicados lá. `test_arquitetura.test_modulos_de_integracao_nao_crescem_demais` segue verde.
+      duplicados lá. `test_arquitetura.TestCamadaDeIntegracao.test_toda_regra_fica_do_lado_puro` segue verde.
 
 ## 4. Costura pura do MDF-e
 
