@@ -5,6 +5,7 @@ precisa de tabela, cronograma ou comparação de alternativas.
 
 | Documento | Assunto |
 |---|---|
+| [healthcare-estado.md](healthcare-estado.md) | **Healthcare (Marley Health 16.6.1) verificado em site de teste**: GPL-3.0, instala e migra sobre Frappe 16.51/ERPNext 16.50; o módulo laboratorial (`Lab Test`, `Sample Collection`, `Observation`, `Diagnostic Report`) e o que **não** há (nenhuma integração com equipamento, nem TUSS/CNES/TISS); o CRM do ERPNext; a **correção do TISS** (04.03.00 existe no histórico oficial da ANS, e as duas páginas da ANS divergem); os artigos da RDC 786/2023 que obrigam o sistema; como TOTVS, SAP, MV e Tasy tratam |
 | [postgresql.md](postgresql.md) | **PostgreSQL como segundo banco provado** (`v16pg.localhost`, servidor 18.6 no Windows alcançado do WSL): o que Frappe/ERPNext suportam de verdade (experimental / não oficial), os dois obstáculos (`psql` ausente no WSL; `link_filters` que o Postgres devolve decodificado), as **três correções** — contorno no `install.py`, dois patches no próprio Frappe (`contrib/frappe/`) e a única consulta SQL crua reescrita com `ROW_NUMBER()` — e o que foi provado no site real |
 | [cherry.md](cherry.md) | **Cherry** (`scripts/cherry/`, MIT): interface desktop em tkinter para as configurações que se fazem à mão — banco (MariaDB/PostgreSQL) com teste de conexão em três níveis, portas e Redis, `allow_tests`/`default_site` por site, `apps.txt` sempre com `
 ` final; núcleo puro 100 % coberto, UX pesquisada e citada, o bug de CRLF que o teste de costura pegou |
