@@ -70,6 +70,12 @@
 - [ ] 5.6 Instalar o **Frappe Health v16** num site de teste e levantar os DocTypes de pedido, resultado e laudo; abrir a
       mudança do app de saúde (TISS 4.03.00, TUSS, CNES, RNDS/FHIR) e a da integração com equipamentos (PACS/DICOM,
       HL7 v2/ASTM, ECG) — verificar que cada item cita padrão e fonte
+
+      **Parcial (2026-10-10).** Feito: o app de saúde (Marley Health 16.6.1) foi instalado num site de teste em PostgreSQL e os
+      DocTypes de laboratório levantados no código (`docs/healthcare-estado.md`); aberta a mudança da integração com
+      equipamentos, `integrar-laboratorio-e-imagem`. **Corrige** o item 13 do `proposal.md`: a TISS 04.03.00 existe no histórico
+      oficial da ANS (implantação até 30/06/2026), e a obrigatoriedade de 01/07/2026 não consta nas páginas lidas. **Falta** abrir a
+      mudança do app de saúde para faturamento (TISS, TUSS, CNES, RNDS, repasse médico).
 - [ ] 5.7 Abrir as mudanças de **retenção sofrida**, **projetos → serviço** (depende da NFS-e) e **importação** —
       verificar que cada uma lista o que depende de fonte ou de terceiro
 
