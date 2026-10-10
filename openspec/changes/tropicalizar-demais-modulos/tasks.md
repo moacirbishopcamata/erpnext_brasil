@@ -58,6 +58,10 @@
       `NFeDistribuicaoDFe` já conhecido para o CT-e — verificar que o endpoint por UF está levantado em fonte
 - [ ] 5.3 Abrir a mudança da **consulta de CNPJ e CEP**, decidindo fonte, privacidade e funcionamento sem rede —
       verificar que o preenchimento nunca sobrescreve dado já confirmado
+
+      **Parcial (2026-10-10).** Feita a metade do **CEP**, por pedido do usuário: `fiscal/endereco_cep.py` (puro), `integracao/consulta_cep.py`
+      e `public/js/endereco_cep.js` (`docs/consulta-cep.md`). Decidido: o servidor consulta (cache, limite, permissão), só a lacuna é
+      preenchida, a divergência é avisada, sem rede o cadastro segue, e `brasil_consulta_cep: false` desliga. **Falta** a consulta de CNPJ.
 - [ ] 5.4 Levantar os **eventos do eSocial** que faltam (S-1210, S-2206, S-2230, S-2210, S-2220, S-2240) no leiaute S-1.3
       oficial e as **regras de cálculo** (férias, 13º, rescisão, DSR, adicionais) com o dispositivo legal de cada uma —
       verificar que nenhuma regra entra sem fonte citada
