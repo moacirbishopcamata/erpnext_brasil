@@ -34,7 +34,7 @@ Respostas de erro vêm em JSON: `400` para dígito verificador inválido e `404`
 2. O navegador manda ao servidor o CNPJ e o nome que o formulário já tem; o servidor consulta (ou usa o cache) e responde o que cabe
    preencher, a situação e um resumo.
 3. O formulário recebe **só a lacuna** — na prática, a razão social quando o nome está vazio. Uma faixa amarela diz o que foi
-   pré-preenchido ("confira e salve") e some ao salvar; um alerta no topo mostra a situação (verde se ATIVA, vermelho nas demais).
+   pré-preenchido ("confira e salve") e some ao salvar; um alerta no topo mostra a situação (verde se ATIVA, vermelho nas demais) e volta a aparecer depois de salvar. Ao criar o endereço, um selo "Endereço criado" aparece ao lado do título e some sozinho (animação CSS, sem timer).
 
 Regras que não se negociam:
 

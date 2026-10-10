@@ -56,6 +56,28 @@ frappe.provide("erpnext_brasil.consulta_cnpj");
 		return Boolean(frm.doc.country) && frm.doc.country !== "Brazil";
 	}
 
+	function injetar_estilo_do_selo() {
+		if (document.getElementById("brasil-selo-cnpj-estilo")) {
+			return;
+		}
+
+		const estilo = document.createElement("style");
+		estilo.id = "brasil-selo-cnpj-estilo";
+		estilo.textContent =
+			"@keyframes brasil-selo-cnpj { 0%,70% { opacity: 1 } 100% { opacity: 0 } }" +
+			".brasil-selo-cnpj { display: inline-block; margin-left: 8px; animation: brasil-selo-cnpj 3.5s forwards; }";
+		document.head.appendChild(estilo);
+	}
+
+	function selo_de_confirmacao(frm, texto) {
+		// Sem timer: um elemento novo a cada sucesso reinicia a animação CSS, que termina em opacidade 0.
+		injetar_estilo_do_selo();
+		frm.page.wrapper.find(".brasil-selo-cnpj").remove();
+
+		const selo = $(`<span class="indicator-pill green brasil-selo-cnpj"></span>`).text(texto);
+		frm.page.wrapper.find(".title-area").first().append(selo);
+	}
+
 	function avisar(mensagem, indicador) {
 		frappe.show_alert({ message: mensagem, indicator: indicador || "orange" }, 7);
 	}
@@ -100,6 +122,7 @@ frappe.provide("erpnext_brasil.consulta_cnpj");
 		}
 
 		mostrar_situacao(frm, resposta);
+		frm.__resposta_cnpj = resposta;
 		frm.__resumo_cnpj = resposta.resumo;
 		frm.__pode_criar_endereco = Boolean(resposta.pode_criar_endereco);
 	}
@@ -167,7 +190,8 @@ frappe.provide("erpnext_brasil.consulta_cnpj");
 
 				if (resposta.situacao === "criado") {
 					avisar(resposta.mensagem, "green");
-					frappe.set_route("Form", "Address", resposta.endereco);
+					selo_de_confirmacao(frm, __("Endereço criado"));
+					frm.reload_doc();
 
 					return;
 				}
@@ -184,6 +208,10 @@ frappe.provide("erpnext_brasil.consulta_cnpj");
 			refresh(frm) {
 				if (fora_do_brasil(frm)) {
 					return;
+				}
+
+				if (frm.__resposta_cnpj) {
+					mostrar_situacao(frm, frm.__resposta_cnpj);
 				}
 
 				frm.add_custom_button(__("Consultar CNPJ"), () => consultar(frm), __("Brasil"));
