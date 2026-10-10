@@ -1,7 +1,7 @@
 # Consulta de CEP e logradouro (ViaCEP)
 
 Preenche o endereço do cliente, do fornecedor e da empresa a partir do CEP, ou acha o CEP a partir do logradouro. É a metade
-"CEP" da lacuna 4 de `tropicalizar-demais-modulos` (a consulta de CNPJ segue aberta).
+"CEP" da lacuna 4 de `tropicalizar-demais-modulos` (a de CNPJ está em `consulta-cnpj.md`).
 
 ## Por que existe: onde o app exige endereço
 
@@ -74,7 +74,7 @@ ao ViaCEP; um CEP isolado não identifica ninguém. O texto da busca vai a um se
 
 - Não preenche número nem complemento, e não confirma que o endereço completo existe (o CEP de cidade pequena vem sem logradouro e sem bairro;
   o app deixa em branco o que a resposta não traz).
-- Não consulta CNPJ (lacuna aberta).
+- Não consulta CNPJ (ver `consulta-cnpj.md`).
 - Não foram avaliadas alternativas ao ViaCEP (agregadores de CEP, base dos Correios sob contrato); a camada pura (`fiscal/endereco_cep.py`)
   não depende de fornecedor além do formato da resposta.
 
