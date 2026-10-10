@@ -32,6 +32,10 @@ doctype_js = {
 	# Transmitir e reconsultar ficam no **próprio lote**: é ele que tem o protocolo, e é o
 	# protocolo que decide qual das duas ações faz sentido.
 	"Lote eSocial": "public/js/lote_esocial.js",
+	# O endereço é exigido por inteiro (logradouro, número, bairro, IBGE, município, UF e CEP) pela
+	# NF-e, pelo CT-e, pelo MDF-e e pelo SPED. A consulta preenche **só a lacuna** a partir do CEP e
+	# só em endereço do Brasil; ver `docs/consulta-cep.md`.
+	"Address": "public/js/endereco_cep.js",
 }
 
 # O leitor GS1 vale para toda tela de estoque que tem `scan_barcode`, e por isso o mesmo
