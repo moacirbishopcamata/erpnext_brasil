@@ -36,6 +36,11 @@ doctype_js = {
 	# NF-e, pelo CT-e, pelo MDF-e e pelo SPED. A consulta preenche **só a lacuna** a partir do CEP e
 	# só em endereço do Brasil; ver `docs/consulta-cep.md`.
 	"Address": "public/js/endereco_cep.js",
+	# O CNPJ (`tax_id`) preenche **só a lacuna** do nome e avisa a situação cadastral na Receita;
+	# ver `docs/consulta-cnpj.md`. O mesmo arquivo serve às três telas, que têm o mesmo campo.
+	"Customer": "public/js/consulta_cnpj.js",
+	"Supplier": "public/js/consulta_cnpj.js",
+	"Company": "public/js/consulta_cnpj.js",
 }
 
 # O leitor GS1 vale para toda tela de estoque que tem `scan_barcode`, e por isso o mesmo

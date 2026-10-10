@@ -56,12 +56,15 @@
       verificar que a decisão 8 do `design.md` ficou resolvida com evidência
 - [ ] 5.2 Abrir a mudança da **distribuição de NF-e e manifestação do destinatário**, a partir do serviço
       `NFeDistribuicaoDFe` já conhecido para o CT-e — verificar que o endpoint por UF está levantado em fonte
-- [ ] 5.3 Abrir a mudança da **consulta de CNPJ e CEP**, decidindo fonte, privacidade e funcionamento sem rede —
+- [x] 5.3 Abrir a mudança da **consulta de CNPJ e CEP**, decidindo fonte, privacidade e funcionamento sem rede —
       verificar que o preenchimento nunca sobrescreve dado já confirmado
 
-      **Parcial (2026-10-10).** Feita a metade do **CEP**, por pedido do usuário: `fiscal/endereco_cep.py` (puro), `integracao/consulta_cep.py`
-      e `public/js/endereco_cep.js` (`docs/consulta-cep.md`). Decidido: o servidor consulta (cache, limite, permissão), só a lacuna é
-      preenchida, a divergência é avisada, sem rede o cadastro segue, e `brasil_consulta_cep: false` desliga. **Falta** a consulta de CNPJ.
+      **Feita (2026-10-10).** **CEP**: `fiscal/endereco_cep.py` (puro), `integracao/consulta_cep.py` e `public/js/endereco_cep.js`
+      (`docs/consulta-cep.md`). **CNPJ**: `fiscal/cadastro_cnpj.py`, `integracao/consulta_cnpj.py` e `public/js/consulta_cnpj.js`
+      (`docs/consulta-cnpj.md`). Decidido nas duas: o servidor consulta (cache, limite, permissão), só a lacuna é preenchida, a divergência
+      ou a situação cadastral é avisada e nunca aplicada nem bloqueante, sem rede o cadastro segue, e `brasil_consulta_cep` /
+      `brasil_consulta_cnpj: false` desligam. No CNPJ não existe API oficial gratuita (BrasilAPI e Minha Receita, dados mensais), só o CNPJ
+      sai do servidor e sócios, e-mail e telefone nunca são lidos. **Falta** verificar as duas telas em navegador.
 - [ ] 5.4 Levantar os **eventos do eSocial** que faltam (S-1210, S-2206, S-2230, S-2210, S-2220, S-2240) no leiaute S-1.3
       oficial e as **regras de cálculo** (férias, 13º, rescisão, DSR, adicionais) com o dispositivo legal de cada uma —
       verificar que nenhuma regra entra sem fonte citada
