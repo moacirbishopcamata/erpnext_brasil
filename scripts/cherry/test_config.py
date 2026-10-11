@@ -80,6 +80,58 @@ class TestJson(_ComBench):
 		self.assertNotIn("developer_mode", relido)
 
 
+class TestEscritaAtomica(_ComBench):
+	"""CH-02: falha no meio da escrita não pode deixar o destino truncado nem sobra de temporário."""
+
+	def setUp(self):
+		super().setUp()
+		self.alvo = self.bench.sites / "common_site_config.json"
+		cfg.gravar_json(self.alvo, {"db_type": "mariadb", "root_password": "x"})
+		self.antes = self.alvo.read_bytes()
+
+	def _pasta(self):
+		return sorted(p.name for p in self.alvo.parent.iterdir())
+
+	def test_falha_ao_gravar_preserva_o_original_byte_a_byte(self):
+		for ponto in ("fsync", "replace"):
+			with self.subTest(ponto=ponto):
+				with mock.patch.object(cfg.os, ponto, side_effect=OSError("disco cheio simulado")):
+					with self.assertRaises(OSError):
+						cfg.gravar_json(self.alvo, {"db_type": "postgres"})
+
+				self.assertEqual(self.alvo.read_bytes(), self.antes)
+				json.loads(self.alvo.read_text(encoding="utf-8"))
+
+	def test_falha_nao_deixa_arquivo_temporario(self):
+		antes = self._pasta()
+
+		with mock.patch.object(cfg.os, "replace", side_effect=OSError("queda simulada")):
+			with self.assertRaises(OSError):
+				cfg.gravar_json(self.alvo, {"db_type": "postgres"})
+
+		self.assertEqual(self._pasta(), antes)
+
+	def test_falha_em_arquivo_novo_nao_cria_nada(self):
+		novo = self.bench.sites / "novo.json"
+		antes = self._pasta()
+
+		with mock.patch.object(cfg.os, "replace", side_effect=OSError("queda simulada")):
+			with self.assertRaises(OSError):
+				cfg.gravar_json(novo, {"a": 1})
+
+		self.assertFalse(novo.exists())
+		self.assertEqual(self._pasta(), antes)
+
+	def test_sucesso_nao_deixa_temporario_e_troca_o_conteudo(self):
+		antes = self._pasta()
+
+		cfg.gravar_json(self.alvo, {"db_type": "postgres"})
+
+		self.assertEqual(json.loads(self.alvo.read_text(encoding="utf-8")), {"db_type": "postgres"})
+		self.assertEqual(self._pasta(), antes)
+		self.assertFalse([n for n in self._pasta() if n.endswith(".tmp")])
+
+
 class TestAppsTxt(_ComBench):
 	def test_grava_sempre_com_quebra_de_linha_final(self):
 		cfg.gravar_apps_txt(self.bench.apps_txt, ["frappe", "erpnext", "erpnext_brasil"])
@@ -103,8 +155,8 @@ class TestAppsTxt(_ComBench):
 		with self.assertRaises(cfg.CherryInvalido):
 			cfg.gravar_apps_txt(self.bench.apps_txt, ["", "  "])
 
-	def test_nome_com_espaco_ou_barra_e_erro(self):
-		for ruim in ("erp next", "apps/erpnext"):
+	def test_nome_com_espaco_barra_ou_caractere_de_shell_e_erro(self):
+		for ruim in ("erp next", "apps/erpnext", "x;touch${IFS}y", "$(id)", "a`b`"):
 			with self.subTest(ruim=ruim), self.assertRaises(cfg.CherryInvalido):
 				cfg.gravar_apps_txt(self.bench.apps_txt, ["frappe", ruim])
 
@@ -218,6 +270,35 @@ class TestComandoNewSite(unittest.TestCase):
 			with self.subTest(ruim=ruim), self.assertRaises(cfg.CherryInvalido):
 				cfg.comando_new_site(cfg.Banco(cfg.MARIADB), ruim)
 
+	def test_senha_de_administrador_vazia_nao_entra_no_comando(self):
+		"""O `bench` pergunta no terminal; a senha não fica no comando nem na área de transferência."""
+		comando = cfg.comando_new_site(cfg.Banco(cfg.MARIADB), "s.localhost", "")
+		self.assertNotIn("--admin-password", comando)
+
+	def test_valores_que_o_shell_interpretaria_sao_recusados(self):
+		"""CH-03: host, usuário, site e app saem sem aspas; `;`, `$(...)` e crase precisam ser barrados."""
+		hostis = ("127.0.0.1;touch${IFS}/tmp/h", "root;id", "a.localhost$(id)", "x`id`", "a b", "a/b", "a&b")
+
+		for hostil in hostis:
+			with self.subTest(hostil=hostil):
+				with self.assertRaises(cfg.CherryInvalido):
+					cfg.comando_new_site(cfg.Banco(cfg.MARIADB, hostil), "s.localhost")
+
+				with self.assertRaises(cfg.CherryInvalido):
+					cfg.comando_new_site(cfg.Banco(cfg.MARIADB, usuario_root=hostil), "s.localhost")
+
+				with self.assertRaises(cfg.CherryInvalido):
+					cfg.comando_new_site(cfg.Banco(cfg.MARIADB), hostil)
+
+				with self.assertRaises(cfg.CherryInvalido):
+					cfg.comando_new_site(cfg.Banco(cfg.MARIADB), "s.localhost", apps=(hostil,))
+
+	def test_nomes_comuns_continuam_aceitos(self):
+		banco = cfg.Banco(cfg.POSTGRES, "db-1.interno", 5432, "app_user@srv")
+		comando = cfg.comando_new_site(banco, "v16-pg.localhost", apps=("erpnext_brasil",))
+		self.assertIn("--db-host db-1.interno", comando)
+		self.assertIn("--db-root-username app_user@srv", comando)
+
 
 class _Executor:
 	"""Substitui `subprocess.run`: devolve o que cada comando 'imprimiria', e anota o que recebeu."""
@@ -225,9 +306,11 @@ class _Executor:
 	def __init__(self, *respostas):
 		self.respostas = list(respostas)
 		self.comandos: list[list[str]] = []
+		self.ambientes: list[dict] = []
 
-	def __call__(self, comando, **_):
+	def __call__(self, comando, **opcoes):
 		self.comandos.append(list(comando))
+		self.ambientes.append(opcoes.get("env") or {})
 		resposta = self.respostas.pop(0)
 
 		if isinstance(resposta, Exception):
@@ -252,7 +335,45 @@ class TestTestarConexao(unittest.TestCase):
 		self.assertIn("PostgreSQL 18.6", resultado.mensagem)
 		self.assertEqual(executor.comandos[0][:4], ["wsl", "-d", "Ubuntu", "--"])
 		self.assertEqual(executor.comandos[0][4], "/home/x/frappe-bench-16/env/bin/python")
-		self.assertEqual(executor.comandos[0][-5:], ["postgres", "127.0.0.1", "5432", "postgres", "postgres"])
+		self.assertEqual(executor.comandos[0][-4:], ["postgres", "127.0.0.1", "5432", "postgres"])
+
+	def test_a_senha_nunca_vai_em_argumento_de_processo(self):
+		"""CH-01: a linha de comando de um processo é legível por qualquer outro — a senha vai pelo ambiente."""
+		segredo = "segredo-que-nao-pode-vazar"
+		banco = cfg.Banco(cfg.POSTGRES, "127.0.0.1", 5432, "postgres", segredo)
+		executor = _Executor("OK PostgreSQL 18.6\n")
+
+		with mock.patch.object(cfg.shutil, "which", return_value="wsl"):
+			cfg.testar_conexao(banco, self.bench_wsl, executar=executor)
+
+		for comando in executor.comandos:
+			self.assertFalse([a for a in comando if segredo in a], f"senha em argv: {comando[:5]}")
+
+		self.assertEqual(executor.ambientes[0][cfg.VARIAVEL_DA_SENHA], segredo)
+
+	def test_o_wslenv_leva_a_senha_ao_linux_sem_perder_o_que_ja_havia(self):
+		executor = _Executor("OK PostgreSQL 18.6\n")
+
+		with (
+			mock.patch.object(cfg.shutil, "which", return_value="wsl"),
+			mock.patch.dict(cfg.os.environ, {"WSLENV": "OUTRA/p:CHERRY_SENHA_ROOT:X"}),
+		):
+			cfg.testar_conexao(self.banco, self.bench_wsl, executar=executor)
+
+		partes = executor.ambientes[0]["WSLENV"].split(":")
+		self.assertEqual(partes.count(cfg.VARIAVEL_DA_SENHA), 1)
+		self.assertIn("OUTRA/p", partes)
+		self.assertIn("X", partes)
+
+	def test_a_sonda_local_tambem_recebe_a_senha_pelo_ambiente(self):
+		banco = cfg.Banco(cfg.POSTGRES, "127.0.0.1", 5432, "postgres", "outro-segredo")
+		executor = _Executor("OK PostgreSQL 18.6\n")
+
+		cfg.testar_conexao(banco, None, executar=executor)
+
+		self.assertEqual(executor.comandos[0][-4:], ["postgres", "127.0.0.1", "5432", "postgres"])
+		self.assertFalse([a for a in executor.comandos[0] if "outro-segredo" in a])
+		self.assertEqual(executor.ambientes[0][cfg.VARIAVEL_DA_SENHA], "outro-segredo")
 
 	def test_falha_de_autenticacao_e_reportada_nao_mascarada_por_tcp(self):
 		executor = _Executor("FALHA OperationalError: password authentication failed\n")

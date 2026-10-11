@@ -35,6 +35,11 @@ PREFERENCIAS = Path.home() / ".cherry.json"
 """Só caminho do bench, distro e geometria da janela — nunca senha. A senha vai para o
 `common_site_config.json` quando o usuário manda, e para lugar nenhum antes disso."""
 
+LIMPEZA_DA_AREA_DE_TRANSFERENCIA_MS = 60_000
+"""Depois de quanto tempo o comando `bench new-site` copiado sai da área de transferência. O comando
+leva a senha de root do banco; deixá-lo lá indefinidamente expõe o segredo a qualquer programa que
+leia a área de transferência (CH-04 da revisão do Cherry)."""
+
 DURACAO_DA_MARCA_MS = 2500
 """Quanto tempo o "✓ gravado" fica visível. Curto o bastante para não virar ruído, longo o
 bastante para ser lido — a confirmação visual que o projeto exige de toda ação."""
@@ -48,6 +53,7 @@ class Cherry(tk.Tk):
 		self.minsize(760, 560)
 		self.bench: cfg.Bench | None = None
 		self._marca_agendada: str | None = None
+		self._limpeza_agendada: str | None = None
 
 		_tema_nativo(self)
 		self._montar_barra_de_estado()
@@ -207,7 +213,7 @@ class Cherry(tk.Tk):
 		self.senha_root = tk.StringVar()
 		self.mostrar_senha = tk.BooleanVar(value=False)
 		self.site_novo = tk.StringVar(value="novo.localhost")
-		self.senha_admin = tk.StringVar(value="admin")
+		self.senha_admin = tk.StringVar()
 		self.comando_visivel = tk.BooleanVar(value=False)
 
 		ttk.Label(aba, text="Servidor").grid(row=1, column=0, sticky="w", pady=3)
@@ -261,7 +267,9 @@ class Cherry(tk.Tk):
 		ttk.Entry(self.bloco_comando, textvariable=self.site_novo, width=40).grid(
 			row=0, column=1, sticky="we", pady=3
 		)
-		ttk.Label(self.bloco_comando, text="Senha do Administrator").grid(row=1, column=0, sticky="w", pady=3)
+		ttk.Label(self.bloco_comando, text="Senha do Administrator (vazia: o bench pergunta)").grid(
+			row=1, column=0, sticky="w", pady=3
+		)
 		ttk.Entry(self.bloco_comando, textvariable=self.senha_admin, width=40).grid(
 			row=1, column=1, sticky="we", pady=3
 		)
@@ -387,8 +395,35 @@ class Cherry(tk.Tk):
 		self.texto_comando.insert("1.0", comando)
 		self.clipboard_clear()
 		self.clipboard_append(comando)
-		self._informar("Comando bench new-site copiado — cole no terminal do bench")
+		self._agendar_limpeza_da_area_de_transferencia(comando)
+		segundos = LIMPEZA_DA_AREA_DE_TRANSFERENCIA_MS // 1000
+		self._informar(
+			f"Comando bench new-site copiado — cole no terminal do bench; a área de transferência é limpa em {segundos} s"
+		)
 		self._confirmar_visualmente("✓ copiado")
+
+	def _agendar_limpeza_da_area_de_transferencia(self, comando: str):
+		"""Limpa a área de transferência depois do prazo, **só** se ainda tiver o comando copiado.
+
+		Se o usuário já copiou outra coisa, não se apaga o que não é nosso."""
+		if self._limpeza_agendada:
+			self.after_cancel(self._limpeza_agendada)
+
+		self._limpeza_agendada = self.after(
+			LIMPEZA_DA_AREA_DE_TRANSFERENCIA_MS, lambda: self._limpar_area_de_transferencia(comando)
+		)
+
+	def _limpar_area_de_transferencia(self, comando: str):
+		self._limpeza_agendada = None
+
+		try:
+			atual = self.clipboard_get()
+		except tk.TclError:
+			return  # vazia, ou com algo que não é texto: nada nosso para apagar
+
+		if atual == comando:
+			self.clipboard_clear()
+			self._informar("Área de transferência limpa — o comando com a senha não está mais nela")
 
 	# ------------------------------------------------------------------ aba: portas e redis
 
