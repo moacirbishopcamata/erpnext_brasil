@@ -18,6 +18,30 @@ O Chantilly SHALL medir, para cada requisição web e cada job em segundo plano,
 - **WHEN** um job de emissão em lote termina
 - **THEN** o seu tempo de CPU e de relógio entram no agregado do método do job, no site em que rodou
 
+### Requirement: O consumo é atribuído à instância pelo UUID
+
+Quando o site pertence a uma instância do Soda, o Chantilly SHALL identificar a instância pelo UUID (`soda_instance_id` do `site_config`) e SHALL apresentá-la com o descritivo único. Todo agregado de consumo, armazenamento, falha e custo SHALL ser guardado com o UUID como chave, de modo que a renomeação do descritivo não separe o histórico. Sem identidade do Soda, o Chantilly SHALL tratar o site como uma instância sem UUID, identificada pelo nome do site.
+
+#### Scenario: Consumo por instância
+
+- **WHEN** duas instâncias do Soda estão no ar e uma delas consome mais CPU
+- **THEN** o Chantilly mostra o consumo de cada uma, identificada pelo UUID abreviado e pelo descritivo
+
+#### Scenario: Renomear não divide o histórico
+
+- **WHEN** o descritivo de uma instância é alterado no Soda
+- **THEN** o Chantilly passa a exibir o novo descritivo e o histórico anterior continua somado ao mesmo UUID
+
+#### Scenario: Instância removida
+
+- **WHEN** uma instância foi removida e o usuário consulta um período em que ela existia
+- **THEN** o Chantilly mostra o consumo daquele período sob o UUID e o último descritivo conhecido, marcada como removida
+
+#### Scenario: Bench sem Soda
+
+- **WHEN** o bench não tem registro do Soda
+- **THEN** o Chantilly identifica cada site pelo nome e indica que não há UUID
+
 ### Requirement: A memória é atribuída por amostragem e declarada como estimativa
 
 O Chantilly SHALL estimar o crescimento de memória atribuível a requisições e jobs medindo apenas uma fração configurável das execuções (padrão 1%). Todo valor de memória atribuída SHALL ser identificado como estimativa na saída.

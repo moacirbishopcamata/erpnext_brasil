@@ -1,0 +1,94 @@
+# Ferramentas de operação: Cherry, Soda e Chantilly
+
+Visão geral das três ferramentas de quem desenvolve e opera o ERPNext Brasil num bench de desenvolvimento. **Estado em 2026-10-11:** o Cherry existe (`0.2.1`); o Soda e o Chantilly são **propostas** (OpenSpec), sem código. Cada ferramenta tem o seu documento; este mostra como se encaixam.
+
+| Ferramenta | Para que serve | Estado | Documento | Mudança OpenSpec |
+|---|---|---|---|---|
+| **Cherry** | Configurar o bench: banco, portas, Redis, sites, `apps.txt` | existe, `0.2.1` | [`cherry.md`](cherry.md) | `cherry-instancias-por-uuid` (proposta) |
+| **Soda** | Criar e operar **várias instâncias** do ERPNext Brasil, cada uma em portas diferentes, com UUID único | proposta | [`soda.md`](soda.md) | `soda-instancias-do-erp` |
+| **Chantilly** | Monitorar o **consumo** de RAM, CPU e armazenamento e estimar o custo; iniciar e parar o ERP com gentileza | proposta | [`chantilly.md`](chantilly.md) | `chantilly-monitor-de-recursos` |
+
+A persistência selecionável (JSON ou SQLite) das três é a mudança `persistencia-sqlite-opcional`.
+
+## Como se encaixam
+
+```
+                 ┌──────────────────────────────────────────────┐
+                 │  Bench (WSL2/Linux)                          │
+                 │   site A  site B  site C   ← instâncias      │
+                 │   (UUID + descritivo + host + porta)         │
+                 └──────────────────────────────────────────────┘
+                      ▲ cria, inicia, para        ▲ lê consumo
+        ┌─────────────┴───────┐        ┌──────────┴─────────┐
+        │  Soda               │        │  Chantilly         │
+        │  (dono da           │        │  (coletor + UI;    │
+        │   identidade)       │        │   lê a identidade) │
+        └─────────┬───────────┘        └──────────┬─────────┘
+                  │ contrato de identidade (somente leitura)
+                  ▼
+        ┌─────────────────────┐
+        │  Cherry             │  edita a configuração comum do bench
+        │  (lê a identidade)  │  e avisa o alcance sobre as instâncias
+        └─────────────────────┘
+```
+
+O **Soda é o único escritor da identidade**. O Cherry e o Chantilly só leem.
+
+## Identidade: UUID com descritivo único
+
+Toda instância tem:
+
+- **UUID versão 4**, gerado uma vez, **imutável** e **nunca reutilizado**, nem depois de a instância ser removida. É a chave de identidade: tudo que uma ferramenta guarda por instância (histórico de consumo, por exemplo) fica preso ao UUID.
+- **Descritivo único**: texto de 3 a 60 caracteres que descreve a instância para quem lê ("NF-e em homologação"). Único sem diferença de caixa nem de acento, **renomeável**. Renomear não muda o UUID, o host nem a porta.
+- **Nome de host** `descritivo-xxxxxxxx.localhost`, derivado do descritivo e do trecho do UUID. Por que host próprio e não só porta própria: o navegador **compartilha cookies entre portas do mesmo host**, então duas instâncias em `localhost:8101` e `localhost:8102` derrubariam a sessão uma da outra. (Premissa a confirmar na prática; é a tarefa 1.1 do Soda.)
+
+### O contrato de identidade
+
+Publicado pelo Soda, lido pelas outras duas, em três faces:
+
+1. O **registro** do bench (`sites/soda/registro.json`, ou SQLite se escolhido) com a **versão de esquema**.
+2. As chaves `soda_instance_id` e `soda_descritivo` no **`site_config`** de cada instância, para identificar a instância mesmo com o Soda fechado e de dentro do processo do Frappe.
+3. Um **leitor puro e somente leitura** (`erpnext_brasil/soda/leitura.py`), que lê JSON ou SQLite com o mesmo resultado.
+
+Compatibilidade: campo novo não quebra leitor antigo; remover ou renomear campo exige nova versão de esquema. Sem o Soda, Cherry e Chantilly funcionam como antes, tratando cada site como instância **sem UUID**.
+
+## Persistência: JSON ou SQLite, à escolha
+
+| Ferramenta | Estado persistido | Padrão | Opção |
+|---|---|---|---|
+| Cherry | preferências (bench, distro, geometria); **nunca senha** | JSON | SQLite |
+| Soda | registro das instâncias, portas, UUIDs aposentados | JSON | SQLite |
+| Chantilly | **série histórica** | SQLite (único) | — (JSON não comporta o volume) |
+| Chantilly | limiares, preços, registro de ações de controle | JSON | SQLite |
+
+Cada ferramenta define uma **porta de persistência** (repositório) e dois adaptadores. Uma **suíte de contrato** roda a mesma bateria de testes contra os dois, para provar que se comportam igual. A troca de formato **migra sem perda**, mantém cópia do formato anterior até a confirmação, e o esquema do SQLite é versionado (`PRAGMA user_version`) com migrações testadas. Nenhum formato guarda segredo, e arquivo ilegível vai para quarentena em vez de ser sobrescrito.
+
+## Padrões de projeto, testes e cobertura (iguais para as três)
+
+Os mesmos do app e do Cherry:
+
+- **Design by Contract:** pré-condição recusada antes de tocar em estado, pós-condição gravada como teste, invariante no construtor.
+- **Dados imutáveis** nas fronteiras (`dataclass(frozen=True)`) e **inversão de dependência** por portas pequenas: relógio, executor de comandos, repositório, leitor de `/proc`, teste de porta livre.
+- **Regra pura** (sem I/O, sem `frappe`, sem tkinter) e camada fina que só traduz; `tests/test_arquitetura.py` vigia a fronteira.
+- **Falha alto** onde o silêncio daria dado errado; **senha nunca em argumento de processo**; **escrita atômica**.
+- **TDD com teste na costura:** grava-se por um caminho e relê-se por outro.
+- **Cobertura:** núcleo a 100% (piso de 95% no CI), interface com piso próprio dois pontos abaixo do medido, `ruff check` e `ruff format` limpos, job de CI com `xvfb`.
+- Versão própria, licença MIT própria, documento próprio com as fontes de UX.
+
+Cada mudança termina com uma tarefa de **gate de padrões** que confere isso com a saída dos comandos.
+
+## UX: idêntica à do Cherry
+
+Interface desktop em tkinter, só com a biblioteca padrão: abas com nome específico e uma instrução principal por aba; sucesso na barra de estado e numa marca "✓" que some sozinha, com caixa de diálogo só para problema; vocabulário que não culpa ("não foi possível"); teclado completo (foco inicial, Enter, teclas de acesso); nitidez em HiDPI; geometria lembrada e **validada contra a tela**; operações longas numa thread de trabalho com "Parar de esperar". Estado sempre por texto e ícone, nunca só por cor.
+
+## Ordem sugerida de implementação
+
+1. **Persistência selecionável nas preferências do Cherry:** pequena, independente, e define a porta e a suíte de contrato que as outras reaproveitam.
+2. **Soda, núcleo e contrato:** UUID, descritivo, portas, registro e leitor. O leitor destrava as duas integrações.
+3. **Cherry por instância** (`cherry-instancias-por-uuid`).
+4. **Soda, ciclo de vida e interface.**
+5. **Chantilly:** pode começar antes (sites sem UUID) e ganha a identificação por instância quando o contrato existir.
+
+## Decisões em aberto para o dono do projeto
+
+As do Soda (isolamento por site ou por bench, aplicativos por instância, faixa de portas, remoção com backup), as do Chantilly (o que "custo" significa, retenção, Prometheus, controle em produção) e as transversais: o padrão de persistência de cada ferramenta e se o Cherry importa o leitor do Soda ou tem um leitor próprio. Estão listadas no `design.md` de cada mudança.

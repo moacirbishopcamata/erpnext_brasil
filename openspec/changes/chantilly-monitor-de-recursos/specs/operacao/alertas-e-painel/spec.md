@@ -121,6 +121,15 @@ Os gráficos SHALL usar uma escala de cor sequencial perceptível por quem tem d
 - **WHEN** o usuário passa o ponteiro sobre uma célula do mapa de calor
 - **THEN** a interface mostra o valor numérico, a hora e o dia da semana, e a mesma informação está disponível na tabela equivalente
 
+### Requirement: A interface identifica e filtra por instância
+
+Quando o bench tem instâncias do Soda, a interface do Chantilly SHALL identificar cada instância pelo descritivo único e pelo UUID abreviado, SHALL oferecer o UUID completo para cópia, e SHALL permitir filtrar todas as abas e gráficos por instância ou comparar instâncias lado a lado.
+
+#### Scenario: Filtro por instância
+
+- **WHEN** o usuário escolhe uma instância no filtro
+- **THEN** as abas de consumo, armazenamento, falhas e custo mostram somente dados daquela instância, com o descritivo no título
+
 ### Requirement: Operações longas não travam a janela
 
 A interface SHALL executar fora da thread da interface qualquer operação que possa demorar (leitura de séries longas, cálculo de agregados, consulta de armazenamento), SHALL mostrar que a operação está em andamento e SHALL oferecer "Parar de esperar", descartando o resultado ao parar.

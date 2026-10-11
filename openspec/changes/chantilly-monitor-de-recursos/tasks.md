@@ -26,6 +26,7 @@
 - [ ] 4.3 Falha da sonda nunca afeta a requisição — verificar com teste que injeta exceção na sonda e confere a resposta normal e o contador de falhas.
 - [ ] 4.4 Nenhum dado pessoal: requisição com CPF/CNPJ no parâmetro não deixa rastro — verificar procurando o valor em todas as tabelas do SQLite após a chamada.
 - [ ] 4.4a Contagem de falhas por categoria (requisição com erro, job que falhou, queda de processo, intervalo perdido, falha do monitor) sem mensagem nem pilha — verificar provocando cada categoria e procurando o texto do erro no SQLite, que não pode estar lá.
+- [ ] 4.4b Identificação da instância: UUID de `frappe.conf` na sonda, UUID como chave dos agregados e tabela de rótulos com histórico de descritivo — verificar com teste de bench com dois sites com UUID, renomeando o descritivo e conferindo que a série continua única; e com um bench sem Soda, onde o site vira instância sem UUID.
 - [ ] 4.5 Armazenamento exato por DocType (MariaDB e PostgreSQL) e por arquivo anexo, uma vez por hora — verificar em bench nos dois bancos, conferindo `Transmissao Fiscal` e `Arquivo SPED` contra `information_schema` e `pg_total_relation_size`.
 - [ ] 4.6 Medir o custo das sondas: a requisição com e sem Chantilly, 1.000 chamadas — verificar com a diferença média registrada e comparada ao orçamento.
 
@@ -49,6 +50,7 @@
 - [ ] 6.4e Armazenamento empilhado por DocType com a reta de projeção rotulada — verificar com crescimento sintético e os dias projetados conferidos contra o núcleo.
 - [ ] 6.4f Distribuição de duração com p50, p95 e p99 — verificar com amostra de percentis conhecidos e a agregação por faixas feita no núcleo.
 - [ ] 6.5 Abas **Processos**, **Consumo**, **Armazenamento**, **Custo**, **Alertas**, **Controle** (ver o grupo 7) e **Coletor** (iniciar e parar o coletor, custo do próprio Chantilly) — verificar com um teste de interface por aba e a conferência de teclado (foco, Tab, Enter, Alt) de cada uma.
+- [ ] 6.5a Filtro e comparação por instância (descritivo, UUID abreviado e completo copiável) em todas as abas — verificar com um teste de interface que filtra por instância e confere que só os dados dela aparecem, e que instância removida aparece marcada.
 - [ ] 6.6 Leitura de séries longas fora da thread da interface, com "Parar de esperar" — verificar com leitura lenta simulada: a janela responde em menos de 0,5 s, como no Cherry `0.2.1`.
 - [ ] 6.7 Revisão de UX por alguém que não escreveu a tela, ou checklist da Microsoft aplicada ponto a ponto — verificar com o checklist preenchido em `docs/chantilly.md`.
 
@@ -74,3 +76,4 @@
 - [ ] 8.2 Versão `0.1.0`, licença MIT em `scripts/chantilly/LICENSE`, `README.md` da pasta e `docs/chantilly.md` (como rodar, o que mede, o que não mede, privacidade, orçamento, produção) — verificar relendo contra o código.
 - [ ] 8.3 Indexar em `docs/README.md` e apontar do `docs/cherry.md` — verificar abrindo os dois índices.
 - [ ] 8.4 Rodar suíte pura, testes do Cherry e do Chantilly, `coverage` e `ruff` em `erpnext_brasil/` e `scripts/` — verificar com a saída verde e `openspec validate chantilly-monitor-de-recursos`.
+- [ ] 8.5 Gate de padrões antes de fechar: contratos (pré, pós e invariante) listados por módulo no documento da ferramenta, dependências injetadas por porta, teste na costura em cada gravação, cobertura do núcleo a 100% e pisos de CI cumpridos, `ruff check`, `ruff format --check` e `tests/test_arquitetura.py` verdes — verificar com a saída dos comandos e a lista de contratos no documento.

@@ -155,3 +155,17 @@ Testes: 77 (eram 69); núcleo 100%, interface 89%, total 92%.
 ## Revisão de 2026-10-11
 
 A primeira revisão do Cherry (`0.1.0`) está em [`revisao-do-cherry.md`](revisao-do-cherry.md). Os números deste documento (55 testes; núcleo 100%, interface 83%, total 88%) **conferem** com o código. Achados que mudam o que está dito aqui: a seção "Padrões seguros" não vale para a senha de administrador, que vem pré-preenchida com `admin` (CH-04); a regra de vocabulário "nunca inválido" tem duas exceções em `config.py` (CH-07); e a senha de root da sonda de conexão trafega como argumento de processo (CH-01). A correção está proposta em `openspec/changes/endurecer-segredo-e-escrita-do-cherry`.
+
+## Evolução planejada (propostas de 2026-10-11, nada implementado)
+
+O Cherry passa a conviver com duas ferramentas irmãs, descritas em [`ferramentas-de-operacao.md`](ferramentas-de-operacao.md):
+
+- **Soda** ([`soda.md`](soda.md)) cria e opera várias instâncias do ERPNext Brasil em portas diferentes, cada uma com **UUID único** e **descritivo único**.
+- **Chantilly** ([`chantilly.md`](chantilly.md)) monitora o consumo de RAM, CPU e armazenamento.
+
+Mudanças que tocam o Cherry:
+
+- **`cherry-instancias-por-uuid`:** o Cherry identifica cada instância pelo **UUID com o descritivo único**, lidos do contrato de identidade do Soda (somente leitura). A aba Sites passa a mostrar descritivo, UUID abreviado, porta e estado; as chaves `soda_instance_id` e `soda_descritivo` nunca são alteradas pelo Cherry; as abas de configuração **comum** (banco, portas, Redis, `default_site`, `apps.txt`) avisam que a alteração vale para todas as instâncias; o formulário de portas recusa portas alocadas a instâncias; o `bench new-site` gerado avisa que um site criado fora do Soda não terá identidade. Sem o Soda, o Cherry funciona como hoje. Versão prevista: `0.3.0`.
+- **`persistencia-sqlite-opcional`:** as preferências (`~/.cherry.json`) ganham SQLite como opção de persistência, ao lado do JSON, com migração sem perda e a mesma suíte de contrato nos dois formatos. Senha continua sem ser persistida em nenhum formato.
+
+Os pisos de cobertura continuam valendo (95% no núcleo, 87% na interface).
