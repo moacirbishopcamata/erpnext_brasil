@@ -6,7 +6,7 @@
 
 ## 2. Tabela de 2027
 
-- [ ] 2.1 Quando a portaria de 2027 estiver publicada, incluir a tabela de INSS e IRRF de 2027 com a fonte primária citada no docstring e conferida na web — verificar com os exemplos oficiais como teste.
+- [ ] 2.1 **Bloqueada (conferido em 2026-10-11): a Portaria Interministerial MPS/MF de 2027 ainda não foi publicada** (a de 2026 é a nº 13, de 9/01/2026; a de cada ano sai em janeiro, no Diário Oficial da União). Buscas por tabela de INSS e de IRRF de 2027 só acharam a tabela de 2026 e fontes secundárias que divergem entre si. Não extrapolar de 2026. Retomar em janeiro de 2027, na fonte primária (DOU e gov.br/inss; tabela do IRRF em gov.br/receitafederal). Quando a portaria de 2027 estiver publicada, incluir a tabela de INSS e IRRF de 2027 com a fonte primária citada no docstring e conferida na web — verificar com os exemplos oficiais como teste.
 
 ## 3. Documentação
 
