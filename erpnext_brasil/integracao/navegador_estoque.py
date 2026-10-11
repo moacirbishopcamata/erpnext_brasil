@@ -46,8 +46,23 @@ modesto. Quem precisa da lista inteira usa o relatório de saldo; esta tela é p
 
 
 def _empresa(empresa: str | None) -> str | None:
-	"""A empresa do filtro, ou a padrão do usuário."""
-	return empresa or frappe.defaults.get_user_default("Company")
+	"""A empresa do filtro, ou a padrão do usuário.
+
+	A empresa vem do cliente e as consultas abaixo usam `get_all` e SQL cru, que ignoram as regras de
+	permissão: por isso o usuário precisa poder ler a empresa e o estoque antes de qualquer consulta
+	(RT-03 da revisão total).
+	"""
+	empresa = empresa or frappe.defaults.get_user_default("Company")
+
+	if empresa:
+		frappe.has_permission("Company", "read", empresa, throw=True)
+
+	return empresa
+
+
+def _exigir_leitura(*doctypes: str) -> None:
+	for doctype in doctypes:
+		frappe.has_permission(doctype, "read", throw=True)
 
 
 @frappe.whitelist()
@@ -57,6 +72,8 @@ def filhos_do_endereco(pai: str | None = None, empresa: str | None = None) -> li
 	`pai` vazio devolve as raízes. Cada nó já vem com o total de itens distintos abaixo
 	dele, para que a tela mostre "onde tem coisa" **antes** de o operador entrar.
 	"""
+	_exigir_leitura("Warehouse")
+
 	filtros = {"parent_warehouse": pai or "", "disabled": 0}
 	empresa = _empresa(empresa)
 
@@ -112,6 +129,11 @@ def conteudo_do_endereco(endereco: str, empresa: str | None = None) -> list[dict
 	Inclui o que está nos endereços **abaixo** dele: quem está na frente da rua quer saber o
 	que a rua tem, não só o que foi lançado no nó-grupo (que, sendo grupo, não tem nada).
 	"""
+	_exigir_leitura("Warehouse", "Bin", "Item")
+
+	if frappe.db.exists("Warehouse", endereco):
+		frappe.has_permission("Warehouse", "read", endereco, throw=True)
+
 	lft, rgt = frappe.db.get_value("Warehouse", endereco, ["lft", "rgt"]) or (None, None)
 
 	if lft is None:
@@ -147,6 +169,9 @@ def enderecos_do_item(item: str, empresa: str | None = None) -> list[dict]:
 	Só endereços com saldo diferente de zero: listar prateleira vazia é mandar o operador
 	andar até ela para não achar nada.
 	"""
+	_exigir_leitura("Bin")
+	frappe.has_permission("Item", "read", item, throw=True)
+
 	filtros = {"item_code": item, "actual_qty": ("!=", 0)}
 	empresa = _empresa(empresa)
 

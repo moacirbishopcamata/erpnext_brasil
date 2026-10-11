@@ -51,9 +51,11 @@ funcionário e período: o holerite não é gravado nem processado de ponta a po
 from decimal import Decimal
 
 import frappe
+from frappe import _
 
-from erpnext_brasil.folha.inss import calcular_inss
-from erpnext_brasil.folha.irrf import calcular_irrf
+from erpnext_brasil.folha.inss import INSSInvalido, calcular_inss
+from erpnext_brasil.folha.irrf import IRRFInvalido, calcular_irrf
+from erpnext_brasil.folha.periodo import PeriodoInvalido, ano_do_periodo
 
 # Nomes de Salary Component usados pelas linhas que este módulo gera — precisam
 # existir previamente (`setup.install.criar_componentes_salariais`).
@@ -90,8 +92,15 @@ def apply_regional_deductions(doc, method=None):
 	_remover_linhas_deste_modulo(doc)
 
 	bruto = Decimal(str(doc.get("gross_pay") or 0))
-	inss = calcular_inss(bruto)
-	irrf = calcular_irrf(bruto, bruto - inss)
+
+	# O ano vem do período do holerite, nunca do padrão das funções puras: com o padrão, a folha de
+	# 2027 sairia com a tabela de 2026 e sem erro. Ano sem tabela (ou período sem data) recusa o holerite.
+	try:
+		ano = ano_do_periodo(doc.get("end_date"), doc.get("start_date"))
+		inss = calcular_inss(bruto, ano=ano)
+		irrf = calcular_irrf(bruto, bruto - inss, ano=ano)
+	except (PeriodoInvalido, INSSInvalido, IRRFInvalido) as erro:
+		frappe.throw(str(erro), title=_("Folha sem tabela de INSS e IRRF"))
 
 	doc.append("deductions", {"salary_component": SALARY_COMPONENT_INSS, "amount": float(inss)})
 	doc.append("deductions", {"salary_component": SALARY_COMPONENT_IRRF, "amount": float(irrf)})

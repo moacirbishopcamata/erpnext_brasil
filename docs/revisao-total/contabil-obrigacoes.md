@@ -16,7 +16,7 @@ Ver [`integracao.md`](integracao.md). É o achado desta frente: o ponto de entra
 
 ### RT-14 — docstring de `gerar_efd` defasada em relação ao código — **Baixo**
 
-O docstring do método (`geracao_efd.py:93-96`) diz que o arquivo "ainda não tem os blocos D/H/K nem os cadastros do Bloco 0". O código já monta H e K (`bloco_h_do_periodo`, `bloco_k_do_periodo`) e `BLOCOS_SEM_LEITURA_DO_SITE = ("D",)` (linha 63), então o **aviso devolvido ao usuário está certo** (só o Bloco D e os cadastros do Bloco 0 faltam) e o docstring é que ficou para trás. O arquivo continua parcial e "serve para conferir a montagem no PVA, não para transmitir".
+O docstring do método (`geracao_efd.py:93-96`) diz que o arquivo "ainda não tem os blocos D/H/K nem os cadastros do Bloco 0". O código já monta H e K (`bloco_h_do_periodo`, `bloco_k_do_periodo`) e `BLOCOS_SEM_LEITURA_DO_SITE = ("D",)` (linha 63), então o **aviso devolvido ao usuário está certo** (só o Bloco D e os cadastros do Bloco 0 faltam) e o docstring é que ficou para trás (corrigido na `0.228.0`). O arquivo continua parcial e "serve para conferir a montagem no PVA, não para transmitir".
 
 ### RT-04 (parcial) — dois módulos sem fonte
 

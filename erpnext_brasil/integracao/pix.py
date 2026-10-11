@@ -36,6 +36,8 @@ def gerar_payload_pix(company: str, cidade: str, valor: str | None = None, txid:
 	`contabil/pix.py`."""
 	from decimal import Decimal, InvalidOperation
 
+	frappe.has_permission("Company", "read", company, throw=True)
+
 	chave, nome = frappe.db.get_value("Company", company, ["br_chave_pix", "company_name"])
 
 	if not chave:
