@@ -12,12 +12,16 @@ Hoje há **uma porta e uma instância**: `scripts/subir.sh` sobe o bench v16 na 
 
 | Ação | O que faz |
 |---|---|
-| **Criar** | Um site novo no bench, com banco próprio (MariaDB ou PostgreSQL), nome de host derivado do descritivo e do UUID, e os aplicativos escolhidos. Tudo ou nada: se falhar no meio, desfaz o que criou. |
+| **Criar** | Um site novo no bench, com banco próprio **no servidor do perfil de banco que o Cherry configurou** (o Soda não escolhe o banco; sem perfil, recusa e aponta o Cherry), nome de host derivado do descritivo e do UUID, e os aplicativos: sempre o `erpnext` completo e o `erpnext_brasil` (o ERPNext Brasil é o ERPNext inteiro com a tropicalização brasileira), mais `hrms` e `healthcare` se escolhidos. Tudo ou nada: se falhar no meio, desfaz o que criou. |
 | **Iniciar** | Sobe o servidor web da instância na sua porta (`bench --site <site> serve --port <porta> --noreload`) e garante os serviços compartilhados do bench, uma única vez. Só declara "no ar" quando o servidor responde. Idempotente. |
 | **Parar** | Pedido de término educado ao processo da instância, identificado por **PID e registro, nunca por nome**. Não toca nas outras instâncias nem nos serviços compartilhados. Forçar exige confirmação separada. |
 | **Remover** | Destrutivo: exige digitar o nome, faz backup antes, apaga site e banco, libera a porta, **aposenta o UUID**. Instância no ar não se remove. |
 | **Renomear** | Altera o descritivo; UUID, host e porta ficam. |
 | **Conciliar** | Ao abrir, compara registro, processos, portas e sites e mostra o estado verdadeiro: criando, parada, subindo, no ar, **caiu**, falhou ao subir, criação interrompida. Processo de instância sem registro vira "órfão" e não é encerrado sozinho. |
+
+## Desempenho de cada instância e do seu banco
+
+O Soda **lê e mostra** o desempenho de cada instância e do seu banco na lista: tempos de resposta (mediano e p95), CPU e memória do processo da instância, requisições e falhas por minuto, jobs em fila e em execução, e do banco (conexões, tamanho, consultas lentas, taxa de acerto do cache, tempo de resposta). **Quem coleta é o Chantilly**; o Soda consome o resumo que ele publica, identificado pelo UUID da instância, para não ter dois coletores medindo a mesma coisa. Sem o Chantilly, o desempenho aparece como "indisponível" com o motivo, nunca como zero, e cada valor mostra a idade da leitura. *Esta é a leitura adotada do pedido "o Soda lê toda a performance do sistema ERP e seu banco"; ver a decisão em aberto no `design.md`.*
 
 ## Identidade
 

@@ -37,6 +37,30 @@ A aba principal SHALL listar as instâncias com o descritivo (coluna principal),
 - **WHEN** o bench escolhido ainda não tem instância
 - **THEN** a lista mostra a instrução de como criar a primeira, em lugar de uma tabela vazia
 
+### Requirement: A lista mostra o desempenho de cada instância e do seu banco
+
+O Soda SHALL ler o resumo de desempenho publicado pelo Chantilly e SHALL mostrar, para cada instância no ar, os tempos de resposta (mediano e p95), o consumo de CPU e de memória do processo da instância, as requisições e falhas por minuto, os jobs em fila e em execução, e o desempenho do banco da instância (conexões, tamanho, consultas lentas, taxa de acerto do cache e tempo de resposta). O Soda MUST NOT coletar essas métricas por conta própria. Cada valor SHALL mostrar a idade da leitura, e um valor ausente SHALL aparecer como "indisponível" com o motivo, nunca como zero.
+
+#### Scenario: Desempenho por instância
+
+- **WHEN** duas instâncias estão no ar e o Chantilly está coletando
+- **THEN** a lista mostra, para cada uma, os tempos, o consumo de recursos e os contadores do banco, identificadas pelo descritivo e pelo UUID abreviado
+
+#### Scenario: Chantilly ausente
+
+- **WHEN** o Chantilly não está instalado ou não tem dados do bench
+- **THEN** o Soda mostra o desempenho como "indisponível" e indica como obtê-lo, sem coletar nada sozinho
+
+#### Scenario: Leitura desatualizada
+
+- **WHEN** a última atualização do resumo de uma instância é velha
+- **THEN** o Soda mostra a idade da leitura e marca o valor como desatualizado
+
+#### Scenario: Estado de saúde por texto e ícone
+
+- **WHEN** o tempo de resposta de uma instância passa do limiar de atenção
+- **THEN** a linha mostra o estado "lenta" com um ícone, além da cor
+
 ### Requirement: As ações principais ficam à mão e abrem a instância
 
 Para a instância selecionada, a interface SHALL oferecer iniciar, parar, abrir no navegador, copiar a URL, ver o registro de saída e remover, habilitando cada ação conforme o estado da instância e dizendo por que uma ação não está disponível. Abrir no navegador SHALL usar o nome de host da instância e a sua porta.
@@ -53,11 +77,11 @@ Para a instância selecionada, a interface SHALL oferecer iniciar, parar, abrir 
 
 ### Requirement: O formulário de criação mostra as restrições antes do envio
 
-O formulário de criação SHALL indicar, antes do envio, o que cada campo aceita (obrigatoriedade, tamanho de 3 a 60 caracteres e unicidade do descritivo, banco de dados, aplicativos e porta opcional), SHALL espelhar no servidor as mesmas regras do núcleo, e SHALL mostrar o nome de host e a porta que serão usados antes de o usuário confirmar.
+O formulário de criação SHALL indicar, antes do envio, o que cada campo aceita (obrigatoriedade, tamanho de 3 a 60 caracteres e unicidade do descritivo, perfil de banco entre os que o Cherry configurou, aplicativos e porta opcional), SHALL espelhar no servidor as mesmas regras do núcleo, e SHALL mostrar o nome de host e a porta que serão usados antes de o usuário confirmar.
 
 #### Scenario: Pré-visualização do que será criado
 
-- **WHEN** o usuário preenche o descritivo e escolhe o banco
+- **WHEN** o usuário preenche o descritivo e escolhe o perfil de banco
 - **THEN** o formulário mostra o nome de host derivado e a porta que será alocada, antes da confirmação
 
 ### Requirement: Operações longas não travam a janela

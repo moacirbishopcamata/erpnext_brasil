@@ -4,6 +4,10 @@
 
 Pedido do usuário em 2026-10-11: *"monitoramento de performance e custo de RAM, CPU e armazenamento, rodando em segundo plano, para o ERPNext Brasil"*, com *UX/UI profissional e idêntica ao Cherry*, gráficos (calor, uso diário, falhas), e a possibilidade de *parar e iniciar o ERP de forma gentil*.
 
+> **Escopo:** o ERPNext Brasil é o ERPNext inteiro com a tropicalização brasileira. O Chantilly monitora **todo** o ERPNext (todos os módulos e DocTypes), com os DocTypes da camada brasileira destacados como um recorte, não como o todo.
+
+> **Natureza:** complemento desktop em Python puro (só biblioteca padrão). O que exige o bench (tamanho das tabelas, duração dos jobs) é pedido ao próprio `bench execute`; as sondas de requisição são **opcionais** e só acrescentam a CPU por endpoint.
+
 ## Por que existe
 
 O projeto mede **versões e CVE** (`scripts/auditar_pilha.py`) e **o relógio** (`medicao_do_relogio`), mas não mede recurso. O disco enche de XML fiscal, SPED e anexos; um job de emissão em lote disputa CPU e RAM com o balcão; e ninguém sabe quanto custa manter a operação nem o que cresce mais rápido. Ferramentas externas (Prometheus, Grafana) não sabem o que é um DocType nem um job do ERPNext e exigem serviços novos, o oposto do ambiente deste projeto (sem `sudo`, sem Docker).
@@ -25,6 +29,10 @@ O próprio Chantilly **mede o seu custo** e respeita um orçamento (1% de um nú
 | Falhas | contagem por categoria: requisição com erro, job que falhou, queda de processo, intervalo perdido, falha do monitor | exata; **sem mensagem nem pilha** |
 
 **Privacidade por construção:** guarda só nomes (site, método, job, DocType, instância) e números. Não há coluna onde caiba SQL, parâmetro, conteúdo, CPF/CNPJ ou nome de usuário. Falha da medição nunca derruba a requisição.
+
+## Desempenho do banco e resumo publicado
+
+Além do host e dos processos, o Chantilly lê **contadores do servidor de banco** de cada instância (conexões, consultas, consultas lentas, tamanho, taxa de acerto do cache, tempo de resposta de uma consulta de verificação) para MariaDB e PostgreSQL, **sem driver de terceiros** (pede ao bench) e **sem texto de consulta**. E publica um **resumo de desempenho por instância**, somente leitura, com versão de esquema e idade, que o [Soda](soda.md) lê para mostrar o desempenho de cada instância na sua lista.
 
 ## Identificação por instância
 

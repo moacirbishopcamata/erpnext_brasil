@@ -14,6 +14,7 @@
 
 ## 3. Ciclo de vida (com executor injetável)
 
+- [ ] 3.0 Ler os perfis de banco do Cherry (mudança `cherry-perfis-de-banco`) e recusar a criação sem perfil — verificar com os cenários de perfil padrão, MariaDB e PostgreSQL no mesmo bench, e sem perfil.
 - [ ] 3.1 Criar: `new-site` com o nome de host, `--install-app` por aplicativo e `soda_instance_id` no `site_config`; senhas por ambiente e `WSLENV`; estado "criando" gravado antes — verificar com executor simulado que nenhum argumento contém senha e que o desfazer roda em cada ponto de falha.
 - [ ] 3.2 Iniciar: serviços compartilhados por `scripts/subir.sh` (uma vez), servidor da instância por `bench --site <site> serve --port <porta> --noreload`, espera de resposta com prazo — verificar com executor simulado (já no ar, serviços parados, servidor que não responde) e confirmar o comando exato gerado.
 - [ ] 3.3 Parar uma instância: processo identificado por PID e registro, pedido de término educado, nunca por nome, sem afetar as outras nem os serviços compartilhados — verificar com processos de teste em pasta temporária (um que obedece e um que ignora o sinal) e trechos de `/proc` de duas instâncias.
@@ -25,6 +26,7 @@
 
 - [ ] 4.1 Esqueleto no molde do Cherry: janela, `ttk.Notebook` com `enable_traversal`, barra de estado, marca "✓", `_problema`, HiDPI, escolha do bench reaproveitando `Bench` e `caminho_wsl`, geometria validada contra a tela — verificar com `test_app.py` (janela oculta) e a lista de diretrizes do Cherry conferida uma a uma.
 - [ ] 4.2 Aba **Instâncias**: lista com o descritivo, o UUID abreviado, o botão Renomear, host, porta, banco, aplicativos, estado por texto e ícone, tempo de atividade, filtro e estado vazio com instrução; UUID completo copiável — verificar com testes de interface e captura de tela nos estados criando, parada, no ar, caiu e vazio.
+- [ ] 4.2a Desempenho por instância e do seu banco, lido do resumo do Chantilly (tempos mediano e p95, CPU, memória, requisições e falhas por minuto, jobs, conexões, tamanho, consultas lentas, taxa de acerto, tempo de resposta), com a idade da leitura e "indisponível" com motivo quando faltar — verificar com um resumo de exemplo, com resumo velho e sem Chantilly, conferindo que o Soda não mede nada por conta própria.
 - [ ] 4.3 Ações do item selecionado (iniciar, parar, abrir no navegador, copiar URL, ver saída, remover), cada uma habilitada conforme o estado e explicando por que não está disponível — verificar com um teste por estado.
 - [ ] 4.4 Aba **Nova instância** com as restrições à vista antes do envio e a pré-visualização do host e da porta — verificar com testes de campos obrigatórios, tamanho e formato espelhados no núcleo.
 - [ ] 4.5 Abas **Serviços** e **Bench** — verificar com testes de interface e a conferência de teclado (foco, Tab, Enter, Alt) de cada aba.
@@ -55,3 +57,4 @@
 ## 8. Prova real
 
 - [ ] 8.1 Ciclo real de criar duas instâncias, iniciar as duas, entrar nas duas ao mesmo tempo, parar uma e remover as duas, **somente com autorização explícita** e backup antes — verificar com o registro, as duas URLs respondendo ao mesmo tempo, a outra instância intacta depois da parada e o banco removido; se não houver autorização, esta tarefa fica aberta e o motivo é dito.
+- [ ] 7.6 Gate de resiliência e segurança (mudança `resiliencia-e-seguranca-das-ferramentas`): desfazer e retomar, idempotência, prazos em todo comando externo, tratamento de exceção na interface, validação de entrada, nenhum vazamento de segredo, varredura de padrões proibidos, confinamento de caminhos, permissões e limites — verificar com a saída dos comandos e a tabela de requisitos.

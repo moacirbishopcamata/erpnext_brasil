@@ -6,7 +6,7 @@ Criar, iniciar, parar e remover instâncias do ERPNext Brasil de forma segura e 
 
 ### Requirement: Criar uma instância é tudo ou nada
 
-O Soda SHALL criar uma instância como um site novo do bench, com banco de dados próprio (MariaDB ou PostgreSQL, à escolha), o nome de host derivado do UUID e os aplicativos escolhidos instalados. O Soda SHALL registrar a instância no estado "criando" antes de começar, e SHALL promovê-la a "parada" somente ao concluir. Se a criação falhar ou for interrompida, o Soda SHALL desfazer o que já foi criado (site e banco parciais) e liberar a porta e o nome, sem aposentar um UUID que nunca chegou a existir de fato.
+O Soda SHALL criar uma instância como um site novo do bench, com banco de dados próprio no servidor de um perfil de banco configurado no Cherry, o nome de host derivado do UUID e os aplicativos escolhidos instalados. O Soda SHALL registrar a instância no estado "criando" antes de começar, e SHALL promovê-la a "parada" somente ao concluir. Se a criação falhar ou for interrompida, o Soda SHALL desfazer o que já foi criado (site e banco parciais) e liberar a porta e o nome, sem aposentar um UUID que nunca chegou a existir de fato.
 
 #### Scenario: Criação concluída
 
@@ -22,6 +22,30 @@ O Soda SHALL criar uma instância como um site novo do bench, com banco de dados
 
 - **WHEN** o Soda é fechado ou perde a conexão com o bench durante a criação
 - **THEN** na próxima abertura a instância aparece como "criação interrompida" e o Soda oferece desfazer o que sobrou
+
+### Requirement: O servidor de banco vem de um perfil configurado no Cherry
+
+O Soda MUST NOT decidir o tipo nem o servidor de banco de dados. O Soda SHALL oferecer, para a criação, apenas os perfis de banco que o Cherry configurou no bench (MariaDB e/ou PostgreSQL), e SHALL usar o perfil escolhido, ou o padrão do Cherry, para criar o banco da instância. Sem nenhum perfil configurado, o Soda SHALL recusar a criação e indicar o Cherry. O Soda SHALL registrar no registro da instância o nome e o tipo do perfil usado.
+
+#### Scenario: Perfil padrão do Cherry
+
+- **WHEN** o usuário cria uma instância sem escolher perfil e o Cherry tem um perfil padrão
+- **THEN** o banco da instância é criado no servidor do perfil padrão, e o registro guarda o nome e o tipo do perfil
+
+#### Scenario: Bench com MariaDB e PostgreSQL
+
+- **WHEN** o Cherry tem um perfil MariaDB e um perfil PostgreSQL e o usuário escolhe o PostgreSQL
+- **THEN** a instância é criada com `--db-type postgres` e o host e a porta desse perfil
+
+#### Scenario: Sem perfil configurado
+
+- **WHEN** o Cherry ainda não configurou nenhum perfil de banco
+- **THEN** o Soda recusa a criação, explica que o banco é configurado no Cherry e não cria nada
+
+#### Scenario: Senha do servidor de banco
+
+- **WHEN** a criação precisa da senha de administrador do servidor de banco
+- **THEN** o Soda a lê da configuração do bench, quando o Cherry a gravou lá, ou a pede ao usuário no momento, e não a persiste em nenhum formato
 
 ### Requirement: A senha de administrador não trafega em argumento de processo
 

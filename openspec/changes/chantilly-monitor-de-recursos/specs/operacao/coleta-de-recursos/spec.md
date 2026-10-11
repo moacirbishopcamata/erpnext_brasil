@@ -23,6 +23,39 @@ O Chantilly SHALL registrar, em intervalo configurável (padrão 60 s, mínimo 1
 - **WHEN** uma métrica não pode ser lida (permissão negada ou arquivo do sistema ausente)
 - **THEN** a amostra grava a métrica como nula com o motivo, e as demais métricas são gravadas normalmente
 
+### Requirement: O desempenho do banco de dados é lido por contadores, sem texto de consulta
+
+O Chantilly SHALL registrar, para o servidor de banco de dados de cada instância, contadores de desempenho: conexões abertas, total de consultas, número de consultas lentas, tamanho dos dados e dos índices, taxa de acerto do cache do banco e tempo de resposta de uma consulta de verificação. O Chantilly MUST NOT guardar o texto de nenhuma consulta nem seus parâmetros. A leitura SHALL funcionar para MariaDB e para PostgreSQL, sem driver de terceiros, pedindo ao bench que consulte os contadores do servidor.
+
+#### Scenario: Contadores do MariaDB
+
+- **WHEN** o Chantilly coleta o desempenho de uma instância em MariaDB
+- **THEN** a amostra traz conexões, consultas, consultas lentas, tamanho e tempo de resposta, sem nenhum texto de consulta
+
+#### Scenario: Contadores do PostgreSQL
+
+- **WHEN** o Chantilly coleta o desempenho de uma instância em PostgreSQL
+- **THEN** a amostra traz conexões, transações, taxa de acerto do cache, tamanho e tempo de resposta, sem nenhum texto de consulta
+
+#### Scenario: Servidor de banco inacessível
+
+- **WHEN** o servidor de banco não responde à leitura dos contadores
+- **THEN** a amostra marca o desempenho do banco como indisponível com o motivo, e não grava zeros
+
+### Requirement: O Chantilly publica um resumo de desempenho por instância, somente para leitura
+
+O Chantilly SHALL publicar, para cada instância identificada pelo UUID, um resumo recente de desempenho: tempo de resposta (mediano e p95) de uma verificação, CPU e memória do processo web da instância, requisições e falhas por minuto, jobs em fila e em execução, e os contadores do banco da instância. O resumo SHALL declarar a versão do seu esquema e a idade da última atualização, SHALL ser lido por outras ferramentas por um leitor somente leitura, e MUST NOT conter conteúdo, consulta, parâmetro nem dado pessoal.
+
+#### Scenario: O Soda lê o resumo
+
+- **WHEN** o Soda lê o resumo de desempenho das instâncias
+- **THEN** recebe, por UUID, os tempos, o consumo de recursos e os contadores do banco, com a idade da atualização
+
+#### Scenario: Resumo desatualizado
+
+- **WHEN** a última atualização do resumo tem mais de três intervalos de idade
+- **THEN** o leitor informa a idade e marca o resumo como desatualizado, em vez de apresentá-lo como atual
+
 ### Requirement: O Chantilly funciona sem dependência obrigatória fora da biblioteca padrão
 
 O Chantilly SHALL coletar as métricas em Linux e em WSL2 apenas com a biblioteca padrão do Python. Uma biblioteca de terceiros SHALL ser opcional e SHALL nunca ser pré-requisito para instalar ou iniciar o monitor.

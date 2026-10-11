@@ -10,6 +10,34 @@ Visão geral das três ferramentas de quem desenvolve e opera o ERPNext Brasil n
 
 A persistência selecionável (JSON ou SQLite) das três é a mudança `persistencia-sqlite-opcional`.
 
+## Quem decide o quê
+
+| Decisão | Dono | Como as outras ferramentas sabem |
+|---|---|---|
+| **Qual banco usar** (MariaDB e/ou PostgreSQL, servidor, porta, usuário) | **Cherry**, que faz toda a configuração | perfis de banco publicados somente para leitura (`cherry-perfis-de-banco`) |
+| **Quais instâncias existem**, UUID, descritivo, portas | **Soda** | contrato de identidade (registro e `site_config`) |
+| **O quanto cada coisa consome** | **Chantilly** (coleta e guarda) | só observa; a única ação é iniciar e parar o ERP, sempre explícita; publica um resumo de desempenho por instância, somente leitura |
+| **Mostrar o desempenho de cada instância e do seu banco** | **Soda** (lê) | lê o resumo do Chantilly por UUID; não coleta por conta própria |
+
+O Soda não pergunta qual banco usar: ele oferece os perfis que o Cherry configurou (sem perfil, recusa e aponta o Cherry). O Chantilly só lê o tipo de banco para saber como consultar o tamanho das tabelas.
+
+## Complementos desktop em Python puro
+
+**O Cherry, o Chantilly e o Soda são complementos desktop, em Python puro, para gerenciar melhor o ERP.** Isso quer dizer, para as três:
+
+- **Só a biblioteca padrão:** `tkinter`, `sqlite3`, `json`, `uuid`, `socket`, `subprocess`. Nenhum pacote de terceiros, nenhum `pip install`.
+- **Desktop:** uma janela no computador de quem opera, sem servidor web e sem página no desk do Frappe. Rodam no Windows e operam o bench do WSL2/Linux pelo caminho `\\wsl.localhost\...` e por comandos `wsl`.
+- **Complementos, não parte do site:** funcionam ao lado do ERP, sem depender de instalar nada no site. Onde precisam de algo de dentro do bench (por exemplo, o tamanho das tabelas no banco, que a biblioteca padrão não consegue consultar porque não há driver de MariaDB nela), chamam o próprio bench (`bench execute`) pelo executor e leem o resultado.
+- **Sondas dentro do ERPNext são opcionais.** O Chantilly mede host, processos, armazenamento e jobs sem nenhuma sonda; as sondas de requisição (`before_request`/`after_request`), que dão a CPU por endpoint, são um acréscimo opcional do app `erpnext_brasil`, que o complemento reconhece quando presente e dispensa quando ausente.
+
+## O que é o "ERPNext Brasil"
+
+**O ERPNext Brasil é o ERPNext inteiro, com a adição da tropicalização própria das leis brasileiras.** Não é um subconjunto fiscal do ERPNext: é todo o ERPNext (vendas, compras, estoque, contabilidade, produção, projetos, RH quando instalado...) mais a camada brasileira (`erpnext_brasil`: documentos fiscais, SPED, eSocial, impostos, folha). As três ferramentas operam esse conjunto completo:
+
+- o **Soda** instala em cada instância o `erpnext` completo e o `erpnext_brasil` (sempre os dois); `hrms` e `healthcare` são opcionais;
+- o **Chantilly** atribui consumo a **todos** os módulos e DocTypes do ERPNext, e não apenas aos fiscais; a camada brasileira aparece como mais um recorte, não como o todo;
+- o **Cherry** configura o bench inteiro.
+
 ## Como se encaixam
 
 ```
@@ -62,6 +90,19 @@ Compatibilidade: campo novo não quebra leitor antigo; remover ou renomear campo
 | Chantilly | limiares, preços, registro de ações de controle | JSON | SQLite |
 
 Cada ferramenta define uma **porta de persistência** (repositório) e dois adaptadores. Uma **suíte de contrato** roda a mesma bateria de testes contra os dois, para provar que se comportam igual. A troca de formato **migra sem perda**, mantém cópia do formato anterior até a confirmação, e o esquema do SQLite é versionado (`PRAGMA user_version`) com migrações testadas. Nenhum formato guarda segredo, e arquivo ilegível vai para quarentena em vez de ser sobrescrito.
+
+## Resiliência, robustez e segurança (obrigatórias nas três)
+
+Por decisão do dono do projeto (2026-10-11), as três devem ser **bem escritas e ter o máximo de resiliência, robustez e segurança**. Como alteram o ambiente (gravam configuração, criam e removem bancos, iniciam e param o ERP), a qualidade é requisito, e não estética. Os critérios, conferidos por testes e por um **gate** ao fim de cada mudança (mudança `resiliencia-e-seguranca-das-ferramentas`):
+
+| Qualidade | O que exigimos | Como se confere |
+|---|---|---|
+| **Resiliência** | operação de vários passos registra a intenção, desfaz só o que fez e pode ser retomada depois de interrupção; repetir é seguro; todo comando externo tem prazo e saída limitada | falha injetada em cada passo; processo morto no meio; comando que não termina |
+| **Robustez** | toda entrada validada na fronteira; limites de tamanho, quantidade e tempo; nenhuma exceção sem tratamento chega à janela; leitores de `/proc`, de saída de comando e de JSON de terceiros resistem a entrada malformada | testes de entrada truncada, vazia, com bytes inválidos e mil entradas aleatórias de semente fixa |
+| **Segurança** | segredo nunca em argumento, log, persistência, mensagem nem clipboard indefinido; comando é lista de argumentos, nunca shell; caminhos confinados ao bench e sem seguir link simbólico; arquivos de estado só do dono; ação destrutiva falha fechada; processos por PID e diretório, nunca por nome | varredura por `ast` de padrões proibidos (`shell=True`, `os.system`, `eval`, `exec`, `pickle`, `except:` sem tipo); busca do segredo em todos os arquivos; link simbólico real |
+| **Escrita** | regra pura separada de I/O, contratos, nomes do domínio, nenhuma exceção engolida, módulos pequenos | `ruff`, `tests/test_arquitetura.py`, revisão |
+
+Já aprendido no código: a revisão do Cherry mediu senha legível na linha de comando (CH-01), arquivo truncado por falha de escrita (CH-02) e comando sem escape (CH-03); e a suíte de concorrência da nova persistência encontrou, no Windows, gravações perdidas por `os.replace` contra um leitor, conversão para WAL concorrente e migração repetida, todas corrigidas por teste.
 
 ## Padrões de projeto, testes e cobertura (iguais para as três)
 

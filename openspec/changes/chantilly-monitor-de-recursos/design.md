@@ -8,6 +8,12 @@ Ver `proposal.md` (Why). O que o repositório já estabelece e que molda o desen
 - Alertas fiscais já têm canal: `integracao/notificacao.notificar_responsaveis`, usado por `alerta_certificado`, `alerta_fiscal` e `medicao_do_relogio`, disparados por `scheduler_events` em `hooks.py`.
 - O padrão de "medir e guardar" do relógio: sonda e decisão puras, cola fina, degradação sem barulho quando o dado falta.
 
+Escopo do que se monitora (decidido em 2026-10-11): o ERPNext Brasil é **o ERPNext inteiro mais a tropicalização brasileira**. O Chantilly atribui consumo a **todos** os módulos e DocTypes do ERPNext (vendas, compras, estoque, contabilidade, produção...), e não apenas aos fiscais; os DocTypes da camada brasileira (`Transmissao Fiscal`, `Arquivo SPED`, `Lote eSocial`) são destacados como um recorte útil, não como o todo.
+
+Natureza do Chantilly (decidido em 2026-10-11): é um **complemento desktop em Python puro**, como o Cherry e o Soda. Só biblioteca padrão; nada instalado no site é pré-requisito. Consequências no desenho: (1) o armazenamento por DocType não usa driver de banco (a biblioteca padrão não tem driver de MariaDB nem de PostgreSQL): o Chantilly chama `bench --site <site> execute` com uma função de leitura do app e lê o resultado pelo executor; (2) as **sondas de requisição são opcionais**: sem elas o Chantilly mede host, processos, armazenamento e jobs (a duração dos jobs vem do `Scheduled Job Log` do Frappe, lido pelo mesmo `bench execute`); com elas ganha a CPU por endpoint; (3) a interface nunca depende de o site estar no ar.
+
+Banco de dados (decidido em 2026-10-11): a escolha é do Cherry (perfis de banco). O Chantilly não escolhe nem configura banco; para ler o tamanho das tabelas de cada instância ele usa o tipo do perfil (MariaDB ou PostgreSQL) registrado na instância ou no `site_config`.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -69,6 +75,10 @@ Ver `proposal.md` (Why). O que o repositório já estabelece e que molda o desen
 12b. **Padrões do projeto, iguais aos do app e aos do Cherry (obrigatórios).** Design by Contract: pré-condições recusadas antes de tocar em qualquer estado (exceção própria do domínio), pós-condições gravadas como teste e invariantes nos construtores. Dados que cruzam camadas são imutáveis (`dataclass(frozen=True)`). Inversão de dependência por portas pequenas (`Protocol`): relógio, executor de comandos, repositório de persistência, leitor de `/proc`, teste de porta livre; classes concretas sem herança de implementação e sem método estático que esconda dependência. A regra é pura (sem I/O, sem `frappe`, sem tkinter) e a camada fina só traduz. Falha alto onde o silêncio daria dado errado. TDD com teste na costura: grava-se por um caminho e relê-se por outro, nunca só o retorno. Cobertura: núcleo a 100% (piso de 95% no CI), interface com piso próprio dois pontos abaixo do medido, `ruff check` e `ruff format` limpos, e `tests/test_arquitetura.py` vigiando a fronteira. Versão e documento atualizados a cada mudança visível.
 13. **Nome e versão.** Chantilly, `0.1.0`, licença MIT própria em `scripts/chantilly/LICENSE`, `docs/chantilly.md` com as fontes de UX relidas na web antes de desenhar a tela.
 14. **Teste e CI como o Cherry.** Núcleo (`erpnext_brasil/chantilly/`) a 100% e com teste na costura (escrever no SQLite e reler por outro caminho); `test_app.py` com janela oculta; job de CI com `xvfb`, piso de 95% no núcleo e piso da interface dois pontos abaixo do medido.
+
+### Resiliência, robustez e segurança
+
+**Resiliência, robustez e segurança (obrigatórias, mudança `resiliencia-e-seguranca-das-ferramentas`).** Operação com vários passos registra a intenção, desfaz só o que fez e pode ser retomada depois de interrupção; repetir é seguro; todo comando externo tem prazo e saída limitada; nenhuma exceção chega sem tratamento à janela; toda entrada externa é validada e os leitores de texto externo são testados com entrada malformada e aleatória; segredo nunca em argumento, log, persistência, mensagem ou clipboard indefinido; comando é lista de argumentos, nunca shell; caminhos confinados; arquivos de estado com permissão restrita; ação destrutiva falha fechada; recursos locais limitados.
 
 ## Risks / Trade-offs
 
