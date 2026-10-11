@@ -29,6 +29,7 @@ from erpnext_brasil.fiscal.documento.evento_mdfe import (
 	InfoPagamento,
 	ParcelaPagamento,
 	assinar_evento,
+	assinar_evento_mdfe,
 	montar_env_evento_mdfe,
 	montar_evento_alteracao_pagamento_servico_mdfe,
 	montar_evento_cancelamento_mdfe,
@@ -91,7 +92,7 @@ class TestMontarEventoCancelamentoMdfe(unittest.TestCase):
 		)
 
 	def test_usa_chmdfe_nao_chnfe_nem_chcte(self):
-		inf_evento = self.evento["evento"]["infEvento"]
+		inf_evento = self.evento["eventoMDFe"]["infEvento"]
 
 		self.assertEqual(inf_evento["chMDFe"], self.chave)
 		self.assertNotIn("chNFe", inf_evento)
@@ -100,16 +101,16 @@ class TestMontarEventoCancelamentoMdfe(unittest.TestCase):
 	def test_versao_fica_no_atributo_versaoevento_nao_em_verevento(self):
 		"""Achado real: mesma forma do CT-e -- o MDF-e não tem elemento verEvento, a
 		versão é atributo de detEvento."""
-		inf_evento = self.evento["evento"]["infEvento"]
+		inf_evento = self.evento["eventoMDFe"]["infEvento"]
 
 		self.assertNotIn("verEvento", inf_evento)
 		self.assertEqual(inf_evento["detEvento"]["@versaoEvento"], "3.00")
-		self.assertEqual(self.evento["evento"]["@versao"], "3.00")
+		self.assertEqual(self.evento["eventoMDFe"]["@versao"], "3.00")
 
 	def test_id_tem_53_digitos_apos_id(self):
 		"""Este módulo sempre grava nSeqEvento com 3 dígitos, mesma convenção do CT-e
 		-- embora o schema do MDF-e tolere também 2 (ver docstring do módulo)."""
-		id_elemento = self.evento["evento"]["infEvento"]["@Id"]
+		id_elemento = self.evento["eventoMDFe"]["infEvento"]["@Id"]
 
 		self.assertTrue(id_elemento.startswith("ID"))
 		self.assertEqual(len(id_elemento), len("ID") + 53)
@@ -118,11 +119,11 @@ class TestMontarEventoCancelamentoMdfe(unittest.TestCase):
 	def test_tp_evento_e_o_mesmo_numero_da_nfe_e_do_cte(self):
 		"""Achado real: os três documentos (NF-e/CT-e/MDF-e) reaproveitam o mesmo
 		código de cancelamento, 110111."""
-		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_CANCELAMENTO_MDFE)
+		self.assertEqual(self.evento["eventoMDFe"]["infEvento"]["tpEvento"], TIPO_EVENTO_CANCELAMENTO_MDFE)
 		self.assertEqual(TIPO_EVENTO_CANCELAMENTO_MDFE, "110111")
 
 	def test_namespace_e_o_do_mdfe(self):
-		self.assertEqual(self.evento["evento"]["@xmlns"], NAMESPACE_MDFE)
+		self.assertEqual(self.evento["eventoMDFe"]["@xmlns"], NAMESPACE_MDFE)
 
 	def test_justificativa_com_256_caracteres_e_invalida(self):
 		texto_256 = "a" * 256
@@ -147,7 +148,7 @@ class TestMontarEventoCancelamentoMdfe(unittest.TestCase):
 			data_evento="2026-09-02T21:00:00-03:00",
 		)
 
-		self.assertEqual(len(evento["evento"]["infEvento"]["detEvento"]["xJust"]), 255)
+		self.assertEqual(len(evento["eventoMDFe"]["infEvento"]["detEvento"]["evCancMDFe"]["xJust"]), 255)
 
 	def test_limites_de_justificativa_confirmados(self):
 		self.assertEqual(JUSTIFICATIVA_MINIMA_MDFE, 15)
@@ -164,7 +165,7 @@ class TestMontarEventoCancelamentoMdfe(unittest.TestCase):
 			)
 
 	def test_documento_assinado_serializa(self):
-		assinado = assinar_evento(self.evento, AssinadorFalso())
+		assinado = assinar_evento_mdfe(self.evento, AssinadorFalso())
 		xml = para_xml(assinado)
 
 		self.assertIn("<infEvento", xml)
@@ -219,11 +220,11 @@ class TestMontarEventoEncerramentoMdfe(unittest.TestCase):
 		)
 
 	def test_tp_evento_e_110112(self):
-		self.assertEqual(self.evento["evento"]["infEvento"]["tpEvento"], TIPO_EVENTO_ENCERRAMENTO_MDFE)
+		self.assertEqual(self.evento["eventoMDFe"]["infEvento"]["tpEvento"], TIPO_EVENTO_ENCERRAMENTO_MDFE)
 		self.assertEqual(TIPO_EVENTO_ENCERRAMENTO_MDFE, "110112")
 
 	def test_campos_basicos(self):
-		det_evento = self.evento["evento"]["infEvento"]["detEvento"]
+		det_evento = self.evento["eventoMDFe"]["infEvento"]["detEvento"]["evEncMDFe"]
 
 		self.assertEqual(det_evento["descEvento"], "Encerramento")
 		self.assertEqual(det_evento["dtEnc"], "2026-09-02")
@@ -243,7 +244,7 @@ class TestMontarEventoEncerramentoMdfe(unittest.TestCase):
 			cnpj_autor=_CNPJ_VALIDO,
 			data_evento="2026-09-02T22:00:00-03:00",
 		)
-		self.assertEqual(evento["evento"]["infEvento"]["detEvento"]["cUF"], "99")
+		self.assertEqual(evento["eventoMDFe"]["infEvento"]["detEvento"]["evEncMDFe"]["cUF"], "99")
 
 	def test_uf_invalida_levanta_erro(self):
 		with self.assertRaises(EventoInvalido):
@@ -281,7 +282,7 @@ class TestMontarEventoEncerramentoMdfe(unittest.TestCase):
 			encerrado_por_terceiro=True,
 		)
 		self.assertEqual(
-			evento["evento"]["infEvento"]["detEvento"]["indEncPorTerceiro"],
+			evento["eventoMDFe"]["infEvento"]["detEvento"]["evEncMDFe"]["indEncPorTerceiro"],
 			INDICADOR_ENCERRAMENTO_POR_TERCEIRO,
 		)
 
@@ -298,7 +299,7 @@ class TestMontarEventoEncerramentoMdfe(unittest.TestCase):
 			)
 
 	def test_documento_assinado_serializa(self):
-		assinado = assinar_evento(self.evento, AssinadorFalso())
+		assinado = assinar_evento_mdfe(self.evento, AssinadorFalso())
 		xml = para_xml(assinado)
 
 		self.assertIn("<dtEnc>", xml)

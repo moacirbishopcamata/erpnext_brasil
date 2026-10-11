@@ -223,6 +223,13 @@ alternativa. Serviços confirmados na fonte:
 | `MDFeConsNaoEnc` | Consulta de MDF-e não encerrados |
 | `MDFeDistribuicaoDFe` | Distribuição |
 
+## Transmissão e eventos (tarefa 5 de `fechar-laco-cte-mdfe`)
+
+A autorização por lote e recibo, o encerramento e o cancelamento estão implementados e documentados em
+[mdfe-operacional.md](mdfe-operacional.md). Dois achados deste passo: o montador de evento do MDF-e devolvia a raiz `evento`
+(a da NF-e) em vez de `eventoMDFe`, com os campos soltos em `detEvento` — corrigido para cancelamento e encerramento, pendente
+nos outros cinco (`docs/gaps.md`); e `MDFeRecepcaoSinc` existe, mas o app usa o lote.
+
 ## Campos de `Shipment` e `Shipment Delivery Note` que a montagem lê — e os `br_*` que o Shipment ganha (tarefa 1.4)
 
 Fonte: leitura direta do core de `G:\PROJECTS\erpnext\erpnext\stock\doctype\shipment\shipment.json` e

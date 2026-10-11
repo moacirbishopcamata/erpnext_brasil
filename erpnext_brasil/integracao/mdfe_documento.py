@@ -62,7 +62,7 @@ from erpnext_brasil.integracao.nfe_documento import (
 from erpnext_brasil.integracao.numeracao_fiscal import numero_do_documento
 from erpnext_brasil.setup.campos_documento import RODADO_MDFE_POR_ROTULO
 
-__all__ = ["montar_mdfe_do_documento"]
+__all__ = ["empresa_do_shipment", "montar_mdfe_do_documento", "municipio_de_descarga"]
 
 MODELO_MDFE = "58"
 CAMPO_NUMERO = "br_numero_mdfe"
@@ -92,6 +92,11 @@ def _empresa(shipment) -> str:
 	return _exigir(
 		shipment.get("pickup_company"), "empresa de origem (pickup_company)", onde, "pickup_company"
 	)
+
+
+def empresa_do_shipment(shipment) -> str:
+	"""A `Company` emitente do manifesto — o `Shipment` do core não tem `company`, e o registro fiscal exige."""
+	return _empresa(shipment)
 
 
 def _emitente(company: str) -> Emitente:
@@ -128,6 +133,11 @@ def _municipio(shipment, campo_endereco: str, rotulo: str) -> tuple[str, str, st
 		raise MdfeInvalido(f"código IBGE {codigo!r} em {onde_endereco}: {erro}", campo_endereco) from erro
 
 	return codigo, nome, uf
+
+
+def municipio_de_descarga(shipment) -> tuple[str, str, str]:
+	"""`(código IBGE, nome, UF)` do endereço de entrega — onde a viagem termina, e portanto onde se encerra."""
+	return _municipio(shipment, "delivery_address_name", "descarga")
 
 
 def _valor_manifestado(shipment) -> Decimal:

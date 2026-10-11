@@ -800,3 +800,24 @@ antes do erro. O relatório `Lacunas de Numeracao` desconta as faixas aceitas.
 - 🔒 O envio real depende de certificado A1 e homologação: o bench usa transporte falso.
 - Falta o botão "Inutilizar faixa" no relatório/tela; hoje a função é whitelisted, sem interface.
 - Os campos novos exigem `bench migrate` nos sites (o teste de bench faz `reload_doc` só no site em que roda).
+
+## ~~🟡 MDF-e e CT-e sem laço fechado~~ — pago em 2026-10-10 (sem homologação)
+
+`emitir_mdfe`, `encerrar_mdfe` e `cancelar_mdfe` ligam o `Shipment` à SEFAZ (lote e recibo; eventos sem lote), gravam o
+`Transmissao Fiscal` em todo desfecho e põem chave e protocolo no `Shipment`; a tela (`emissao_mdfe.js`) oferece o botão
+certo por estado. `cte_extracao` e `mapeamento_cte` deixaram de ser órfãos na tarefa 4.1. Ver
+[mdfe-operacional.md](mdfe-operacional.md) e [cte-operacional.md](cte-operacional.md).
+
+### O que ficou de fora
+- 🔒 **Nada foi enviado a uma SEFAZ real** (CT-e 3.1, MDF-e 5.1): exige certificado A1 e homologação. O envelope vem do `sped-mdfe`
+  e do XSD (fonte secundária); o `cUF` do cabeçalho SOAP do MDF-e é herdado do CT-e por analogia.
+- **Códigos do MDF-e não lidos no MOC**: `103`, `105`, `100` e `135` vêm do `sped-mdfe` e da tabela comum. A leitura só aceita o
+  `100` como autorizado e o `135` como evento registrado; não há tabela de denegação do MDF-e.
+- **Cancelar MDF-e encerrado**: a recusa local é conservadora (regra do MOC não lida no texto oficial).
+- **Cinco montadores de evento do MDF-e ainda têm a forma da NF-e** (raiz `evento`, campos soltos em `detEvento`): condutor, inclusão de
+  DF-e, pagamento da operação, confirmação de serviço e alteração de pagamento. A SEFAZ os recusaria. Cancelamento e encerramento foram
+  corrigidos (`eventoMDFe` + `evCancMDFe`/`evEncMDFe`); os outros não têm gatilho de tela (tarefa 5.6).
+- **`integracao/transporte_sefaz.py` está em 320 linhas**, o limite de `test_arquitetura`: o próximo método exige extrair módulo.
+- **Telas não abertas em navegador** (`emissao_cte.js`, `emissao_mdfe.js`).
+- Os campos `br_chave_acesso` e `br_protocolo_autorizacao` do `Shipment` exigem `bench migrate` nos sites.
+

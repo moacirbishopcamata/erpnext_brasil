@@ -18,9 +18,8 @@ import unittest
 
 INTEGRACAO = pathlib.Path(__file__).resolve().parents[1] / "integracao"
 
-EMISSOES = {"emissao_nfe": "emitir_nfe", "emissao_cte": "emitir_cte"}
-"""A emissão do MDF-e (tarefa 5.2 de `fechar-laco-cte-mdfe`) e a da NFC-e (`emitir-nfce-do-pos`)
-entram aqui quando existirem; ver as tarefas dessas mudanças."""
+EMISSOES = {"emissao_nfe": "emitir_nfe", "emissao_cte": "emitir_cte", "emissao_mdfe": "emitir_mdfe"}
+"""A emissão da NFC-e (`emitir-nfce-do-pos`) entra aqui quando existir; ver as tarefas dessa mudança."""
 
 QUEM_ALOCA_OU_TRANSMITE = {
 	"numero_do_documento",

@@ -117,12 +117,14 @@
       levava o registro da rejeição junto; `emissao_nfe.emitir_nfe` tinha o mesmo defeito e ganhou o
       `commit` antes do `throw` (travado em `tests/test_emissao_commit_antes_do_throw.py`).
 
-- [ ] 3.3 Confirmar que o bloqueio por consumo indevido recusa o envio do CT-e **antes** de
+- [x] 3.3 Confirmar que o bloqueio por consumo indevido recusa o envio do CT-e **antes** de
       chamar a SEFAZ — verificar com teste que conta as chamadas ao transporte (zero)
 
       **Parcial (2026-10-03).** `test_transporte_cte.py` prova que a guarda recusa o CT-e com **zero**
-      chamadas à sessão HTTP, e que o registrador recebe o `656`. **Falta** o encadeamento na tela/ação
-      que cria o transporte com `guarda`/`registrador` reais (3.5).
+      chamadas à sessão HTTP, e que o registrador recebe o `656`.
+
+      **Concluída (2026-10-10).** O encadeamento existe: `emissao_cte.py`, `eventos_cte.py` e, agora, `emissao_mdfe.py` e `eventos_mdfe.py` constroem
+      o `TransporteSefaz` com `garantir_liberado` e `registrar_resposta` reais, e `test_consumo_indevido.TestACosturaDaGuarda` falha se algum não o fizer.
 - [x] 3.4 Implementar o envio de cancelamento (110111) e CC-e (110110) por família, com desfecho
       registrado e sem reenviar evento já aceito — verificar um teste por evento, incluindo o
       cancelamento de documento já cancelado
@@ -210,7 +212,16 @@
       com polling e `dormir` injetado — verificar em homologação que o manifesto é autorizado e
       que a chave gravada bate com a da camada pura; conferida do envelope contra o pacote de
       esquemas antes de codificar
-- [ ] 5.2 Registrar em `Transmissao Fiscal` o desfecho (autorizado, rejeitado, denegado) e gravar
+
+      **Parcial (2026-10-10) — código e testes prontos; falta a prova em homologação.** Envelope e retornos conferidos no
+      pacote de esquemas `PL_MDFe_300b` e no `sped-mdfe` (fonte **secundária**, não o MOC): cabeçalho `mdfeCabecMsg`, corpo
+      `mdfeDadosMsg` em texto (o GZip+Base64 é só do serviço síncrono, não usado), `enviMDFe` com `idLote`, recibo `nRec`, consulta
+      `consReciMDFe`. Novos: `fiscal/documento/soap_mdfe.py`, `resposta_mdfe.py`, `integracao/autorizacao_sefaz_mdfe.py` e
+      `TransporteSefaz.transmitir_mdfe` (25 + 14 + 9 testes). `dormir` injetado, como na NF-e; lote em processamento depois das tentativas
+      levanta `TransporteIndisponivel` (não é rejeição). **Falta** autorizar um MDF-e em homologação com certificado A1 real, conferir a
+      chave devolvida e confirmar o `cUF` do cabeçalho (emitente, por analogia com o CT-e) e os códigos 103/105/100 contra o MOC.
+
+- [x] 5.2 Registrar em `Transmissao Fiscal` o desfecho (autorizado, rejeitado, denegado) e gravar
       chave/protocolo no `Shipment` — verificar com teste de bench que relê do banco por caminho
       independente
 
@@ -218,23 +229,57 @@
       `fonte-de-tempo-ntp-br`, tarefa 4.3) como **primeira instrução**, antes de alocar número — incluir a
       função em `tests/test_guarda_de_relogio.py::EMISSOES`.
 
-- [ ] 5.3 Confirmar o bloqueio por consumo indevido recusando o envio do MDF-e **antes** de
+      **Concluída (2026-10-10), sem a prova em homologação.** `integracao/emissao_mdfe.py` (`emitir_mdfe`): monta, assina, transmite e
+      grava o `Transmissao Fiscal` em autorizado e rejeitado; `garantir_relogio_confiavel()` é a primeira instrução (incluída em
+      `test_guarda_de_relogio.EMISSOES`); chave e protocolo vão para `br_chave_acesso`/`br_protocolo_autorizacao` do `Shipment` (campos
+      novos, declarados em `setup/`) só quando autorizado. **Achados:** o `Shipment` não tem `company` e o `Transmissao Fiscal` exige — a
+      empresa é a de `pickup_company` (`empresa_do_shipment`); lote em processamento **não** grava rejeição. `tests_bench/test_emissao_mdfe.py`
+      (5) passou em `v16.localhost` (MariaDB) e `v16pg.localhost` (PostgreSQL), relendo por `frappe.db.get_value` e `frappe.get_all`.
+
+- [x] 5.3 Confirmar o bloqueio por consumo indevido recusando o envio do MDF-e **antes** de
       chamar a SEFAZ — verificar com teste que conta as chamadas ao transporte (zero)
-- [ ] 5.4 Implementar encerramento (110112) e cancelamento do MDF-e com desfecho registrado e sem
+
+      **Concluída (2026-10-10).** `tests/test_transporte_mdfe.py` prova a guarda recusando o lote **e** o evento com **zero** chamadas à
+      sessão HTTP, e o registrador recebendo o `656`. A guarda mora em `TransporteSefaz._contexto`, então vale sem repetição; o
+      encadeamento com `guarda`/`registrador` reais está em `emissao_mdfe.py` e `eventos_mdfe.py`. `test_consumo_indevido` passou de 6 para 8
+      pontos de retorno por `_registrar`.
+
+- [x] 5.4 Implementar encerramento (110112) e cancelamento do MDF-e com desfecho registrado e sem
       reenviar evento já aceito — verificar um teste por evento, incluindo o cancelamento de um
       MDF-e já encerrado
-- [ ] 5.5 Adicionar "Emitir MDF-e" e "Encerrar" no `Shipment` conforme o estado — verificar em
+
+      **Concluída (2026-10-10), sem a prova em homologação.** `integracao/eventos_mdfe.py` (`encerrar_mdfe`, `cancelar_mdfe`,
+      `estado_do_mdfe`) e `TransporteSefaz.transmitir_evento_mdfe` (`MDFeRecepcaoEvento`, sem lote). Não reenvia evento aceito; **encerrado
+      não se cancela** (guarda local conservadora, regra do MOC não lida no texto oficial). **Achado:** os montadores de evento do MDF-e
+      tinham a forma da NF-e (raiz `evento`, campos soltos em `detEvento`); cancelamento e encerramento foram corrigidos (`eventoMDFe` +
+      `evCancMDFe`/`evEncMDFe`) e os outros cinco estão em `docs/gaps.md`. `tests_bench/test_eventos_mdfe.py` (10) passou nos dois bancos.
+
+- [x] 5.5 Adicionar "Emitir MDF-e" e "Encerrar" no `Shipment` conforme o estado — verificar em
       `doctype_js` que o CTA aparece/desaparece pelo estado do `Transmissao Fiscal`
-- [ ] 5.6 Confirmar que os eventos sem gatilho no cadastro (entrega, GTV, condutor, pagamento)
+
+      **Concluída (2026-10-10), sem clique em site real.** `public/js/emissao_mdfe.js`, ligado ao `Shipment` em `doctype_js`. O estado
+      (`estado_do_mdfe`: situação fiscal e se a viagem foi encerrada) decide os botões por uma tabela: emitir (não emitido/rejeitado),
+      encerrar e cancelar (autorizado); encerrado, cancelado e denegado não oferecem nada. Travado em `tests/test_botoes_mdfe.py` (13).
+      **Falta** abrir um `Shipment` no navegador e clicar (e conferir em largura de celular).
+
+- [x] 5.6 Confirmar que os eventos sem gatilho no cadastro (entrega, GTV, condutor, pagamento)
       **não** ganham botão nesta mudança — verificar que a suíte de arquitetura segue cobrando o
       limite de superfície de tela e que a lista de eventos cobertos consta em `docs/mdfe-estado.md`
 
 ## 6. Bench, leituras e fechamento
 
-- [ ] 6.1 Incluir `Shipment`, `Shipment Delivery Note` e `Sales Invoice` na conferência de
+      **Concluída (2026-10-10).** Condutor, inclusão de DF-e, pagamento, confirmação de serviço e alteração de pagamento seguem sem
+      botão (não há dado no cadastro para alimentá-los); `test_botoes_mdfe` trava isso e a lista de eventos cobertos (encerramento e
+      cancelamento) consta em `docs/mdfe-operacional.md` e `docs/mdfe-estado.md`.
+
+- [x] 6.1 Incluir `Shipment`, `Shipment Delivery Note` e `Sales Invoice` na conferência de
       `MODULOS_COBERTOS` e rodar `scripts/cobertura_de_bench.py` — verificar que a cobertura
       sobe e bate com os módulos que a montagem lê
-- [ ] 6.2 Teste de bench que salva um `Sales Invoice` de transporte e um `Shipment` reais, relê do
+
+      **Concluída (2026-10-10).** `scripts/cobertura_de_bench.py`: 13/13. `test_emissao_mdfe` declara `emissao_mdfe` e
+      `guarda_de_relogio`; `test_eventos_mdfe` declara `eventos_mdfe` e `situacao_fiscal`.
+
+- [x] 6.2 Teste de bench que salva um `Sales Invoice` de transporte e um `Shipment` reais, relê do
       banco e confere que os campos fiscais e a chave persistiram — verificar relendo por caminho
       de consulta independente e comparando com o que a camada pura montou
       **Parcial (2026-10-09): CT-e e `Shipment` feitos, falta o PostgreSQL do MDF-e.** `tests_bench/test_mdfe_documento.py`
@@ -244,9 +289,18 @@
       uma `Sales Invoice` de transporte real, monta a árvore, e relê do banco por `frappe.db.get_value`
       o `br_numero_cte` e o contador de `Numeracao Fiscal` (aloca uma vez, reemissão reaproveita, recusa
       não consome) — passa em MariaDB e em PostgreSQL. **Falta** o `Shipment` (MDF-e, bloco 4).
-- [ ] 6.3 Documentar as duas frentes em `docs/cte-operacional.md` e `docs/mdfe-operacional.md`,
+
+      **Concluída (2026-10-10).** O lado do MDF-e passou também em PostgreSQL: `test_mdfe_documento`, `test_emissao_mdfe` e
+      `test_eventos_mdfe` verdes em `v16.localhost` e `v16pg.localhost`.
+
+- [x] 6.3 Documentar as duas frentes em `docs/cte-operacional.md` e `docs/mdfe-operacional.md`,
       marcar como pagos os gaps de `cte_extracao` órfão e dos módulos sem bench em `docs/gaps.md`
       — verificar que os gaps deixam de constar como abertos
+
+      **Concluída (2026-10-10).** `docs/cte-operacional.md` e `docs/mdfe-operacional.md` criados e indexados em `docs/README.md`;
+      `docs/gaps.md` ganhou a seção "MDF-e e CT-e sem laço fechado" com o que ficou de fora (homologação, códigos não lidos no MOC,
+      cinco eventos com a forma da NF-e, `transporte_sefaz.py` no limite de linhas).
+
 - [x] 6.4 Rodar a suíte pura, a de bench e o `ruff`, e conferir o bump de versão em
       `erpnext_brasil/__init__.py` no mesmo commit — verificar que tudo está verde antes do
       commit local
