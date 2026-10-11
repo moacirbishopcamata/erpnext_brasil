@@ -53,6 +53,10 @@ Registro em JSON (padrão) ou SQLite, à escolha, com migração sem perda e UUI
 
 `erpnext_brasil/soda/` (regra pura: UUID, descritivo, host, alocador de portas, registro, conciliação, planos de criação e remoção, leitor do contrato) e `scripts/soda/` (tkinter, comandos, execução no WSL), com licença MIT e versão `0.1.0` próprias. Reaproveita `Bench`, `caminho_wsl` e a escrita atômica do Cherry.
 
+## Docker (evolução)
+
+Hoje cada instância do Soda é um **site** do mesmo bench. A configuração Docker ([`docker.md`](docker.md)) deixa pronto o que permitiria um segundo modo, **uma instância por pilha de contêineres** (isolamento por bench: Redis, trabalhador e código próprios, o que resolveria testar branches diferentes em paralelo): cada pilha é um projeto do Compose com nome derivado do UUID, porta própria e os rótulos `br.erpnext-brasil.instancia` e `br.erpnext-brasil.descritivo`. Esse modo **não está implementado**; é uma decisão em aberto no `design.md` do Soda.
+
 ## O que não faz
 
 Não é para produção (o servidor de cada instância é o de desenvolvimento do Frappe), não isola código por branch (todas as instâncias usam o código do bench), não clona instância, não expõe à rede como fluxo normal.

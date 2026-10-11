@@ -80,6 +80,10 @@ Banco de dados (decidido em 2026-10-11): a escolha é do Cherry (perfis de banco
 
 **Resiliência, robustez e segurança (obrigatórias, mudança `resiliencia-e-seguranca-das-ferramentas`).** Operação com vários passos registra a intenção, desfaz só o que fez e pode ser retomada depois de interrupção; repetir é seguro; todo comando externo tem prazo e saída limitada; nenhuma exceção chega sem tratamento à janela; toda entrada externa é validada e os leitores de texto externo são testados com entrada malformada e aleatória; segredo nunca em argumento, log, persistência, mensagem ou clipboard indefinido; comando é lista de argumentos, nunca shell; caminhos confinados; arquivos de estado com permissão restrita; ação destrutiva falha fechada; recursos locais limitados.
 
+### Windows e Linux
+
+Funciona nos dois sistemas com o mesmo código (mudança `ferramentas-multiplataforma`): janela no Windows operando o bench no WSL2, ou janela em Linux operando o bench local, por uma porta de plataforma com dois adaptadores; a regra pura não consulta o sistema operacional.
+
 ## Risks / Trade-offs
 
 - **Contar com `/proc` no WSL2:** o WSL2 expõe o `/proc` da sua máquina virtual, não o do Windows. Documentar que o Chantilly mede a VM em que o bench roda, que é o que importa para o bench. Verificar na máquina antes de prometer.

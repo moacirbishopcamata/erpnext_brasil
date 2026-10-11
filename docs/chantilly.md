@@ -80,6 +80,10 @@ Idêntica ao Cherry (ver [`ferramentas-de-operacao.md`](ferramentas-de-operacao.
 
 Série **só em SQLite**. Configuração (limiares, preços) e registro das ações de controle em JSON ou SQLite, à escolha. Ver `persistencia-sqlite-opcional`.
 
+## Docker
+
+Com a configuração Docker ([`docker.md`](docker.md)), cada serviço de aplicação leva os rótulos `br.erpnext-brasil.instancia` e `br.erpnext-brasil.descritivo`. Medir consumo **por contêiner** (CPU e memória pelos cgroups ou por `docker stats`) é uma evolução possível do Chantilly; **não faz parte** desta proposta.
+
 ## Estrutura planejada
 
 `erpnext_brasil/chantilly/` (regra pura: leitura de `/proc` a partir de texto, agregação, retenção, projeção, limiares, custo, escalas dos gráficos), `scripts/chantilly/` (coletor e interface tkinter) e sondas finas em `erpnext_brasil/integracao/`. Licença MIT e versão `0.1.0` próprias.

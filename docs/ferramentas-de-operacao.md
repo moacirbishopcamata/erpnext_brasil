@@ -10,6 +10,23 @@ Visão geral das três ferramentas de quem desenvolve e opera o ERPNext Brasil n
 
 A persistência selecionável (JSON ou SQLite) das três é a mudança `persistencia-sqlite-opcional`.
 
+## Windows e Linux
+
+**O ERP e os três utilitários devem funcionar em Windows e em Linux** (mudança `ferramentas-multiplataforma`). Um limite precisa ficar claro: o **Frappe/ERPNext não roda nativo no Windows** (o `bench` não funciona nativo; o projeto roda o bench no WSL2). Então:
+
+| | Windows com WSL2 | Windows sem WSL | Linux |
+|---|---|---|---|
+| **ERP (ERPNext Brasil)** | funciona (o bench roda dentro do WSL2) | **não suportado** (o upstream não suporta Frappe nativo no Windows) | funciona nativo |
+| **Cherry** | janela no Windows, bench no WSL2 por `\\wsl.localhost\...` | indisponível sem bench; orienta a instalar o WSL2 | janela e bench no mesmo Linux; sem display, comandos de terminal |
+| **Soda** | idem | idem | idem |
+| **Chantilly** | mede o computador Windows (por `ctypes`) **e** o ambiente do bench no WSL2, separados | mede só o computador Windows | mede o Linux por `/proc` |
+
+Mesmo código nos dois sistemas; a diferença fica em adaptadores de plataforma (`WindowsComWsl` e `LinuxNativo`), e a regra pura nunca consulta o sistema operacional. Caminho do computador e caminho do bench são tipos distintos (o do bench é sempre Linux). O CI roda em Ubuntu e em Windows. **Pendente de confirmação:** se "o ERP funcionar em Windows" significa WSL2 (o único modo suportado) ou Windows nativo (projeto à parte e de risco alto).
+
+## Docker, para portabilidade
+
+Além do caminho de desenvolvimento sem Docker (`scripts/subir.sh`), o ERPNext Brasil tem **configuração Docker** em `docker/` ([`docker.md`](docker.md)): uma imagem com `erpnext` e `erpnext_brasil` na versão 16 e um Compose com MariaDB ou PostgreSQL por override, igual em Windows (Docker Desktop) e em Linux. Segredos por arquivo, porta web só em `127.0.0.1`. **A escolha do banco continua sendo do Cherry** (o Compose só combina o override). Cada projeto do Compose aceita `SODA_INSTANCE_ID` e `SODA_DESCRITIVO` como rótulos e um nome de projeto derivado do UUID, o que deixa o terreno pronto para o Soda orquestrar instâncias em contêineres e para o Chantilly medir por contêiner (`docker stats`); esses dois usos são **evolução**, não fazem parte desta entrega.
+
 ## Quem decide o quê
 
 | Decisão | Dono | Como as outras ferramentas sabem |
