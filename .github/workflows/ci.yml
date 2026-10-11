@@ -79,9 +79,22 @@ jobs:
       - name: Instalar coverage
         run: pip install coverage
 
-      # Só o núcleo (`config.py`): a interface (`test_app.py`) precisa de display e pula aqui.
-      # O piso é sobre o núcleo, que é onde mora toda escrita de arquivo — ver docs/cherry.md.
+      # A interface (`test_app.py`) precisa de display: o `xvfb` dá um virtual, e o `python3-tk` traz as
+      # bibliotecas do Tk. Sem isso o teste da interface pula e `app.py` fica com 0% (CH-06 da revisão do Cherry).
+      - name: Instalar display virtual e Tk
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb python3-tk
+
       - name: Testes do Cherry com cobertura
         run: |
-          python -m coverage run --include="scripts/cherry/config.py" -m unittest scripts.cherry.test_config scripts.cherry.test_app
-          python -m coverage report -m --fail-under=95
+          xvfb-run -a python -m coverage run --include="scripts/cherry/*.py" --omit="scripts/cherry/test_*.py,scripts/cherry/__main__.py,scripts/cherry/cherry.py" -m unittest scripts.cherry.test_config scripts.cherry.test_app
+
+      # Dois pisos. O núcleo (`config.py`) é onde mora toda escrita de arquivo: 95%. A interface tem piso
+      # próprio, dois pontos abaixo do medido (89% na `0.2.1`); se `test_app.py` pular por falta de display,
+      # `app.py` cai a 0% e este passo falha — ver docs/cherry.md.
+      - name: Piso de cobertura do núcleo
+        run: python -m coverage report -m --include="scripts/cherry/config.py" --fail-under=95
+
+      - name: Piso de cobertura da interface
+        run: python -m coverage report -m --include="scripts/cherry/app.py" --fail-under=87

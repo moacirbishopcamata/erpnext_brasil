@@ -23,7 +23,9 @@ heurísticas de Nielsen (ver `docs/cherry.md`, com as fontes):
 from __future__ import annotations
 
 import json
+import queue
 import sys
+import threading
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
@@ -40,9 +42,16 @@ LIMPEZA_DA_AREA_DE_TRANSFERENCIA_MS = 60_000
 leva a senha de root do banco; deixá-lo lá indefinidamente expõe o segredo a qualquer programa que
 leia a área de transferência (CH-04 da revisão do Cherry)."""
 
+INTERVALO_DA_CONSULTA_MS = 100
+"""De quanto em quanto tempo a interface olha se a sonda de conexão já terminou."""
+
 DURACAO_DA_MARCA_MS = 2500
 """Quanto tempo o "✓ gravado" fica visível. Curto o bastante para não virar ruído, longo o
 bastante para ser lido — a confirmação visual que o projeto exige de toda ação."""
+
+
+ROTULO_TESTAR = "Testar conexão"
+ROTULO_PARAR = "Parar de esperar"
 
 
 class Cherry(tk.Tk):
@@ -54,6 +63,8 @@ class Cherry(tk.Tk):
 		self.bench: cfg.Bench | None = None
 		self._marca_agendada: str | None = None
 		self._limpeza_agendada: str | None = None
+		self._teste_em_andamento = False
+		self._fila_do_teste: queue.Queue | None = None
 
 		_tema_nativo(self)
 		self._montar_barra_de_estado()
@@ -243,7 +254,8 @@ class Cherry(tk.Tk):
 
 		botoes = ttk.Frame(aba)
 		botoes.grid(row=6, column=0, columnspan=3, sticky="w", pady=(10, 4))
-		ttk.Button(botoes, text="Testar conexão", underline=0, command=self._testar_conexao).pack(side="left")
+		self.botao_testar = ttk.Button(botoes, text=ROTULO_TESTAR, underline=0, command=self._testar_conexao)
+		self.botao_testar.pack(side="left")
 		ttk.Button(botoes, text="Gravar no bench", underline=0, command=self._gravar_banco).pack(
 			side="left", padx=(8, 0)
 		)
@@ -327,6 +339,10 @@ class Cherry(tk.Tk):
 		self.senha_root.set(str(comum.get("root_password", "")))
 
 	def _testar_conexao(self):
+		if self._teste_em_andamento:
+			self._parar_de_esperar()
+			return
+
 		try:
 			banco = self._banco_da_tela()
 		except cfg.CherryInvalido as erro:
@@ -334,9 +350,57 @@ class Cherry(tk.Tk):
 			return
 
 		self._informar(f"Testando {banco.rotulo} em {banco.host}:{banco.porta}…")
-		self.update_idletasks()
-		resultado = cfg.testar_conexao(banco, self.bench)
+		self._iniciar_teste(banco)
 
+	def _iniciar_teste(self, banco: cfg.Banco):
+		"""A sonda leva até ~63 s no pior caso (CH-05): roda numa thread, e a janela só consulta a fila.
+
+		O tkinter não é seguro entre threads, então o trabalhador **só** calcula e devolve pela fila;
+		quem mexe na tela é sempre `_consultar_teste`, na thread da interface."""
+		fila: queue.Queue = queue.Queue(maxsize=1)
+		self._fila_do_teste = fila
+		self._teste_em_andamento = True
+		self.botao_testar.configure(text=ROTULO_PARAR)
+		bench = self.bench
+
+		def trabalhar():
+			try:
+				fila.put(("resultado", cfg.testar_conexao(banco, bench)))
+			except Exception as erro:  # qualquer falha da sonda vira mensagem, não thread morta
+				fila.put(("problema", erro))
+
+		threading.Thread(target=trabalhar, daemon=True, name="cherry-sonda").start()
+		self.after(INTERVALO_DA_CONSULTA_MS, lambda: self._consultar_teste(fila))
+
+	def _consultar_teste(self, fila: queue.Queue):
+		if fila is not self._fila_do_teste:
+			return  # o usuário parou de esperar: este resultado não interessa mais
+
+		try:
+			tipo, conteudo = fila.get_nowait()
+		except queue.Empty:
+			self.after(INTERVALO_DA_CONSULTA_MS, lambda: self._consultar_teste(fila))
+			return
+
+		self._encerrar_teste()
+
+		if tipo == "problema":
+			self._problema(conteudo)
+			return
+
+		self._mostrar_resultado_da_conexao(conteudo)
+
+	def _parar_de_esperar(self):
+		"""Descarta o resultado quando chegar. Não mata o processo da sonda, que termina sozinha pelo `timeout`."""
+		self._encerrar_teste()
+		self._informar("Parou de esperar o teste de conexão")
+
+	def _encerrar_teste(self):
+		self._fila_do_teste = None
+		self._teste_em_andamento = False
+		self.botao_testar.configure(text=ROTULO_TESTAR)
+
+	def _mostrar_resultado_da_conexao(self, resultado: cfg.ResultadoConexao):
 		if resultado.ok:
 			self._informar(f"Conectou [{resultado.nivel}] — {resultado.mensagem}")
 			self._confirmar_visualmente("✓ conectou")
@@ -354,7 +418,13 @@ class Cherry(tk.Tk):
 			self._problema(erro)
 			return
 
-		atual = cfg.ler_json(self.bench.common_config).get("db_type", cfg.MARIADB)
+		try:
+			atual = cfg.ler_json(self.bench.common_config).get("db_type", cfg.MARIADB)
+		except (OSError, json.JSONDecodeError, cfg.CherryInvalido) as erro:
+			# Antes isto estourava fora do `try`: arquivo ilegível virava traceback no console e nenhuma mensagem.
+			self._problema(f"common_site_config.json não pôde ser lido — {erro}")
+			return
+
 		sites = self.bench.nomes_de_sites()
 
 		if (
