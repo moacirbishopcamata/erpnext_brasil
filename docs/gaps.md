@@ -21,6 +21,8 @@ documentado que, num site real, não é alcançado por nada.
 
 ---
 
+> **Revisão total de 2026-10-11 (versão `0.227.0`):** achados novos que ainda não estão nas seções abaixo — folha com tabela de 2026 fixa (RT-01), `gerar_efd` sem checagem de permissão (RT-02), leituras de estoque e EFD sem permissão (RT-03), módulos tributários sem fonte (RT-04), XML sem parser endurecido (RT-05), fuso do servidor nos eventos (RT-06), MariaDB lido errado pelo `auditar_pilha.py` (RT-07), nove módulos de integração sem teste (RT-08). Ver [`revisao-total.md`](revisao-total.md).
+
 ## 1. Gaps de costura — os que ninguém tinha declarado
 
 Encontrados cruzando `hooks.py`, `setup/custom_fields.py` e o grafo de importação. Todos

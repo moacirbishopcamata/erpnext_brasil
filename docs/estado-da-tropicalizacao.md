@@ -5,6 +5,8 @@ Diferente dos `*-estado.md` por frente (`mdfe-estado.md`, `rh-estado-esocial.md`
 `ecf-estado.md`), este olha o app inteiro: o que está pronto, o que está pela metade, o
 que nem começou, e — o mais importante — **o que impede um uso real hoje**.
 
+> **Aviso (2026-10-11):** este panorama é da versão `0.133.0`. O app está na `0.227.0`, com 3.490 testes da suíte pura, 142 documentos e frentes novas desde então (CT-e e MDF-e operacionais, consulta de CEP e de CNPJ, proposta de saúde). Para o estado atual, ver [`revisao-total.md`](revisao-total.md) e [`gaps.md`](gaps.md). Os números abaixo **não** foram reescritos.
+
 Atualizado em 2026-09-03, versão `0.133.0`.
 
 ## Números
