@@ -1,0 +1,48 @@
+# Override de banco: MariaDB. Combine com compose.yaml (veja docker/.env.example).
+#
+# Versão e opções conferidas contra o overrides/compose.mariadb.yaml e o compose.mariadb-secrets.yaml do
+# frappe_docker em 2026-10-11 (MariaDB 11.8, utf8mb4, senha por arquivo com MYSQL_ROOT_PASSWORD_FILE).
+# O banco NÃO publica porta no host.
+
+services:
+  db:
+    image: mariadb:${MARIADB_VERSION:-11.8}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    security_opt:
+      - no-new-privileges:true
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_password
+      MARIADB_AUTO_UPGRADE: "1"
+    secrets:
+      - db_password
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  configurator:
+    environment:
+      DB_TIPO: mariadb
+      DB_HOST: db
+      DB_PORT: "3306"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  create-site:
+    environment:
+      DB_TIPO: mariadb
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:

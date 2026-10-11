@@ -1,0 +1,44 @@
+# Override de banco: PostgreSQL. Combine com compose.yaml (veja docker/.env.example).
+#
+# Versão conferida contra o overrides/compose.postgres.yaml do frappe_docker em 2026-10-11 (PostgreSQL 15.17).
+# ATENÇÃO: o ambiente de desenvolvimento local usa PostgreSQL 18; a versão de contêiner é a que o upstream
+# testa com o Frappe, e é parametrizada por POSTGRES_VERSION. Este override foi validado na resolução do
+# Compose; o fluxo completo (criar o site e usar) só se prova construindo a imagem. Não é exercitado ainda.
+# O banco NÃO publica porta no host.
+
+services:
+  db:
+    image: postgres:${POSTGRES_VERSION:-15.17}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  configurator:
+    environment:
+      DB_TIPO: postgres
+      DB_HOST: db
+      DB_PORT: "5432"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  create-site:
+    environment:
+      DB_TIPO: postgres
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:

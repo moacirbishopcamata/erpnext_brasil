@@ -55,3 +55,16 @@ devolver ao upstream, não esconder.
 - Trocar o Python (3.14.6 → 3.14.8): recriar o venv do bench com cópia do atual.
 - ⚠️ MariaDB: o servidor é compartilhado com outra sessão; a troca só foi feita com autorização explícita do usuário, depois de confirmar zero conexões. O `subir.sh` chamado com `| tail` fica pendurado (o `mariadbd` herda o pipe): redirecione para arquivo.
 - O backup do `banking/yarn.lock` do ERPNext foi salvo à parte antes da atualização.
+
+## Imagens Docker (registradas em 2026-10-11, ainda não auditadas pelo script)
+
+A configuração `docker/` ([`docker.md`](docker.md)) fixa versões de terceiros que `scripts/auditar_pilha.py` **ainda não verifica**. Registro do que está em uso, para a auditoria passar a conferi-las:
+
+| Componente | Versão no Compose | Origem | Observação |
+|---|---|---|---|
+| MariaDB | 11.8 | `overrides/compose.mariadb.yaml` do frappe_docker | o desenvolvimento local usa 10.11 |
+| PostgreSQL | 15.17 | `overrides/compose.postgres.yaml` do frappe_docker | o desenvolvimento local usa 18 |
+| Redis | 8.6-alpine | `overrides/compose.redis.yaml` do frappe_docker | o desenvolvimento local usa 7.2 |
+| Receita de imagem | commit `2b26e9ab8d75...` do frappe_docker (2026-10-09) | `docker/construir.py` | atualização manual e consciente |
+
+Pendente: estender `auditar_pilha.py` para ler essas versões (variáveis do `.env.example` e a constante `FRAPPE_DOCKER_COMMIT`) e conferi-las contra o fim de suporte e os avisos de segurança.

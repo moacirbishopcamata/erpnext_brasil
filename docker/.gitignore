@@ -1,0 +1,4 @@
+# Nada disto vai para o Git: são segredos e configuração local.
+segredos/
+.env
+apps.local.json

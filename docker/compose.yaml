@@ -1,0 +1,192 @@
+# ERPNext Brasil em Docker: o ERPNext inteiro com a tropicalização brasileira (erpnext + erpnext_brasil).
+#
+# Este arquivo é a BASE e não tem banco de dados: o banco entra por um override, e a escolha entre MariaDB e
+# PostgreSQL é do Cherry (perfis de banco). Combine pelo COMPOSE_FILE do .env (veja docker/.env.example):
+#
+#   COMPOSE_FILE=compose.yaml,compose.mariadb.yaml      # ou compose.postgres.yaml
+#
+# Estrutura de serviços adaptada do projeto frappe_docker (compose.yaml e overrides, conferidos em 2026-10-11).
+# O que é nosso: senhas por Docker secrets (arquivos), porta web só em 127.0.0.1 por padrão, rótulos de
+# instância (UUID e descritivo do Soda), ordem de subida por saúde e criação de site sob demanda.
+#
+# Como usar: docs/docker.md.
+
+name: ${COMPOSE_PROJECT_NAME:-erpnext-brasil}
+
+x-imagem: &imagem
+  image: ${IMAGEM:-erpnext-brasil}:${TAG:-version-16}
+  pull_policy: ${PULL_POLICY:-missing}
+  restart: ${RESTART_POLICY:-unless-stopped}
+  security_opt:
+    - no-new-privileges:true
+  labels:
+    br.erpnext-brasil.instancia: ${SODA_INSTANCE_ID:-}
+    br.erpnext-brasil.descritivo: ${SODA_DESCRITIVO:-}
+
+x-depende-do-configurador: &depende-do-configurador
+  depends_on:
+    configurator:
+      condition: service_completed_successfully
+
+x-base-da-aplicacao: &base-da-aplicacao
+  <<: [*depende-do-configurador, *imagem]
+  volumes:
+    - sites:/home/frappe/frappe-bench/sites
+    - logs:/home/frappe/frappe-bench/logs
+
+services:
+  redis-cache:
+    image: redis:${REDIS_VERSION:-8.6-alpine}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis-queue:
+    image: redis:${REDIS_VERSION:-8.6-alpine}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - redis-queue-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Grava a configuração comum do bench (banco, Redis, socket.io) e termina. DB_HOST, DB_PORT e DB_TIPO vêm
+  # do override do banco.
+  configurator:
+    <<: *imagem
+    restart: on-failure
+    entrypoint: [bash, -c]
+    command: >
+      ls -1 apps > sites/apps.txt;
+      bench set-config -g db_type $$DB_TIPO;
+      bench set-config -g db_host $$DB_HOST;
+      bench set-config -gp db_port $$DB_PORT;
+      bench set-config -g redis_cache "redis://redis-cache:6379";
+      bench set-config -g redis_queue "redis://redis-queue:6379";
+      bench set-config -g redis_socketio "redis://redis-queue:6379";
+      bench set-config -gp socketio_port 9000;
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+    depends_on:
+      redis-cache:
+        condition: service_healthy
+      redis-queue:
+        condition: service_healthy
+
+  # Cria o site (uma vez) e termina. Só roda com o perfil "inicializacao":
+  #   docker compose --profile inicializacao run --rm create-site
+  # Idempotente: se o site já existe, não faz nada. As senhas vêm dos arquivos de segredo montados em
+  # /run/secrets; nunca de variável de ambiente nem do host.
+  create-site:
+    <<: *imagem
+    profiles: [inicializacao]
+    restart: "no"
+    entrypoint: [bash, -c]
+    environment:
+      SITE_NAME: ${SITE_NAME:?defina SITE_NAME no .env, por exemplo erp.localhost}
+    command:
+      - |
+        set -eu
+        if [ -f "sites/$$SITE_NAME/site_config.json" ]; then
+          echo "O site $$SITE_NAME já existe; nada a fazer."
+          exit 0
+        fi
+        if [ "$$DB_TIPO" = "postgres" ]; then
+          set -- --db-type postgres --db-root-username postgres
+        else
+          set -- --mariadb-user-host-login-scope=% --db-root-username root
+        fi
+        exec bench new-site "$$SITE_NAME" "$$@" \
+          --admin-password "$$(cat /run/secrets/admin_password)" \
+          --db-root-password "$$(cat /run/secrets/db_password)" \
+          --install-app erpnext --install-app erpnext_brasil --set-default
+    secrets:
+      - db_password
+      - admin_password
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+
+  backend:
+    <<: *base-da-aplicacao
+    environment:
+      GUNICORN_THREADS: ${GUNICORN_THREADS:-4}
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-120}
+      SITE_NAME: ${SITE_NAME:-}
+    healthcheck:
+      # O Python da própria imagem: não se presume `curl`. O cabeçalho Host escolhe o site.
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os,urllib.request as u; r=u.Request('http://127.0.0.1:8000/api/method/ping', headers={'Host': os.environ['SITE_NAME']}); u.urlopen(r, timeout=4)"
+      interval: 15s
+      timeout: 6s
+      retries: 5
+      start_period: 40s
+
+  frontend:
+    <<: *imagem
+    command: [nginx-entrypoint.sh]
+    environment:
+      BACKEND: backend:8000
+      SOCKETIO: websocket:9000
+      NGINX_LISTEN_PORT: 8080
+      FRAPPE_SITE_NAME_HEADER: ${SITE_NAME:-$$host}
+      UPSTREAM_REAL_IP_ADDRESS: ${UPSTREAM_REAL_IP_ADDRESS:-127.0.0.1}
+      UPSTREAM_REAL_IP_HEADER: ${UPSTREAM_REAL_IP_HEADER:-X-Forwarded-For}
+      UPSTREAM_REAL_IP_RECURSIVE: ${UPSTREAM_REAL_IP_RECURSIVE:-off}
+      PROXY_READ_TIMEOUT: ${PROXY_READ_TIMEOUT:-120}
+      CLIENT_MAX_BODY_SIZE: ${CLIENT_MAX_BODY_SIZE:-50m}
+    ports:
+      # Só o computador local por padrão. Expor à rede exige ENDERECO explícito (por exemplo 0.0.0.0).
+      - "${ENDERECO:-127.0.0.1}:${PORTA_WEB:-8080}:8080"
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+    depends_on:
+      backend:
+        condition: service_healthy
+      websocket:
+        condition: service_started
+
+  websocket:
+    <<: [*depende-do-configurador, *imagem]
+    command: [node, /home/frappe/frappe-bench/apps/frappe/socketio.js]
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+
+  queue-short:
+    <<: *base-da-aplicacao
+    command: bench worker --queue short,default
+
+  queue-long:
+    <<: *base-da-aplicacao
+    command: bench worker --queue long,default,short
+
+  scheduler:
+    <<: *base-da-aplicacao
+    command: bench schedule
+
+secrets:
+  db_password:
+    file: ${DB_PASSWORD_ARQUIVO:-./segredos/db_password}
+  admin_password:
+    file: ${ADMIN_PASSWORD_ARQUIVO:-./segredos/admin_password}
+
+volumes:
+  sites:
+  logs:
+  redis-queue-data:

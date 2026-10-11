@@ -65,6 +65,38 @@ class TestCamadaPura(unittest.TestCase):
 		self.assertEqual(violacoes, [], "dependência invertida entre as camadas")
 
 
+PACOTES_PUROS_DAS_FERRAMENTAS = ("persistencia", "sistema", "bancos", "soda", "chantilly")
+"""Regra pura das ferramentas de operação (Cherry, Soda e Chantilly): complementos desktop em Python puro."""
+
+
+class TestPacotesPurosDasFerramentas(unittest.TestCase):
+	"""A regra das ferramentas de operação não conhece o framework, a interface nem a camada de integração.
+
+	Sem `frappe`, sem `tkinter` e sem `integracao/`, a regra roda e é testada em qualquer máquina, com a
+	biblioteca padrão — é o que faz dessas ferramentas complementos desktop em Python puro.
+	"""
+
+	def _pacotes(self):
+		return [RAIZ / nome for nome in PACOTES_PUROS_DAS_FERRAMENTAS if (RAIZ / nome).is_dir()]
+
+	def test_existe_ao_menos_a_persistencia(self):
+		self.assertTrue((RAIZ / "persistencia").is_dir())
+
+	def test_nenhum_importa_frappe_tkinter_nem_integracao(self):
+		proibidos = ("frappe", "tkinter", "erpnext_brasil.integracao")
+		violacoes = [
+			f"{p.relative_to(RAIZ).as_posix()} importa {proibido}"
+			for pacote in self._pacotes()
+			for p in _modulos(pacote)
+			for proibido in proibidos
+			if _importa(p, proibido)
+		]
+
+		self.assertEqual(
+			violacoes, [], "regra pura das ferramentas dependendo de framework, interface ou integração"
+		)
+
+
 class TestSuiteRodaSemBench(unittest.TestCase):
 	def test_nenhum_teste_importa_frappe(self):
 		"""Se um teste precisar de frappe, a suíte deixa de rodar em qualquer máquina."""

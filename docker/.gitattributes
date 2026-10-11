@@ -1,0 +1,2 @@
+# Arquivos de contêiner sempre com LF: um CRLF num script de entrada quebra o contêiner Linux.
+* text eol=lf
