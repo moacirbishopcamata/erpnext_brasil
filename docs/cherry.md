@@ -141,6 +141,17 @@ Fecha os quatro achados de segurança da revisão (CH-01 a CH-04):
 
 Testes: 69 (eram 55); núcleo `config.py` 100%, interface 83%, total 89%. O CI continua rodando só o núcleo (CH-06 segue aberto).
 
+## Versão 0.2.1 — teste de conexão sem travar, e a interface no CI (2026-10-11)
+
+Fecha CH-05 e CH-06 da revisão:
+
+- **O teste de conexão roda numa thread de trabalho.** Antes, `_testar_conexao` esperava a sonda na thread da interface, com `timeout=30` por tentativa: até ~63 s de janela sem responder. Agora o trabalhador só calcula e devolve o resultado por uma fila; quem mexe na tela é sempre a thread da interface, que consulta a fila a cada 100 ms (o tkinter não é seguro entre threads). Medido com uma sonda simulada de 3 s: o clique volta em 0,03 s e a janela atende eventos em 0,02 s.
+- **O botão vira "Parar de esperar"** enquanto o teste roda; um segundo clique (ou Alt+T) descarta o resultado quando chegar. Não mata o processo da sonda: ele termina sozinho pelo `timeout`. Uma exceção inesperada da sonda vira mensagem na tela, não thread morta.
+- **Defeito achado ao escrever o teste:** `_gravar_banco` lia o `common_site_config.json` fora do `try`; com o arquivo ilegível, a falha saía como traceback no console e nenhuma mensagem na tela. Agora vira "não pôde ser lido" e nada é gravado.
+- **A interface entra no CI.** O job `cherry` instala `xvfb` e `python3-tk`, roda os testes com `xvfb-run` e aplica **dois pisos**: 95% no núcleo (`config.py`) e **87% na interface** (`app.py`, medida em 89%; o piso fica dois pontos abaixo para não quebrar por uma linha). Se o display falhar e `test_app.py` pular, `app.py` cai a 0% e o passo falha, em vez de passar em silêncio.
+
+Testes: 77 (eram 69); núcleo 100%, interface 89%, total 92%.
+
 ## Revisão de 2026-10-11
 
 A primeira revisão do Cherry (`0.1.0`) está em [`revisao-do-cherry.md`](revisao-do-cherry.md). Os números deste documento (55 testes; núcleo 100%, interface 83%, total 88%) **conferem** com o código. Achados que mudam o que está dito aqui: a seção "Padrões seguros" não vale para a senha de administrador, que vem pré-preenchida com `admin` (CH-04); a regra de vocabulário "nunca inválido" tem duas exceções em `config.py` (CH-07); e a senha de root da sonda de conexão trafega como argumento de processo (CH-01). A correção está proposta em `openspec/changes/endurecer-segredo-e-escrita-do-cherry`.

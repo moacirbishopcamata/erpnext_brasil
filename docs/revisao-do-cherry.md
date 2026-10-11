@@ -50,7 +50,7 @@ Contagem: 2 Altos, 4 Médios, 3 Baixos (9). Nenhum Crítico. Todos são achados 
 
 ## Correções aplicadas (Cherry `0.2.0`)
 
-CH-01, CH-02, CH-03 e CH-04 corrigidos no código, com teste que **falha no código antigo** (13 falhas e 5 erros em `test_config`) e passa no novo. CH-01 foi medido de ponta a ponta no WSL: a senha chega ao Linux pelo ambiente, não aparece na linha de comando do `wsl.exe` e tem zero ocorrências no `ps`. Ficam abertos CH-05 e CH-06 (sonda em thread e interface no CI) e os Baixos CH-07, CH-08 e CH-09. Detalhes em `docs/cherry.md`, seção "Versão 0.2.0".
+CH-01, CH-02, CH-03 e CH-04 corrigidos no código, com teste que **falha no código antigo** (13 falhas e 5 erros em `test_config`) e passa no novo. CH-01 foi medido de ponta a ponta no WSL: a senha chega ao Linux pelo ambiente, não aparece na linha de comando do `wsl.exe` e tem zero ocorrências no `ps`. CH-05 e CH-06 foram corrigidos na `0.2.1` (sonda em thread de trabalho com "Parar de esperar"; interface no CI com `xvfb` e piso de 87%). Ficam abertos os Baixos CH-07, CH-08 e CH-09. Detalhes em `docs/cherry.md`, seção "Versão 0.2.0".
 
 ## Reconciliação feita
 
