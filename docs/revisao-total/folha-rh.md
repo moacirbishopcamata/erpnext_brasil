@@ -10,7 +10,7 @@ Versão `0.227.0`, 2026-10-11. Cobre a tarefa 3.4 do change `revisao-total-erpne
 
 ## Achados
 
-### RT-01 — a folha calcula INSS e IRRF sempre com a tabela de 2026, qualquer que seja o período do holerite — **Crítico (latente até 01/01/2027)**
+### RT-01 — a folha calcula INSS e IRRF sempre com a tabela de 2026, qualquer que seja o período do holerite — **Crítico (latente até 01/01/2027)** — *corrigido no código na `0.228.0`; falta a tabela de 2027 e a prova em bench*
 
 - `folha/inss.py:54` e `folha/irrf.py:74` definem `ANO_VIGENTE = 2026` e usam como valor padrão do parâmetro `ano` (`inss.py:79`, `irrf.py:118`, `:131`, `:149`, `:163`).
 - `integracao/folha.py:93-94`, a única chamada de produção, faz `calcular_inss(bruto)` e `calcular_irrf(bruto, bruto - inss)` **sem passar o ano**. O ano do holerite (`start_date` ou `end_date` do `Salary Slip`) nunca é lido; `grep` por `ano`, `year`, `start_date`, `end_date` em `integracao/folha.py` não acha nada.

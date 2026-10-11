@@ -43,10 +43,12 @@ class TestFolhaNoBench(FrappeTestCase):
 		if not frappe.db.exists("DocType", "Salary Slip"):
 			raise unittest.SkipTest("hrms não está instalado neste site")
 
-	def _holerite(self, bruto=BRUTO):
+	def _holerite(self, bruto=BRUTO, fim="2026-03-31"):
 		holerite = frappe.new_doc("Salary Slip")
 		holerite.company = "_Empresa Qualquer"
 		holerite.gross_pay = bruto
+		holerite.start_date = fim[:8] + "01"
+		holerite.end_date = fim
 
 		return holerite
 
@@ -90,10 +92,30 @@ class TestFolhaNoBench(FrappeTestCase):
 		self._aplicar(holerite)
 
 		valores = {linha.salary_component: linha.amount for linha in holerite.deductions}
-		inss = calcular_inss(Decimal(BRUTO))
-		irrf = calcular_irrf(Decimal(BRUTO), Decimal(BRUTO) - inss)
+		inss = calcular_inss(Decimal(BRUTO), ano=2026)
+		irrf = calcular_irrf(Decimal(BRUTO), Decimal(BRUTO) - inss, ano=2026)
 
 		self.assertEqual(valores, {"INSS": float(inss), "IRRF": float(irrf)})
+
+	def test_holerite_de_ano_sem_tabela_recusa_em_vez_de_usar_a_de_2026(self):
+		"""RT-01: com o ano padrão das funções puras, a folha de 2027 saía com a tabela de 2026 e sem erro."""
+		holerite = self._holerite(fim="2027-01-31")
+
+		with self.assertRaises(frappe.ValidationError) as contexto:
+			self._aplicar(holerite)
+
+		self.assertIn("2027", str(contexto.exception))
+		self.assertEqual(
+			list(holerite.deductions), [], "recusou, mas deixou deduções calculadas com outro ano"
+		)
+
+	def test_holerite_sem_datas_de_periodo_recusa(self):
+		holerite = self._holerite()
+		holerite.start_date = None
+		holerite.end_date = None
+
+		with self.assertRaises(frappe.ValidationError):
+			self._aplicar(holerite)
 
 	def test_recalcular_nao_duplica_as_linhas(self):
 		holerite = self._holerite()
@@ -113,7 +135,7 @@ class TestFolhaNoBench(FrappeTestCase):
 
 		inss = {linha.salary_component: linha.amount for linha in holerite.deductions}["INSS"]
 
-		self.assertEqual(inss, float(calcular_inss(Decimal(8000))))
+		self.assertEqual(inss, float(calcular_inss(Decimal(8000), ano=2026)))
 
 	def test_outras_deducoes_do_holerite_sao_preservadas(self):
 		holerite = self._holerite()

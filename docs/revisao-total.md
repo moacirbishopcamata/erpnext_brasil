@@ -61,6 +61,12 @@ Cada item é um change OpenSpec separado, em `openspec/changes/`:
 2. **`proteger-gerar-efd`** — RT-02 e RT-03 (permissão nos métodos que leem ou gravam por empresa). Criado.
 3. **Sem change criado, a decidir** — RT-04 (conferir fonte de ICMS/IPI/PIS-COFINS/apuração), RT-05 (parser único de XML), RT-06 (fuso do site nos eventos), RT-07 (ordenação numérica em `auditar_pilha.py`), RT-08 (testes dos nove módulos), RT-16 (job de bench). São Médios; a revisão propõe, não decide a ordem.
 
+## Correções aplicadas (versão `0.228.0`)
+
+- **RT-01 corrigido no código:** `folha/periodo.py` (`ano_do_periodo`) e `integracao/folha.py` passam o ano do período às duas funções; ano sem tabela ou período sem data recusam o holerite. Guarda por `ast` em `tests/test_periodo_folha.py` (falha no código antigo, onde as duas chamadas saíam sem `ano=`). A tabela de 2027 **ainda não existe**: a folha de janeiro de 2027 será recusada até a Portaria de 2027 ser incluída (`corrigir-ano-da-folha`, tarefa 2.1).
+- **RT-02, RT-03 e RT-19 corrigidos no código:** `gerar_efd`, `verificar_prontidao_efd`, `gerar_payload_pix` e as três consultas do navegador de estoque checam permissão antes de ler; `gerar_efd` deixou de gravar com `ignore_permissions`. Trava em `tests/test_whitelist_com_permissao.py` (falha nos seis métodos do código antigo).
+- **Não provado em bench:** os testes de bench novos de `tests_bench/test_folha.py` foram escritos e **não executados**, e não há teste de bench de permissão por método. O bench do WSL2 é um clone do app em outra branch, com alterações locais; não o toquei.
+
 ## Reconciliação feita
 
 `docs/README.md` (três páginas que faltavam e esta revisão), `CLAUDE.md` (descrição do CI), `docs/estado-da-tropicalizacao.md` (aviso de defasagem) e `docs/gaps.md` (nota apontando os achados novos).

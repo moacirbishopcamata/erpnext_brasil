@@ -114,3 +114,7 @@ decididos pelo chamador em vez de inferi-los.
   contradição do limite de isenção quanto como o teste mais forte do módulo
   (5 exemplos completos reproduzidos em `tests/test_irrf.py`). Consultada em
   2026-08-30.
+
+## O ano da tabela vem do período do holerite (0.228.0)
+
+`integracao/folha.py` passa a `calcular_inss` e `calcular_irrf` o ano do **fim** do período do `Salary Slip` (o do início só se o fim faltar), via `folha/periodo.py`. Antes, as duas funções usavam `ANO_VIGENTE` (2026) como padrão e a folha de qualquer período saía com a tabela de 2026, sem erro (RT-01 de `docs/revisao-total/folha-rh.md`). Hoje, holerite de ano sem tabela embutida, ou sem datas de período, é **recusado** com mensagem que diz o ano. A tabela de 2027 só entra quando a Portaria for publicada e conferida na fonte (`openspec/changes/corrigir-ano-da-folha`, tarefa 2.1). Premissa a confirmar: período que cruza a virada vale pelo ano em que termina.

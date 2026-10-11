@@ -95,6 +95,9 @@ def verificar_prontidao_efd(company: str, limite_de_itens: int = 500) -> dict:
 	usuário quer as primeiras pendências rápido, não esperar a base inteira. O retorno
 	diz se houve corte, para não passar a falsa impressão de que o resto está limpo.
 	"""
+	frappe.has_permission("Company", "read", company, throw=True)
+	frappe.has_permission("Item", "read", throw=True)
+
 	dados = (
 		frappe.db.get_value(
 			"Company",

@@ -22,11 +22,11 @@ A trava `tests/test_costura_campos_e_hooks.py` já cobre a costura de campos e h
 
 ## Achados
 
-### RT-02 — `gerar_efd` não checa permissão e grava com `ignore_permissions` — **Alto**
+### RT-02 — `gerar_efd` não checa permissão e grava com `ignore_permissions` — **Alto** — *corrigido na `0.228.0`, sem prova em bench*
 
 `integracao/geracao_efd.py:90-124`. O método é `@frappe.whitelist()`, recebe `company` do cliente, monta os blocos 0, C, E, H e K da empresa e grava um `Arquivo SPED` com `registro.insert(ignore_permissions=True)` (linha 124). Não há `check_permission`, `has_permission` nem `only_for` em todo o método. Qualquer usuário autenticado, mesmo sem papel de contador ou acesso à empresa, pode gerar e gravar a EFD de qualquer empresa. Os métodos irmãos de emissão e evento fazem `check_permission` antes de agir.
 
-### RT-03 — métodos de leitura com `get_all`, `db.get_value` ou SQL cru ignoram permissão — **Médio**
+### RT-03 — métodos de leitura com `get_all`, `db.get_value` ou SQL cru ignoram permissão — **Médio** — *corrigido na `0.228.0`, sem prova em bench*
 
 `frappe.get_all`, `frappe.db.get_value` e `frappe.db.sql` não aplicam as regras de permissão do usuário.
 

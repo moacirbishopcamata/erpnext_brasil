@@ -92,9 +92,14 @@ def gerar_efd(company: str, address: str, data_inicial: str, data_final: str) ->
 	"""Gera o arquivo do período e cria o `Arquivo SPED` correspondente.
 
 	Devolve `{"registro", "linhas", "blocos_ausentes", "aviso"}`. O aviso não é decoração:
-	o arquivo ainda não tem os blocos D/H/K nem os cadastros do Bloco 0, e quem clica
+	o arquivo ainda não tem o Bloco D nem os cadastros do Bloco 0, e quem clica
 	precisa saber disso antes de tentar transmitir.
 	"""
+	# Antes de ler qualquer bloco: o método é whitelisted e `company` vem do cliente. Sem isto, qualquer usuário
+	# autenticado gerava e gravava a EFD de qualquer empresa (RT-02 da revisão total).
+	frappe.has_permission("Company", "read", company, throw=True)
+	frappe.has_permission("Arquivo SPED", "create", throw=True)
+
 	blocos = {
 		"0": _bloco_zero(company, address, data_inicial, data_final),
 		"C": bloco_c_do_periodo(company, data_inicial, data_final),
@@ -121,7 +126,7 @@ def gerar_efd(company: str, address: str, data_inicial: str, data_final: str) ->
 		}
 	)
 	registro.registrar_conteudo(texto)
-	registro.insert(ignore_permissions=True)
+	registro.insert()
 
 	return {
 		"registro": registro.name,
