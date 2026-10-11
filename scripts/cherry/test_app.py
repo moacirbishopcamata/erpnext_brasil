@@ -21,6 +21,7 @@ from pathlib import Path
 from unittest import mock
 
 from scripts.cherry import config as cfg
+from scripts.cherry import perfis as pf
 
 TEM_DISPLAY = sys.platform == "win32" or bool(os.environ.get("DISPLAY"))
 
@@ -360,6 +361,321 @@ class TestCherry(unittest.TestCase):
 		prefs = self.app.PREFERENCIAS.read_text(encoding="utf-8")
 		self.assertNotIn("segredo", prefs)
 		self.assertIn(str(self.raiz).replace("\\", "\\\\"), prefs)
+
+	# ------------------------------------------------------------------ perfis de banco (cherry-perfis-de-banco)
+
+	def _perfis_na_tabela(self):
+		tabela = self.janela.tabela_de_perfis
+
+		return {iid: tabela.item(iid, "values") for iid in tabela.get_children()}
+
+	def _selecionar_perfil(self, nome):
+		self.janela.tabela_de_perfis.selection_set(nome)
+		self.janela.update()
+
+	def _registrar_instancia_do_soda(self, perfil, estado, descritivo="Homologação"):
+		from erpnext_brasil.soda import configuracao as soda_configuracao
+		from erpnext_brasil.soda.modelo import Estado
+
+		pasta = soda_configuracao.pasta_do_soda(self.bench.sites)
+		pasta.mkdir(parents=True, exist_ok=True)
+		registro = soda_configuracao.abrir_registro(pasta, livre=lambda porta: True)
+		instancia = registro.criar(descritivo, perfil_de_banco=perfil, tipo_de_banco="mariadb")
+		registro.mudar_estado(instancia.uuid, Estado.PARADA)
+		registro.mudar_estado(instancia.uuid, Estado.SUBINDO)
+
+		if estado == "no_ar":
+			registro.mudar_estado(instancia.uuid, Estado.NO_AR)
+
+		return instancia
+
+	def _criar_perfil_pela_tela(
+		self, nome, tipo="postgres", host="db.local", porta="5433", usuario="postgres"
+	):
+		self.janela._novo_perfil()
+		self.janela.nome_do_perfil.set(nome)
+		self.janela.tipo.set(tipo)
+		self.janela.host.set(host)
+		self.janela.porta.set(porta)
+		self.janela.usuario_root.set(usuario)
+
+		return self.janela._salvar_perfil()
+
+	def test_bench_existente_aparece_como_o_perfil_padrao(self):
+		self.janela.update()
+		self.assertEqual(list(self._perfis_na_tabela()), ["padrao"])
+		self.assertEqual(self._perfis_na_tabela()["padrao"][1], "✓")
+		self.assertEqual(self.janela.nome_do_perfil.get(), "padrao")
+		self.assertFalse(self.janela.aviso_sem_perfis.winfo_manager(), "com perfil, o aviso de vazio some")
+
+	def test_estado_vazio_orienta_o_usuario(self):
+		with tempfile.TemporaryDirectory() as raiz:
+			(Path(raiz) / "sites").mkdir()
+			self.janela._carregar_bench(cfg.Bench(Path(raiz)))
+			self.assertEqual(self._perfis_na_tabela(), {})
+			self.assertIn("Nenhum perfil ainda", self.janela.aviso_sem_perfis.cget("text"))
+			self.assertTrue(self.janela.aviso_sem_perfis.winfo_manager())
+
+	def test_salvar_um_perfil_novo_confirma_visualmente_e_lista(self):
+		self.assertTrue(self._criar_perfil_pela_tela("pg"))
+
+		self.assertEqual(set(self._perfis_na_tabela()), {"padrao", "pg"})
+		self.assertEqual(self._perfis_na_tabela()["pg"][0], "PostgreSQL db.local:5433")
+		self.assertEqual(self._perfis_na_tabela()["pg"][1], "", "o padrão continua sendo o outro")
+		self.assertEqual(self.janela.marca.get(), "✓ perfil salvo")
+		relido = json.loads(self.bench.common_config.read_text(encoding="utf-8"))
+		self.assertEqual(relido["db_type"], "mariadb", "salvar não troca o padrão")
+
+	def test_o_mesmo_nome_com_outra_caixa_edita_o_perfil_existente_em_vez_de_duplicar(self):
+		self.assertTrue(self._criar_perfil_pela_tela("PADRAO", "mariadb", "outro.local", "3307", "root"))
+
+		self.assertEqual(list(self._perfis_na_tabela()), ["padrao"])
+		self.assertEqual(self._perfis_na_tabela()["padrao"][0], "MariaDB outro.local:3307")
+		self.assertEqual(self.janela.nome_do_perfil.get(), "padrao")
+
+	def test_nome_com_caracter_invalido_e_um_problema_antes_de_gravar(self):
+		with mock.patch.object(self.app.messagebox, "showerror") as problema:
+			self.assertFalse(self._criar_perfil_pela_tela("meu perfil"))
+
+		problema.assert_called_once()
+		self.assertEqual(set(self._perfis_na_tabela()), {"padrao"})
+
+	def test_selecionar_um_perfil_preenche_o_formulario_e_limpa_a_senha(self):
+		self._criar_perfil_pela_tela("pg")
+		self.janela.senha_root.set("digitada")
+
+		self._selecionar_perfil("padrao")
+		self.assertEqual((self.janela.tipo.get(), self.janela.host.get()), ("mariadb", "127.0.0.1"))
+		self._selecionar_perfil("pg")
+
+		self.assertEqual(
+			(
+				self.janela.tipo.get(),
+				self.janela.host.get(),
+				self.janela.porta.get(),
+				self.janela.usuario_root.get(),
+			),
+			("postgres", "db.local", "5433", "postgres"),
+		)
+		self.assertEqual(self.janela.nome_do_perfil.get(), "pg")
+		self.assertEqual(self.janela.senha_root.get(), "", "a senha não é do perfil")
+
+	def test_tornar_padrao_grava_no_common_site_config_sem_pisar_o_resto(self):
+		self._criar_perfil_pela_tela("pg")
+		self._selecionar_perfil("pg")
+
+		self.janela._tornar_perfil_padrao()
+
+		relido = json.loads(self.bench.common_config.read_text(encoding="utf-8"))
+		self.assertEqual(
+			(relido["db_type"], relido["db_host"], relido["db_port"]), ("postgres", "db.local", 5433)
+		)
+		self.assertEqual(relido["redis_cache"], "redis://127.0.0.1:13001")
+		self.assertEqual(self._perfis_na_tabela()["pg"][1], "✓")
+		self.assertEqual(self._perfis_na_tabela()["padrao"][1], "")
+		self.assertEqual(self.janela.marca.get(), "✓ padrão")
+
+	def test_tornar_padrao_com_instancia_no_ar_avisa_o_alcance_e_respeita_a_recusa(self):
+		self._criar_perfil_pela_tela("pg")
+		instancia = self._registrar_instancia_do_soda("padrao", "no_ar")
+		self._selecionar_perfil("pg")
+
+		with mock.patch.object(self.app.messagebox, "askyesno", return_value=False) as pergunta:
+			self.janela._tornar_perfil_padrao()
+
+		pergunta.assert_called_once()
+		self.assertIn(f"Homologação ({instancia.abreviado})", pergunta.call_args.args[1])
+		relido = json.loads(self.bench.common_config.read_text(encoding="utf-8"))
+		self.assertEqual(relido["db_type"], "mariadb", "recusou: nada mudou")
+
+		with mock.patch.object(self.app.messagebox, "askyesno", return_value=True):
+			self.janela._tornar_perfil_padrao()
+
+		self.assertEqual(
+			json.loads(self.bench.common_config.read_text(encoding="utf-8"))["db_type"], "postgres"
+		)
+
+	def test_tornar_padrao_sem_instancia_no_ar_nao_pergunta(self):
+		self._criar_perfil_pela_tela("pg")
+		self._selecionar_perfil("pg")
+
+		with mock.patch.object(self.app.messagebox, "askyesno") as pergunta:
+			self.janela._tornar_perfil_padrao()
+
+		pergunta.assert_not_called()
+
+	def test_remover_perfil_em_uso_e_recusado_e_lista_as_instancias(self):
+		self._criar_perfil_pela_tela("pg")
+		instancia = self._registrar_instancia_do_soda("pg", "parada", "Treino")
+		self._selecionar_perfil("pg")
+
+		with (
+			mock.patch.object(self.app.messagebox, "askyesno", return_value=True),
+			mock.patch.object(self.app.messagebox, "showerror") as problema,
+		):
+			self.janela._remover_perfil()
+
+		problema.assert_called_once()
+		self.assertIn(f"Treino ({instancia.abreviado})", problema.call_args.args[1])
+		self.assertIn("pg", self._perfis_na_tabela())
+
+	def test_remover_o_padrao_com_outros_perfis_e_recusado(self):
+		self._criar_perfil_pela_tela("pg")
+		self._selecionar_perfil("padrao")
+
+		with (
+			mock.patch.object(self.app.messagebox, "askyesno", return_value=True),
+			mock.patch.object(self.app.messagebox, "showerror") as problema,
+		):
+			self.janela._remover_perfil()
+
+		self.assertIn("é o padrão", problema.call_args.args[1])
+
+	def test_remover_um_perfil_comum_confirma_e_some_da_lista(self):
+		self._criar_perfil_pela_tela("pg")
+		self._selecionar_perfil("pg")
+
+		with mock.patch.object(self.app.messagebox, "askyesno", return_value=True):
+			self.janela._remover_perfil()
+
+		self.assertEqual(set(self._perfis_na_tabela()), {"padrao"})
+		self.assertEqual(self.janela.marca.get(), "✓ removido")
+
+	def test_remover_pedindo_confirmacao_e_recusando_nao_remove(self):
+		self._criar_perfil_pela_tela("pg")
+		self._selecionar_perfil("pg")
+
+		with mock.patch.object(self.app.messagebox, "askyesno", return_value=False):
+			self.janela._remover_perfil()
+
+		self.assertIn("pg", self._perfis_na_tabela())
+
+	def test_acoes_sem_perfil_selecionado_explicam_o_que_fazer(self):
+		self.janela._novo_perfil()
+
+		for acao in (self.janela._tornar_perfil_padrao, self.janela._remover_perfil):
+			with mock.patch.object(self.app.messagebox, "showerror") as problema:
+				acao()
+
+			problema.assert_called_once()
+			self.assertIn("escolha um perfil", problema.call_args.args[1])
+
+	def test_o_teste_de_conexao_guarda_o_resultado_no_perfil_sem_a_senha(self):
+		self._selecionar_perfil("padrao")
+		self.janela.senha_root.set("s3nh4-do-teste")
+		resultado = self.app.cfg.ResultadoConexao(True, "autenticacao", "OK MariaDB")
+
+		with mock.patch.object(self.app.cfg, "testar_conexao", return_value=resultado):
+			self.janela._testar_conexao()
+			self._esperar_fim_do_teste()
+
+		self.assertIn("autenticacao", self._perfis_na_tabela()["padrao"][2])
+		self.assertIn("✓", self._perfis_na_tabela()["padrao"][2])
+
+		for arquivo in self.raiz.rglob("*"):
+			if arquivo.is_file():
+				self.assertNotIn(b"s3nh4-do-teste", arquivo.read_bytes(), arquivo.name)
+
+	def test_teste_sem_perfil_salvo_com_esse_nome_nao_registra_nada(self):
+		self.janela._novo_perfil()
+		resultado = self.app.cfg.ResultadoConexao(False, "tcp", "nada responde")
+
+		with (
+			mock.patch.object(self.app.cfg, "testar_conexao", return_value=resultado),
+			mock.patch.object(self.app.messagebox, "showwarning"),
+		):
+			self.janela._testar_conexao()
+			self._esperar_fim_do_teste()
+
+		self.assertEqual(self.janela.perfis.obter("padrao").ultimo_teste, None)
+
+	def test_new_site_usa_o_perfil_escolhido(self):
+		self._criar_perfil_pela_tela("pg")
+		self._selecionar_perfil("pg")
+		self.janela.site_novo.set("novo.localhost")
+
+		self.janela._copiar_new_site()
+
+		comando = self.janela.texto_comando.get("1.0", "end")
+		self.assertIn("--db-type postgres", comando)
+		self.assertIn("--db-host db.local", comando)
+		self.assertIn("--db-port 5433", comando)
+		self.assertIn("--db-root-username postgres", comando)
+
+	def test_gravar_no_bench_salva_o_perfil_torna_padrao_e_so_grava_a_senha_digitada(self):
+		self.janela.nome_do_perfil.set("padrao")
+		self.janela.senha_root.set("")
+		self.janela._gravar_banco()
+		self.assertNotIn("root_password", json.loads(self.bench.common_config.read_text(encoding="utf-8")))
+
+		self.janela.senha_root.set("digitada-agora")
+		self.janela._gravar_banco()
+		self.assertEqual(
+			json.loads(self.bench.common_config.read_text(encoding="utf-8"))["root_password"],
+			"digitada-agora",
+		)
+
+	def test_gravar_no_bench_sem_nome_cria_o_perfil_padrao(self):
+		with tempfile.TemporaryDirectory() as raiz:
+			(Path(raiz) / "sites").mkdir()
+			bench = cfg.Bench(Path(raiz))
+			self.janela._carregar_bench(bench)
+			self.janela.nome_do_perfil.set("")
+			self.janela.tipo.set("postgres")
+			self.janela._ao_trocar_tipo()
+			self.janela._gravar_banco()
+
+			self.assertEqual(set(self._perfis_na_tabela()), {"padrao"})
+			self.assertEqual(
+				json.loads(bench.common_config.read_text(encoding="utf-8"))["db_type"], "postgres"
+			)
+
+	def test_gravar_no_bench_para_outro_perfil_avisa_o_alcance(self):
+		self._criar_perfil_pela_tela("pg")
+		self._registrar_instancia_do_soda("padrao", "no_ar")
+		self.janela.nome_do_perfil.set("pg")
+
+		with mock.patch.object(self.app.messagebox, "askyesno", return_value=False) as pergunta:
+			self.janela._gravar_banco()
+
+		pergunta.assert_called_once()
+		self.assertEqual(
+			json.loads(self.bench.common_config.read_text(encoding="utf-8"))["db_type"], "mariadb"
+		)
+
+	def test_perfis_ilegiveis_mostram_o_problema_e_nao_travam_a_janela(self):
+		pasta = pf.pasta_dos_perfis(self.bench)
+		pasta.mkdir(parents=True, exist_ok=True)
+		(pasta / "perfis-de-banco.json").write_text("{ não é json", encoding="utf-8")
+
+		with mock.patch.object(self.app.messagebox, "showerror") as problema:
+			self.janela._abrir_perfis()
+
+		problema.assert_called()
+		self.assertIsNone(self.janela.perfis)
+		self.assertEqual(self._perfis_na_tabela(), {})
+
+	def test_salvar_perfil_sem_bench_manda_para_a_primeira_aba(self):
+		self.janela.bench = None
+
+		with mock.patch.object(self.app.messagebox, "showerror"):
+			self.assertFalse(self.janela._salvar_perfil())
+
+		self.assertEqual(self.janela.abas.index(self.janela.abas.select()), 0)
+
+	def test_perfil_com_porta_ilegivel_e_um_problema(self):
+		self.janela.porta.set("abc")
+
+		with mock.patch.object(self.app.messagebox, "showerror") as problema:
+			self.assertFalse(self.janela._salvar_perfil())
+
+		problema.assert_called_once()
+
+	def test_selecionar_o_mesmo_perfil_de_novo_nao_apaga_o_que_o_usuario_digitou(self):
+		self._selecionar_perfil("padrao")
+		self.janela.senha_root.set("em-edicao")
+		self.janela._ao_selecionar_perfil()
+		self.assertEqual(self.janela.senha_root.get(), "em-edicao")
 
 
 if __name__ == "__main__":

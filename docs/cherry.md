@@ -152,11 +152,28 @@ Fecha CH-05 e CH-06 da revisão:
 
 Testes: 77 (eram 69); núcleo 100%, interface 89%, total 92%.
 
+## Versão 0.4.0 — perfis de banco de dados (2026-10-11)
+
+Por decisão do dono do projeto, **a escolha do banco é do Cherry** (mudança `cherry-perfis-de-banco`). A aba **Banco de dados** ganhou uma lista de **perfis**: configurações nomeadas de servidor (MariaDB ou PostgreSQL; host, porta, usuário administrador).
+
+- **Regra pura em `erpnext_brasil/bancos/`** (sem `frappe` nem `tkinter`, cobertura 100%): `PerfilDeBanco` imutável **sem campo de senha**; `PerfisDeBanco` (o único escritor) com nome único sem diferença de maiúsculas, **exatamente um padrão**, remoção do padrão recusada enquanto houver outros perfis, e perfil em uso por instância do Soda **sem remover nem trocar tipo, servidor ou porta** (a recusa lista as instâncias por descritivo e UUID abreviado); `LeitorDePerfis` somente leitura para o Soda e o Chantilly (sem método de escrita, sem trava, tolera campo novo e esquema mais novo). Os perfis moram na porta de persistência, nos três formatos, com a mesma bateria de testes.
+- **Costura em `scripts/cherry/perfis.py`:** os perfis ficam em `sites/cherry/perfis-de-banco.json`; o **padrão** vai ao `common_site_config.json` (`db_type`, `db_host`, `db_port`, `root_login`), de modo que o `bench new-site` puro continua funcionando — **nunca `root_password`**, que só é gravada quando o usuário a digita e manda gravar, como sempre foi.
+- **Um bench existente vira o perfil `padrao`** na primeira abertura, sem alterar o `common_site_config.json` (conferido byte a byte).
+- **Teste de conexão por perfil:** a senha é informada na hora, vai à sonda pelo ambiente (nunca por argumento) e o perfil guarda **só data, nível e resultado**. Os testes varrem todos os arquivos do bench em busca da senha e não a encontram.
+- **A interface:** lista de perfis com o padrão marcado (✓) e o último teste; formulário com as restrições do nome à vista; Novo, Salvar, Tornar padrão e Remover; estado vazio com instrução; "✓ perfil salvo", "✓ padrão" e "✓ removido" na barra de estado. **Selecionar um perfil preenche o formulário e limpa a senha** (a senha não é do perfil). "Gravar no bench" agora salva o perfil, o torna padrão e grava a senha só se digitada.
+- **Aviso de alcance:** trocar o padrão com **instâncias do Soda no ar ou subindo** mostra quais são e avisa que elas continuam no banco em que nasceram; só sites novos usam o novo padrão.
+- **`bench new-site` do perfil escolhido:** o comando gerado usa o tipo, o host, a porta e o usuário do perfil selecionado.
+- **Achado ao escrever o teste:** digitar o nome de um perfil existente com outra caixa (`PADRAO` para `padrao`) quebrava a seleção da lista; agora edita o perfil existente em vez de duplicar.
+
+Ainda não feito nesta versão: a opção de **SQLite** para os perfis nas preferências (mudança `persistencia-sqlite-opcional`; os adaptadores existem, falta ligá-los ao Cherry), o gate de resiliência e segurança (4.4 da mudança) e a captura de tela da aba.
+
+Testes: 124 (eram 77); `config.py` e `perfis.py` a 100%, interface 91% (piso do CI subiu de 87% para 89%).
+
 ## Revisão de 2026-10-11
 
 A primeira revisão do Cherry (`0.1.0`) está em [`revisao-do-cherry.md`](revisao-do-cherry.md). Os números deste documento (55 testes; núcleo 100%, interface 83%, total 88%) **conferem** com o código. Achados que mudam o que está dito aqui: a seção "Padrões seguros" não vale para a senha de administrador, que vem pré-preenchida com `admin` (CH-04); a regra de vocabulário "nunca inválido" tem duas exceções em `config.py` (CH-07); e a senha de root da sonda de conexão trafega como argumento de processo (CH-01). A correção está proposta em `openspec/changes/endurecer-segredo-e-escrita-do-cherry`.
 
-## Evolução planejada (propostas de 2026-10-11, nada implementado)
+## Evolução planejada (propostas de 2026-10-11)
 
 O Cherry passa a conviver com duas ferramentas irmãs, descritas em [`ferramentas-de-operacao.md`](ferramentas-de-operacao.md):
 
@@ -166,8 +183,8 @@ O Cherry passa a conviver com duas ferramentas irmãs, descritas em [`ferramenta
 Mudanças que tocam o Cherry:
 
 - **`cherry-instancias-por-uuid`:** o Cherry identifica cada instância pelo **UUID com o descritivo único**, lidos do contrato de identidade do Soda (somente leitura). A aba Sites passa a mostrar descritivo, UUID abreviado, porta e estado; as chaves `soda_instance_id` e `soda_descritivo` nunca são alteradas pelo Cherry; as abas de configuração **comum** (banco, portas, Redis, `default_site`, `apps.txt`) avisam que a alteração vale para todas as instâncias; o formulário de portas recusa portas alocadas a instâncias; o `bench new-site` gerado avisa que um site criado fora do Soda não terá identidade. Sem o Soda, o Cherry funciona como hoje. Versão prevista: `0.3.0`.
-- **`cherry-perfis-de-banco`:** a escolha do banco é do Cherry. Ele passa a manter **perfis de banco** nomeados (MariaDB e/ou PostgreSQL; host, porta, usuário; **nunca senha**), com exatamente um padrão, gravado no `common_site_config.json` para o `bench new-site` puro continuar funcionando. O teste de conexão vale por perfil; os perfis são publicados somente para leitura ao Soda e ao Chantilly; um perfil em uso por instância não é removido. Um bench existente vira o perfil padrão sem perder nada. Versão prevista: `0.4.0`.
+- **`cherry-perfis-de-banco`** *(implementado na `0.4.0`, ver acima)*: a escolha do banco é do Cherry. Ele passa a manter **perfis de banco** nomeados (MariaDB e/ou PostgreSQL; host, porta, usuário; **nunca senha**), com exatamente um padrão, gravado no `common_site_config.json` para o `bench new-site` puro continuar funcionando. O teste de conexão vale por perfil; os perfis são publicados somente para leitura ao Soda e ao Chantilly; um perfil em uso por instância não é removido. Um bench existente vira o perfil padrão sem perder nada. Versão prevista: `0.4.0`.
 - **Docker:** a configuração em `docker/` ([`docker.md`](docker.md)) não substitui o Cherry; ela segue a escolha de banco que o Cherry mantém (o Compose combina o override de MariaDB ou de PostgreSQL). Editar o `docker-compose.yml` continua fora do que o Cherry faz hoje.
 - **`persistencia-sqlite-opcional`:** as preferências (`~/.cherry.json`) ganham SQLite como opção de persistência, ao lado do JSON, com migração sem perda e a mesma suíte de contrato nos dois formatos. Senha continua sem ser persistida em nenhum formato.
 
-Os pisos de cobertura continuam valendo (95% no núcleo, 87% na interface).
+Os pisos de cobertura continuam valendo (95% no núcleo, 89% na interface desde a `0.4.0`).
