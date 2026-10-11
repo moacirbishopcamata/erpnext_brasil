@@ -63,7 +63,9 @@ quando a fonte é secundária.
 | Pix (payload BR Code, `Company.chave_pix`) | pronto |
 | **RH/folha**: eSocial (S-1010/S-1200/S-1299/S-2200/S-2299), INSS, FGTS, IRRF | pronto |
 | **PostgreSQL** como banco do bench (Frappe experimental, ERPNext não oficial) | provado em site real — 2 patches ao Frappe em `contrib/frappe/`, ver `docs/postgresql.md` |
-| **Cherry** — configuração do bench por tela (`scripts/cherry/`, MIT) | v0.1.0 — banco, portas/Redis, sites, `apps.txt`; ver `docs/cherry.md` |
+| **Cherry** — configuração do bench por tela (`scripts/cherry/`, MIT) | v0.2.1 — banco, portas/Redis, sites, `apps.txt`; ver `docs/cherry.md` |
+| **Soda** — várias instâncias do ERP em portas diferentes, cada uma com UUID único | núcleo puro pronto (`erpnext_brasil/soda/`); ciclo de vida e interface em proposta; ver `docs/soda.md` |
+| **Chantilly** — monitor de RAM, CPU e armazenamento em segundo plano, com parar/iniciar o ERP | proposta (OpenSpec), sem código; ver `docs/chantilly.md` |
 | Transmissão real ao SEFAZ (certificado A1 de verdade) | bloqueado — sem certificado/homologação disponível para testar |
 | NFS-e, modais aéreo/aquaviário/ferroviário de CT-e/MDF-e | não iniciado |
 
@@ -488,6 +490,21 @@ devolver ao projeto) e um contorno no `install.py`. Tudo em [`docs/postgresql.md
 
 A configuração do bench — banco, portas, Redis, sites, `apps.txt` — tem uma tela: o
 [Cherry](docs/cherry.md) (`python scripts/cherry/cherry.py`, só tkinter, licença MIT).
+
+### Ferramentas de operação: Cherry, Soda e Chantilly
+
+Três complementos **desktop, em Python puro** (só biblioteca padrão), para gerenciar melhor o ERP num bench de
+desenvolvimento, nos mesmos moldes de interface e funcionando em Windows (com WSL2) e Linux:
+
+| Ferramenta | Para que serve | Estado |
+|---|---|---|
+| [Cherry](docs/cherry.md) | configura o bench: banco (MariaDB e/ou PostgreSQL), portas, Redis, sites, `apps.txt` | existe (`0.2.1`) |
+| [Soda](docs/soda.md) | cria e opera várias instâncias do ERP em portas diferentes, cada uma com **UUID único e descritivo único** | núcleo puro pronto; ciclo de vida e interface em proposta |
+| [Chantilly](docs/chantilly.md) | monitora consumo e desempenho (RAM, CPU, armazenamento, gráficos de calor e falhas) e para/inicia o ERP com elegância | proposta |
+
+O Soda é o único escritor da identidade das instâncias; Cherry e Chantilly só leem. A persistência de cada uma é
+JSON ou SQLite, à escolha. Visão conjunta: [`docs/ferramentas-de-operacao.md`](docs/ferramentas-de-operacao.md);
+configuração Docker para portabilidade: [`docs/docker.md`](docs/docker.md).
 
 ## Dependências
 
