@@ -1,11 +1,11 @@
 ## 1. Fundação: verificar as premissas e montar o núcleo puro
 
 - [ ] 1.1 Verificar na prática, num par de sites descartáveis, as premissas do design: (a) entrar em duas instâncias no mesmo navegador sem derrubar a sessão uma da outra; (b) resolução de `*.localhost` pelo navegador e por ferramentas fora dele; (c) cache e Redis isolados por site; (d) socket.io servindo as duas — verificar com a tabela de resultados em `docs/soda.md`, dizendo o que falhou, e rever o design se (a) ou (b) falharem.
-- [ ] 1.2 Criar `erpnext_brasil/soda/` (sem `frappe`) com UUID versão 4, descritivo único (unicidade sem caixa nem acento, 3 a 60 caracteres), sua normalização e o nome de host — verificar com testes de borda (acento, símbolo, descritivo vazio, descritivo enorme, hífens repetidos, descritivos que só diferem por caixa ou acento) e com um teste que prova que o nome do host nunca colide entre dois UUIDs distintos.
-- [ ] 1.3 Alocador de portas puro, com faixa, reservadas, portas já registradas e uma função "está livre" injetável — verificar com testes dos cenários da spec `identidade-e-portas` (menor livre, escolhida ocupada, reservada, faixa esgotada).
-- [ ] 1.4 Modelo do registro (instâncias, aposentados, estados) e a conciliação de estado a partir de fatos injetados (processo existe, porta em escuta, site presente) — verificar com os cenários "caiu", "órfão", "criação interrompida" e "no ar".
+- [x] 1.2 Criar `erpnext_brasil/soda/` (sem `frappe`) com UUID versão 4, descritivo único (unicidade sem caixa nem acento, 3 a 60 caracteres), sua normalização e o nome de host — verificar com testes de borda (acento, símbolo, descritivo vazio, descritivo enorme, hífens repetidos, descritivos que só diferem por caixa ou acento) e com um teste que prova que o nome do host nunca colide entre dois UUIDs distintos.
+- [x] 1.3 Alocador de portas puro, com faixa, reservadas, portas já registradas e uma função "está livre" injetável — verificar com testes dos cenários da spec `identidade-e-portas` (menor livre, escolhida ocupada, reservada, faixa esgotada).
+- [x] 1.4 Modelo do registro (instâncias, aposentados, estados) e a conciliação de estado a partir de fatos injetados (processo existe, porta em escuta, site presente) — verificar com os cenários "caiu", "órfão", "criação interrompida" e "no ar".
 - [ ] 1.5 Estender `tests/test_arquitetura.py` para vigiar o pacote novo (não importa `frappe` nem `integracao/`) — verificar acrescentando um import proibido e vendo o teste falhar.
-- [ ] 1.6 Plano de criação e de remoção como listas de etapas puras, com o desfazer de cada etapa — verificar com testes que simulam falha em cada etapa e conferem que o desfazer desfaz só o que foi feito.
+- [x] 1.6 Plano de criação e de remoção como listas de etapas puras, com o desfazer de cada etapa — verificar com testes que simulam falha em cada etapa e conferem que o desfazer desfaz só o que foi feito.
 
 ## 2. Registro atômico e trava
 
@@ -35,12 +35,12 @@
 
 ## 5. Contrato de identidade para o Cherry e o Chantilly
 
-- [ ] 5.1 `erpnext_brasil/soda/leitura.py`: leitor puro e somente leitura do registro (identificar por UUID, por descritivo, por nome de site; listar removidas), tolerante a campos desconhecidos e a versão de esquema maior — verificar com os cenários da spec `contrato-de-identidade` como testes, inclusive o registro corrompido e a versão futura.
+- [x] 5.1 `erpnext_brasil/soda/leitura.py`: leitor puro e somente leitura do registro (identificar por UUID, por descritivo, por nome de site; listar removidas), tolerante a campos desconhecidos e a versão de esquema maior — verificar com os cenários da spec `contrato-de-identidade` como testes, inclusive o registro corrompido e a versão futura.
 - [ ] 5.2 Escrever `versao_esquema` no registro e `soda_instance_id` e `soda_descritivo` no `site_config` de cada instância, e propagar o descritivo renomeado — verificar relendo o `site_config` por outro caminho depois de criar e de renomear.
 - [ ] 5.3 Teste de compatibilidade: um leitor da versão 1 lê um registro da versão 1 acrescido de campo novo, e recusa gravar quando a versão for maior — verificar com os dois arquivos de exemplo versionados em `tests/`.
 - [ ] 5.4 O leitor não toma a trava de escrita e nunca vê arquivo pela metade — verificar com o Soda gravando em laço enquanto um leitor lê mil vezes, sem nenhuma leitura inválida.
 - [ ] 5.5 Teste cruzado: o Cherry e o Chantilly identificam as mesmas instâncias, com o mesmo UUID e o mesmo descritivo, a partir do mesmo registro — verificar com um registro de exemplo lido pelos dois (após as mudanças `cherry-instancias-por-uuid` e `chantilly-monitor-de-recursos` existirem).
-- [ ] 5.6 Persistência selecionável do registro: adaptadores JSON e SQLite atrás da mesma porta, migração nos dois sentidos com cópia do formato anterior (mudança `persistencia-sqlite-opcional`) — verificar com a suíte de contrato rodando contra os dois adaptadores e com a migração falhando no meio sem perder o original.
+- [x] 5.6 Persistência selecionável do registro: adaptadores JSON e SQLite atrás da mesma porta, migração nos dois sentidos com cópia do formato anterior (mudança `persistencia-sqlite-opcional`) — verificar com a suíte de contrato rodando contra os dois adaptadores e com a migração falhando no meio sem perder o original.
 
 ## 6. Comandos de terminal
 

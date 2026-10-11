@@ -13,6 +13,7 @@ vem da trava em arquivo (`<arquivo>.trava`) e da troca atômica do arquivo.
 """
 
 import json
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -43,12 +44,27 @@ class RepositorioJson:
 
 	# ------------------------------------------------------------------ leitura do arquivo
 
+	def _texto(self, tentativas: int = 60) -> str:
+		"""Lê o arquivo com nova tentativa: no Windows, ler enquanto o escritor troca o arquivo (`os.replace`)
+		falha com `PermissionError`, e o arquivo some por um instante. Com a troca atômica, a espera curta basta
+		para ver o último estado consistente (medido: leitor contra escritor na suíte do Soda)."""
+		for tentativa in range(tentativas):
+			try:
+				return self.caminho.read_text(encoding="utf-8")
+			except (PermissionError, FileNotFoundError):
+				if tentativa == tentativas - 1:
+					raise
+
+				time.sleep(0.01)
+
+		raise AssertionError("inalcançável")  # pragma: no cover
+
 	def _ler(self) -> tuple[int, dict[str, dict[str, Documento]]]:
 		if not self.caminho.exists():
 			return ESQUEMA_ATUAL, {}
 
 		try:
-			bruto = json.loads(self.caminho.read_text(encoding="utf-8"))
+			bruto = json.loads(self._texto())
 		except (OSError, ValueError) as erro:
 			raise ArquivoIlegivel(self.caminho, str(erro)) from erro
 
