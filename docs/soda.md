@@ -1,6 +1,6 @@
 # Soda: várias instâncias do ERPNext Brasil, cada uma em portas diferentes
 
-> **Estado: proposta (2026-10-11). Nada foi implementado.** Mudança OpenSpec `soda-instancias-do-erp`: proposta, 4 specs, design e 34 tarefas. Este documento descreve o que o Soda será; ele será revisto quando houver código. Visão conjunta das ferramentas: [`ferramentas-de-operacao.md`](ferramentas-de-operacao.md).
+> **Estado (2026-10-11): o núcleo puro está implementado e mesclado (PR #22); ciclo de vida, interface e CLI ainda são proposta.** Mudança OpenSpec `soda-instancias-do-erp`: proposta, 4 specs, design e 34 tarefas, das quais 1.2, 1.3, 1.4, 1.6, 5.1 e 5.6 estão feitas. O que não está na seção "Núcleo implementado" abaixo descreve o que o Soda será. Visão conjunta das ferramentas: [`ferramentas-de-operacao.md`](ferramentas-de-operacao.md).
 
 Pedido do usuário em 2026-10-11: *"um aplicativo para iniciar várias instâncias em portas diferentes para o ERPNext Brasil com um ID UUID único, estilo Cherry, com nome Soda"*. Depois: *o Cherry e o Chantilly irão identificar cada instância pelo ID UUID com um descritivo único*.
 
@@ -49,9 +49,29 @@ Senhas **nunca em argumento de processo** (ambiente e `WSLENV`, como no Cherry `
 
 Registro em JSON (padrão) ou SQLite, à escolha, com migração sem perda e UUIDs aposentados preservados. Ver `persistencia-sqlite-opcional`.
 
+## Núcleo implementado
+
+Pacote `erpnext_brasil/soda/` (mais `erpnext_brasil/sistema/rede.py`): regra pura, **sem `frappe`, `tkinter` nem `integracao/`** (vigiado por `tests/test_arquitetura.py`). Cobertura de linhas e ramos: **100%**. Testes: `test_soda_identidade_e_portas.py`, `test_soda_modelo_e_registro.py` (a mesma bateria contra memória, JSON e SQLite, com concorrência e leitura por um segundo registro) e `test_soda_operacao_e_leitura.py`.
+
+| Módulo | O que faz | Contratos principais |
+|---|---|---|
+| `identidade` | UUID v4, descritivo único (3 a 60 caracteres; unicidade sem caixa nem acento), nome de host `descritivo-xxxxxxxx.localhost`, UUID abreviado (8 hex) | pré: descritivo e UUID válidos (recusa com erro claro); pós: o host nunca colide entre dois UUIDs; UUID já usado ou aposentado nunca é sorteado de novo |
+| `portas` | faixa 8100–8999, portas reservadas (3306, 5432, 6379, 8001, 9001, 6788, 8080, 11000–13999 e outras), menor livre ou porta escolhida | pré: porta escolhida fora das reservadas, do registro e dos programas do sistema; pós: nenhuma porta repetida; faixa esgotada falha alto |
+| `modelo` | `Instancia` e `Aposentada` imutáveis, `Estado` e as tabelas de transição (ações do usuário × constatações da conciliação) | invariante: documento malformado é recusado (`DocumentoInvalido`); campo desconhecido é ignorado; aplicativos sempre incluem `erpnext` e `erpnext_brasil` |
+| `registro` | criar, renomear, mudar estado, aposentar, descartar criação, consultas, limite de instâncias no ar | pós: o que um registro grava, outro relê; transição inválida recusada; instância subindo, no ar ou criando não se remove; registro de esquema mais novo é lido, nunca gravado (`RegistroMaisNovo`) |
+| `conciliacao` | estado verdadeiro a partir de fatos observados; órfãos na faixa do Soda | fail-closed: fato desconhecido (`None`) mantém o estado e marca `incerto`; nunca encerra processo |
+| `diario` | intenção registrada antes do primeiro passo, passos concluídos, desfecho, operações interrompidas | só se declara interrupção com prova de que o dono morreu; só operações terminadas são descartadas |
+| `plano` | executor de passos com desfazer em ordem inversa | falha no terceiro de cinco passos deixa o estado final igual ao inicial; o passo que falhou e o passo cancelado também são desfeitos; falha ao desfazer é coletada, não engolida |
+| `configuracao` | pasta `sites/soda/`, marcador `formato`, troca JSON↔SQLite | dois arquivos sem marcador são recusados (`ConfiguracaoAmbigua`); o marcador só muda depois de a releitura conferir |
+| `leitura` | leitor somente leitura do contrato de identidade e chaves do `site_config` | sem método de escrita, não toma a trava; registro ruim é pulado com aviso; arquivo ilegível devolve leitura vazia marcada; paridade JSON/SQLite |
+
+Achado pelos testes: no Windows a leitura do JSON falhava com `PermissionError` quando coincidia com a troca atômica do escritor; o adaptador (`persistencia/json_arquivo.py`) agora repete a leitura por cerca de 0,6 s.
+
+**Ainda não existe:** execução real (criar site, iniciar e parar no WSL), conciliação com `/proc` e portas reais, interface, CLI, escrita de `soda_instance_id` no `site_config` (tarefa 5.2), teste de compatibilidade com arquivos versionados (5.3) e a prova real no bench (8.1, que exige autorização e backup).
+
 ## Estrutura planejada
 
-`erpnext_brasil/soda/` (regra pura: UUID, descritivo, host, alocador de portas, registro, conciliação, planos de criação e remoção, leitor do contrato) e `scripts/soda/` (tkinter, comandos, execução no WSL), com licença MIT e versão `0.1.0` próprias. Reaproveita `Bench`, `caminho_wsl` e a escrita atômica do Cherry.
+`erpnext_brasil/soda/` (regra pura, **já implementada**: UUID, descritivo, host, alocador de portas, registro, conciliação, diário, executor de planos, leitor do contrato; faltam os planos concretos de criação e remoção) e `scripts/soda/` (tkinter, comandos, execução no WSL; **não iniciado**), com licença MIT e versão `0.1.0` próprias. Reaproveita `Bench`, `caminho_wsl` e a escrita atômica do Cherry.
 
 ## Docker (evolução)
 
@@ -61,9 +81,9 @@ Hoje cada instância do Soda é um **site** do mesmo bench. A configuração Doc
 
 Não é para produção (o servidor de cada instância é o de desenvolvimento do Frappe), não isola código por branch (todas as instâncias usam o código do bench), não clona instância, não expõe à rede como fluxo normal.
 
-## Testes e cobertura (meta)
+## Testes e cobertura
 
-Núcleo a 100% (piso de 95% no CI), interface com piso próprio sob `xvfb`, `ruff` limpo, suíte de contrato da persistência nos dois formatos, teste cruzado com o Cherry e o Chantilly, e uma prova real (criar duas instâncias, usar as duas ao mesmo tempo, parar uma, remover as duas) **somente com autorização e backup**.
+Núcleo a 100% (**atingido** no pacote `soda`; o resto é meta) (piso de 95% no CI), interface com piso próprio sob `xvfb`, `ruff` limpo, suíte de contrato da persistência nos dois formatos, teste cruzado com o Cherry e o Chantilly, e uma prova real (criar duas instâncias, usar as duas ao mesmo tempo, parar uma, remover as duas) **somente com autorização e backup**.
 
 ## Decisões em aberto
 

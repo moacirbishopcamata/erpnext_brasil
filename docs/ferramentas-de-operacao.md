@@ -1,11 +1,11 @@
 # Ferramentas de operação: Cherry, Soda e Chantilly
 
-Visão geral das três ferramentas de quem desenvolve e opera o ERPNext Brasil num bench de desenvolvimento. **Estado em 2026-10-11:** o Cherry existe (`0.2.1`); o Soda e o Chantilly são **propostas** (OpenSpec), sem código. Cada ferramenta tem o seu documento; este mostra como se encaixam.
+Visão geral das três ferramentas de quem desenvolve e opera o ERPNext Brasil num bench de desenvolvimento. **Estado em 2026-10-11:** o Cherry existe (`0.2.1`); a **persistência selecionável** e o **núcleo puro do Soda** (identidade, portas, registro, conciliação, diário, planos, leitor) estão implementados e mesclados; o ciclo de vida e a interface do Soda e o Chantilly inteiro são **propostas** (OpenSpec), sem código. Cada ferramenta tem o seu documento; este mostra como se encaixam.
 
 | Ferramenta | Para que serve | Estado | Documento | Mudança OpenSpec |
 |---|---|---|---|---|
 | **Cherry** | Configurar o bench: banco, portas, Redis, sites, `apps.txt` | existe, `0.2.1` | [`cherry.md`](cherry.md) | `cherry-instancias-por-uuid` (proposta) |
-| **Soda** | Criar e operar **várias instâncias** do ERPNext Brasil, cada uma em portas diferentes, com UUID único | proposta | [`soda.md`](soda.md) | `soda-instancias-do-erp` |
+| **Soda** | Criar e operar **várias instâncias** do ERPNext Brasil, cada uma em portas diferentes, com UUID único | núcleo implementado; ciclo de vida e interface em proposta | [`soda.md`](soda.md) | `soda-instancias-do-erp` |
 | **Chantilly** | Monitorar o **consumo** de RAM, CPU e armazenamento e estimar o custo; iniciar e parar o ERP com gentileza | proposta | [`chantilly.md`](chantilly.md) | `chantilly-monitor-de-recursos` |
 
 A persistência selecionável (JSON ou SQLite) das três é a mudança `persistencia-sqlite-opcional`.
@@ -141,8 +141,8 @@ Interface desktop em tkinter, só com a biblioteca padrão: abas com nome espec�
 
 ## Ordem sugerida de implementação
 
-1. **Persistência selecionável nas preferências do Cherry:** pequena, independente, e define a porta e a suíte de contrato que as outras reaproveitam.
-2. **Soda, núcleo e contrato:** UUID, descritivo, portas, registro e leitor. O leitor destrava as duas integrações.
+1. **Persistência selecionável nas preferências do Cherry** *(adaptadores e suíte de contrato feitos; falta ligar nas preferências do Cherry)*: pequena, independente, e define a porta e a suíte de contrato que as outras reaproveitam.
+2. **Soda, núcleo e contrato** *(feito, PR #22; falta o `site_config`)*: UUID, descritivo, portas, registro e leitor. O leitor destrava as duas integrações.
 3. **Cherry por instância** (`cherry-instancias-por-uuid`).
 4. **Soda, ciclo de vida e interface.**
 5. **Chantilly:** pode começar antes (sites sem UUID) e ganha a identificação por instância quando o contrato existir.
