@@ -30,8 +30,10 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
+from erpnext_brasil.bancos.repositorio import PerfisDeBanco
 from scripts.cherry import __version__
 from scripts.cherry import config as cfg
+from scripts.cherry import perfis as pf
 
 PREFERENCIAS = Path.home() / ".cherry.json"
 """Só caminho do bench, distro e geometria da janela — nunca senha. A senha vai para o
@@ -203,6 +205,7 @@ class Cherry(tk.Tk):
 			f"{comum.get('db_host', 'localhost')}:{comum.get('db_port', '(padrão)')}"
 		)
 		self._preencher_banco(comum)
+		self._abrir_perfis()
 		self._preencher_portas(comum)
 		self._preencher_sites(sites, comum.get("default_site", ""))
 		self._preencher_apps(apps)
@@ -215,7 +218,10 @@ class Cherry(tk.Tk):
 	def _aba_banco(self):
 		aba = ttk.Frame(self.abas, padding=14)
 		self.abas.add(aba, text="Banco de dados", underline=0)
-		self._instrucao(aba, "Informe o servidor de banco de dados que os sites deste bench vão usar")
+		self._instrucao(
+			aba, "Escolha ou cadastre o servidor de banco de dados que os sites deste bench vão usar"
+		)
+		self._bloco_de_perfis(aba)
 
 		self.tipo = tk.StringVar(value=cfg.MARIADB)
 		self.host = tk.StringVar(value="127.0.0.1")
@@ -227,9 +233,9 @@ class Cherry(tk.Tk):
 		self.senha_admin = tk.StringVar()
 		self.comando_visivel = tk.BooleanVar(value=False)
 
-		ttk.Label(aba, text="Servidor").grid(row=1, column=0, sticky="w", pady=3)
+		ttk.Label(aba, text="Servidor").grid(row=4, column=0, sticky="w", pady=3)
 		linha = ttk.Frame(aba)
-		linha.grid(row=1, column=1, sticky="w")
+		linha.grid(row=4, column=1, sticky="w")
 
 		for tipo in cfg.TIPOS:
 			ttk.Radiobutton(
@@ -238,22 +244,22 @@ class Cherry(tk.Tk):
 
 		campos = [("Host", self.host), ("Porta", self.porta), ("Usuário administrador", self.usuario_root)]
 
-		for i, (rotulo, variavel) in enumerate(campos, start=2):
+		for i, (rotulo, variavel) in enumerate(campos, start=5):
 			ttk.Label(aba, text=rotulo).grid(row=i, column=0, sticky="w", pady=3)
 			campo = ttk.Entry(aba, textvariable=variavel, width=40)
 			campo.grid(row=i, column=1, sticky="we", pady=3)
 			campo.bind("<Return>", lambda _: self._testar_conexao())
 
-		ttk.Label(aba, text="Senha do administrador").grid(row=5, column=0, sticky="w", pady=3)
+		ttk.Label(aba, text="Senha do administrador").grid(row=8, column=0, sticky="w", pady=3)
 		self.campo_senha = ttk.Entry(aba, textvariable=self.senha_root, width=40, show="•")
-		self.campo_senha.grid(row=5, column=1, sticky="we", pady=3)
+		self.campo_senha.grid(row=8, column=1, sticky="we", pady=3)
 		self.campo_senha.bind("<Return>", lambda _: self._testar_conexao())
 		ttk.Checkbutton(
 			aba, text="Mostrar senha", variable=self.mostrar_senha, command=self._alternar_senha
-		).grid(row=5, column=2, padx=(8, 0))
+		).grid(row=8, column=2, padx=(8, 0))
 
 		botoes = ttk.Frame(aba)
-		botoes.grid(row=6, column=0, columnspan=3, sticky="w", pady=(10, 4))
+		botoes.grid(row=9, column=0, columnspan=3, sticky="w", pady=(10, 4))
 		self.botao_testar = ttk.Button(botoes, text=ROTULO_TESTAR, underline=0, command=self._testar_conexao)
 		self.botao_testar.pack(side="left")
 		ttk.Button(botoes, text="Gravar no bench", underline=0, command=self._gravar_banco).pack(
@@ -263,16 +269,16 @@ class Cherry(tk.Tk):
 		self.bind_all("<Alt-g>", lambda _: self._gravar_banco())
 		ttk.Label(
 			aba,
-			text="Gravar escreve db_type, db_host, db_port, root_login e root_password no common_site_config.json",
-		).grid(row=7, column=0, columnspan=3, sticky="w")
+			text="Gravar salva o perfil, torna-o o padrão e escreve db_type, db_host, db_port e root_login no common_site_config.json; a senha só vai se você a digitar",
+		).grid(row=10, column=0, columnspan=3, sticky="w")
 
-		ttk.Separator(aba).grid(row=8, column=0, columnspan=3, sticky="we", pady=10)
+		ttk.Separator(aba).grid(row=11, column=0, columnspan=3, sticky="we", pady=10)
 		ttk.Checkbutton(
 			aba,
 			text="Mostrar o comando bench new-site para este banco",
 			variable=self.comando_visivel,
 			command=self._alternar_comando,
-		).grid(row=9, column=0, columnspan=3, sticky="w")
+		).grid(row=12, column=0, columnspan=3, sticky="w")
 
 		self.bloco_comando = ttk.Frame(aba)
 		ttk.Label(self.bloco_comando, text="Nome do site").grid(row=0, column=0, sticky="w", pady=3)
@@ -293,10 +299,242 @@ class Cherry(tk.Tk):
 		self.bloco_comando.columnconfigure(1, weight=1)
 		aba.columnconfigure(1, weight=1)
 
+	# ------------------------------------------------------------------ perfis de banco
+
+	def _bloco_de_perfis(self, aba: ttk.Frame):
+		"""Os perfis do bench: o Cherry é o dono da escolha de banco; o Soda e o Chantilly só a consomem."""
+		self.perfis: PerfisDeBanco | None = None
+		self._perfil_na_tela: str | None = None
+		self.nome_do_perfil = tk.StringVar()
+		quadro = ttk.LabelFrame(aba, text="Perfis de banco de dados", padding=8)
+		quadro.grid(row=1, column=0, columnspan=3, sticky="we", pady=(0, 6))
+		self.tabela_de_perfis = ttk.Treeview(
+			quadro, columns=("servidor", "padrao", "teste"), height=4, selectmode="browse"
+		)
+		self.tabela_de_perfis.heading("#0", text="Perfil")
+		self.tabela_de_perfis.heading("servidor", text="Servidor")
+		self.tabela_de_perfis.heading("padrao", text="Padrão")
+		self.tabela_de_perfis.heading("teste", text="Último teste")
+		self.tabela_de_perfis.column("#0", width=140)
+		self.tabela_de_perfis.column("servidor", width=230)
+		self.tabela_de_perfis.column("padrao", width=60, anchor="center")
+		self.tabela_de_perfis.column("teste", width=200)
+		self.tabela_de_perfis.grid(row=0, column=0, columnspan=4, sticky="we")
+		self.tabela_de_perfis.bind("<<TreeviewSelect>>", lambda _: self._ao_selecionar_perfil())
+		self.aviso_sem_perfis = ttk.Label(
+			quadro,
+			text="Nenhum perfil ainda. Preencha o servidor abaixo, dê um nome e use “Salvar perfil”.",
+			foreground="#555555",
+		)
+		self.aviso_sem_perfis.grid(row=1, column=0, columnspan=4, sticky="w", pady=(4, 0))
+		ttk.Label(quadro, text="Nome do perfil").grid(row=2, column=0, sticky="w", pady=(6, 0))
+		campo = ttk.Entry(quadro, textvariable=self.nome_do_perfil, width=24)
+		campo.grid(row=2, column=1, sticky="w", pady=(6, 0), padx=(6, 0))
+		campo.bind("<Return>", lambda _: self._salvar_perfil())
+		ttk.Label(
+			quadro, text="letras, dígitos, ponto, hífen e sublinhado (até 60)", foreground="#555555"
+		).grid(row=2, column=2, columnspan=2, sticky="w", pady=(6, 0), padx=(8, 0))
+		botoes = ttk.Frame(quadro)
+		botoes.grid(row=3, column=0, columnspan=4, sticky="w", pady=(6, 0))
+		ttk.Button(botoes, text="Novo perfil", command=self._novo_perfil).pack(side="left")
+		ttk.Button(botoes, text="Salvar perfil", command=self._salvar_perfil).pack(side="left", padx=(8, 0))
+		ttk.Button(botoes, text="Tornar padrão", command=self._tornar_perfil_padrao).pack(
+			side="left", padx=(8, 0)
+		)
+		ttk.Button(botoes, text="Remover perfil", command=self._remover_perfil).pack(side="left", padx=(8, 0))
+		quadro.columnconfigure(3, weight=1)
+
+	def _com_perfis(self, acao) -> bool:
+		"""Executa uma ação sobre os perfis; recusa da regra ou falha de arquivo vira um problema legível."""
+		try:
+			acao()
+		except (ValueError, LookupError, RuntimeError, OSError) as erro:
+			self._problema(erro)
+			return False
+
+		return True
+
+	def _abrir_perfis(self):
+		def abrir():
+			self.perfis = pf.abrir_perfis(self.bench)
+
+		self._perfil_na_tela = None
+
+		if not self._com_perfis(abrir):
+			self.perfis = None
+
+		self._mostrar_perfis()
+
+	def _perfil_selecionado(self) -> str | None:
+		selecao = self.tabela_de_perfis.selection()
+
+		return selecao[0] if selecao else None
+
+	def _mostrar_perfis(self, selecionar: str | None = None):
+		tabela = self.tabela_de_perfis
+		tabela.delete(*tabela.get_children())
+		perfis = []
+
+		if self.perfis is not None:
+			self._com_perfis(lambda: perfis.extend(self.perfis.listar()))
+
+		for perfil in perfis:
+			teste = perfil.ultimo_teste
+			resumo = (
+				f"{'✓' if teste.ok else '✗'} {teste.nivel}, {teste.quando[:16].replace('T', ' ')}"
+				if teste
+				else "ainda não testado"
+			)
+			tabela.insert(
+				"",
+				"end",
+				iid=perfil.nome,
+				text=perfil.nome,
+				values=(
+					f"{cfg.ROTULO[perfil.tipo]} {perfil.host}:{perfil.porta}",
+					"✓" if perfil.padrao else "",
+					resumo,
+				),
+			)
+
+		if selecionar:
+			self._perfil_na_tela = selecionar  # a seleção feita por código não refaz o formulário
+
+		if perfis:
+			self.aviso_sem_perfis.grid_remove()
+			tabela.selection_set(selecionar or next((p.nome for p in perfis if p.padrao), perfis[0].nome))
+		else:
+			self.aviso_sem_perfis.grid()
+
+	def _ao_selecionar_perfil(self):
+		nome = self._perfil_selecionado()
+		perfil = self.perfis.obter(nome) if nome and self.perfis else None
+
+		if perfil is None or perfil.nome == self._perfil_na_tela:
+			return
+
+		self._perfil_na_tela = perfil.nome
+		self.nome_do_perfil.set(perfil.nome)
+		self.tipo.set(perfil.tipo)
+		self.host.set(perfil.host)
+		self.porta.set(str(perfil.porta))
+		self.usuario_root.set(perfil.usuario_root or ("postgres" if perfil.tipo == cfg.POSTGRES else "root"))
+		self.senha_root.set("")  # a senha não é do perfil: nunca vem preenchida
+		self._informar(f"Perfil {perfil.nome}: {cfg.ROTULO[perfil.tipo]} em {perfil.host}:{perfil.porta}")
+
+	def _novo_perfil(self):
+		self._perfil_na_tela = None
+		self.tabela_de_perfis.selection_remove(*self.tabela_de_perfis.selection())
+		self.nome_do_perfil.set("")
+		self.senha_root.set("")
+		self._informar("Novo perfil: informe o nome e o servidor e use Salvar perfil")
+
+	def _exigir_perfis(self) -> bool:
+		if not self._exigir_bench():
+			return False
+
+		if self.perfis is None:
+			self._abrir_perfis()
+
+		return self.perfis is not None
+
+	def _salvar_perfil(self) -> bool:
+		if not self._exigir_perfis():
+			return False
+
+		try:
+			banco = self._banco_da_tela()
+		except cfg.CherryInvalido as erro:
+			self._problema(erro)
+			return False
+
+		nome = self.nome_do_perfil.get().strip()
+
+		def salvar():
+			nonlocal nome
+			existente = self.perfis.obter(nome)
+
+			if existente is None:
+				self.perfis.criar(nome, banco.tipo, banco.host, banco.porta, banco.usuario_root)
+			else:  # o mesmo nome, ainda que com outra caixa, edita o perfil existente em vez de duplicá-lo
+				nome = existente.nome
+				self.perfis.alterar(
+					nome, tipo=banco.tipo, host=banco.host, porta=banco.porta, usuario_root=banco.usuario_root
+				)
+
+		if not self._com_perfis(salvar):
+			return False
+
+		self.nome_do_perfil.set(nome)
+
+		self._mostrar_perfis(selecionar=nome)
+		self._informar(f"Perfil {nome} salvo")
+		self._confirmar_visualmente("✓ perfil salvo")
+
+		return True
+
+	def _confirmar_alcance(self, nome: str) -> bool:
+		"""Trocar o padrão só vale para sites novos; quem tem instância no ar precisa saber antes."""
+		no_ar = pf.instancias_no_ar(self.bench)
+
+		if not no_ar:
+			return True
+
+		lista = "\n".join(f"  • {uso}" for uso in no_ar)
+
+		return messagebox.askyesno(
+			"Trocar o banco padrão com instâncias no ar?",
+			f"Há {len(no_ar)} instância(s) do Soda no ar:\n{lista}\n\nElas continuam no banco em que foram "
+			f"criadas. Só os sites novos, criados sem indicar o banco, usarão o perfil {nome}.\n\n"
+			"Tornar padrão mesmo assim?",
+			parent=self,
+		)
+
+	def _tornar_perfil_padrao(self):
+		if not self._exigir_perfis():
+			return
+
+		nome = self._perfil_selecionado()
+
+		if nome is None:
+			self._problema("escolha um perfil na lista para torná-lo o padrão")
+			return
+
+		if not self._confirmar_alcance(nome):
+			self._informar("Nada gravado")
+			return
+
+		if self._com_perfis(lambda: self.perfis.definir_padrao(nome)):
+			self._mostrar_perfis(selecionar=nome)
+			self._informar(f"{nome} é o perfil padrão; common_site_config.json atualizado")
+			self._confirmar_visualmente("✓ padrão")
+
+	def _remover_perfil(self):
+		if not self._exigir_perfis():
+			return
+
+		nome = self._perfil_selecionado()
+
+		if nome is None:
+			self._problema("escolha um perfil na lista para removê-lo")
+			return
+
+		if not messagebox.askyesno(
+			"Remover o perfil?", f"Remover o perfil {nome}? Os sites não são afetados.", parent=self
+		):
+			self._informar("Nada removido")
+			return
+
+		if self._com_perfis(lambda: self.perfis.remover(nome)):
+			self._mostrar_perfis()
+			self._novo_perfil()
+			self._informar(f"Perfil {nome} removido")
+			self._confirmar_visualmente("✓ removido")
+
 	def _alternar_comando(self):
 		"""Divulgação progressiva: o comando só ocupa a tela para quem vai criar um site."""
 		if self.comando_visivel.get():
-			self.bloco_comando.grid(row=10, column=0, columnspan=3, sticky="we", pady=(6, 0))
+			self.bloco_comando.grid(row=13, column=0, columnspan=3, sticky="we", pady=(6, 0))
 		else:
 			self.bloco_comando.grid_forget()
 
@@ -401,12 +639,26 @@ class Cherry(tk.Tk):
 		self.botao_testar.configure(text=ROTULO_TESTAR)
 
 	def _mostrar_resultado_da_conexao(self, resultado: cfg.ResultadoConexao):
+		self._registrar_teste_no_perfil(resultado)
 		if resultado.ok:
 			self._informar(f"Conectou [{resultado.nivel}] — {resultado.mensagem}")
 			self._confirmar_visualmente("✓ conectou")
 		else:
 			self._informar(f"Não conectou [{resultado.nivel}] — {resultado.mensagem}")
 			messagebox.showwarning("Cherry — não conectou", resultado.mensagem, parent=self)
+
+	def _registrar_teste_no_perfil(self, resultado: cfg.ResultadoConexao):
+		"""O teste vale por perfil: guarda data, nível e resultado (nunca a senha) no perfil que está na tela."""
+		nome = self.nome_do_perfil.get().strip()
+
+		if self.perfis is None or not nome or self.perfis.obter(nome) is None:
+			return
+
+		def registrar():
+			self.perfis.registrar_teste(nome, ok=resultado.ok, nivel=resultado.nivel)
+
+		if self._com_perfis(registrar):
+			self._mostrar_perfis(selecionar=nome)
 
 	def _gravar_banco(self):
 		if not self._exigir_bench():
@@ -441,12 +693,37 @@ class Cherry(tk.Tk):
 			self._informar("Nada gravado")
 			return
 
-		try:
-			dados = cfg.atualizar_json(self.bench.common_config, banco.chaves_common_config())
-		except (OSError, json.JSONDecodeError) as erro:
-			self._problema(erro)
+		if not self._exigir_perfis():
 			return
 
+		if not self.nome_do_perfil.get().strip():
+			self.nome_do_perfil.set("padrao")
+
+		nome = self.nome_do_perfil.get().strip()
+		padrao_atual = self.perfis.padrao()
+
+		if (
+			padrao_atual is not None
+			and padrao_atual.chave != nome.casefold()
+			and not self._confirmar_alcance(nome)
+		):
+			self._informar("Nada gravado")
+			return
+
+		if not self._salvar_perfil():
+			return
+
+		def tornar_padrao():
+			self.perfis.definir_padrao(nome)
+
+			if banco.senha_root:  # a senha só vai ao arquivo quando o usuário a digita, como sempre foi
+				cfg.atualizar_json(self.bench.common_config, {"root_password": banco.senha_root})
+
+		if not self._com_perfis(tornar_padrao):
+			return
+
+		self._mostrar_perfis(selecionar=nome)
+		dados = cfg.ler_json(self.bench.common_config)
 		self._informar(
 			f"Gravado em {self.bench.common_config}: db_type={dados['db_type']} db_host={dados['db_host']} db_port={dados['db_port']}"
 		)

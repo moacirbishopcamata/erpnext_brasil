@@ -8,4 +8,4 @@ desenvolvedor, evolui em ritmo próprio e não é instalado num site. Semântico
 `major.minor.patch` — e conferido por teste (`test_config.TestVersao`).
 """
 
-__version__ = "0.2.1"
+__version__ = "0.4.0"
