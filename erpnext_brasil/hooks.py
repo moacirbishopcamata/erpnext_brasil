@@ -25,6 +25,8 @@ doctype_js = {
 	# Dois arquivos na mesma tela: a fatura comum emite NF-e, a de transporte (com
 	# `br_natureza_transporte`) emite CT-e. Cada um se cala na fatura do outro.
 	"Sales Invoice": ["public/js/emissao_nfe.js", "public/js/emissao_cte.js"],
+	# O manifesto é do `Shipment` (a viagem), não da fatura: emitir, encerrar e cancelar, conforme o estado.
+	"Shipment": "public/js/emissao_mdfe.js",
 	# A entrada fica no `Purchase Invoice` porque é ali que a nota do fornecedor vira
 	# escrituração. O botão só aparece em rascunho: depois do submit o documento já foi
 	# escriturado com o que tem.

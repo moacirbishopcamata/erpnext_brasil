@@ -51,9 +51,11 @@ from erpnext_brasil.fiscal.documento.porta import (
 from erpnext_brasil.integracao.assinador_local import AssinadorLocal, carregar_certificado
 from erpnext_brasil.integracao.autorizacao_sefaz import consultar_situacao, enviar_autorizacao
 from erpnext_brasil.integracao.autorizacao_sefaz_cte import enviar_autorizacao_cte
+from erpnext_brasil.integracao.autorizacao_sefaz_mdfe import enviar_autorizacao_mdfe
 from erpnext_brasil.integracao.contexto_sefaz import ContextoSefaz
 from erpnext_brasil.integracao.eventos_sefaz import TransporteIndisponivel, enviar_evento
 from erpnext_brasil.integracao.eventos_sefaz_cte import enviar_evento_cte
+from erpnext_brasil.integracao.eventos_sefaz_mdfe import enviar_evento_mdfe
 from erpnext_brasil.integracao.tls_certificado import ArquivosTls
 
 __all__ = ["TransporteIndisponivel", "TransporteSefaz"]
@@ -208,6 +210,25 @@ class TransporteSefaz:
 		"""
 		return self._registrar(
 			enviar_evento_cte(evento, self._contexto(), chave_acesso=chave_acesso, assinador=self._assinador)
+		)
+
+	def transmitir_mdfe(self, documento: dict, id_lote: str) -> RespostaTransmissao:
+		"""Envia o MDF-e (árvore `MDFe` já assinada) por lote e recibo; a guarda e o `656` valem como no CT-e."""
+		return self._registrar(
+			enviar_autorizacao_mdfe(
+				documento,
+				self._contexto(),
+				id_lote=id_lote,
+				dormir=self._dormir,
+				tentativas_consulta_recibo=self._tentativas_consulta_recibo,
+				intervalo_consulta_recibo=self._intervalo_consulta_recibo,
+			)
+		)
+
+	def transmitir_evento_mdfe(self, evento: dict, chave_acesso: str) -> RespostaTransmissao:
+		"""Assina e envia um `eventoMDFe` (encerramento, cancelamento) por `MDFeRecepcaoEvento`."""
+		return self._registrar(
+			enviar_evento_mdfe(evento, self._contexto(), chave_acesso=chave_acesso, assinador=self._assinador)
 		)
 
 	def consultar(self, chave_acesso: str) -> ResultadoConsulta:

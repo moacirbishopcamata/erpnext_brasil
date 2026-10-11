@@ -158,8 +158,10 @@ Funções puras: nenhuma dependência do Frappe.
 import re
 from dataclasses import dataclass, field
 
+from erpnext_brasil.fiscal.documento.assinatura import montar_signature
 from erpnext_brasil.fiscal.documento.chave_acesso import ler_chave, validar_chave
 from erpnext_brasil.fiscal.documento.evento import EventoInvalido, assinar_evento
+from erpnext_brasil.fiscal.documento.serializacao import para_xml
 from erpnext_brasil.fiscal.mdfe import NAMESPACE_MDFE
 from erpnext_brasil.fiscal.mdfe_rodoviario import Condutor, MdfeRodoviarioInvalido, montar_condutor
 from erpnext_brasil.fiscal.validators import validar_cnpj, validar_cpf
@@ -194,6 +196,7 @@ __all__ = [
 	"InfoPagamento",
 	"ParcelaPagamento",
 	"assinar_evento",
+	"assinar_evento_mdfe",
 	"montar_componente_pagamento",
 	"montar_condutor",
 	"montar_env_evento_mdfe",
@@ -296,6 +299,36 @@ def _formatar_id_mdfe(chave: str, tipo_evento: str, numero_sequencia: int) -> st
 	return f"ID{tipo_evento}{chave}{numero_sequencia:03d}"
 
 
+def _evento_mdfe(inf_evento: dict, elemento: str) -> dict:
+	"""A raiz `eventoMDFe` — **não** `evento`, o nome do elemento da NF-e.
+
+	`TEvento` é o tipo; a raiz do documento enviado ao `MDFeRecepcaoEvento` é `eventoMDFe`
+	(`eventoMDFe_v3.00.xsd`: `<xs:element name="eventoMDFe" type="TEvento">`; `sped-mdfe`,
+	`Tools::sefazEvento`, monta `<eventoMDFe xmlns=… versao=…>`). O XML específico do evento
+	(`evCancMDFe`, `evEncMDFe`) vai **dentro** de `detEvento`, e só `@versaoEvento` fica ao lado.
+
+	⚠️ Só cancelamento e encerramento passaram por aqui (tarefa 5.4 de `fechar-laco-cte-mdfe`). Os
+	outros montadores deste módulo ainda devolvem a forma da NF-e — o mesmo defeito que o CT-e tinha —
+	e estão em `docs/gaps.md`.
+	"""
+	detalhe = inf_evento["detEvento"]
+	corpo = {chave: valor for chave, valor in detalhe.items() if chave != "@versaoEvento"}
+	inf_evento = {**inf_evento, "detEvento": {"@versaoEvento": detalhe["@versaoEvento"], elemento: corpo}}
+
+	return {
+		"eventoMDFe": {"@xmlns": NAMESPACE_MDFE, "@versao": _VERSAO_LEIAUTE_MDFE, "infEvento": inf_evento}
+	}
+
+
+def assinar_evento_mdfe(grupo_evento: dict, assinador) -> dict:
+	"""Assina o `eventoMDFe` (`Signature` irmã de `infEvento`, obrigatória em `TEvento`)."""
+	evento = grupo_evento["eventoMDFe"]
+	id_elemento = evento["infEvento"]["@Id"]
+	material = assinador.assinar(para_xml(grupo_evento).encode("utf-8"), id_elemento)
+
+	return {"eventoMDFe": {**evento, **montar_signature(id_elemento, material)}}
+
+
 def montar_evento_cancelamento_mdfe(
 	chave_acesso: str,
 	protocolo: str,
@@ -355,7 +388,7 @@ def montar_evento_cancelamento_mdfe(
 		},
 	}
 
-	return {"evento": {"@xmlns": NAMESPACE_MDFE, "@versao": _VERSAO_LEIAUTE_MDFE, "infEvento": inf_evento}}
+	return _evento_mdfe(inf_evento, "evCancMDFe")
 
 
 def montar_evento_encerramento_mdfe(
@@ -431,7 +464,7 @@ def montar_evento_encerramento_mdfe(
 		"detEvento": det_evento,
 	}
 
-	return {"evento": {"@xmlns": NAMESPACE_MDFE, "@versao": _VERSAO_LEIAUTE_MDFE, "infEvento": inf_evento}}
+	return _evento_mdfe(inf_evento, "evEncMDFe")
 
 
 def montar_evento_inclusao_condutor_mdfe(
@@ -984,6 +1017,6 @@ def montar_env_evento_mdfe(eventos: list[dict], id_lote: str) -> dict:
 			"@xmlns": NAMESPACE_MDFE,
 			"@versao": _VERSAO_LEIAUTE_MDFE,
 			"idLote": id_lote.strip(),
-			"evento": [e["evento"] for e in eventos],
+			"evento": [e.get("evento") or e["eventoMDFe"] for e in eventos],
 		}
 	}

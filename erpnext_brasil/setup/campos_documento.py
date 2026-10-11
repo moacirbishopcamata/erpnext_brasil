@@ -551,6 +551,24 @@ def _campos_de_mdfe() -> list[dict]:
 			"fieldtype": "Data",
 			"insert_after": "br_placa_reboque_mdfe",
 		},
+		{
+			"fieldname": "br_chave_acesso",
+			"label": "Chave de acesso do MDF-e",
+			"fieldtype": "Data",
+			"insert_after": "br_tara_reboque_mdfe",
+			"read_only": 1,
+			"no_copy": 1,
+			"length": 44,
+			"description": "Gravada quando a SEFAZ autoriza o manifesto; o histórico está em Transmissão Fiscal.",
+		},
+		{
+			"fieldname": "br_protocolo_autorizacao",
+			"label": "Protocolo de autorização",
+			"fieldtype": "Data",
+			"insert_after": "br_chave_acesso",
+			"read_only": 1,
+			"no_copy": 1,
+		},
 	]
 
 
