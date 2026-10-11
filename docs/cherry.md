@@ -128,3 +128,7 @@ comportamento, o `patch`.
 
 O roteiro combinado com o usuário: refinar aos poucos até o Cherry automatizar a configuração
 do ERPNext BR — cada passo com teste na costura e esta página atualizada.
+
+## Revisão de 2026-10-11
+
+A primeira revisão do Cherry (`0.1.0`) está em [`revisao-do-cherry.md`](revisao-do-cherry.md). Os números deste documento (55 testes; núcleo 100%, interface 83%, total 88%) **conferem** com o código. Achados que mudam o que está dito aqui: a seção "Padrões seguros" não vale para a senha de administrador, que vem pré-preenchida com `admin` (CH-04); a regra de vocabulário "nunca inválido" tem duas exceções em `config.py` (CH-07); e a senha de root da sonda de conexão trafega como argumento de processo (CH-01). A correção está proposta em `openspec/changes/endurecer-segredo-e-escrita-do-cherry`.
