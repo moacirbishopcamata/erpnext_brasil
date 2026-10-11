@@ -173,6 +173,40 @@ class TestCherry(unittest.TestCase):
 		self.assertIn("bench new-site novo.localhost", self.janela.texto_comando.get("1.0", "end"))
 		self.assertIn("--db-type mariadb", self.janela.clipboard_get())
 
+	def test_senha_de_administrador_nao_vem_preenchida_e_nao_entra_no_comando(self):
+		"""CH-04: o `admin` pré-preenchido virava `--admin-password 'admin'` em quem não trocasse."""
+		self.assertEqual(self.janela.senha_admin.get(), "")
+
+		self.janela._copiar_new_site()
+
+		self.assertNotIn("--admin-password", self.janela.texto_comando.get("1.0", "end"))
+
+	def test_area_de_transferencia_e_limpa_quando_ainda_tem_o_comando(self):
+		self.janela._copiar_new_site()
+		comando = self.janela.clipboard_get()
+
+		self.janela._limpar_area_de_transferencia(comando)
+
+		with self.assertRaises(self.app.tk.TclError):
+			self.janela.clipboard_get()
+
+	def test_area_de_transferencia_nao_apaga_o_que_nao_e_do_cherry(self):
+		self.janela._copiar_new_site()
+		comando = self.janela.clipboard_get()
+		self.janela.clipboard_clear()
+		self.janela.clipboard_append("outra coisa copiada depois")
+
+		self.janela._limpar_area_de_transferencia(comando)
+
+		self.assertEqual(self.janela.clipboard_get(), "outra coisa copiada depois")
+
+	def test_a_limpeza_fica_agendada_ao_copiar(self):
+		with mock.patch.object(self.app, "LIMPEZA_DA_AREA_DE_TRANSFERENCIA_MS", 50):
+			self.janela._copiar_new_site()
+
+		self.assertIsNotNone(self.janela._limpeza_agendada)
+		self.janela.after_cancel(self.janela._limpeza_agendada)
+
 	def test_sem_bench_carregado_manda_para_a_primeira_aba(self):
 		self.janela.bench = None
 

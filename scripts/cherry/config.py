@@ -34,9 +34,12 @@ O que ele deliberadamente não faz
 from __future__ import annotations
 
 import json
+import os
+import re
 import shutil
 import socket
 import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 
@@ -65,6 +68,24 @@ PORTA_PADRAO = {MARIADB: 3306, POSTGRES: 5432}
 """Portas padrão de cada servidor — o que o Frappe assume quando `db_port` está ausente."""
 
 ROTULO = {MARIADB: "MariaDB", POSTGRES: "PostgreSQL"}
+
+
+_NOME_SEGURO = re.compile(r"[A-Za-z0-9._:@-]+")
+"""O que pode aparecer **sem aspas** num comando de shell: letras, dígitos e `. _ : @ -`.
+
+Host, usuário, site e nomes de app saem crus em `comando_new_site`; qualquer outro caractere
+(`;`, `$`, crase, espaço, barra) é recusado em vez de escapado — a recusa é mais simples e não
+depende de lembrar de cada caractere especial do shell (CH-03 da revisão do Cherry).
+"""
+
+
+def _exigir_nome_seguro(valor: str, o_que: str) -> str:
+	if not _NOME_SEGURO.fullmatch(valor):
+		raise CherryInvalido(
+			f"{o_que} só pode ter letras, dígitos e os caracteres . _ : @ - — recebido {valor!r}"
+		)
+
+	return valor
 
 
 class CherryInvalido(ValueError):
@@ -153,8 +174,7 @@ def gravar_apps_txt(caminho: Path, apps: list[str]) -> str:
 		if not nome:
 			continue
 
-		if nome != nome.split()[0] or "/" in nome:
-			raise CherryInvalido(f"nome de app inválido: {app!r}")
+		_exigir_nome_seguro(nome, "o nome do app")
 
 		if nome not in limpos:
 			limpos.append(nome)
@@ -175,16 +195,38 @@ def gravar_apps_txt(caminho: Path, apps: list[str]) -> str:
 
 
 def _gravar_texto(caminho: Path, texto: str) -> None:
-	"""Sempre `\\n`, nunca `\\r\\n` — quem lê o arquivo é um bench Linux.
+	"""Sempre `\n`, nunca `\r\n` — e **atômico**: o destino nunca fica pela metade.
 
-	`Path.write_text` no Windows traduz `\\n` para `\\r\\n`, e um `apps.txt` com CRLF faria o
-	Frappe enxergar um app chamado `erpnext\\r`. Foi o teste de costura — que relê os bytes,
+	`Path.write_text` no Windows traduz `\n` para `\r\n`, e um `apps.txt` com CRLF faria o
+	Frappe enxergar um app chamado `erpnext\r`. Foi o teste de costura — que relê os bytes,
 	não a lista devolvida — que pegou isto antes de qualquer bench ser tocado.
+
+	Abrir o destino com `"w"` o trunca na hora: uma falha no meio da escrita (disco cheio, queda
+	do compartilhamento `\\wsl.localhost`) deixava o `common_site_config.json` com poucos bytes e
+	JSON inválido (CH-02 da revisão do Cherry, medido). Por isso o texto vai para um arquivo
+	temporário **na mesma pasta** e só então troca o original com `os.replace`; se qualquer passo
+	falhar, o original continua como estava e o temporário é apagado.
 	"""
 	caminho.parent.mkdir(parents=True, exist_ok=True)
 
-	with open(caminho, "w", encoding="utf-8", newline="\n") as arquivo:
-		arquivo.write(texto)
+	descritor, nome_temporario = tempfile.mkstemp(
+		dir=caminho.parent, prefix=f".{caminho.name}.", suffix=".tmp"
+	)
+	temporario = Path(nome_temporario)
+
+	try:
+		with os.fdopen(descritor, "w", encoding="utf-8", newline="\n") as arquivo:
+			arquivo.write(texto)
+			arquivo.flush()
+			os.fsync(arquivo.fileno())
+
+		if caminho.exists():
+			shutil.copymode(caminho, temporario)
+
+		os.replace(temporario, caminho)
+	except BaseException:
+		temporario.unlink(missing_ok=True)
+		raise
 
 
 # ---------------------------------------------------------------------------
@@ -313,19 +355,23 @@ def comando_new_site(banco: Banco, site: str, senha_admin: str = "", apps: tuple
 	Explícito em tudo (`--db-type`, host, porta, root), mesmo que o `common_site_config`
 	já tenha os valores: o comando é a documentação do que foi feito, e não depende do
 	arquivo estar igual amanhã.
+
+	Host, usuário, site e apps passam por `_exigir_nome_seguro` (saem sem aspas); as senhas vão
+	entre aspas simples. **Senha de administrador vazia omite `--admin-password`**: o `bench`
+	então a pergunta no terminal (`frappe/utils/install.py: get_admin_password`), e ela não fica
+	no comando nem na área de transferência.
 	"""
-	if not site.strip() or " " in site.strip():
-		raise CherryInvalido(f"nome de site inválido: {site!r}")
+	site = _exigir_nome_seguro(site.strip(), "o nome do site")
 
 	partes = [
-		f"bench new-site {site.strip()}",
+		f"bench new-site {site}",
 		f"--db-type {banco.tipo}",
-		f"--db-host {banco.host}",
+		f"--db-host {_exigir_nome_seguro(banco.host, 'o servidor')}",
 		f"--db-port {banco.porta}",
 	]
 
 	if banco.usuario_root:
-		partes.append(f"--db-root-username {banco.usuario_root}")
+		partes.append(f"--db-root-username {_exigir_nome_seguro(banco.usuario_root, 'o usuário')}")
 
 	if banco.senha_root:
 		partes.append(f"--db-root-password {_aspas(banco.senha_root)}")
@@ -333,7 +379,7 @@ def comando_new_site(banco: Banco, site: str, senha_admin: str = "", apps: tuple
 	if senha_admin:
 		partes.append(f"--admin-password {_aspas(senha_admin)}")
 
-	partes.extend(f"--install-app {app}" for app in apps)
+	partes.extend(f"--install-app {_exigir_nome_seguro(app, 'o nome do app')}" for app in apps)
 
 	return " \\\n    ".join(partes)
 
@@ -356,9 +402,14 @@ class ResultadoConexao:
 	mensagem: str
 
 
+VARIAVEL_DA_SENHA = "CHERRY_SENHA_ROOT"
+"""Por onde a senha de root chega à sonda. **Nunca** por argumento: a linha de comando de um
+processo é legível por qualquer outro processo da máquina (CH-01 da revisão do Cherry, medido)."""
+
 _SONDA_PYTHON = r"""
-import sys
-tipo, host, porta, usuario, senha = sys.argv[1:6]
+import os, sys
+tipo, host, porta, usuario = sys.argv[1:5]
+senha = os.environ.get("CHERRY_SENHA_ROOT", "")
 try:
     if tipo == "postgres":
         import psycopg2
@@ -390,17 +441,18 @@ def testar_conexao(banco: Banco, bench: Bench | None = None, executar=subprocess
 
 	`executar` é injetável para o teste não precisar de `wsl` nem de rede.
 	"""
-	argumentos = [banco.tipo, banco.host, str(banco.porta), banco.usuario_root, banco.senha_root]
+	argumentos = [banco.tipo, banco.host, str(banco.porta), banco.usuario_root]
+	ambiente = _ambiente_da_sonda(banco.senha_root)
 
 	if bench is not None and bench.no_wsl and shutil.which("wsl"):
 		python_do_bench = str(PurePosixPath(bench.caminho_linux) / "env" / "bin" / "python")
 		comando = ["wsl", "-d", bench.distro, "--", python_do_bench, "-c", _SONDA_PYTHON, *argumentos]
-		resultado = _rodar_sonda(comando, executar, origem=f"venv do bench ({bench.distro})")
+		resultado = _rodar_sonda(comando, executar, f"venv do bench ({bench.distro})", ambiente)
 
 		if resultado is not None:
 			return resultado
 
-	resultado = _rodar_sonda(["python", "-c", _SONDA_PYTHON, *argumentos], executar, origem="driver local")
+	resultado = _rodar_sonda(["python", "-c", _SONDA_PYTHON, *argumentos], executar, "driver local", ambiente)
 
 	if resultado is not None:
 		return resultado
@@ -419,10 +471,26 @@ def testar_conexao(banco: Banco, bench: Bench | None = None, executar=subprocess
 	)
 
 
-def _rodar_sonda(comando: list[str], executar, origem: str) -> ResultadoConexao | None:
+def _ambiente_da_sonda(senha: str) -> dict[str, str]:
+	"""O ambiente do processo filho: o do Cherry mais a senha, e `WSLENV` para o `wsl.exe` repassá-la.
+
+	O `wsl.exe` só leva ao Linux as variáveis listadas em `WSLENV`; sem isso a senha ficaria no
+	Windows e a sonda do venv do bench receberia senha vazia.
+	"""
+	ambiente = dict(os.environ)
+	ambiente[VARIAVEL_DA_SENHA] = senha
+	existentes = [v for v in ambiente.get("WSLENV", "").split(":") if v and v != VARIAVEL_DA_SENHA]
+	ambiente["WSLENV"] = ":".join([*existentes, VARIAVEL_DA_SENHA])
+
+	return ambiente
+
+
+def _rodar_sonda(
+	comando: list[str], executar, origem: str, ambiente: dict[str, str]
+) -> ResultadoConexao | None:
 	"""`None` quando a sonda nem pôde rodar (sem driver, sem wsl) — aí se tenta o próximo nível."""
 	try:
-		saida = executar(comando, capture_output=True, text=True, timeout=30)
+		saida = executar(comando, capture_output=True, text=True, timeout=30, env=ambiente)
 	except (OSError, subprocess.TimeoutExpired):
 		return None
 

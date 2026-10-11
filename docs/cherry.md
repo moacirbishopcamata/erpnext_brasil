@@ -129,6 +129,18 @@ comportamento, o `patch`.
 O roteiro combinado com o usuário: refinar aos poucos até o Cherry automatizar a configuração
 do ERPNext BR — cada passo com teste na costura e esta página atualizada.
 
+## Versão 0.2.0 — segredo e escrita (2026-10-11)
+
+Fecha os quatro achados de segurança da revisão (CH-01 a CH-04):
+
+- **A senha de root não vai mais em argumento de processo.** A sonda de conexão a recebe pela variável de ambiente `CHERRY_SENHA_ROOT`; para o `wsl.exe` levá-la ao Linux, o Cherry acrescenta a variável ao `WSLENV` do processo filho (sem perder o que já houver). Medido: a senha chega ao venv do bench, não aparece na linha de comando do `wsl.exe` no Windows e tem zero ocorrências no `ps` do Linux.
+- **Toda gravação é atômica.** O texto vai para um arquivo temporário na mesma pasta e só então troca o original com `os.replace`; se qualquer passo falhar, o original fica byte a byte como estava e o temporário é apagado. Vale para `common_site_config.json`, `site_config.json`, `apps.txt` e `~/.cherry.json`.
+- **O comando copiado só aceita nomes seguros.** Servidor, usuário, site e apps precisam ter só letras, dígitos e `. _ : @ -`; qualquer outra coisa é recusada (as senhas continuam entre aspas simples). `gravar_apps_txt` usa o mesmo critério.
+- **A senha do Administrator não vem mais preenchida.** Vazia, o comando omite `--admin-password` e o `bench` a pergunta no terminal (`frappe/utils/install.py`, `get_admin_password`), então ela não fica no comando nem na área de transferência.
+- **A área de transferência é limpa em 60 s**, mas só se ainda tiver o comando copiado; se o usuário copiou outra coisa, não se apaga.
+
+Testes: 69 (eram 55); núcleo `config.py` 100%, interface 83%, total 89%. O CI continua rodando só o núcleo (CH-06 segue aberto).
+
 ## Revisão de 2026-10-11
 
 A primeira revisão do Cherry (`0.1.0`) está em [`revisao-do-cherry.md`](revisao-do-cherry.md). Os números deste documento (55 testes; núcleo 100%, interface 83%, total 88%) **conferem** com o código. Achados que mudam o que está dito aqui: a seção "Padrões seguros" não vale para a senha de administrador, que vem pré-preenchida com `admin` (CH-04); a regra de vocabulário "nunca inválido" tem duas exceções em `config.py` (CH-07); e a senha de root da sonda de conexão trafega como argumento de processo (CH-01). A correção está proposta em `openspec/changes/endurecer-segredo-e-escrita-do-cherry`.
