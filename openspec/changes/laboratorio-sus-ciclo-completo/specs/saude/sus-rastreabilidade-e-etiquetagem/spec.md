@@ -36,13 +36,69 @@ etiquetas de pacientes distintos em lote antes das coletas SHALL ser impedida.
 - **THEN** o sistema recusa e orienta a imprimir na coleta de cada paciente
 
 ### Requirement: Conteúdo mínimo do rótulo
-O sistema SHALL imprimir, no rótulo do tubo, o nome do paciente, a data de nascimento ou idade, o tipo de material, a data e a
+O sistema SHALL imprimir, no rótulo do tubo, o nome do paciente, a data de nascimento ou idade, o sexo, o tipo de material, a data e a
 hora da coleta e o identificador do tubo em texto e em código de barras. O código de barras SHALL carregar somente o
 identificador do tubo.
 
 #### Scenario: Conteúdo do código de barras
 - **WHEN** o código de barras do rótulo é decodificado
 - **THEN** só o identificador do tubo é obtido
+
+### Requirement: Leiaute de rótulo em padrão internacional
+O sistema SHALL compor o rótulo de tubo conforme o leiaute de CLSI AUTO12: tamanho preferido de 2 x 1 polegada (50,8 x 25,4 mm), nome
+do paciente no canto superior esquerdo, segundo identificador à esquerda e nascimento ou idade e sexo à direita, código de barras
+com data e hora da coleta abaixo, fonte sem serifa e truncamento do nome somente quando inevitável, com indicação visível do corte.
+O leiaute SHALL ser configurável por tipo de recipiente, e a conformidade SHALL ser conferida contra o texto da norma antes do uso
+(o texto pago não foi lido; dimensões, zonas de silêncio e módulo mínimo SHALL ser parâmetros a confirmar).
+
+#### Scenario: Nome longo
+- **WHEN** o nome do paciente não cabe na linha
+- **THEN** é truncado com indicação visível do corte e o nome completo permanece no cadastro, nunca omitido sem aviso
+
+### Requirement: Simbologia do código de barras por tipo de recipiente
+O sistema SHALL usar Code 128 no rótulo de tubo (CLSI AUTO02) e SHALL usar Data Matrix, inclusive GS1 DataMatrix quando o recipiente
+carrega lote e validade, em microtubos, criotubos e lâminas, onde o espaço não comporta código linear. O código SHALL ser verificado
+por leitura de teste na impressão e a impressão SHALL ser recusada se o código não couber com o módulo mínimo configurado.
+
+#### Scenario: Código que não cabe
+- **WHEN** o identificador não cabe no rótulo com o módulo mínimo
+- **THEN** a impressão é recusada e o motivo é informado, em vez de imprimir um código ilegível
+
+### Requirement: Rótulos para outros tipos de amostra
+O sistema SHALL emitir rótulos próprios para alíquota, lâmina, swab, coletor de urina, criotubo e remessa, cada um com o conteúdo
+mínimo do seu tipo e o identificador próprio ligado ao tubo ou à amostra de origem. Sangue e hemocomponente (ISBT 128) SHALL ficar fora
+do escopo.
+
+#### Scenario: Lâmina
+- **WHEN** uma lâmina é gerada de uma amostra
+- **THEN** o rótulo em Data Matrix traz o identificador da lâmina, ligado à amostra de origem
+
+### Requirement: Impressão em linguagens de impressora padrão
+O sistema SHALL gerar o rótulo em ZPL por padrão e em TSPL como perfil alternativo, a partir de uma descrição neutra do rótulo, de
+modo que trocar de impressora não altere o conteúdo nem o leiaute lógico. A impressão SHALL ocorrer automaticamente na coleta
+confirmada.
+
+#### Scenario: Troca de impressora
+- **WHEN** a impressora ZPL é trocada por uma TSPL
+- **THEN** o mesmo rótulo é gerado no outro perfil, com o mesmo conteúdo
+
+### Requirement: Rastreio de lote, calibrador, controle, equipamento e versão do método
+O sistema SHALL ligar cada resultado ao equipamento, ao lote de reagente, de calibrador e de controle usados, à versão do método e do
+parâmetro, ao operador e à regra de autoverificação aplicada, de modo que dado o laudo se chegue a todos eles e, dado um lote de
+reagente, se chegue a todos os resultados em que foi usado.
+
+#### Scenario: Lote de reagente recolhido
+- **WHEN** um lote de reagente é apontado como problemático
+- **THEN** o sistema lista todos os resultados que o usaram, por exame e período
+
+### Requirement: Mapa para FHIR e identificadores de amostra
+O sistema SHALL poder representar cada solicitação, amostra, resultado e laudo nos recursos FHIR ServiceRequest, Specimen (com
+identificadores de coleta e de recebimento, recipiente, coleta e processamento), Observation e DiagnosticReport, mantendo a ligação entre
+eles, para troca com a RNDS e outros sistemas.
+
+#### Scenario: Exportação de uma amostra
+- **WHEN** uma amostra é exportada
+- **THEN** o recurso Specimen traz seus identificadores, recipiente e coleta, ligado ao ServiceRequest e às Observations
 
 ### Requirement: Impressão e reimpressão auditadas
 O sistema SHALL registrar cada impressão com usuário, data, hora, estação e impressora. A reimpressão SHALL exigir motivo, SHALL

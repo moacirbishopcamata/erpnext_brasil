@@ -30,6 +30,15 @@ dado pessoal em etiqueta de remessa e SHALL NOT codificar dado pessoal em códig
 - **WHEN** a etiqueta de uma remessa é impressa
 - **THEN** ela não contém nome, documento nem data de nascimento de paciente
 
+### Requirement: Auditoria de alteração com antes e depois
+O sistema SHALL registrar toda criação, alteração e exclusão lógica de registro do ciclo (solicitação, amostra, resultado, laudo,
+regra, cadastro) com o valor anterior e o novo, usuário, endereço de origem, local e horário de relógio sincronizado, em registro
+só de acréscimo que o próprio usuário não consegue alterar.
+
+#### Scenario: Correção de resultado antes da liberação
+- **WHEN** um analista corrige um resultado ainda não liberado
+- **THEN** o registro mostra o valor anterior, o novo, quem alterou, de onde e quando
+
 ### Requirement: Trilha de acesso a dado de paciente
 O sistema SHALL registrar toda leitura de laudo e de dado de paciente fora do fluxo de trabalho do exame (consulta avulsa,
 exportação, impressão), com usuário, data, hora e local, e SHALL manter o registro por, no mínimo, cinco anos.

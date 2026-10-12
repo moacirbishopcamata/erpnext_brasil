@@ -44,10 +44,11 @@ de pendências com o motivo.
 - **WHEN** um laudo é retificado em novo laudo
 - **THEN** o sistema envia a versão nova referenciando a anterior, sem apagar a original
 
-### Requirement: Intercâmbio com o GAL sem duplicar a verdade
-O sistema SHALL registrar, para exame processado em laboratório de referência que usa o GAL, o número da requisição do GAL
-ligado à solicitação e ao tubo, e SHALL tratar o GAL como sistema do laboratório de referência: resultado ali liberado SHALL NOT
-ser reescrito, e divergência entre os dois SHALL ir à quarentena.
+### Requirement: Transição com o GAL sem duplicar a verdade
+O sistema SHALL, durante a transição, registrar o número da requisição do GAL ligado à solicitação e ao tubo para exame processado em
+laboratório de referência que ainda use o GAL, conforme `saude/sus-equivalencia-ao-gal`. Resultado liberado no GAL SHALL NOT ser
+reescrito aqui, e divergência entre os dois SHALL ir à quarentena. O módulo é o sistema principal; o GAL é o sistema legado a
+substituir.
 
 #### Scenario: Resultado divergente entre os sistemas
 - **WHEN** o resultado importado do GAL difere do já registrado para o mesmo tubo

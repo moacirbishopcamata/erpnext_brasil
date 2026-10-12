@@ -48,14 +48,18 @@ NOT ser anexada a paciente.
 - **WHEN** o controle do dia de um exame está reprovado
 - **THEN** os resultados de paciente desse exame ficam retidos até a decisão registrada
 
-### Requirement: Liberação manual por padrão e por responsável habilitado
-O sistema SHALL exigir que a liberação do laudo seja feita por profissional habilitado, identificado e com assinatura
-legalmente válida configurada. A liberação automática SHALL ser desligada por padrão e, se ativada, SHALL valer só para
-resultados sem retenção, dentro de critérios cadastrados pelo responsável técnico.
+### Requirement: Liberação por profissional habilitado ou por autoverificação validada
+O sistema SHALL liberar o laudo por uma de duas vias: por profissional habilitado, identificado e com assinatura ICP-Brasil válida, ou
+por autoverificação, conforme `saude/sus-autoverificacao-e-automacao`, apenas quando a regra do exame estiver aprovada pelo
+responsável técnico e a liberação automática ativada. A liberação automática SHALL estar desligada por padrão.
 
 #### Scenario: Resultado retido
 - **WHEN** um resultado está retido por qualquer motivo
 - **THEN** ele não pode ser liberado, nem automática nem manualmente, até a retenção ser resolvida
+
+#### Scenario: Autoverificação não ativada
+- **WHEN** o exame não tem liberação automática ativada
+- **THEN** todo resultado aguarda a liberação por profissional habilitado
 
 ### Requirement: Conteúdo mínimo do laudo
 O sistema SHALL incluir no laudo o paciente, a unidade solicitante, o profissional solicitante, o material e a data e a hora da
@@ -82,10 +86,10 @@ canal), mantendo o laudo marcado como pendente de comunicação até o registro.
 - **WHEN** um resultado crítico é liberado sem registro de comunicação
 - **THEN** o laudo permanece com pendência de comunicação em destaque
 
-### Requirement: Entrada de resultado por porta, com adaptadores opcionais
-O sistema SHALL receber resultados por uma interface de entrada com implementação própria de digitação conferida. Importação
-por arquivo e integração com analisador SHALL ser adaptadores opcionais que usam a mesma regra de casamento e quarentena,
-nunca um caminho paralelo que contorne essas regras.
+### Requirement: Entrada de resultado por porta: digitação, arquivo e analisador
+O sistema SHALL receber resultados por uma interface de entrada com implementação própria de digitação conferida, e por importação de
+arquivo e integração com analisador conforme `saude/sus-integracao-com-analisadores`. Todas as entradas SHALL usar a mesma regra
+de casamento e quarentena, nunca um caminho paralelo que contorne essas regras.
 
 #### Scenario: Importação por arquivo
 - **WHEN** um arquivo de resultados é importado
