@@ -47,7 +47,7 @@ Contexto de implantação que originou o pedido: **Porto Velho (RO)**, com distr
 | O quê | Onde |
 |---|---|
 | Plano (proposta, design com 30+ perigos, specs, tarefas) | `openspec/changes/laboratorio-sus-ciclo-completo/` |
-| Repositórios (privados, ao lado do `erpnext_brasil`) | `sus_brasil` (núcleo, MIT), `hrms_brasil`, `healthcare_brasil`, `wms_sus_brasil` (extensões `*_Brasil`, esqueletos) — em `github.com/moacirbishopcamata/<nome>` |
+| Repositórios (privados, ao lado do `erpnext_brasil`) | `sus_brasil` (núcleo, MIT), `hrms_brasil`, `healthcare_brasil`, `wms_sus_brasil` (extensões `*_Brasil`, esqueletos; o armazém fica no núcleo e o `wms_sus_brasil` só espelha o estoque do ERPNext) — em `github.com/moacirbishopcamata/<nome>` |
 | Camada pura implementada | `sus_brasil/puro/` (CPF/CNS, identificador Verhoeff, estados, custódia, faixa offline, rejeição/estabilidade, tempos, portas) |
 | Testes | `sus_brasil/tests/` (64 testes; `python -m unittest discover -s sus_brasil/tests -t .`) |
 | Dados versionados | `sus_brasil/dados/`: `agravos_lista_nacional.csv` (PRT 11.211/2026), `sigtap_0202_202609.csv`, `tuss_sigtap.csv`, `catmat_medicamentos_esus_v420.csv`, `remume_porto_velho_2025.csv` |

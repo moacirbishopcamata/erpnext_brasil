@@ -244,6 +244,7 @@ DocTypes e campos que dependem de um app opcional são filtrados pela existênci
 | Extensão do HRMS | `hrms_brasil` | HRMS Brasil | Saúde Ocupacional (Employee como profissional, EPI por pessoa, S-2220) | `sus_brasil` e HRMS |
 | Extensão do Healthcare | `healthcare_brasil` | Healthcare Brasil | Laboratório e Pacientes (Patient, Practitioner, Lab Test, Sample Collection, Observation, Diagnostic Report) | `sus_brasil` e Healthcare |
 | Extensão do ERPNext e do ERPNext Brasil | `erpnext_brasil` (já existe) | ERPNext Brasil | **Integração SUS** (módulo novo: Purchase Order, Receipt e Invoice, Item, Stock, NF-e de entrada, GS1) | `sus_brasil`, só ativa onde ele está instalado |
+| Extensão do estoque do ERPNext | `wms_sus_brasil` | WMS SUS Brasil | Ponte do armazém com o estoque do ERPNext (Warehouse, Bin, Stock Entry, Batch). **O armazém em si — lotes, endereçamento, separação, despacho — fica no núcleo** (módulo "Materiais e Armazem"); aqui só se espelha o saldo | `sus_brasil` e ERPNext |
 | Outras aplicações ("e etc.") | `<aplicação>_brasil` | `<Aplicação> Brasil` | um módulo por ponte | `sus_brasil` e a aplicação |
 
 Nomes de módulo e de DocType **não levam acento**, como no `erpnext_brasil` ("Registros Fiscais", "Numeracao Fiscal"), porque viram nome de pasta e de classe; os rótulos de campo e a prosa levam acento. Nomes de módulo evitam colisão com os existentes (`Fiscal`, `Registros Fiscais`, `Estoque`, `Healthcare` e os do ERPNext). O nome do app núcleo evita o `saude_brasil` provisório do change `integrar-laboratorio-e-imagem`, que é outro
