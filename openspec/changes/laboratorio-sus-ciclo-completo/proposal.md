@@ -13,7 +13,7 @@ e automação controlada.
 
 ## What Changes
 
-- **Núcleo independente** (`sus_brasil`, título "SUS Brasil"; módulos em português: Cadastros de Saúde, Exames Laboratoriais, Farmácia SUS, Materiais e Armazém, Contabilidade Pública, Segurança e LGPD): camada pura, serviços e app Frappe próprios com o ciclo inteiro —
+- **Núcleo independente** (`sus_brasil`, título "SUS Brasil"; módulos em português: Cadastros SUS, Exames Laboratoriais, Farmacia SUS, Materiais e Armazem, Contabilidade Publica, Seguranca e LGPD): camada pura, serviços e app Frappe próprios com o ciclo inteiro —
   solicitação, etiqueta, custódia, coleta, remessa, recepção, análise, autoverificação, liberação assinada, entrega, produção e
   notificação. O núcleo **nunca importa** ERPNext, Healthcare nem `erpnext_brasil`.
 - **Módulo de integração com o ERPNext** (acoplável, em pasta própria): os **profissionais vêm do cadastro de profissionais do

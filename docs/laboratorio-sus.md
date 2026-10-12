@@ -14,7 +14,7 @@ Contexto de implantação que originou o pedido: **Porto Velho (RO)**, com distr
 
 ## Decisões que moldam tudo
 
-1. **Família de módulos.** Núcleo `sus_brasil` (só Frappe; módulos Cadastros de Saúde, Exames Laboratoriais, Farmácia SUS, Materiais e Armazém, Contabilidade Pública, Segurança e LGPD) e extensões `<Aplicação>_Brasil` (`hrms_brasil`, `healthcare_brasil`, o módulo "Integração SUS" do `erpnext_brasil` e as demais), cada uma ativa só onde a aplicação existe.
+1. **Família de módulos.** Núcleo `sus_brasil` (só Frappe; módulos Cadastros SUS, Exames Laboratoriais, Farmacia SUS, Materiais e Armazem, Contabilidade Publica, Seguranca e LGPD) e extensões `<Aplicação>_Brasil` (`hrms_brasil`, `healthcare_brasil`, o módulo "Integração SUS" do `erpnext_brasil` e as demais), cada uma ativa só onde a aplicação existe.
 2. **Núcleo independente, integração à parte.** O núcleo (`sus_brasil/`) nunca importa ERPNext, Healthcare nem `erpnext_brasil`; só o módulo de integração conhece os dois lados. Teste arquitetural com `ast` garante.
 3. **Camada pura sem `frappe`**, portas (`Protocol`) para tudo que é de fora, adaptadores opcionais.
 4. **Prontuário do paciente é a raiz dos dados**: linha do tempo só de acréscimo, hash por entrada, guarda mínima de **20 anos do último registro** (Lei 13.787/2018).
@@ -47,6 +47,7 @@ Contexto de implantação que originou o pedido: **Porto Velho (RO)**, com distr
 | O quê | Onde |
 |---|---|
 | Plano (proposta, design com 30+ perigos, specs, tarefas) | `openspec/changes/laboratorio-sus-ciclo-completo/` |
+| Repositórios (privados, ao lado do `erpnext_brasil`) | `sus_brasil` (núcleo, MIT), `hrms_brasil`, `healthcare_brasil`, `wms_sus_brasil` (extensões `*_Brasil`, esqueletos) — em `github.com/moacirbishopcamata/<nome>` |
 | Camada pura implementada | `sus_brasil/puro/` (CPF/CNS, identificador Verhoeff, estados, custódia, faixa offline, rejeição/estabilidade, tempos, portas) |
 | Testes | `sus_brasil/tests/` (64 testes; `python -m unittest discover -s sus_brasil/tests -t .`) |
 | Dados versionados | `sus_brasil/dados/`: `agravos_lista_nacional.csv` (PRT 11.211/2026), `sigtap_0202_202609.csv`, `tuss_sigtap.csv`, `catmat_medicamentos_esus_v420.csv`, `remume_porto_velho_2025.csv` |

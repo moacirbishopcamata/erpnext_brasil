@@ -240,13 +240,13 @@ DocTypes e campos que dependem de um app opcional são filtrados pela existênci
 
 | Peça | Nome do app | Título | Módulos (pt-BR) | Depende de |
 |---|---|---|---|---|
-| Núcleo independente | `sus_brasil` | SUS Brasil | Cadastros de Saúde, Exames Laboratoriais, Farmácia SUS, Materiais e Armazém, Contabilidade Pública, Segurança e LGPD | só o Frappe |
+| Núcleo independente | `sus_brasil` | SUS Brasil | Cadastros SUS, Exames Laboratoriais, Farmacia SUS, Materiais e Armazem, Contabilidade Publica, Seguranca e LGPD | só o Frappe |
 | Extensão do HRMS | `hrms_brasil` | HRMS Brasil | Saúde Ocupacional (Employee como profissional, EPI por pessoa, S-2220) | `sus_brasil` e HRMS |
 | Extensão do Healthcare | `healthcare_brasil` | Healthcare Brasil | Laboratório e Pacientes (Patient, Practitioner, Lab Test, Sample Collection, Observation, Diagnostic Report) | `sus_brasil` e Healthcare |
 | Extensão do ERPNext e do ERPNext Brasil | `erpnext_brasil` (já existe) | ERPNext Brasil | **Integração SUS** (módulo novo: Purchase Order, Receipt e Invoice, Item, Stock, NF-e de entrada, GS1) | `sus_brasil`, só ativa onde ele está instalado |
 | Outras aplicações ("e etc.") | `<aplicação>_brasil` | `<Aplicação> Brasil` | um módulo por ponte | `sus_brasil` e a aplicação |
 
-Nomes de módulo evitam colisão com os existentes (`Fiscal`, `Registros Fiscais`, `Estoque`, `Healthcare` e os do ERPNext). O nome do app núcleo evita o `saude_brasil` provisório do change `integrar-laboratorio-e-imagem`, que é outro
+Nomes de módulo e de DocType **não levam acento**, como no `erpnext_brasil` ("Registros Fiscais", "Numeracao Fiscal"), porque viram nome de pasta e de classe; os rótulos de campo e a prosa levam acento. Nomes de módulo evitam colisão com os existentes (`Fiscal`, `Registros Fiscais`, `Estoque`, `Healthcare` e os do ERPNext). O nome do app núcleo evita o `saude_brasil` provisório do change `integrar-laboratorio-e-imagem`, que é outro
 desenho (depende do Healthcare). Os nomes são decisão do projeto, definidos a partir do padrão que o usuário indicou (`HRMS_Brasil`, `Healthcare_Brasil` e outros); a lista de módulos do núcleo pode ser ajustada sem tocar o código de domínio.
 *Alternativa recusada:* um app único com todas as pontes dentro, que obrigaria a instalar a aplicação alheia ou cheia de condicionais, e misturaria a licença e o ciclo de versões.
 
