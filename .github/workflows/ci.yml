@@ -46,6 +46,9 @@ jobs:
       - name: Rodar a suíte
         run: python -m unittest discover -s erpnext_brasil/tests -t .
 
+      - name: Testes do módulo avulso Laboratório SUS (camada pura)
+        run: python -m unittest discover -s laboratorio_sus/tests -t .
+
   padroes:
     name: Padrões de código
     runs-on: ubuntu-latest
@@ -64,10 +67,10 @@ jobs:
       # A configuração vive em `pyproject.toml`: linha de 110, tabulação, aspas duplas —
       # as mesmas do erpnext, para que quem vem de lá não estranhe.
       - name: ruff check
-        run: ruff check erpnext_brasil/ scripts/
+        run: ruff check erpnext_brasil/ scripts/ laboratorio_sus/
 
       - name: ruff format
-        run: ruff format --check erpnext_brasil/ scripts/
+        run: ruff format --check erpnext_brasil/ scripts/ laboratorio_sus/
 
   cherry:
     name: Cherry (núcleo, com cobertura)
