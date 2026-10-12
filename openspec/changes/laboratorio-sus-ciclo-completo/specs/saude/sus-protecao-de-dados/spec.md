@@ -59,16 +59,39 @@ O sistema SHALL exibir o nome e o canal de contato do encarregado no portal do p
 
 ### Requirement: Fluxo de incidente de segurança com prazo
 O sistema SHALL oferecer registro e classificação de incidente de segurança com dado pessoal e SHALL contar o prazo de comunicação à ANPD
-e aos titulares (três dias úteis do conhecimento, conforme a Resolução CD/ANPD 15/2024, a confirmar no texto oficial) a partir do
-momento em que o responsável classifica o incidente como de risco relevante, alertando o encarregado.
+e aos titulares de **três dias úteis** (arts. 6º e 9º da Resolução CD/ANPD 15/2024), contados do **conhecimento de que o incidente afetou
+dados pessoais**, e não da classificação do risco. Dado de saúde é dado sensível e preenche o primeiro critério de risco relevante (art. 5º,
+I), então a classificação SHALL ser feita dentro do prazo, e o relógio SHALL NOT esperar por ela. O sistema SHALL alertar o encarregado ao
+abrir o registro, SHALL oferecer os campos da comunicação (art. 6º, §2º) e SHALL permitir complementar a comunicação em até vinte dias
+úteis (art. 6º, §3º).
 
-#### Scenario: Incidente classificado como relevante
-- **WHEN** um incidente é classificado como de risco relevante
-- **THEN** o relógio do prazo de comunicação inicia e o encarregado é alertado
+#### Scenario: Incidente que afetou dados pessoais
+- **WHEN** o responsável registra o conhecimento de que um incidente afetou dados pessoais
+- **THEN** o relógio de três dias úteis inicia nesse instante, o encarregado é alertado e a classificação de risco passa a ser pendência dentro do prazo
+
+### Requirement: Registro do incidente por no mínimo cinco anos
+O sistema SHALL manter o registro de todo incidente de segurança, **inclusive o não comunicado** à ANPD e aos titulares, por no mínimo cinco
+anos a contar do registro (art. 10 da Resolução CD/ANPD 15/2024), com a data de conhecimento, as circunstâncias, a natureza dos dados, o
+número de titulares e as medidas adotadas.
+
+#### Scenario: Incidente avaliado como sem risco relevante
+- **WHEN** o encarregado conclui que o incidente não exige comunicação
+- **THEN** o registro permanece, com a justificativa, pelo prazo mínimo de cinco anos
+
+### Requirement: Comunicação ao titular direta e individualizada
+O sistema SHALL apoiar a comunicação do incidente ao titular por linguagem simples e, quando for possível identificá-lo, de forma direta e
+individualizada; quando não for possível, SHALL apoiar a divulgação pelos canais públicos por, no mínimo, três meses (art. 9º, §§1º a 3º).
+
+#### Scenario: Titular identificável
+- **WHEN** os titulares afetados podem ser identificados
+- **THEN** a comunicação sai pelo contato cadastrado de cada um, e a declaração de comunicação é anexada ao processo
 
 ### Requirement: RIPD antes da operação
-O sistema SHALL ter um relatório de impacto à proteção de dados registrado e aprovado antes de habilitar o tratamento em produção, e SHALL
-alertar quando uma mudança relevante (nova integração, nova finalidade, novo destinatário) exigir a revisão do relatório.
+O art. 38 da LGPD faz o relatório de impacto exigível quando a ANPD o determinar, inclusive para dado sensível; **o módulo adota o
+relatório como pré-condição de operação por escolha de projeto**, não por exigência legal prévia. O sistema SHALL ter o relatório,
+com o conteúdo mínimo do parágrafo único do art. 38 (tipos de dados, metodologia de coleta e de segurança, análise de medidas e
+mitigação), registrado e aprovado antes de habilitar o tratamento em produção, e SHALL alertar quando uma mudança relevante (nova
+integração, nova finalidade, novo destinatário) exigir a revisão do relatório.
 
 #### Scenario: Sem RIPD
 - **WHEN** o ambiente de produção é habilitado sem RIPD aprovado

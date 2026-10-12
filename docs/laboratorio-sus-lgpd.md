@@ -145,11 +145,16 @@ de data, e município apenas quando a população permite. O método de anonimiz
 
 - **Segurança (arts. 46 a 49)**: medidas técnicas e administrativas desde a concepção; o desenho já tem perfil por unidade,
   cifragem, auditoria, hash encadeado, estação offline cifrada e limite de tentativas.
-- **Incidente (art. 48 e Resolução CD/ANPD 15/2024)**: comunicar à ANPD e aos titulares em até **3 dias úteis** do conhecimento
-  quando houver risco ou dano relevante; dado de saúde em larga escala é gatilho forte. O módulo precisa de **fluxo de incidente**:
+- **Incidente (art. 48 e Resolução CD/ANPD 15/2024, lida no PDF do regulamento)**: comunicar à ANPD (art. 6º) e aos titulares
+  (art. 9º) em **3 dias úteis**, contados do conhecimento de que o incidente **afetou dados pessoais** (art. 6º, §1º), e não da
+  classificação do risco. O risco é relevante quando afeta significativamente direitos e envolve, entre outros, dado sensível (art. 5º,
+  I). Complemento em até 20 dias úteis (§3º); formulário eletrônico da ANPD e comunicação pelo encarregado (§§4º e 5º); prazos em dobro
+  para agente de pequeno porte (§8º); registro do incidente por **5 anos, mesmo se não comunicado** (art. 10). O módulo precisa de **fluxo de incidente**:
   detecção, registro, classificação, relógio de prazo, modelo de comunicação, quem decide.
 - **Registro das operações (art. 37)**: inventário das atividades de tratamento (esta tabela é o ponto de partida).
-- **RIPD (art. 38)**: elaborar **antes** de operar, pela unidade responsável com apoio do encarregado; a ANPD pode exigi-lo.
+- **RIPD (art. 38, lido)**: a ANPD **pode determinar** que o controlador o elabore, inclusive para dado sensível; o conteúdo mínimo
+  é a descrição dos tipos de dados, a metodologia de coleta e de segurança e a análise das medidas e mitigações. Não é pré-requisito
+  legal, e o desenho o adota como pré-condição por escolha. Elaborar **antes** de operar, pela unidade com apoio do encarregado.
   Não há guia da ANPD para saúde; usar o guia de RIPD do governo federal como metodologia de referência.
 - **Sanções (art. 52, lido)**: advertência com prazo; multa simples de até **2% do faturamento da pessoa jurídica de direito
   privado** no Brasil, limitada a **R$ 50 milhões por infração**; multa diária; publicização; **bloqueio** e **eliminação** dos dados

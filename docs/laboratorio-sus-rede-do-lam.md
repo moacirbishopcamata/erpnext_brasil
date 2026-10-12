@@ -20,8 +20,9 @@ cada unidade solicitante em cada requisição.
 | LAM | CNES **6462995**, "Laboratório Central Municipal LAM", tipo 67, bairro Embratel, gestão municipal | Mantenedora CNPJ 05.903.125/0001-45 |
 | Rede | Unidades de Porto Velho (110020) com a **mesma mantenedora** do LAM no arquivo SR | 102 unidades |
 
-O LAM declara no CNES os serviços 120, 141 e 145 (este último com 13 classificações). **Não confirmei o significado de cada código**
-na tabela oficial de serviços especializados; trate 145 como "laboratório" apenas como hipótese.
+O LAM declara no CNES os serviços 120, 141 e 145 (este último com 13 classificações). Pela Tabela Unificada SIGTAP de 09/2026 (FTP do
+DATASUS, `tb_servico`): **120 = Serviço de Diagnóstico por Anatomia Patológica e/ou Citopatologia**, **141 = Serviço de Vigilância em
+Saúde** e **145 = Serviço de Diagnóstico por Laboratório Clínico** (confirmado).
 
 ### O que a lista é e o que não é
 

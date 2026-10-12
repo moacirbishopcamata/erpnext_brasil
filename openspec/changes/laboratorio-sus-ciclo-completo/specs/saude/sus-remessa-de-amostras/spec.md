@@ -14,6 +14,34 @@ e quantidade, e sem dado pessoal de paciente.
 - **WHEN** a etiqueta da remessa é impressa
 - **THEN** ela traz identificador, origem, destino e quantidade de tubos, e nenhum nome de paciente
 
+### Requirement: Classificação do material e embalagem conforme a RDC 504/2021
+O sistema SHALL registrar, por remessa, a classificação do material (Categoria A, Categoria B/UN 3373 ou espécime humana de risco
+mínimo, arts. 3º, 13 a 17 da RDC 504/2021), o responsável que acondicionou (art. 28, parágrafo único) e a confirmação do sistema de
+embalagem exigido para a classe. A temperatura, o material refrigerante e o prazo de transporte SHALL ser os **validados** para o
+exame (art. 11, §1º); a norma não fixa faixas nem prazos, e o sistema SHALL NOT presumir valores.
+
+#### Scenario: Remessa sem classificação
+- **WHEN** o responsável tenta fechar a remessa sem classificar o material
+- **THEN** o fechamento é recusado e a classificação é indicada como pendência
+
+### Requirement: Rótulo da remessa em português, indelével e com contatos
+O sistema SHALL imprimir a identificação da embalagem terciária em português, com tinta indelével, à prova d'água e fundo contrastante
+(art. 21), contendo remetente e destinatário com endereços completos e telefones, identificação do material e contato telefônico 24
+horas para acidentes (art. 23), sem dado pessoal de paciente.
+
+#### Scenario: Rótulo da caixa
+- **WHEN** a etiqueta de remessa é impressa
+- **THEN** traz remetente, destinatário, endereços, telefones, o material e o contato 24 horas, em português, sem nome de paciente
+
+### Requirement: Documento de rastreabilidade com o transportador e guarda de cinco anos
+O sistema SHALL gerar o documento que acompanha a carga e permite sua rastreabilidade (art. 32), registrar quem conferiu a embalagem
+na entrega ao transportador (art. 33) e quem a recebeu no destino (art. 36), e SHALL reter a documentação de envio, transporte e
+recebimento por no mínimo cinco anos (art. 42). Não conformidade no transporte SHALL ser investigada e registrada (art. 6º).
+
+#### Scenario: Não conformidade na embalagem
+- **WHEN** o transportador encontra embalagem violada na entrega
+- **THEN** a ocorrência é registrada, o remetente é comunicado e a medida corretiva fica documentada
+
 ### Requirement: Conferência por tubo na saída
 O sistema SHALL exigir a leitura de cada tubo ao compor a remessa. Tubo não lido SHALL NOT entrar na remessa, e o fechamento
 SHALL exigir contagem de tubos lidos igual à do manifesto.

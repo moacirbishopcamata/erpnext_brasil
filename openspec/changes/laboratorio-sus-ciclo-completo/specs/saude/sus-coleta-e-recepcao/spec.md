@@ -39,6 +39,17 @@ faixa, material derramado). A rejeição SHALL registrar quem, quando, onde e o 
 - **WHEN** a recepção rejeita um tubo por hemólise
 - **THEN** o exame vai ao estado rejeitado, o motivo é gravado e a unidade solicitante recebe o pedido de recoleta
 
+### Requirement: Aceite condicionado distinto da rejeição
+O sistema SHALL distinguir a **rejeição** (amostra não identificada, em tubo incorreto, com dados discordantes entre etiqueta e requisição,
+ou inadequadamente transportada ou preservada) do **aceite condicionado** (volume insuficiente, amostra lipêmica, ictérica ou hemolisada),
+que SHALL ser analisado caso a caso pela equipe técnica, com a decisão e a observação registradas e levadas ao laudo. O serviço SHALL
+manter a política escrita de rejeição e de aceite condicionado, versionada, que o sistema aplica, conforme o livro de gestão da fase
+pré-analítica da SBPC/ML.
+
+#### Scenario: Amostra hemolisada
+- **WHEN** a recepção identifica hemólise em um tubo
+- **THEN** o sistema abre a decisão de aceite condicionado ou rejeição conforme a política, exige a justificativa e leva a observação ao laudo se aceita
+
 ### Requirement: Recoleta gera novo tubo
 O sistema SHALL tratar a recoleta como nova coleta, com novo identificador e nova etiqueta, ligando o tubo novo ao rejeitado na
 cadeia. O resultado SHALL poder vir apenas do tubo novo.
