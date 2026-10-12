@@ -34,14 +34,23 @@ histórico de laudos assinados por ele SHALL permanecer intacto e verificável.
 - **WHEN** um biomédico é desligado no ERPNext
 - **THEN** ele não consegue liberar novos laudos, e os laudos já assinados continuam válidos
 
-### Requirement: Reagentes e lotes do estoque do ERPNext
-O módulo de integração SHALL oferecer ao núcleo os itens de reagente, calibrador e controle e seus lotes e validades, a partir do
-estoque do ERPNext, e SHALL baixar o consumo registrado pelo laboratório. O núcleo SHALL registrar o lote usado em cada resultado e
-SHALL NOT usar lote vencido ou bloqueado.
+### Requirement: Estoque do ERPNext sincronizado com o WMS do laboratório
+O núcleo SHALL manter o próprio estoque de reagentes e insumos (`saude/sus-estoque-de-reagentes-e-insumos`). O módulo de integração SHALL
+sincronizar com o estoque do ERPNext: trazer itens, entradas de compra e lotes e validades para o recebimento do núcleo (que continua
+exigindo a conferência e a quarentena), e levar ao ERPNext o consumo e os ajustes registrados pelo laboratório. O núcleo SHALL NOT usar
+lote vencido ou bloqueado, qualquer que seja o saldo no ERPNext.
 
 #### Scenario: Lote vencido
 - **WHEN** o analista tenta registrar um resultado com reagente de lote vencido
 - **THEN** o núcleo recusa e indica o lote
+
+#### Scenario: Entrada de compra no ERPNext
+- **WHEN** uma entrada de compra de reagente é lançada no ERPNext
+- **THEN** o núcleo recebe o lote em quarentena de recebimento, aguardando a conferência do laboratório
+
+#### Scenario: Divergência entre os dois estoques
+- **WHEN** o saldo do WMS do laboratório difere do saldo do ERPNext
+- **THEN** a divergência é listada para conciliação, sem sobrescrever nenhum dos dois
 
 ### Requirement: Sincronização idempotente e sem perda
 O módulo de integração SHALL sincronizar de forma idempotente, repetir a tentativa após falha sem duplicar registros e registrar o

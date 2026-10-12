@@ -24,10 +24,11 @@ apresentação.
 - **WHEN** um resultado de 5,2 é impresso
 - **THEN** o laudo mostra a vírgula decimal e o dado armazenado permanece canônico
 
-### Requirement: Fuso horário de Brasília e horário de verão histórico
-O sistema SHALL registrar os instantes com fuso explícito, apresentá-los no horário de Brasília (ou no fuso da unidade, quando
-diferente), e SHALL aplicar as regras históricas de horário de verão ao interpretar instantes antigos, de modo que a hora de coleta de um
-laudo antigo seja a que valia na data.
+### Requirement: Fuso horário por unidade e horário de verão histórico
+O sistema SHALL registrar os instantes com fuso explícito e apresentá-los no **fuso da unidade** (por exemplo, `America/Porto_Velho`,
+que não é o de Brasília), e SHALL aplicar as regras históricas de horário de verão ao interpretar instantes antigos, de modo que a hora
+de coleta de um laudo antigo seja a que valia na data. A base de fusos SHALL vir de pacote versionado (`tzdata`) declarado como
+dependência, porque o Windows não traz a base IANA.
 
 #### Scenario: Coleta em data com horário de verão
 - **WHEN** um laudo de uma coleta feita durante o horário de verão é exibido

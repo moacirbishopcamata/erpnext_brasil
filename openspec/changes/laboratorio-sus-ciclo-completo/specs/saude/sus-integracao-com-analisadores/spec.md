@@ -6,8 +6,11 @@ mensagem e sem nunca atribuir um resultado a uma amostra por inferência.
 ## ADDED Requirements
 
 ### Requirement: Protocolos suportados por leitores puros
-O sistema SHALL interpretar mensagens de HL7 v2 (perfil IHE LAW: ordem `OML^O33`, resultado `OUL^R22`, e `ORU^R01`) e de CLSI
-LIS01/LIS02 (ex-ASTM E1381/E1394), por leitores sem E/S que recebem bytes ou texto e devolvem estruturas. Mensagem malformada SHALL
+O sistema SHALL interpretar mensagens de HL7 v2 do perfil IHE LAW (Rev. 1.4, 2015, *Trial Implementation*, lida no suplemento oficial):
+consulta de trabalho do equipamento `QBP^Q11` com resposta `RSP^K11` (transação LAB-27), envio da ordem `OML^O33` com confirmação
+`ORL^O34` (LAB-28) e mudança de estado com resultado `OUL^R22` (LAB-29), e de CLSI LIS01/LIS02 (ex-ASTM E1381/E1394), por leitores
+sem E/S que recebem bytes ou texto e devolvem estruturas. O `ORU^R01` NÃO faz parte do LAW e só SHALL ser aceito como adaptador
+adicional para equipamento que não fale LAW. Mensagem malformada SHALL
 ser retida com o motivo e a mensagem bruta, nunca descartada.
 
 #### Scenario: Mensagem malformada
@@ -55,6 +58,15 @@ correspondência SHALL ser sinalizado, nunca presumido.
 #### Scenario: Tubo sem pedido
 - **WHEN** o equipamento consulta um tubo sem pedido ativo
 - **THEN** o sistema responde "sem trabalho" e registra a consulta
+
+### Requirement: Resultado coerente com a ordem que o originou
+O sistema SHALL rejeitar a mensagem de resultado (`OUL^R22`) cujo serviço universal (OBR-4), identificador do espécime ou identificador do
+passo de trabalho não coincida com a ordem enviada (`OML^O33`), ou cujo identificador de trabalho seja desconhecido, levando-a à
+quarentena com o motivo, conforme o suplemento IHE LAW.
+
+#### Scenario: Resultado de exame que não foi pedido
+- **WHEN** chega um `OUL^R22` cujo OBR-4 difere do pedido enviado para aquele tubo
+- **THEN** a mensagem é rejeitada, vai à quarentena e nenhum resultado é gravado
 
 ### Requirement: Repetição e correção viram versões
 O sistema SHALL tratar a repetição do exame e a correção como novas versões do resultado, sem sobrescrever a anterior, e SHALL

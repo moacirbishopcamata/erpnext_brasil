@@ -30,6 +30,21 @@ Ver `proposal.md` (Why). Estado verificado em 2026-10-12:
   nível NGS2 para documentos médicos eletrônicos; vale para médicos. A prática de mercado já usa certificado ICP-Brasil do responsável técnico.
 - **eSocial S-2220** (fontes secundárias de 2021 a 2022): envio até o dia 15 do mês seguinte ao ASO; exame pela Tabela 27; `dtExm` não
   anterior à admissão salvo admissional. O repositório já tem `erpnext_brasil/folha/` com assinatura, lote e SOAP de eSocial, mas **sem S-2220**.
+- **Farmácia e catálogo (lidos)**: a tabela CATMAT do e-SUS APS LEDI (v4.2.0, alterada em 26/04/2021) tem cinco colunas e **3.334 linhas**, com **2.765 códigos canônicos
+  distintos**: 804 linhas têm sufixo `-N` (apresentações do mesmo item, como frascos de 80, 100 e 120 ml); há 6 códigos inválidos, 5 sem zeros ou com dígito a mais e 3 repetidos. Numa amostra de 80
+  códigos, **todos existem no catálogo oficial (Compras.gov.br)**, **73 ativos e 7 inativos (cerca de 9%)**, e 3 não são medicamento (reagente, químico, cosmético). `BR0268315` é o item 268315
+  (classe 6505, PDM 1601). A REMUME de Porto Velho (6ª edição, Portaria 05/2025-DAF/GAB/SEMUSA) tem 340 itens, 4 competências de financiamento, cerca de 20 subgrupos e 13 siglas de unidade;
+  286 itens foram lidos com segurança e 54 foram para curadoria; 99 casam exatamente com o CATMAT e 42 só pelo princípio ativo.
+- **Dispensação e redes nacionais (fontes secundárias)**: Hórus migra para o e-SUS Assistência Farmacêutica; a BNAFAR recebe posição de estoque e saídas por movimentação ou perda
+  (Portaria GM/MS 5.713/2024) e a RNDS recebe a prescrição (REPM) e a dispensação (REDFM, Portaria 6.100/2024), com OBM e CATMAT (Portaria 6.093/2024); a entrega ao paciente é dispensação, não saída.
+- **Lote e rastreabilidade (repositório e fontes)**: o repositório já lê GS1 (`fiscal/gs1.py`, a partir do GS1 Barcode Syntax Dictionary: AI 00, 01, 10, 11, 13, 15, 17, 21; o dia `00` vale o último dia
+  do mês) e monta o `rastro` da NF-e (`nLote`, `qLote`, `dFab`, `dVal`), mas `ler_nfe` **não lê** `rastro` nem o grupo de medicamento. UDI (RDC 591/2021, alterada pela RDC 884/2024): UDI-DI e UDI-PI; rotulagem
+  escalonada por classe (IV em 10/07/2025, III em 10/01/2026, II em 10/01/2027, I em 10/01/2028, pelo Ofício Circular 2/2025); base de dados UDI da ANVISA aguardando instrução normativa.
+- **Armazenagem e despacho (secundárias)**: a RDC 430/2020 substituiu a RDC 304/2019 e define quarentena e qualificação térmica; a distribuição exclui o fornecimento direto ao público; recolhimento passou à RDC 625/2022;
+  fracionamento é regido pela RDC 80/2006 e pelo Decreto 5.775/2006 (farmácias e drogarias, farmacêutico, embalagem fracionável). Práticas de recebimento em saúde pública: recebimento provisório
+  (nota, empenho, transporte e volumes), conferência quantitativa e qualitativa, definitivo com ateste pelo fiscal do contrato ou da ata.
+- **Contabilidade pública (secundárias)**: estoque pelo menor entre custo e valor realizável líquido, por custo médio ponderado ou PEPS, com critério uniforme por classe (NBC TSP 04); a variação patrimonial diminutiva ocorre
+  no consumo; liquidação com contrato, empenho e comprovante de entrega (Lei 4.320/1964, arts. 62 e 63); ateste por servidor designado; SIAFIC obrigatório desde 01/01/2023 (Decreto 10.540/2020), um por município.
 - **Padrão do projeto**: regra pura em módulos sem `frappe`, camada fina de integração, adaptadores por `Protocol`, teste arquitetural com
   `ast`. A camada pura inicial (tarefas 2.1 a 2.8) já existe em `laboratorio_sus/puro/`.
 
@@ -156,7 +171,68 @@ anonimização com supressão de células pequenas, atenção à transferência 
 Tabelas oficiais (IBGE, CBO, CID, CNES, SIGTAP, Tabela 27, TUSS, LOINC) são dados versionados com origem e vigência, não código. Fuso e
 horário de verão históricos e dias úteis com feriados nacionais ficam em módulos puros testados.
 
-### 20. Estratégia de teste
+### 20. WMS próprio para insumos, amostras e coletas
+
+O laboratório tem três "armazéns" com a mesma disciplina de movimento: **insumos** (reagentes, calibradores, controles, material de coleta),
+**amostras armazenadas** e **kits de coleta**. Em todos: endereço físico hierárquico (equipamento, prateleira ou rack, caixa, posição);
+**livro de movimentos só de acréscimo** com saldo derivado (como a custódia); leitura de código no movimento (lote ou tubo mais posição);
+estado "em trânsito" na transferência; inventário cíclico com divergência tratada como ocorrência; e **bloqueio por regra** (vencido,
+quarentena, excursão de temperatura, em investigação). Para insumos, FEFO e estabilidade após abertura; para amostras, retenção por
+política com descarte **só com aprovação**; para coletas, rotas, kits e reconciliação solicitado, coletado, remetido e recebido. A interface usa
+o princípio de que **o destino define a ação** (soltar em outro endereço transfere, na área de descarte descarta com confirmação, na
+quarentena bloqueia). *Alternativa recusada:* usar o estoque do ERPNext como fonte única; ele não conhece posição de amostra, estabilidade
+após abertura nem excursão de temperatura, e tornaria o módulo dependente dele (contra a decisão 1). O ERPNext fica como espelho
+sincronizado pelo módulo de integração.
+
+### 21. Catálogo CATMAT canônico, igual ao do e-SUS
+
+O catálogo usa os cinco campos do e-SUS (código CATMAT, princípio ativo, concentração, forma farmacêutica, unidade de fornecimento) e o código canônico `BR` + 7 dígitos (= `codigoItem` oficial). O sufixo
+`-N` do e-SUS é guardado como **apresentação**; a chave de estoque é (código, apresentação). O catálogo oficial do Compras.gov.br é a fonte e a tabela do e-SUS é semente; item inativo bloqueia novas entradas. A mesma
+chave identifica reagentes (classe 6550) e insumos. *Alternativa recusada:* usar só a descrição textual, que não distingue apresentação nem situação do item.
+
+### 22. REMUME como lista versionada com subgrupos
+
+A REMUME é modelada em três níveis (competência e financiamento, subgrupo, item), com edição, ato e vigência; as siglas de unidade (FBM, FRM, UPA, SAMU e outras) são tipos de ponto de dispensação cadastráveis e ligados a CNES.
+A carga lê o documento e separa para curadoria o que não foi lido com segurança (54 de 340 itens na edição de 2025), nunca inferindo.
+
+### 23. Dispensação por terminal de balcão (POS) próprio, não fiscal
+
+O balcão é um terminal responsivo, guiado e por leitura (CNS, receita, produto e lote), sem preço, pagamento nem documento fiscal, porque a dispensação é gratuita. Cada dispensação é entrada do prontuário, baixa
+o estoque por lote lido (FEFO) e vai à RNDS (REDFM). As regras de padronização, restrição de programa, quantidade e duplicidade são do módulo; o controle de receita especial segue parâmetros a confirmar. *Alternativa recusada:* reaproveitar um
+PDV de varejo, que traz preço, caixa e fiscal e não conhece REMUME, lote nem prontuário.
+
+### 24. Lote como registro de primeira classe, com parser GS1 puro
+
+O lote carrega item, número, validade, fabricante, registro na ANVISA, série e UDI, tem estados com tabela de transições, é imutável após o primeiro movimento e forma cadeia de hash. A leitura GS1 é um módulo puro do núcleo
+(reimplementa a regra do dicionário GS1, em vez de importar `erpnext_brasil`, conforme a decisão 1). O recolhimento muda o estado do lote em todas as unidades de uma vez. *Alternativa recusada:* digitar o lote,
+onde a rastreabilidade se perde.
+
+### 25. Compras e recebimento em etapas, com a NF-e como prova a conferir
+
+O pedido é a origem do recebimento; o recebimento tem etapas provisória, conferência e definitiva (ateste); a NF-e é conferida (emitente, destinatário, itens, valores, `rastro`, registro na ANVISA) e nunca corrigida pelo módulo. O
+módulo de integração liga ao ERPNext (Purchase Order, Receipt e Invoice) e **estende `ler_nfe`** para o `rastro` e o grupo de medicamento. Fracionamento gera lote derivado; devolução do usuário nunca volta ao estoque;
+devolução ao fornecedor baixa o saldo só com a nota de devolução.
+
+### 26. Contabilidade pública como evidência e parâmetro, sem tomar o lugar do SIAFIC
+
+O módulo não executa orçamento: entrega ao SIAFIC as evidências (recebimento atestado como liquidação, entradas, consumo, perdas, doações, fechamento) e leva a fonte de recurso e o componente em cada lote. Avaliação por custo médio ponderado ou PEPS (nunca UEPS), um critério
+por classe; natureza da despesa por item como parâmetro a confirmar com a contabilidade; fechamento mensal imutável com conciliação; inventário por comissão. *Alternativa recusada:* embutir um plano de contas fixo, que varia por município.
+
+### 27. Armazém de verdade: zonas, endereços, etiquetas, guia e painel
+
+Zonas segregadas (incluindo quarentena e reprovados), endereçamento hierárquico com GLN opcional, etiquetas GS1 (SSCC para unidade logística), armazenagem e **separação guiadas** (caminho mínimo, FEFO, erro imediato, falta tratada), ondas por rota e prioridade,
+conferência e embalagem pela condição de transporte, despacho por rota (inclusive fluvial) com comprovação de entrega e **painel de situação** em tempo real. O mapeamento térmico é requisito do endereçamento termossensível. As normas de referência
+(OMS, UE, norma brasileira) são declaradas e ligadas aos controles para auditoria.
+
+### 28. Um só WMS para todos os materiais, com perfil de controle por classe
+
+O armazém não é "da farmácia": é o armazém da rede. Cada classe de material (medicamento, produto para saúde, reagente, material de coleta, consumo geral, EPI, combustível, permanente) tem um **perfil de controle** que liga ou desliga
+lote e validade, série, registro sanitário, condição de armazenagem, fracionamento, controle especial, tombamento e quarentena. A disciplina de movimento (livro só de acréscimo, recebimento com ateste, inventário, perda com motivo, fechamento, avaliação
+do setor público) é a mesma para todas; o perfil só decide quais controles bloqueiam. Há vários armazéns lógicos sobre a mesma base de itens, endereços e movimentos, com permissão por armazém. O catálogo federal (CATMAT) identifica todos os
+materiais pelo `codigoItem` numérico; a forma `BR` + 7 dígitos é a apresentação do e-SUS para os itens de saúde. Bem permanente é tombado e fica fora do estoque de consumo; a depreciação fica no sistema contábil.
+*Alternativa recusada:* dois sistemas (farmácia e almoxarifado), que duplicariam endereçamento, recebimento, contabilidade e despacho.
+
+### 29. Estratégia de teste
 
 Testes puros para estados, identificadores, hash, faixa, rejeição, tempos, regras de autoverificação, leitores de protocolo, formatos e
 calendário; teste de bench para DocTypes, permissões por unidade e fluxo completo; simulador de analisador HL7/LIS02; teste de troca (dois
@@ -196,6 +272,27 @@ A validação clínica e do sistema (RDC 786, art. 72) é do serviço, em modo s
 | P27 | Empregador recebendo mais que o dado do ASO | Dado neutro mínimo; configuração explícita de quem transmite | Teste de conteúdo do registro ocupacional |
 | P28 | Eliminação do prontuário antes do prazo | Piso de 20 anos; eliminação formal com aprovação | Teste de eliminação antes do prazo |
 | P29 | Lote de reagente defeituoso sem rastro | Lote ligado a cada resultado; consulta nos dois sentidos | Teste de lote recolhido |
+| P31 | Reagente vencido, bloqueado ou fora da estabilidade após abertura usado | Bloqueio por lote e por frasco aberto; sem revalidação; FEFO com justificativa | Teste de uso de lote vencido e de frasco aberto vencido |
+| P32 | Reagente ou amostra fora da cadeia de frio sem ninguém saber | Registro de temperatura; excursão põe lotes e amostras em quarentena e alerta | Teste de excursão em geladeira e em freezer |
+| P33 | Troca de lote de reagente sem verificação de desempenho | Liberação do novo lote só com controle aprovado | Teste de lote novo sem controle |
+| P34 | Amostra extraviada no armazenamento | Uma posição por amostra; movimento só com leitura; amostra não encontrada vira ocorrência | Teste de posição ocupada e de tubo ausente |
+| P35 | Amostra descartada enquanto ainda é necessária | Descarte só com aprovação; bloqueio por ocorrência, revisão ou notificação pendente | Teste de descarte de amostra em investigação |
+| P36 | Kit de coleta incompleto ou com insumo vencido leva a recoleta | Kit montado por exames previstos; vencido impedido; conferência na saída e no retorno | Teste de kit com tubo vencido |
+| P37 | Coleta pedida e perdida entre unidade e laboratório | Reconciliação solicitado x coletado x remetido x recebido com pendências | Teste de tubo coletado e não remetido |
+| P38 | Lote recolhido continua sendo dispensado em alguma unidade | Recolhimento muda o estado do lote em todas as unidades no mesmo instante; leitura bloqueada no balcão | Teste de recolhimento e de leitura de lote recolhido |
+| P39 | Lote digitado errado no recebimento ou na dispensação | Lote lido do código GS1; digitação recusada com código legível; GTIN com dígito de conferência | Teste de GTIN inválido e de lote divergente da nota |
+| P40 | Medicamento dispensado fora da REMUME, da unidade ou do programa | Padronização aplicada no balcão; exceção só do farmacêutico com justificativa | Teste de item não padronizado e de paciente não inscrito |
+| P41 | Medicamento controlado dispensado sem notificação | Exigência de notificação e farmacêutico; escrituração própria | Teste de controlado sem notificação |
+| P42 | Nota fiscal atestada sem ter sido conferida | Ateste só depois da conferência, por fiscal designado; segregação de funções | Teste de ateste com divergência aberta e de usuário não designado |
+| P43 | Devolução do usuário reintegra produto de origem duvidosa | Devolução vai à quarentena e ao descarte, nunca ao estoque disponível | Teste de devolução de usuário |
+| P44 | Perda encoberta por ajuste de saldo | Diferença negativa exige motivo ou ocorrência; alerta de perda recorrente | Teste de ajuste sem motivo |
+| P45 | Lote vencido ou fora da cadeia de frio despachado a uma unidade | Separação por FEFO com bloqueio; embalagem validada pelo tempo de rota; alerta de rota longa | Teste de rota fluvial com item refrigerado |
+| P46 | Estoquista guarda ou separa item no endereço errado | Guia com confirmação por leitura de endereço e produto; erro imediato | Teste de produto lido errado e de endereço incompatível |
+| P47 | Entrega às micro unidades sem comprovação ou com volume faltante | Conferência por volume na entrega; custódia em trânsito até a conferência | Teste de volume faltante |
+| P48 | Estoque do módulo diverge da contabilidade | Fechamento mensal com conciliação; período fechado imutável | Teste de movimento retroativo |
+| P49 | Classificação de despesa errada por suposição | Natureza da despesa parametrizada e confirmada pela contabilidade | Teste de item sem natureza |
+| P50 | Item inativo ou inexistente no catálogo usado em estoque ou dispensação | Validação contra o catálogo oficial; inativo bloqueia nova entrada | Teste com a amostra de itens inativos |
+| P51 | Controle de lote ou validade exigido de material que não o tem (ou o inverso) bloqueia a operação ou deixa passar item perecível | Perfil de controle por classe, ajustável por item, com teste de cada combinação | Teste de item de expediente sem lote e de item perecível sem validade |
 | P30 | Profissional desligado continua liberando | Sincronização do Employee desabilita; laudos antigos permanecem válidos | Teste de biomédico desligado |
 
 ## Risks / Trade-offs
@@ -241,6 +338,12 @@ de uma regra devolve o exame à liberação por profissional. Nenhum passo alter
 - Quem envia o **REL** e desde quando; e quais procedimentos SIGTAP exigem BPA individualizado.
 - **Norma de transporte** aplicável (RDC 504/2021) e os limites por exame.
 - **Contingência** quando etiquetadora ou sistema caem (define o P20).
+- **Farmácia, lotes e armazém**: status vigente do SNCM (serialização) e qual RDC o regula (157/2017 ou 319/2019); texto da RDC 430/2020 e se alcança a distribuição interna da rede pública; regras de receita controlada em unidade pública
+  (validade, SNGPC, RDC 873/2024); obrigação de fracionamento na rede pública; natureza de despesa dos medicamentos de distribuição gratuita; necessidade de documento fiscal na movimentação entre unidades da mesma entidade; layout de
+  lançamentos do SIAFIC do município e formato de prestação de contas ao tribunal de contas (RO); prazo do e-SUS AF e se Porto Velho migra do Hórus; quais itens do Componente Estratégico chegam por nota e em que formato.
+- **WMS**: política de retenção de amostras por exame e material (a ANVISA informa não haver norma federal de prazo de guarda do material
+  biológico); tipo de sensor de temperatura e integração com *dataloggers* existentes; quais itens do estoque o ERPNext continua dono
+  (compra e financeiro) e quais o laboratório (endereço, estabilidade, consumo).
 - **Política de assinatura**: nível do certificado, A1, A3 ou nuvem, e posição do CFBM/CRBM e da ANVISA.
 - **Piso de guarda** do prontuário (3, 5 ou 20 anos) e a posição da Resolução CFM 1.821/2007 (guarda permanente).
 - **Controlador e operadores** de cada ente (município, Estado, LACEN) e os instrumentos que os ligam; nome do encarregado.
