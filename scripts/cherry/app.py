@@ -33,6 +33,7 @@ from tkinter import filedialog, messagebox, ttk
 from erpnext_brasil.bancos.repositorio import PerfisDeBanco
 from scripts.cherry import __version__
 from scripts.cherry import config as cfg
+from scripts.cherry import instancias as inst
 from scripts.cherry import perfis as pf
 
 PREFERENCIAS = Path.home() / ".cherry.json"
@@ -296,6 +297,10 @@ class Cherry(tk.Tk):
 		)
 		self.texto_comando = tk.Text(self.bloco_comando, height=6, wrap="word")
 		self.texto_comando.grid(row=2, column=0, columnspan=3, sticky="we", pady=(6, 0))
+		self.aviso_new_site = tk.StringVar()
+		ttk.Label(
+			self.bloco_comando, textvariable=self.aviso_new_site, foreground="#9a6700", wraplength=680
+		).grid(row=3, column=0, columnspan=3, sticky="w", pady=(4, 0))
 		self.bloco_comando.columnconfigure(1, weight=1)
 		aba.columnconfigure(1, weight=1)
 
@@ -438,7 +443,7 @@ class Cherry(tk.Tk):
 
 		return self.perfis is not None
 
-	def _salvar_perfil(self) -> bool:
+	def _salvar_perfil(self, confirmar: bool = True) -> bool:
 		if not self._exigir_perfis():
 			return False
 
@@ -449,6 +454,23 @@ class Cherry(tk.Tk):
 			return False
 
 		nome = self.nome_do_perfil.get().strip()
+		existente = None
+
+		def procurar():
+			nonlocal existente
+			existente = self.perfis.obter(nome) if nome else None
+
+		if not self._com_perfis(procurar):
+			return False
+
+		if (
+			confirmar
+			and existente is not None
+			and existente.padrao
+			and not self._confirmar_configuracao_comum("O perfil padrão de banco de dados")
+		):
+			self._informar("Nada gravado")
+			return False
 
 		def salvar():
 			nonlocal nome
@@ -472,6 +494,22 @@ class Cherry(tk.Tk):
 		self._confirmar_visualmente("✓ perfil salvo")
 
 		return True
+
+	def _confirmar_configuracao_comum(self, o_que: str) -> bool:
+		"""A configuração comum vale para todas as instâncias; com instância no ar, lista quais e pede confirmação."""
+		no_ar = inst.instancias_no_ar(self.bench)
+
+		if not no_ar:
+			return True
+
+		lista = "\n".join(f"  • {uso}" for uso in no_ar)
+
+		return messagebox.askyesno(
+			"Esta configuração vale para todas as instâncias",
+			f"{o_que} é configuração comum do bench: vale para todas as instâncias, não só para uma.\n\n"
+			f"No ar agora ({len(no_ar)}):\n{lista}\n\nGravar mesmo assim?",
+			parent=self,
+		)
 
 	def _confirmar_alcance(self, nome: str) -> bool:
 		"""Trocar o padrão só vale para sites novos; quem tem instância no ar precisa saber antes."""
@@ -702,15 +740,16 @@ class Cherry(tk.Tk):
 		nome = self.nome_do_perfil.get().strip()
 		padrao_atual = self.perfis.padrao()
 
-		if (
-			padrao_atual is not None
-			and padrao_atual.chave != nome.casefold()
-			and not self._confirmar_alcance(nome)
-		):
+		if padrao_atual is not None and padrao_atual.chave != nome.casefold():
+			confirmado = self._confirmar_alcance(nome)
+		else:
+			confirmado = self._confirmar_configuracao_comum("O banco de dados")
+
+		if not confirmado:
 			self._informar("Nada gravado")
 			return
 
-		if not self._salvar_perfil():
+		if not self._salvar_perfil(confirmar=False):
 			return
 
 		def tornar_padrao():
@@ -729,6 +768,11 @@ class Cherry(tk.Tk):
 		)
 		self._confirmar_visualmente()
 
+	AVISO_NEW_SITE = (
+		"Um site criado por este comando não terá UUID nem descritivo: não será uma instância identificada. "
+		"Para criar instâncias, use o Soda."
+	)
+
 	def _copiar_new_site(self):
 		try:
 			comando = cfg.comando_new_site(
@@ -740,6 +784,9 @@ class Cherry(tk.Tk):
 
 		self.texto_comando.delete("1.0", "end")
 		self.texto_comando.insert("1.0", comando)
+		self.aviso_new_site.set(
+			self.AVISO_NEW_SITE if self.bench and inst.tem_registro_do_soda(self.bench) else ""
+		)
 		self.clipboard_clear()
 		self.clipboard_append(comando)
 		self._agendar_limpeza_da_area_de_transferencia(comando)
@@ -833,7 +880,17 @@ class Cherry(tk.Tk):
 			else:
 				alteracoes[chave] = valor
 
+			conflito = inst.conflito_de_porta(self.bench, alteracoes[chave]) if valor else None
+
+			if conflito:
+				self._problema(f"{rotulo}: {conflito}")
+				return
+
 		alteracoes["developer_mode"] = 1 if self.developer_mode.get() else None
+
+		if not self._confirmar_configuracao_comum("As portas e o Redis"):
+			self._informar("Nada gravado")
+			return
 
 		try:
 			cfg.atualizar_json(self.bench.common_config, alteracoes)
@@ -851,7 +908,9 @@ class Cherry(tk.Tk):
 		self.abas.add(aba, text="Sites", underline=0)
 		self._instrucao(aba, "Escolha um site para ver o banco dele e liberar os testes")
 
-		self.lista_sites = tk.Listbox(aba, height=9, exportselection=False)
+		self._sites_da_lista: list[str] = []
+		self._instancias_da_lista: dict[str, inst.InstanciaDoSite] = {}
+		self.lista_sites = tk.Listbox(aba, height=9, width=46, exportselection=False)
 		self.lista_sites.grid(row=1, column=0, rowspan=4, sticky="ns")
 		self.lista_sites.bind("<<ListboxSelect>>", lambda _: self._mostrar_site())
 
@@ -865,6 +924,9 @@ class Cherry(tk.Tk):
 		ttk.Button(aba, text="Gravar no site", command=self._gravar_site).grid(
 			row=3, column=1, sticky="w", padx=(12, 0)
 		)
+		ttk.Button(aba, text="Copiar UUID", command=self._copiar_uuid).grid(
+			row=3, column=2, sticky="w", padx=(8, 0)
+		)
 		ttk.Button(aba, text="Tornar o site padrão do bench", command=self._tornar_padrao).grid(
 			row=4, column=1, sticky="w", pady=(4, 0), padx=(12, 0)
 		)
@@ -872,14 +934,29 @@ class Cherry(tk.Tk):
 		ttk.Label(aba, textvariable=self.site_padrao).grid(
 			row=5, column=0, columnspan=3, sticky="w", pady=(10, 0)
 		)
+		self.aviso_identidade = tk.StringVar()
+		ttk.Label(aba, textvariable=self.aviso_identidade, foreground="#555555", wraplength=680).grid(
+			row=6, column=0, columnspan=3, sticky="w", pady=(4, 0)
+		)
 		aba.columnconfigure(1, weight=1)
 		aba.rowconfigure(1, weight=1)
 
 	def _preencher_sites(self, sites: list[str], padrao: str):
 		self.lista_sites.delete(0, "end")
+		itens = inst.instancias_do_bench(self.bench) if self.bench else []
+		com_soda = inst.tem_registro_do_soda(self.bench) if self.bench else False
+		self._sites_da_lista = list(sites)
+		self._instancias_da_lista = {item.site: item for item in itens}
 
 		for site in sites:
-			self.lista_sites.insert("end", site)
+			item = self._instancias_da_lista.get(site)
+			self.lista_sites.insert("end", inst.rotulo_da_instancia(item) if com_soda and item else site)
+
+		self.aviso_identidade.set(
+			"Cada instância é identificada pelo UUID e pelo descritivo que o Soda deu a ela; o Cherry só os lê."
+			if com_soda
+			else "Este bench não tem registro do Soda: os sites não têm UUID nem descritivo."
+		)
 
 		self.site_padrao.set(
 			f"Site padrão (default_site): {padrao or 'nenhum — sem ele, bench serve responde 404 em toda rota'}"
@@ -888,7 +965,7 @@ class Cherry(tk.Tk):
 	def _site_selecionado(self) -> str | None:
 		selecao = self.lista_sites.curselection()
 
-		return self.lista_sites.get(selecao[0]) if selecao else None
+		return self._sites_da_lista[selecao[0]] if selecao else None
 
 	def _mostrar_site(self):
 		site = self._site_selecionado()
@@ -903,9 +980,21 @@ class Cherry(tk.Tk):
 				dados[chave] = "***"
 
 		self.allow_tests.set(bool(dados.get("allow_tests")))
+		item = self._instancias_da_lista.get(site)
+		identidade = ""
+
+		if item is not None and item.instancia is not None:
+			i = item.instancia
+			identidade = (
+				f"Instância {i.descritivo}\nUUID {i.uuid}\nPorta {i.porta} · {inst.rotulo_do_estado(i.estado)}"
+				" (somente leitura: soda_instance_id e soda_descritivo são do Soda)\n\n"
+			)
+
 		self.detalhe_site.configure(state="normal")
 		self.detalhe_site.delete("1.0", "end")
-		self.detalhe_site.insert("1.0", json.dumps(dados, indent=1, sort_keys=True, ensure_ascii=False))
+		self.detalhe_site.insert(
+			"1.0", identidade + json.dumps(dados, indent=1, sort_keys=True, ensure_ascii=False)
+		)
 		self.detalhe_site.configure(state="disabled")
 
 	def _gravar_site(self):
@@ -915,12 +1004,28 @@ class Cherry(tk.Tk):
 			self._informar("Selecione um site na lista")
 			return
 
-		cfg.atualizar_json(
-			self.bench.site_config(site), {"allow_tests": True if self.allow_tests.get() else None}
-		)
+		try:
+			inst.gravar_no_site(self.bench, site, {"allow_tests": True if self.allow_tests.get() else None})
+		except (cfg.CherryInvalido, OSError, json.JSONDecodeError) as erro:
+			self._problema(erro)
+			return
+
 		self._mostrar_site()
 		self._informar(f"{site}: allow_tests {'ligado' if self.allow_tests.get() else 'removido'}")
 		self._confirmar_visualmente()
+
+	def _copiar_uuid(self):
+		site = self._site_selecionado()
+		item = self._instancias_da_lista.get(site) if site else None
+
+		if item is None or item.instancia is None:
+			self._informar("Selecione uma instância identificada pelo Soda para copiar o UUID")
+			return
+
+		self.clipboard_clear()
+		self.clipboard_append(item.instancia.uuid)
+		self._informar(f"UUID de {item.instancia.descritivo} copiado")
+		self._confirmar_visualmente("✓ copiado")
 
 	def _tornar_padrao(self):
 		site = self._site_selecionado()
@@ -929,7 +1034,33 @@ class Cherry(tk.Tk):
 			self._informar("Selecione um site na lista")
 			return
 
-		cfg.atualizar_json(self.bench.common_config, {"default_site": site, "serve_default_site": True})
+		item = self._instancias_da_lista.get(site)
+
+		if not self._confirmar_configuracao_comum("O site padrão (default_site)"):
+			self._informar("Nada gravado")
+			return
+
+		if (
+			item is not None
+			and item.instancia is not None
+			and item.instancia.estado not in inst.ESTADOS_NO_AR
+			and not messagebox.askyesno(
+				"A instância está parada",
+				f"A instância {item.instancia.descritivo} ({item.instancia.abreviado}) está "
+				f"{inst.rotulo_do_estado(item.instancia.estado)}. Como site padrão, o bench não responderá até ela "
+				"subir.\n\nTornar padrão mesmo assim?",
+				parent=self,
+			)
+		):
+			self._informar("Nada gravado")
+			return
+
+		try:
+			cfg.atualizar_json(self.bench.common_config, {"default_site": site, "serve_default_site": True})
+		except (OSError, json.JSONDecodeError) as erro:
+			self._problema(erro)
+			return
+
 		self.site_padrao.set(f"Site padrão (default_site): {site}")
 		self._informar(f"default_site={site} gravado — currentsite.txt não é mais suportado pelo Frappe")
 		self._confirmar_visualmente()
@@ -956,6 +1087,10 @@ class Cherry(tk.Tk):
 
 	def _gravar_apps(self):
 		if not self._exigir_bench():
+			return
+
+		if not self._confirmar_configuracao_comum("A lista apps.txt"):
+			self._informar("Nada gravado")
 			return
 
 		try:

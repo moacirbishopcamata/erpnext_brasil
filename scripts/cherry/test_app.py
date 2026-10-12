@@ -677,6 +677,143 @@ class TestCherry(unittest.TestCase):
 		self.janela._ao_selecionar_perfil()
 		self.assertEqual(self.janela.senha_root.get(), "em-edicao")
 
+	# --- instâncias do Soda (mudança cherry-instancias-por-uuid) ---
+
+	def _instancia_com_site(self, estado, descritivo="Homologação"):
+		instancia = self._registrar_instancia_do_soda(
+			"padrao", "no_ar" if estado == "caiu" else estado, descritivo
+		)
+
+		if estado == "caiu":
+			from erpnext_brasil.soda import configuracao as soda_configuracao
+			from erpnext_brasil.soda.modelo import Estado
+
+			pasta_do_soda = soda_configuracao.pasta_do_soda(self.bench.sites)
+			registro = soda_configuracao.abrir_registro(pasta_do_soda, livre=lambda porta: True)
+			registro.mudar_estado(instancia.uuid, Estado.CAIU)
+
+		pasta = self.raiz / "sites" / instancia.host
+		pasta.mkdir(exist_ok=True)
+		(pasta / "site_config.json").write_text('{"db_name": "_i"}\n')
+		self.janela._carregar_bench(self.bench)
+
+		return instancia
+
+	def _selecionar_site(self, site):
+		self.janela.lista_sites.selection_clear(0, "end")
+		self.janela.lista_sites.selection_set(self.janela._sites_da_lista.index(site))
+		self.janela._mostrar_site()
+
+	def test_lista_de_sites_mostra_a_identidade_e_o_detalhe_traz_o_uuid_somente_leitura(self):
+		instancia = self._instancia_com_site("no_ar")
+
+		self.assertIn(f"Homologação · {instancia.abreviado}", self.janela.lista_sites.get(0, "end")[2])
+		self._selecionar_site(instancia.host)
+		detalhe = self.janela.detalhe_site.get("1.0", "end")
+		self.assertIn(f"UUID {instancia.uuid}", detalhe)
+		self.assertIn("somente leitura", detalhe)
+
+	def test_sem_registro_do_soda_o_site_aparece_pelo_nome_e_avisa(self):
+		self.assertEqual(self.janela.lista_sites.get(0), "a.localhost")
+		self.assertIn("não tem registro do Soda", self.janela.aviso_identidade.get())
+
+	def test_copiar_uuid_vai_para_a_area_de_transferencia(self):
+		instancia = self._instancia_com_site("no_ar")
+		self._selecionar_site(instancia.host)
+		self.janela._copiar_uuid()
+		self.assertEqual(self.janela.clipboard_get(), instancia.uuid)
+
+	def test_copiar_uuid_de_site_sem_uuid_explica(self):
+		self._selecionar_site("a.localhost")
+		self.janela._copiar_uuid()
+		self.assertIn("identificada pelo Soda", self.janela.estado.get())
+
+	def test_gravar_site_recusa_chave_do_soda(self):
+		instancia = self._instancia_com_site("no_ar")
+		self._selecionar_site(instancia.host)
+
+		with (
+			mock.patch.object(self.app.inst, "gravar_no_site", side_effect=cfg.CherryInvalido("não")),
+			mock.patch.object(self.app.messagebox, "showerror") as erro,
+		):
+			self.janela._gravar_site()
+
+		erro.assert_called_once()
+
+	def test_tornar_padrao_com_instancia_no_ar_pede_confirmacao_e_recusa_nao_grava(self):
+		instancia = self._instancia_com_site("no_ar")
+		self._selecionar_site(instancia.host)
+
+		with mock.patch.object(self.app.messagebox, "askyesno", return_value=False) as pergunta:
+			self.janela._tornar_padrao()
+
+		pergunta.assert_called_once()
+		self.assertNotIn("default_site", json.loads(self.bench.common_config.read_text()))
+
+	def test_tornar_padrao_instancia_parada_pergunta_de_novo(self):
+		instancia = self._instancia_com_site("caiu")
+		self._selecionar_site(instancia.host)
+
+		with mock.patch.object(self.app.messagebox, "askyesno", return_value=True) as pergunta:
+			self.janela._tornar_padrao()
+
+		self.assertEqual(pergunta.call_count, 1, "caiu não conta como no ar: só a pergunta da parada")
+		self.assertIn("caiu", pergunta.call_args.args[1])
+		self.assertEqual(json.loads(self.bench.common_config.read_text())["default_site"], instancia.host)
+
+	def test_tornar_padrao_instancia_parada_recusado_nao_grava(self):
+		instancia = self._instancia_com_site("caiu")
+		self._selecionar_site(instancia.host)
+
+		with mock.patch.object(self.app.messagebox, "askyesno", return_value=False):
+			self.janela._tornar_padrao()
+
+		self.assertNotIn("default_site", json.loads(self.bench.common_config.read_text()))
+
+	def test_gravar_portas_com_instancia_no_ar_pede_confirmacao(self):
+		self._instancia_com_site("no_ar")
+		self.janela.portas["webserver_port"].set("8001")
+
+		with mock.patch.object(self.app.messagebox, "askyesno", return_value=False):
+			self.janela._gravar_portas()
+
+		self.assertNotIn("webserver_port", json.loads(self.bench.common_config.read_text()))
+
+	def test_gravar_portas_recusa_porta_de_instancia(self):
+		instancia = self._instancia_com_site("no_ar")
+		self.janela.portas["webserver_port"].set(str(instancia.porta))
+
+		with mock.patch.object(self.app.messagebox, "showerror") as erro:
+			self.janela._gravar_portas()
+
+		erro.assert_called_once()
+		self.assertIn(instancia.descritivo, erro.call_args.args[1])
+
+	def test_apps_txt_com_instancia_no_ar_pede_confirmacao(self):
+		self._instancia_com_site("no_ar")
+		antes = self.bench.apps_txt.read_text()
+		self.janela.texto_apps.delete("1.0", "end")
+		self.janela.texto_apps.insert("1.0", "frappe\n")
+
+		with mock.patch.object(self.app.messagebox, "askyesno", return_value=False):
+			self.janela._gravar_apps()
+
+		self.assertEqual(self.bench.apps_txt.read_text(), antes)
+
+	def test_salvar_o_perfil_padrao_com_instancia_no_ar_pede_confirmacao(self):
+		self._instancia_com_site("no_ar")
+		self._selecionar_perfil("padrao")
+
+		with mock.patch.object(self.app.messagebox, "askyesno", return_value=False) as pergunta:
+			self.assertFalse(self.janela._salvar_perfil())
+
+		pergunta.assert_called_once()
+
+	def test_new_site_avisa_que_nao_cria_instancia_identificada_quando_ha_soda(self):
+		self._instancia_com_site("caiu")
+		self.janela._copiar_new_site()
+		self.assertIn("UUID", self.janela.aviso_new_site.get())
+
 
 if __name__ == "__main__":
 	unittest.main()

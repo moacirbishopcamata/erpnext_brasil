@@ -27,10 +27,8 @@ from erpnext_brasil.bancos.perfis import NOME_DO_ARQUIVO
 from erpnext_brasil.bancos.repositorio import PerfisDeBanco, Uso, adotar_configuracao_existente
 from erpnext_brasil.bancos.uso import usos_pelas_instancias
 from erpnext_brasil.persistencia import fabrica
-from erpnext_brasil.persistencia.documentos import ArquivoIlegivel, EsquemaMaisNovo
-from erpnext_brasil.soda import configuracao as soda_configuracao
-from erpnext_brasil.soda.leitura import LeitorDeInstancias
 from scripts.cherry import config as cfg
+from scripts.cherry.instancias import instancias_no_ar, leitor_do_soda
 
 __all__ = [
 	"FORMATO_PADRAO",
@@ -43,31 +41,15 @@ __all__ = [
 ]
 
 FORMATO_PADRAO = "json"
-ESTADOS_NO_AR = ("no_ar", "subindo")
 
 
 def pasta_dos_perfis(bench: cfg.Bench) -> Path:
 	return bench.sites / "cherry"
 
 
-def _leitor_do_soda(bench: cfg.Bench) -> LeitorDeInstancias | None:
-	"""O leitor do registro do Soda, ou `None` quando o Soda nunca foi usado neste bench (estado normal)."""
-	pasta = soda_configuracao.pasta_do_soda(bench.sites)
-
-	try:
-		formato = soda_configuracao.ler_formato(pasta)
-
-		if not soda_configuracao.caminho_do_registro(pasta, formato).exists():
-			return None
-
-		return LeitorDeInstancias.abrir(pasta)
-	except (soda_configuracao.ConfiguracaoAmbigua, ArquivoIlegivel, EsquemaMaisNovo, ValueError):
-		return None
-
-
 def _usos(bench: cfg.Bench) -> Callable[[str], Sequence[Uso]]:
 	def usos(nome: str) -> Sequence[Uso]:
-		leitor = _leitor_do_soda(bench)
+		leitor = leitor_do_soda(bench)
 
 		return usos_pelas_instancias(leitor)(nome) if leitor else ()
 
@@ -119,14 +101,3 @@ def testar_perfil(
 	perfis.registrar_teste(perfil.nome, ok=resultado.ok, nivel=resultado.nivel)
 
 	return resultado
-
-
-def instancias_no_ar(bench: cfg.Bench) -> list[Uso]:
-	"""As instâncias do Soda no ar ou subindo: quem vê o aviso ao trocar o padrão. Trocar o padrão só vale para
-	sites novos, mas quem tem instância no ar deve saber disso antes."""
-	leitor = _leitor_do_soda(bench)
-
-	if leitor is None:
-		return []
-
-	return [Uso(i.descritivo, i.abreviado) for i in leitor.ler().instancias if i.estado in ESTADOS_NO_AR]
