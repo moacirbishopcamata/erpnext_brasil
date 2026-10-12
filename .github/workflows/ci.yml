@@ -93,13 +93,13 @@ jobs:
 
       - name: Testes do Cherry com cobertura
         run: |
-          xvfb-run -a python -m coverage run --include="scripts/cherry/*.py" --omit="scripts/cherry/test_*.py,scripts/cherry/__main__.py,scripts/cherry/cherry.py" -m unittest scripts.cherry.test_config scripts.cherry.test_perfis scripts.cherry.test_app
+          xvfb-run -a python -m coverage run --include="scripts/cherry/*.py" --omit="scripts/cherry/test_*.py,scripts/cherry/__main__.py,scripts/cherry/cherry.py" -m unittest scripts.cherry.test_config scripts.cherry.test_perfis scripts.cherry.test_instancias scripts.cherry.test_app
 
       # Dois pisos. O núcleo (`config.py` e `perfis.py`) é onde mora toda escrita de arquivo: 95%. A interface tem piso
       # próprio, dois pontos abaixo do medido (91% na `0.4.0`); se `test_app.py` pular por falta de display,
       # `app.py` cai a 0% e este passo falha — ver docs/cherry.md.
       - name: Piso de cobertura do núcleo
-        run: python -m coverage report -m --include="scripts/cherry/config.py,scripts/cherry/perfis.py" --fail-under=95
+        run: python -m coverage report -m --include="scripts/cherry/config.py,scripts/cherry/perfis.py,scripts/cherry/instancias.py" --fail-under=95
 
       - name: Piso de cobertura da interface
         run: python -m coverage report -m --include="scripts/cherry/app.py" --fail-under=89
