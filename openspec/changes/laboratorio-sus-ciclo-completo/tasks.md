@@ -17,7 +17,7 @@
 
 ## 2. Esqueleto do módulo e camada pura
 
-- [x] 2.1 Criar o app Frappe `laboratorio_sus` com `hooks.py`, `modules.txt` e pacote `puro/` sem `frappe`; verificar que o teste arquitetural falha ao importar `frappe` em `puro/`
+- [x] 2.1 Criar o app Frappe `sus_brasil` com `hooks.py`, `modules.txt` e pacote `puro/` sem `frappe`; verificar que o teste arquitetural falha ao importar `frappe` em `puro/`
 - [x] 2.2 Implementar a validação de CNS e CPF (dígito verificador) e verificar com casos válidos, inválidos e de borda nos testes unitários
 - [x] 2.3 Implementar o identificador de tubo com dígito de conferência e verificar unicidade, rejeição de dígito errado e reinício do contador sem reaproveitar
 - [x] 2.4 Implementar a máquina de estados do exame com tabela de transições e verificar que salto de estado é recusado em todos os pares inválidos
@@ -169,12 +169,13 @@
 
 ## 18. Integração com o ERPNext (módulo acoplável)
 
-- [ ] 18.1 Criar `integracao_erpnext/` e estender o teste arquitetural para garantir que só ela importa ERPNext, Healthcare e `erpnext_brasil`, verificando a falha ao importar em outro lugar
+- [ ] 18.1 Criar o módulo "Integração SUS" no `erpnext_brasil` e as extensões `hrms_brasil` e `healthcare_brasil`, ativas só onde a aplicação existe, e estender o teste arquitetural para garantir que somente elas importam ERPNext, Healthcare, HRMS e `erpnext_brasil`, verificando a falha ao importar em outro lugar e a instalação de uma aplicação depois da extensão
 - [ ] 18.2 Sincronizar os profissionais do Employee do ERPNext (nome, CPF, conselho, registro, UF, CBO, situação) como projeção mínima e verificar o novo, o sem registro e o desligado
 - [ ] 18.3 Sincronizar com o estoque do ERPNext as entradas de compra (para o recebimento em quarentena do WMS) e levar o consumo e os ajustes, verificando o lote vencido, a idempotência e a divergência entre os dois saldos
 - [ ] 18.4 Expor ao ERPNext a produção, o consumo e os indicadores sem dado identificável e verificar o relatório de consumo
 - [ ] 18.5 Verificar que o ciclo continua com o ERPNext fora do ar e que a sincronização é retomada
-- [ ] 18.6 Implementar o adaptador opcional do Healthcare (Patient, Practitioner, Lab Test, Sample Collection, Observation, Diagnostic Report) e verificar a ida e volta sem alterar o Healthcare
+- [ ] 18.6 Implementar a extensão `healthcare_brasil` (Patient, Practitioner, Lab Test, Sample Collection, Observation, Diagnostic Report) e verificar a ida e volta sem alterar o Healthcare
+- [ ] 18.7 Implementar a extensão `hrms_brasil` (Employee como profissional, EPI por pessoa e a saúde ocupacional do S-2220) e verificar o profissional novo, o desligado e o EPI vencido
 
 ## 19. Integração com o eSocial
 

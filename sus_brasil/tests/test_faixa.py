@@ -3,7 +3,7 @@
 
 import unittest
 
-from laboratorio_sus.puro.faixa import FaixaEsgotada, FaixaReservada, UsoDaFaixa, reconciliar
+from sus_brasil.puro.faixa import FaixaEsgotada, FaixaReservada, UsoDaFaixa, reconciliar
 
 
 class TestFaixa(unittest.TestCase):

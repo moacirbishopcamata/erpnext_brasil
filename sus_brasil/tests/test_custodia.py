@@ -4,7 +4,7 @@
 import dataclasses
 import unittest
 
-from laboratorio_sus.puro.custodia import GENESE, encadear, verificar
+from sus_brasil.puro.custodia import GENESE, encadear, verificar
 
 
 def _cadeia(n=4, tubo="0000000011"):

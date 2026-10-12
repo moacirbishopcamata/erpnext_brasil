@@ -46,7 +46,7 @@ Ver `proposal.md` (Why). Estado verificado em 2026-10-12:
 - **Contabilidade pública (secundárias)**: estoque pelo menor entre custo e valor realizável líquido, por custo médio ponderado ou PEPS, com critério uniforme por classe (NBC TSP 04); a variação patrimonial diminutiva ocorre
   no consumo; liquidação com contrato, empenho e comprovante de entrega (Lei 4.320/1964, arts. 62 e 63); ateste por servidor designado; SIAFIC obrigatório desde 01/01/2023 (Decreto 10.540/2020), um por município.
 - **Padrão do projeto**: regra pura em módulos sem `frappe`, camada fina de integração, adaptadores por `Protocol`, teste arquitetural com
-  `ast`. A camada pura inicial (tarefas 2.1 a 2.8) já existe em `laboratorio_sus/puro/`.
+  `ast`. A camada pura inicial (tarefas 2.1 a 2.8) já existe em `sus_brasil/puro/`.
 
 ## Goals / Non-Goals
 
@@ -69,7 +69,7 @@ Ver `proposal.md` (Why). Estado verificado em 2026-10-12:
 
 ### 1. Núcleo independente, integração à parte
 
-O núcleo (pacote `laboratorio_sus/`) nunca importa ERPNext, Healthcare ou `erpnext_brasil`. O módulo `integracao_erpnext/` é o único que
+O núcleo (pacote `sus_brasil/`) nunca importa ERPNext, Healthcare ou `erpnext_brasil`. O módulo `integracao_erpnext/` é o único que
 conhece os dois lados; teste arquitetural com `ast` garante. *Alternativa recusada:* estender o Healthcare, que acopla a um app GPL de terceiro.
 
 ### 2. Portas (`Protocol`) para tudo que é de fora
@@ -232,7 +232,25 @@ do setor público) é a mesma para todas; o perfil só decide quais controles bl
 materiais pelo `codigoItem` numérico; a forma `BR` + 7 dígitos é a apresentação do e-SUS para os itens de saúde. Bem permanente é tombado e fica fora do estoque de consumo; a depreciação fica no sistema contábil.
 *Alternativa recusada:* dois sistemas (farmácia e almoxarifado), que duplicariam endereçamento, recebimento, contabilidade e despacho.
 
-### 29. Estratégia de teste
+### 29. Família de módulos: núcleo `sus_brasil` e extensões `<Aplicação>_Brasil`
+
+Tudo é módulo acoplável. O **núcleo** é o app `sus_brasil` (depende só do Frappe) e é dividido em módulos de domínio com nomes em português, como o `erpnext_brasil` faz com "Fiscal", "Registros Fiscais" e
+"Estoque". Cada **ponte** com outra aplicação é uma **extensão nomeada `<Aplicação>_Brasil`**, instalada à parte e ativa só onde a aplicação existe; o núcleo nunca importa nenhuma delas. As pontes seguem o padrão do `erpnext_brasil`:
+DocTypes e campos que dependem de um app opcional são filtrados pela existência do DocType, e `bench migrate` roda após cada `install-app`.
+
+| Peça | Nome do app | Título | Módulos (pt-BR) | Depende de |
+|---|---|---|---|---|
+| Núcleo independente | `sus_brasil` | SUS Brasil | Cadastros de Saúde, Exames Laboratoriais, Farmácia SUS, Materiais e Armazém, Contabilidade Pública, Segurança e LGPD | só o Frappe |
+| Extensão do HRMS | `hrms_brasil` | HRMS Brasil | Saúde Ocupacional (Employee como profissional, EPI por pessoa, S-2220) | `sus_brasil` e HRMS |
+| Extensão do Healthcare | `healthcare_brasil` | Healthcare Brasil | Laboratório e Pacientes (Patient, Practitioner, Lab Test, Sample Collection, Observation, Diagnostic Report) | `sus_brasil` e Healthcare |
+| Extensão do ERPNext e do ERPNext Brasil | `erpnext_brasil` (já existe) | ERPNext Brasil | **Integração SUS** (módulo novo: Purchase Order, Receipt e Invoice, Item, Stock, NF-e de entrada, GS1) | `sus_brasil`, só ativa onde ele está instalado |
+| Outras aplicações ("e etc.") | `<aplicação>_brasil` | `<Aplicação> Brasil` | um módulo por ponte | `sus_brasil` e a aplicação |
+
+Nomes de módulo evitam colisão com os existentes (`Fiscal`, `Registros Fiscais`, `Estoque`, `Healthcare` e os do ERPNext). O nome do app núcleo evita o `saude_brasil` provisório do change `integrar-laboratorio-e-imagem`, que é outro
+desenho (depende do Healthcare). Os nomes são decisão do projeto, definidos a partir do padrão que o usuário indicou (`HRMS_Brasil`, `Healthcare_Brasil` e outros); a lista de módulos do núcleo pode ser ajustada sem tocar o código de domínio.
+*Alternativa recusada:* um app único com todas as pontes dentro, que obrigaria a instalar a aplicação alheia ou cheia de condicionais, e misturaria a licença e o ciclo de versões.
+
+### 30. Estratégia de teste
 
 Testes puros para estados, identificadores, hash, faixa, rejeição, tempos, regras de autoverificação, leitores de protocolo, formatos e
 calendário; teste de bench para DocTypes, permissões por unidade e fluxo completo; simulador de analisador HL7/LIS02; teste de troca (dois
@@ -332,7 +350,7 @@ de uma regra devolve o exame à liberação por profissional. Nenhum passo alter
 
 ## Open Questions
 
-- Nome do app e do repositório (provisório: `laboratorio_sus`) e **licença** (MIT, como o `erpnext_brasil`, ou GPL).
+- Nome do app e do repositório (provisório: `sus_brasil`) e **licença** (MIT, como o `erpnext_brasil`, ou GPL).
 - **O que é o "LAM"** citado pelo usuário e como o CNES o representa (estabelecimento, serviço ou convênio): define a consulta de unidades.
 - **Interface de troca de dados do GAL** e quais LACENs e estados serão atendidos.
 - Quem envia o **REL** e desde quando; e quais procedimentos SIGTAP exigem BPA individualizado.

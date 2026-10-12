@@ -3,7 +3,7 @@
 
 import unittest
 
-from laboratorio_sus.puro.documentos import cns_valido, cpf_valido, somente_digitos
+from sus_brasil.puro.documentos import cns_valido, cpf_valido, somente_digitos
 
 
 def _cns_com_dv(prefixo11: str) -> str:

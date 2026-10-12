@@ -49,11 +49,11 @@ o que mudou no plano e o que continua pendente. Nível de confiança: **primári
 - **Efeito no plano**: o módulo registra o paciente (CNS) em toda produção, o que serve aos dois instrumentos; a regra "pode ou não
   consolidar" vem da tabela da competência, não de código fixo (como a spec já diz). A regra de **não misturar instrumentos na mesma
   competência** continua de fonte secundária.
-- **Dados no repositório**: `laboratorio_sus/dados/sigtap_0202_202609.csv`.
+- **Dados no repositório**: `sus_brasil/dados/sigtap_0202_202609.csv`.
 - **Mapeamento TUSS × SIGTAP (achado novo)**: o FTP traz `Mapeamento_TUSS_SIGTAP.zip` (977 linhas, 144 no 02.02, com "grau de equivalência"
   de 1 a 3), de uma nota informativa de **06/03/2017**. Corrige a afirmação anterior de que não havia correspondência oficial: **TUSS ↔ SIGTAP
   existe** (o que continua sem fonte oficial é TUSS ↔ LOINC). Está desatualizado em relação à TUSS vigente. Dados em
-  `laboratorio_sus/dados/tuss_sigtap.csv`.
+  `sus_brasil/dados/tuss_sigtap.csv`.
 
 ## 1.3 Lista Nacional de Notificação Compulsória (feita)
 
@@ -66,7 +66,7 @@ o que mudou no plano e o que continua pendente. Nível de confiança: **primári
   (art. 2º, VII e VIII). Há também a **notificação negativa semanal** (art. 2º, IX).
 - Limite: a coluna `primeira_aparicao` do CSV é por **nome normalizado** entre versões; uma renomeação (por exemplo "Febre Tifoide" para
   "Febre Tifóide") conta como nova. Use-a como indício, não como histórico definitivo.
-- **Dados no repositório**: `laboratorio_sus/dados/agravos_lista_nacional.csv`.
+- **Dados no repositório**: `sus_brasil/dados/agravos_lista_nacional.csv`.
 - **Efeito no plano**: o alerta de notificação usa a lista versionada; o prazo "imediata" é 24 horas e "semanal" é 7 dias; a **notificação
   negativa semanal** (sem caso na semana) é um requisito novo para o módulo de vigilância.
 

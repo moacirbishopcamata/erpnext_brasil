@@ -4,7 +4,7 @@
 import itertools
 import unittest
 
-from laboratorio_sus.puro.estados import (
+from sus_brasil.puro.estados import (
 	TRANSICOES,
 	Estado,
 	TransicaoInvalida,

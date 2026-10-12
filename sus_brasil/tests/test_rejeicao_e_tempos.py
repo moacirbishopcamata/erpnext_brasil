@@ -4,14 +4,14 @@
 import unittest
 from datetime import datetime, timedelta
 
-from laboratorio_sus.puro.rejeicao import (
+from sus_brasil.puro.rejeicao import (
 	CondicaoDeTransporte,
 	EstabilidadeDoExame,
 	MotivoDeQuarentena,
 	MotivoDeRejeicao,
 	avaliar_estabilidade,
 )
-from laboratorio_sus.puro.tempos import Etapa, Prioridade, etapas_atrasadas, tempos_por_etapa
+from sus_brasil.puro.tempos import Etapa, Prioridade, etapas_atrasadas, tempos_por_etapa
 
 T0 = datetime(2026, 10, 12, 8, 0)
 

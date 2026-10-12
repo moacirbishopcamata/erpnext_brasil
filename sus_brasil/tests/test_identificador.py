@@ -3,7 +3,7 @@
 
 import unittest
 
-from laboratorio_sus.puro import identificador as ident
+from sus_brasil.puro import identificador as ident
 
 
 class TestIdentificador(unittest.TestCase):
