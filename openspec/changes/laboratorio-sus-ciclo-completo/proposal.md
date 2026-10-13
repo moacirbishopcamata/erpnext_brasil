@@ -13,13 +13,15 @@ e automação controlada.
 
 ## What Changes
 
-- **Núcleo independente** (`laboratorio_sus`, nome provisório): camada pura, serviços e app Frappe próprios com o ciclo inteiro —
+- **Núcleo independente** (`sus_brasil`, título "SUS Brasil"; módulos em português: Cadastros SUS, Exames Laboratoriais, Farmacia SUS, Materiais e Armazem, Contabilidade Publica, Seguranca e LGPD): camada pura, serviços e app Frappe próprios com o ciclo inteiro —
   solicitação, etiqueta, custódia, coleta, remessa, recepção, análise, autoverificação, liberação assinada, entrega, produção e
   notificação. O núcleo **nunca importa** ERPNext, Healthcare nem `erpnext_brasil`.
 - **Módulo de integração com o ERPNext** (acoplável, em pasta própria): os **profissionais vêm do cadastro de profissionais do
   ERPNext** (Employee, com registro de conselho e CBO) e são espelhados no núcleo como projeção mínima; ponte também para
   **estoque e lote de reagentes**, compras e, opcionalmente, Healthcare. O ERPNext enxerga o laboratório; o laboratório não
   depende dele.
+- **Extensões nomeadas `<Aplicação>_Brasil`**, uma por aplicação, instaladas à parte e ativas só onde a aplicação existe: `hrms_brasil` (Employee como profissional, EPI por pessoa, S-2220), `healthcare_brasil`
+  (Patient, Practitioner, Lab Test, Observation, Diagnostic Report), o módulo novo **Integração SUS** dentro de `erpnext_brasil` (compras, estoque, NF-e, GS1) e as demais pontes no mesmo padrão. O núcleo nunca importa nenhuma.
 - **Cadastro de pacientes próprio do módulo** (o ERPNext não tem paciente): CNS, CPF, nome, nome social, nascimento, sexo, nome da
   mãe, endereço, contato, município de residência e raça/cor, com deduplicação e fusão rastreável; vínculo opcional de **trabalhador**.
 - **Integração com o eSocial** para paciente que é trabalhador: o exame ocupacional (ASO) entrega ao módulo de integração os dados
@@ -132,8 +134,8 @@ e automação controlada.
 
 ## Impact
 
-- **Código novo**: pacote `laboratorio_sus/` com `puro/` (regra, sem `frappe`), app Frappe do núcleo, serviço de interface com
-  analisadores (processo à parte, fila durável) e `integracao_erpnext/` (módulo acoplável). Testes puros rodam em qualquer máquina.
+- **Código novo**: pacote `sus_brasil/` com `puro/` (regra, sem `frappe`), app Frappe do núcleo, serviço de interface com
+  analisadores (processo à parte, fila durável) e as extensões `<Aplicação>_Brasil` (módulos acopláveis, ver `design.md`, decisão 29). Testes puros rodam em qualquer máquina.
 - **Independência**: o núcleo não importa `erpnext_brasil`, `erpnext`, `healthcare` nem `frappe` na camada pura (teste arquitetural).
   A integração com o ERPNext é a única que conhece os dois lados.
 - **Integrações externas**: analisadores (HL7 v2, LIS01/LIS02), RNDS (REL, FHIR), GAL (transição), SIGTAP, CNES, SINAN, provedor de

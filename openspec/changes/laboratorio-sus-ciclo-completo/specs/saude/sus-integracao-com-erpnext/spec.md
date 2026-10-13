@@ -7,11 +7,23 @@ do estoque dele, e o ERPNext enxerga o laboratório. A integração é um módul
 
 ### Requirement: Núcleo sem dependência do ERPNext
 O núcleo SHALL funcionar sem ERPNext instalado, e nenhum arquivo do núcleo SHALL importar ERPNext, Healthcare ou `erpnext_brasil`.
-O módulo de integração SHALL ficar em pasta própria e ser o único a importá-los.
+As pontes SHALL ficar em extensões nomeadas `<Aplicação>_Brasil` (por exemplo `hrms_brasil`, `healthcare_brasil` e o módulo "Integração SUS" do `erpnext_brasil`), e somente elas SHALL importá-los.
 
 #### Scenario: Núcleo instalado sozinho
 - **WHEN** o núcleo é instalado em um site sem ERPNext
 - **THEN** a instalação conclui e o ciclo laboratorial funciona com cadastros próprios
+
+### Requirement: Uma extensão por aplicação, no padrão `<Aplicação>_Brasil`
+O sistema SHALL oferecer cada ponte como extensão própria, com app e título no padrão `<aplicação>_brasil` e `<Aplicação> Brasil`, instalável à parte e ativa somente quando a aplicação alvo está instalada. A ausência de uma
+extensão SHALL NOT impedir o núcleo nem as demais extensões, e a instalação de uma aplicação depois da extensão SHALL ser curada por `bench migrate`, sem deixar campos inertes.
+
+#### Scenario: Healthcare não instalado
+- **WHEN** o site tem o núcleo e o HRMS, mas não o Healthcare
+- **THEN** `healthcare_brasil` não é exigido, e as demais extensões funcionam
+
+#### Scenario: Aplicação instalada depois
+- **WHEN** o Healthcare é instalado depois de `healthcare_brasil`
+- **THEN** o `bench migrate` cria os campos e os vínculos que ficaram de fora, sem perda
 
 ### Requirement: Profissionais vêm do cadastro de profissionais do ERPNext
 O módulo de integração SHALL ler os profissionais do cadastro de funcionários do ERPNext (Employee) e SHALL criar ou atualizar, no

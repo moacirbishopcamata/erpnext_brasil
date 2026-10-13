@@ -14,19 +14,20 @@ Contexto de implantação que originou o pedido: **Porto Velho (RO)**, com distr
 
 ## Decisões que moldam tudo
 
-1. **Núcleo independente, integração à parte.** O núcleo (`laboratorio_sus/`) nunca importa ERPNext, Healthcare nem `erpnext_brasil`; só o módulo de integração conhece os dois lados. Teste arquitetural com `ast` garante.
-2. **Camada pura sem `frappe`**, portas (`Protocol`) para tudo que é de fora, adaptadores opcionais.
-3. **Prontuário do paciente é a raiz dos dados**: linha do tempo só de acréscimo, hash por entrada, guarda mínima de **20 anos do último registro** (Lei 13.787/2018).
-4. **Casamento por identificador exato.** Resultado só se anexa ao tubo pelo identificador (Verhoeff); o resto é quarentena. Custódia com hash encadeado.
-5. **Autoverificação permitida, desligada por padrão**; regra aprovada pelo responsável técnico; crítico, controle reprovado e lacuna nunca são autoverificados; revisão humana sob pedido.
-6. **Assinatura ICP-Brasil do biomédico** (PAdES, carimbo de tempo), autenticação pública do laudo com segundo fator, portal do paciente pelo número da requisição, tudo responsivo.
-7. **LGPD desde a concepção**: base legal por atividade (art. 11), direitos do titular, incidente em 3 dias úteis do conhecimento do afetamento de dados, RIPD como escolha de projeto.
-8. **Catálogo CATMAT no desenho do e-SUS** (cinco colunas), código canônico `BR` + 7 dígitos, sufixo `-N` como apresentação, validado contra o catálogo oficial do Compras.gov.br.
-9. **REMUME versionada com subgrupos**; dispensação por **terminal de balcão (POS) próprio, gratuito e não fiscal**; envio à RNDS (REDFM) e à BNAFAR.
-10. **Lote como registro de primeira classe** (GS1 e UDI), recolhimento que bloqueia o município de uma vez, FEFO; **um WMS para todos os materiais** com perfil de controle por classe.
-11. **Compras com NF-e conferida**, ateste por fiscal designado; **contabilidade pública** como evidência ao SIAFIC (nunca substituindo-o): custo médio ponderado ou PEPS, nunca UEPS.
-12. **Armazém de verdade**: zonas, endereçamento (GLN), etiquetas (SSCC), separação guiada, ondas, despacho por rota (inclusive fluvial), comprovação de entrega e painel de situação.
-13. **Tropicalizado**: pt-BR, formatos, fuso por unidade (Rondônia é UTC−4, exige `tzdata`), dias úteis com feriados, tabelas oficiais versionadas.
+1. **Família de módulos.** Núcleo `sus_brasil` (só Frappe; módulos Cadastros SUS, Exames Laboratoriais, Farmacia SUS, Materiais e Armazem, Contabilidade Publica, Seguranca e LGPD) e extensões `<Aplicação>_Brasil` (`hrms_brasil`, `healthcare_brasil`, o módulo "Integração SUS" do `erpnext_brasil` e as demais), cada uma ativa só onde a aplicação existe.
+2. **Núcleo independente, integração à parte.** O núcleo (`sus_brasil/`) nunca importa ERPNext, Healthcare nem `erpnext_brasil`; só o módulo de integração conhece os dois lados. Teste arquitetural com `ast` garante.
+3. **Camada pura sem `frappe`**, portas (`Protocol`) para tudo que é de fora, adaptadores opcionais.
+4. **Prontuário do paciente é a raiz dos dados**: linha do tempo só de acréscimo, hash por entrada, guarda mínima de **20 anos do último registro** (Lei 13.787/2018).
+5. **Casamento por identificador exato.** Resultado só se anexa ao tubo pelo identificador (Verhoeff); o resto é quarentena. Custódia com hash encadeado.
+6. **Autoverificação permitida, desligada por padrão**; regra aprovada pelo responsável técnico; crítico, controle reprovado e lacuna nunca são autoverificados; revisão humana sob pedido.
+7. **Assinatura ICP-Brasil do biomédico** (PAdES, carimbo de tempo), autenticação pública do laudo com segundo fator, portal do paciente pelo número da requisição, tudo responsivo.
+8. **LGPD desde a concepção**: base legal por atividade (art. 11), direitos do titular, incidente em 3 dias úteis do conhecimento do afetamento de dados, RIPD como escolha de projeto.
+9. **Catálogo CATMAT no desenho do e-SUS** (cinco colunas), código canônico `BR` + 7 dígitos, sufixo `-N` como apresentação, validado contra o catálogo oficial do Compras.gov.br.
+10. **REMUME versionada com subgrupos**; dispensação por **terminal de balcão (POS) próprio, gratuito e não fiscal**; envio à RNDS (REDFM) e à BNAFAR.
+11. **Lote como registro de primeira classe** (GS1 e UDI), recolhimento que bloqueia o município de uma vez, FEFO; **um WMS para todos os materiais** com perfil de controle por classe.
+12. **Compras com NF-e conferida**, ateste por fiscal designado; **contabilidade pública** como evidência ao SIAFIC (nunca substituindo-o): custo médio ponderado ou PEPS, nunca UEPS.
+13. **Armazém de verdade**: zonas, endereçamento (GLN), etiquetas (SSCC), separação guiada, ondas, despacho por rota (inclusive fluvial), comprovação de entrega e painel de situação.
+14. **Tropicalizado**: pt-BR, formatos, fuso por unidade (Rondônia é UTC−4, exige `tzdata`), dias úteis com feriados, tabelas oficiais versionadas.
 
 ## Índice das capacidades (`specs/saude/`)
 
@@ -46,9 +47,10 @@ Contexto de implantação que originou o pedido: **Porto Velho (RO)**, com distr
 | O quê | Onde |
 |---|---|
 | Plano (proposta, design com 30+ perigos, specs, tarefas) | `openspec/changes/laboratorio-sus-ciclo-completo/` |
-| Camada pura implementada | `laboratorio_sus/puro/` (CPF/CNS, identificador Verhoeff, estados, custódia, faixa offline, rejeição/estabilidade, tempos, portas) |
-| Testes | `laboratorio_sus/tests/` (64 testes; `python -m unittest discover -s laboratorio_sus/tests -t .`) |
-| Dados versionados | `laboratorio_sus/dados/`: `agravos_lista_nacional.csv` (PRT 11.211/2026), `sigtap_0202_202609.csv`, `tuss_sigtap.csv`, `catmat_medicamentos_esus_v420.csv`, `remume_porto_velho_2025.csv` |
+| Repositórios (privados, ao lado do `erpnext_brasil`) | `sus_brasil` (núcleo, MIT), `hrms_brasil`, `healthcare_brasil`, `wms_sus_brasil` (extensões `*_Brasil`, esqueletos; o armazém fica no núcleo e o `wms_sus_brasil` só espelha o estoque do ERPNext) — em `github.com/moacirbishopcamata/<nome>` |
+| Camada pura implementada | `sus_brasil/puro/` (CPF/CNS, identificador Verhoeff, estados, custódia, faixa offline, rejeição/estabilidade, tempos, portas) |
+| Testes | `sus_brasil/tests/` (64 testes; `python -m unittest discover -s sus_brasil/tests -t .`) |
+| Dados versionados | `sus_brasil/dados/`: `agravos_lista_nacional.csv` (PRT 11.211/2026), `sigtap_0202_202609.csv`, `tuss_sigtap.csv`, `catmat_medicamentos_esus_v420.csv`, `remume_porto_velho_2025.csv` |
 | Fontes do grupo 1 e confiança | [laboratorio-sus-fontes.md](laboratorio-sus-fontes.md) |
 | Análise da LGPD | [laboratorio-sus-lgpd.md](laboratorio-sus-lgpd.md) |
 | Rede municipal e o LAM (CNES) | [laboratorio-sus-rede-do-lam.md](laboratorio-sus-rede-do-lam.md) |
