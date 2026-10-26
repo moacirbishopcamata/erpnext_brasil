@@ -1,16 +1,16 @@
 ## 1. Linha de base
 
-- [ ] 1.1 Fixar o commit de partida (`c1ef23d`, revisão total) e o de chegada (HEAD da `main` no início da aplicação), `__version__` e data em `docs/reanalise/linha-de-base.md`, com a lista de arquivos de `git diff --stat c1ef23d..<chegada>` sobre `erpnext_brasil/`, `scripts/`, `docker/`, `Dockerfile`, `docker-compose.yml` e `.github/` — verificar conferindo que o comando que gerou cada número está citado no próprio arquivo.
-- [ ] 1.2 Rodar a suíte pura, `ruff check erpnext_brasil/ scripts/`, `ruff format --check erpnext_brasil/ scripts/` e os testes do Cherry com cobertura (mesmos comandos do `ci.yml`) e registrar o resultado — verificar pela saída copiada no documento, com a contagem de testes comparada aos 3.490 da revisão total.
-- [ ] 1.3 Rodar `python scripts/cobertura_de_bench.py` e comparar com o 13/13 da revisão total — verificar pela lista no documento.
+- [x] 1.1 Fixar o commit de partida (`c1ef23d`, revisão total) e o de chegada (HEAD da `main` no início da aplicação), `__version__` e data em `docs/reanalise/linha-de-base.md`, com a lista de arquivos de `git diff --stat c1ef23d..<chegada>` sobre `erpnext_brasil/`, `scripts/`, `docker/`, `Dockerfile`, `docker-compose.yml` e `.github/` — verificar conferindo que o comando que gerou cada número está citado no próprio arquivo.
+- [x] 1.2 Rodar a suíte pura, `ruff check erpnext_brasil/ scripts/`, `ruff format --check erpnext_brasil/ scripts/` e os testes do Cherry com cobertura (mesmos comandos do `ci.yml`) e registrar o resultado — verificar pela saída copiada no documento, com a contagem de testes comparada aos 3.490 da revisão total.
+- [x] 1.3 Rodar `python scripts/cobertura_de_bench.py` e comparar com o 13/13 da revisão total — verificar pela lista no documento.
 
-## 2. Situação dos achados anteriores (RT-01 a RT-18)
+## 2. Situação dos achados anteriores (RT-01 a RT-19)
 
-- [ ] 2.1 Para cada RT, reler o arquivo e a linha citados em `docs/revisao-total.md` contra o código atual e classificar em um dos cinco estados do design (Decisão 3) — verificar com uma tabela em `docs/reanalise/situacao-rt.md` em que cada linha tem evidência (arquivo:linha, commit ou saída de comando).
-- [ ] 2.2 Subir o bench `version-16` no WSL2 (script em arquivo + PowerShell + log; `SO_SERVICOS=1 bash scripts/subir.sh`; backup antes conforme `docs/ambiente-dev-bench.md`) — verificar pelo log anexado, ou registrar "não executado" com o erro.
-- [ ] 2.3 Se o bench subiu, rodar `bench --site <site> run-tests --app erpnext_brasil --module erpnext_brasil.tests_bench.test_folha` e atualizar o estado de RT-01 — verificar com a saída do teste no anexo; se passar, marcar as tarefas 1.1/1.2 de `corrigir-ano-da-folha` citando a saída.
-- [ ] 2.4 Registrar quais testes de bench faltam para RT-02/RT-03 (tarefas 1.1 e 2.1 de `proteger-gerar-efd`), sem escrevê-los — verificar com o apontamento para a change dona em `situacao-rt.md`.
-- [ ] 2.5 Reconferir RT-07 (`auditar_pilha.py` e a versão do MariaDB) rodando `python3 scripts/auditar_pilha.py --bench ~/frappe-bench-16` no WSL2, e checar na web CVE de Frappe/ERPNext/bench desde 2026-10-09 — verificar com a saída do script e as URLs consultadas, com data.
+- [x] 2.1 Para cada RT, reler o arquivo e a linha citados em `docs/revisao-total.md` contra o código atual e classificar em um dos cinco estados do design (Decisão 3) — verificar com uma tabela em `docs/reanalise/situacao-rt.md` em que cada linha tem evidência (arquivo:linha, commit ou saída de comando).
+- [x] 2.2 (registrado "não executado": o clone do app no bench-16 está em `bench-main`/`07f2701` com 19 arquivos alterados e 47 não rastreados; atualizá-lo sobrescreveria trabalho local — ver `situacao-rt.md`, seção Bench) Subir o bench `version-16` no WSL2 (script em arquivo + PowerShell + log; `SO_SERVICOS=1 bash scripts/subir.sh`; backup antes conforme `docs/ambiente-dev-bench.md`) — verificar pelo log anexado, ou registrar "não executado" com o erro.
+- [x] 2.3 (condição não atendida: o bench não foi usado, RT-01 fica "sem prova"; as tarefas de `corrigir-ano-da-folha` não foram marcadas) Se o bench subiu, rodar `bench --site <site> run-tests --app erpnext_brasil --module erpnext_brasil.tests_bench.test_folha` e atualizar o estado de RT-01 — verificar com a saída do teste no anexo; se passar, marcar as tarefas 1.1/1.2 de `corrigir-ano-da-folha` citando a saída.
+- [x] 2.4 Registrar quais testes de bench faltam para RT-02/RT-03 (tarefas 1.1 e 2.1 de `proteger-gerar-efd`), sem escrevê-los — verificar com o apontamento para a change dona em `situacao-rt.md`.
+- [x] 2.5 Reconferir RT-07 (`auditar_pilha.py` e a versão do MariaDB) rodando `python3 scripts/auditar_pilha.py --bench ~/frappe-bench-16` no WSL2, e checar na web CVE de Frappe/ERPNext/bench desde 2026-10-09 — verificar com a saída do script e as URLs consultadas, com data.
 
 ## 3. Revisão das superfícies novas
 

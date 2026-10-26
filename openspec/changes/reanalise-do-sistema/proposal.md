@@ -6,7 +6,7 @@ A revisão total (`revisao-total-erpnext-brasil`, 2026-10-11, versão `0.227.0`,
 
 - Executar uma **reanálise incremental, somente leitura**, com a mesma régua da revisão total (quatro níveis de severidade, evidência obrigatória, "a verificar" separado de achado).
 - **Revisar as superfícies novas** desde `c1ef23d`: persistência selecionável (JSON, SQLite, memória), núcleo do Soda, perfis de banco, rede, Docker/Compose e segredos por arquivo, instalador do app, Cherry `0.4.0` e o CI.
-- **Reconferir os 18 achados RT-01 a RT-18** contra o código atual: cada um sai como *resolvido (provado)*, *resolvido no código, sem prova em bench*, *aberto* ou *mudou de severidade*.
+- **Reconferir os 19 achados RT-01 a RT-19** contra o código atual: cada um sai como *resolvido (provado)*, *resolvido no código, sem prova em bench*, *aberto*, *mudou de severidade* ou *não reproduz*.
 - **Tentar fechar a prova em bench** das correções de RT-01/02/03 (testes de `tests_bench/test_folha.py` e os de permissão ainda não escritos), no bench `version-16` do WSL2. Se o ambiente não subir, a síntese registra "não executado" em vez de presumir.
 - Registrar como candidatos "a verificar" os pontos já observados fora da revisão: `contabil/` e `folha/` são puros só por convenção (`tests/test_arquitetura.py` não os checa); `docs/versoes-frappe-erpnext.md` e o comentário do `pyproject.toml` dizem que o bench de teste está em `version-15`, enquanto `scripts/subir.sh` usa `~/frappe-bench-16` como padrão.
 - Produzir `docs/reanalise.md` (síntese datada, com o quadro de situação dos RT) e anexos em `docs/reanalise/`; atualizar `docs/revisao-total.md` só com um aviso de que foi sucedido, e reconciliar `docs/gaps.md`.
