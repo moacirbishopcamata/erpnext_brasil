@@ -158,3 +158,20 @@ regra**. Consequência para os padrões: o limite crítico de 60 s é **mais est
 recusar) e o de aviso de 1 s é só alerta — os dois estão do lado seguro. Calibrar de verdade (tarefa 6.2) pede o MOC
 vigente; até lá a guarda segue ligada pelos padrões atuais. A 704 (NFC-e, data atrasada) tem descrição vaga e
 contraditória nas fontes: não foi usada.
+
+## Reserva: o serviço `hora-legal-br` (HTTP)
+
+Redes corporativas costumam bloquear a UDP 123, e aí o relógio fica "não medido" (a guarda de emissão e o alerta de
+deriva ficam cegos). Com `hora_legal_url` no `site_config.json` (ou `HORA_LEGAL_URL`), a tarefa horária consulta o
+[`hora-legal-br`](https://github.com/moacirbishopcamata/hora-legal-br) — serviço que já fala NTP com o NTP.br e expõe
+`GET /api/v1/hora` — **somente quando o NTP direto não deu medição confiável**. A medição direta sempre manda.
+
+- Código: `integracao/hora_legal_br.py` (sem `frappe`, só biblioteca padrão; o app não depende do `sus_brasil`);
+  encaixe em `medicao_do_relogio.medir_e_guardar`.
+- Falha da reserva (serviço fora, `degradado`, atraso > 500 ms, resposta estranha, relógio local andando para trás) é
+  "não medido" com o motivo, **nunca** zero; reserva ruim nunca piora a situação.
+- O administrador vê a causa em `erros["hora-legal-br"]` da última rodada.
+- ⚠️ Limites: uma só fonte (dispersão `None`, `fontes_concordantes = 1`) e resposta HTTP não autenticada. Mantenha o
+  serviço em loopback ou rede privada; o que corrige o relógio de verdade continua sendo o chrony com NTS.
+- Verificado: 13 testes puros (`tests/test_hora_legal_br.py`). **Não verificado**: o encaixe em `medir_e_guardar`
+  dentro de um site (bench) — a lógica está em `com_reserva`, coberta por teste puro.

@@ -22,6 +22,7 @@ erro de digitação; ignorar em silêncio esconderia que a proteção não está
 pensa. O registro é o meio-termo.
 """
 
+import os
 import time
 from collections.abc import Callable
 
@@ -37,6 +38,7 @@ from erpnext_brasil.fiscal.relogio_politica import (
 	mensagem_de_alerta,
 )
 from erpnext_brasil.fiscal.tempo_ntp import Medicao
+from erpnext_brasil.integracao.hora_legal_br import com_reserva, medir_pelo_hora_legal
 from erpnext_brasil.integracao.notificacao import notificar_responsaveis
 from erpnext_brasil.integracao.relogio_oficial import Rodada, medir_relogio
 
@@ -46,6 +48,7 @@ __all__ = [
 	"ler_ultima",
 	"medir_e_guardar",
 	"servidores_em_pausa",
+	"url_da_reserva",
 ]
 
 CHAVE_ULTIMA = "erpnext_brasil:relogio:ultima"
@@ -149,11 +152,17 @@ def _registrar_falha_de_medicao(rodada: Rodada, agora: float, cache) -> None:
 	cache.set_value(CHAVE_FALHA, agora, expires_in_sec=RETENCAO_S)
 
 
+def url_da_reserva() -> str:
+	"""`hora_legal_url` do site (ou `HORA_LEGAL_URL`): o `hora-legal-br`, reserva da medição. Vazio = sem reserva."""
+	return str(frappe.conf.get("hora_legal_url") or os.environ.get("HORA_LEGAL_URL") or "").strip()
+
+
 def medir_e_guardar(
 	medir: Callable[..., Rodada] = medir_relogio,
 	agora: Callable[[], float] = time.time,
 	cache=None,
 	notificar: Callable[[str, str, str], int] = notificar_responsaveis,
+	medir_reserva: Callable[[str], Medicao] = medir_pelo_hora_legal,
 ) -> dict:
 	"""A tarefa horária: mede, guarda, registra a falha e avisa a deriva.
 
@@ -168,6 +177,7 @@ def medir_e_guardar(
 		pausados=servidores_em_pausa(config.servidores, cache),
 		dispersao_maxima_ms=config.dispersao_ms,
 	)
+	rodada = com_reserva(rodada, url_da_reserva(), agora, medir_reserva)
 	guardar(rodada, cache)
 
 	instante = agora()
