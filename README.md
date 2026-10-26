@@ -58,16 +58,18 @@ quando a fonte é secundária.
 | Certificado A1 e ambiente SEFAZ configuráveis via `Company` | pronto |
 | **Contábil**: plano de contas, lançamentos, apuração ICMS/IPI, SPED Fiscal, ECD completa | pronto |
 | EFD-Contribuições, EFD-Reinf (R-4020/R-2099), DeSTDA (núcleo mínimo) | pronto |
-| **ECF** — Blocos 0/J/K (núcleo); Blocos L/M/N (Lucro Real) e P (Lucro Presumido) | em andamento |
+| **ECF** — registros avulsos dos Blocos 0/J/K; Blocos L/M/N (Lucro Real) e P (Lucro Presumido) só com abertura e encerramento | **sem arquivo entregável** — change `finalizar-ecf` proposta (OpenSpec); ver `docs/ecf-estado.md` |
 | Boleto bancário (CNAB 240/400, emissão + conciliação de retorno) | pronto |
 | Pix (payload BR Code, `Company.chave_pix`) | pronto |
 | **RH/folha**: eSocial (S-1010/S-1200/S-1299/S-2200/S-2299), INSS, FGTS, IRRF | pronto |
 | **PostgreSQL** como banco do bench (Frappe experimental, ERPNext não oficial) | provado em site real — 2 patches ao Frappe em `contrib/frappe/`, ver `docs/postgresql.md` |
-| **Cherry** — configuração do bench por tela (`scripts/cherry/`, MIT) | v0.2.1 — banco, portas/Redis, sites, `apps.txt`; ver `docs/cherry.md` |
+| **Cherry** — configuração do bench por tela (`scripts/cherry/`, MIT) | v0.4.0 — perfis de banco (MariaDB e/ou PostgreSQL), instâncias por UUID, portas/Redis, sites, `apps.txt`; ver `docs/cherry.md` |
 | **Soda** — várias instâncias do ERP em portas diferentes, cada uma com UUID único | núcleo puro pronto (`erpnext_brasil/soda/`); ciclo de vida e interface em proposta; ver `docs/soda.md` |
 | **Chantilly** — monitor de RAM, CPU e armazenamento em segundo plano, com parar/iniciar o ERP | proposta (OpenSpec), sem código; ver `docs/chantilly.md` |
 | Transmissão real ao SEFAZ (certificado A1 de verdade) | bloqueado — sem certificado/homologação disponível para testar |
-| NFS-e, modais aéreo/aquaviário/ferroviário de CT-e/MDF-e | não iniciado |
+| **NFS-e**, modais aquaviário/aéreo/ferroviário de CT-e/MDF-e | só os identificadores da NFS-e; emissão e modais **propostos** (change `nfse-e-modais-de-transporte`). A NFS-e nacional é obrigatória para ME/EPP do Simples a partir de 01/11/2026 (Resolução CGSN 191/2026, fonte secundária); ver `docs/nfse-estado.md` |
+| **Saúde** — Marley Health verificado em site de teste; laboratório SUS (exames, farmácia, armazém, LGPD) como módulo avulso | `sus_brasil` e as extensões `*_Brasil` vivem em **repositórios próprios**; ver `docs/healthcare-estado.md`, `docs/laboratorio-sus.md` e `docs/como-subir-os-modulos.md` |
+| **Bench de teste** (WSL2) | `version-16`: Frappe 16.53.0, ERPNext 16.52.1, HRMS 16.52.0 (atualizado em 2026-10-26); o clone do `erpnext_brasil` dentro dele está atrasado — ver `docs/atualizacao-do-bench-2026-10-26.md` |
 
 ### CNPJ alfanumérico
 
@@ -406,7 +408,7 @@ checar que cada uma "funciona" sozinha — e por isso a primeira rodada real de
 do `File`, estado que não voltava entre testes) que a suíte pura, sem banco real, não
 tinha como pegar.
 
-Mais de **1.670 testes** para o volume de código deste app é, também, o resultado
+Quase **4.000 testes** (3.969 na suíte pura em 2026-10-26) para o volume de código deste app são, também, o resultado
 prático dessa disciplina: cada regra fiscal chega com o teste que a defende, e a
 arquitetura em si (camada pura sem `frappe`, dependência numa direção só) é imposta por
 teste, não só por convenção em prosa (`tests/test_arquitetura.py`).
@@ -414,7 +416,7 @@ teste, não só por convenção em prosa (`tests/test_arquitetura.py`).
 ## Documentação
 
 O índice completo, sempre atualizado, está em [`docs/README.md`](docs/README.md) — mais
-de cem documentos, um por incremento, cada um citando a fonte legal/técnica usada e
+de 170 documentos, um por incremento, cada um citando a fonte legal/técnica usada e
 declarando o nível de confiança quando a fonte é secundária. Alguns pontos de partida:
 
 | Documento | Assunto |
@@ -425,9 +427,17 @@ declarando o nível de confiança quando a fonte é secundária. Alguns pontos d
 | [mdfe-estado.md](docs/mdfe-estado.md) | Estado do MDF-e — conteúdo, assinatura, orquestração, os sete eventos |
 | [cte-mdfe-autorizadores.md](docs/cte-mdfe-autorizadores.md) | Autorizador por UF de CT-e (4 grupos) e MDF-e (nacional único) |
 | [certificado-a1-configuracao.md](docs/certificado-a1-configuracao.md) | Certificado A1 e ambiente SEFAZ via `Company` |
-| [ecf-estado.md](docs/ecf-estado.md) | Estado da ECF — Blocos 0/J/K implementados, L/M/N/P pendentes |
+| [ecf-estado.md](docs/ecf-estado.md) | Estado da ECF — registros dos Blocos 0/J/K prontos; L/M/N/P só abertura e encerramento; o que bloqueia o resto |
 | [rh-estado-esocial.md](docs/rh-estado-esocial.md) | Estado do eSocial/folha — INSS, FGTS, IRRF |
+| [nfse-estado.md](docs/nfse-estado.md) | NFS-e: dois caminhos (nacional e municipal), o que está verificado e a decisão de escopo |
+| [revisao-total.md](docs/revisao-total.md) · [reanalise/](docs/reanalise/linha-de-base.md) | Revisão total de 2026-10-11 e reanálise incremental de 2026-10-26: achados, situação de cada um e o que não foi executado |
+| [gaps.md](docs/gaps.md) | Inventário de gaps: o que falta, o que ninguém declarou e o que depende de ambiente |
 | [ambiente-dev-bench.md](docs/ambiente-dev-bench.md) | Bench Frappe local (Windows 11 + WSL2 + Docker; nativo no Windows não funciona) |
+| [atualizacao-do-bench-2026-10-26.md](docs/atualizacao-do-bench-2026-10-26.md) | Bench-16 atualizado para Frappe 16.53 / ERPNext 16.52: CVE, backup, como voltar e testes |
+
+O planejamento de mudanças grandes vive em `openspec/changes/` (propostas, specs, design e tarefas em pt-BR). Em
+aberto: `finalizar-ecf`, `nfse-e-modais-de-transporte`, `reanalise-do-sistema`, `laboratorio-sus-ciclo-completo`,
+`chantilly-monitor-de-recursos`, entre outras; `openspec list` mostra o progresso de cada uma.
 
 ## Decisões de projeto
 
@@ -529,7 +539,7 @@ sem bench, sem site, sem banco:
 python -m unittest discover -s erpnext_brasil/tests -t .
 ```
 
-Mais de 1.670 testes, cobrindo desde CPF/CNPJ e as 27 regras de Inscrição Estadual até a
+3.969 testes na suíte pura (2026-10-26), cobrindo desde CPF/CNPJ e as 27 regras de Inscrição Estadual até a
 montagem completa de NF-e/CT-e/MDF-e (com os dezoito eventos dos dois últimos), ECD/ECF,
 eSocial e cálculo de folha. `test_arquitetura.py` faz valer, de forma executável, que
 nenhum desses módulos importa `frappe` — a regra não fica só em prosa.

@@ -1,5 +1,14 @@
 # Versões de Frappe/ERPNext — Docker/compose vs. bench de teste real
 
+> **Atualização de 2026-10-26: a divergência abaixo foi fechada.** O bench de teste (WSL2,
+> `~/frappe-bench-16`) roda em `version-16` — Frappe `16.53.0`, ERPNext `16.52.1`, HRMS
+> `16.52.0` —, e o `Dockerfile`/`docker-compose.yml` apontam para a mesma série. O texto
+> daqui para baixo é o registro de 2026-09-03, quando o bench ainda estava em `version-15`;
+> mantido como histórico. Versões, backup e testes da migração mais recente:
+> [`atualizacao-do-bench-2026-10-26.md`](atualizacao-do-bench-2026-10-26.md). O que **continua**
+> sem prova é `erpnext_brasil` sobre esse bench: o clone do app lá está atrasado e com trabalho
+> local (ver [`reanalise/situacao-rt.md`](reanalise/situacao-rt.md)).
+
 Pedido direto do usuário: manter sempre a versão **estável** mais recente de Frappe
 Framework e ERPNext, tanto no `Dockerfile`/`docker-compose.yml` quanto na declaração de
 compatibilidade do próprio `erpnext_brasil`.

@@ -1,5 +1,10 @@
 # Revisão total do ERPNext Brasil — síntese
 
+> **Sucedida em 2026-10-26** pela reanálise incremental ([`reanalise/linha-de-base.md`](reanalise/linha-de-base.md),
+> [`reanalise/situacao-rt.md`](reanalise/situacao-rt.md)): o quadro de situação dos RT-01 a RT-19 contra o
+> código atual (2 provados, 3 sem prova em bench, 1 parcial, 13 abertos) está lá. Este documento fica como
+> retrato datado da `0.227.0`.
+
 Revisão de **2026-10-11**, versão `0.227.0`, commit `16159bb`. Executa o change `revisao-total-erpnext-brasil`. Somente leitura: nenhum código foi alterado, só documentação.
 
 ## O que esta revisão é, e o que não é

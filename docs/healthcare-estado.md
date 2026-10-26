@@ -12,7 +12,7 @@ change `integrar-laboratorio-e-imagem`.
 | Versão | `version-16`, **16.6.1** (2026-09-22) |
 | Licença | **GPL-3.0** (o `erpnext_brasil` é MIT) |
 | Dependência | `required_apps = ["frappe/erpnext"]` — não exige o HRMS |
-| Instalação | `bench get-app` + `new-site` (PostgreSQL) + `install-app erpnext` + `install-app healthcare` + `migrate`: **instala e migra** sobre Frappe 16.51.0, ERPNext 16.50.0 e PostgreSQL 18.6 |
+| Instalação | `bench get-app` + `new-site` (PostgreSQL) + `install-app erpnext` + `install-app healthcare` + `migrate`: **instala e migra** sobre Frappe 16.51.0, ERPNext 16.50.0 e PostgreSQL 18.6 (verificado nessas versões; o bench foi para 16.53.0/16.52.1 em 2026-10-26 e o `migrate` do site `hc16pg` passou, mas a verificação funcional abaixo **não foi refeita**) |
 | Tamanho | 127 DocTypes no módulo `Healthcare` do site instalado |
 | Site de teste | `hc16pg.localhost` (PostgreSQL). No MariaDB não foi instalado: a senha do root do servidor não estava registrada |
 

@@ -15,11 +15,10 @@ build-backend = "flit_core.buildapi"
 # Piso deliberadamente aberto (sem teto) — este app usa APIs estáveis do Frappe
 # (custom fields, doc_events, frappe.get_doc/get_meta), não internals que costumam
 # quebrar entre majors. A versão **estável** mais recente confirmada é `version-16`
-# (Frappe v16.33.0, ERPNext v16.34.1, github.com/frappe/{frappe,erpnext}/releases,
-# checado em 2026-09-03) — mas o bench usado para testar este app de verdade
-# (docs/ambiente-dev-bench.md) ainda está em `version-15`; compatibilidade com
-# `version-16` não foi exercitada além do build da imagem Docker. Ver
-# docs/versoes-frappe-erpnext.md.
+# (Frappe v16.53.0, ERPNext v16.52.1, HRMS v16.52.0, github.com/frappe/{frappe,erpnext,hrms}/releases,
+# checado em 2026-10-26), e é nela que o bench de teste (WSL2, `~/frappe-bench-16`) roda desde a
+# migração; o piso `>=15` é a promessa de compatibilidade, não algo exercitado hoje. Ver
+# docs/versoes-frappe-erpnext.md e docs/atualizacao-do-bench-2026-10-26.md.
 frappe = ">=15.0.0"
 erpnext = ">=15.0.0"
 

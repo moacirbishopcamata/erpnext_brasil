@@ -1,5 +1,11 @@
 # Ambiente de desenvolvimento: bench Frappe local (Windows 11 + WSL2 + Docker)
 
+> **Atualização de 2026-10-26 — o bench de teste hoje é `~/frappe-bench-16`, em `version-16`**
+> (Frappe `16.53.0`, ERPNext `16.52.1`, HRMS `16.52.0`, Python `3.14.8`). Os blocos de saída
+> mais abaixo (`frappe 15.119.1`, "1671 testes" no `~/frappe-bench`) são o registro de 2026-08
+> e **não descrevem mais o bench em uso**. Versões, backup e a armadilha do `pg_dump` 16 contra
+> o PostgreSQL 18.6 do Windows: [`atualizacao-do-bench-2026-10-26.md`](atualizacao-do-bench-2026-10-26.md).
+
 > **Atualização de 2026-09-17 — PostgreSQL do Windows alcançado do WSL.** Diferente do
 > MariaDB nativo do Windows (seção abaixo, inalcançável do WSL), o **PostgreSQL 18.6
 > instalado no Windows responde em `127.0.0.1:5432` dentro do WSL** pela rede espelhada, e o

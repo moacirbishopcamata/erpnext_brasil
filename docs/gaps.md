@@ -1,5 +1,12 @@
 # Inventário de gaps — varredura de 2026-09-04
 
+> **Reconciliação de 2026-10-26 (versão `0.228.0`):** o inventário abaixo é de 2026-09-04 e não foi reescrito.
+> Desde então: RT-01, RT-02 e RT-03 foram corrigidos no código mas **seguem sem prova em bench**; os outros
+> 13 achados seguem abertos e o RT-08 está parcial (RT-14 e RT-19 provados); a lista, com evidência, está
+> em [`reanalise/situacao-rt.md`](reanalise/situacao-rt.md). O bench de teste migrou para `version-16`
+> ([`atualizacao-do-bench-2026-10-26.md`](atualizacao-do-bench-2026-10-26.md)), mas o clone do app dentro
+> dele continua atrasado, e a seção 2 abaixo (sem job de bench no CI) segue verdadeira.
+
 Levantamento sistemático de tudo que falta, feito a pedido ("é o momento de varrermos
 todos os gaps"). Diferente dos "Ainda por implementar" espalhados por documento, este
 arquivo cruza **o que está declarado como pendente** com **o que ninguém declarou porque
