@@ -15,9 +15,14 @@ python -m unittest erpnext_brasil.tests.test_cfop                         # um m
 python -m unittest erpnext_brasil.tests.test_cfop.NomeDaClasse.test_x     # um teste
 
 pip install ruff
-ruff check erpnext_brasil/
-ruff format --check erpnext_brasil/       # `ruff format` para aplicar
+ruff check erpnext_brasil/ scripts/
+ruff format --check erpnext_brasil/ scripts/       # `ruff format` para aplicar
+
+# Cherry (scripts/cherry): suíte própria, fora do discover acima; test_app.py precisa de display/Tk (no CI, xvfb)
+python -m unittest scripts.cherry.test_config scripts.cherry.test_perfis scripts.cherry.test_instancias scripts.cherry.test_app
 ```
+
+`tests/test_docker.py` só resolve o Compose de verdade se houver `docker compose`; sem Docker esses casos são pulados (o CI exige Docker para não pular em silêncio).
 
 Estilo (em `pyproject.toml`): linha de 110, **tabulação**, aspas duplas — o mesmo do erpnext. Cabeçalho de arquivo: `# Copyright (c) 2026, ERPNext Brasil contributors` / `# License: MIT. See license.txt`.
 
@@ -36,11 +41,13 @@ Cada arquivo de `tests_bench/` declara `MODULOS_COBERTOS`; o script de cobertura
 
 Duas camadas, dependência em **uma direção só** (`integracao/` → `fiscal/`):
 
-- `fiscal/`, `contabil/`, `folha/` — regra pura (funções + `dataclass`, `Decimal`), **nunca importam `frappe`**. Cobrem NF-e/NFC-e, CT-e, MDF-e, impostos (ICMS/IPI/PIS/COFINS/IBS-CBS), SPED/EFD/ECD/ECF/Reinf, eSocial, folha.
+- `fiscal/`, `contabil/`, `folha/` — regra pura (funções + `dataclass`, `Decimal`), **nunca importam `frappe`**. Cobrem NF-e/NFC-e, CT-e, MDF-e, impostos (ICMS/IPI/PIS/COFINS/IBS-CBS), SPED/EFD/ECD/ECF/Reinf, boleto/CNAB, eSocial, folha.
 - `integracao/` — camada fina que conhece `frappe`, monta o contexto e chama a regra pura; não contém regra fiscal. Há um `repositorio_frappe.py` implementando `Protocol`s da camada pura (inversão de dependência: a regra depende de `RepositorioClassificacao`/`TransporteFiscal`, não do Frappe).
 - `setup/` — Custom Fields (`campos.py`, `campos_documento.py`) e instalação (`after_install`/`after_migrate`). `registros_fiscais/doctype/` — DocTypes do app. `hooks.py` liga tudo (doc_events, `doctype_js`, `regional_overrides` para o `hrms`).
 
-`tests/test_arquitetura.py` faz a regra valer com `ast`: falha se `fiscal/` importar `frappe` ou `integracao/`, se um teste importar `frappe`, ou se um módulo de integração crescer demais (regra migrando para o lugar errado). Ao criar código, respeite isso em vez de contornar.
+Um terceiro grupo puro sustenta as **ferramentas de operação** (Cherry, Soda, Chantilly — complementos desktop em Python só com biblioteca padrão, rodando ao lado do ERP): `persistencia/`, `sistema/`, `bancos/`, `soda/` (e `chantilly/`, quando existir). Esses pacotes não importam `frappe`, `tkinter` nem `integracao/`; a interface Tk fica fora deles (ex.: `scripts/cherry/app.py`).
+
+`tests/test_arquitetura.py` faz a regra valer com `ast`: falha se `fiscal/` importar `frappe` ou `integracao/`, se um pacote das ferramentas importar `frappe`/`tkinter`/`integracao`, se um teste importar `frappe`, ou se um módulo de `integracao/` passar de **320 linhas** (regra migrando para o lugar errado: extraia para o lado puro). `contabil/` e `folha/` hoje estão limpos, mas **não** são checados por esse teste: a pureza deles vale só por convenção. Ao criar código, respeite isso em vez de contornar.
 
 Fluxo típico: documento do ERPNext (ex.: `Sales Invoice`) → hook/ação em `integracao/` → montagem do XML e regra em `fiscal/documento/` → assinatura A1 → transmissão SOAP à SEFAZ (autorizador por UF em `autorizadores_*`) → estado/eventos gravados de volta. Falha alto onde o silêncio daria dado errado; degrada onde a ausência é estado normal (ver `docs/arquitetura.md`).
 
@@ -51,5 +58,6 @@ Fluxo típico: documento do ERPNext (ex.: `Sales Invoice`) → hook/ação em `i
 - **Custom Field tem que ser declarado em `setup/`** — já houve 31 campos que a integração lia e a instalação nunca criava. Use a skill `frappe-bench` ao mexer em Custom Field, DocType, hooks, patches.
 - **Mudanças de planejamento** vão por OpenSpec (`openspec/changes/*`, specs em `openspec/specs/fiscal`; comandos em `.claude/commands/opsx` e skills `openspec-*`). Artefatos em pt-BR; cabeçalhos estruturais e `SHALL/MUST` em inglês.
 - Bugs encontrados em frappe/erpnext/hrms viram patches em `contrib/` para devolver ao upstream; faça `git pull` desses repositórios no bench antes de corrigir.
-- O CI (`.github/workflows/ci.yml`) roda a suíte pura, `ruff` (check e format, em `erpnext_brasil/` e `scripts/`) e os testes do Cherry (`scripts/cherry`, cobertura mínima de 95%); **não há job de bench** (lacuna declarada em `docs/gaps.md`, seção 2). Um teste verde no CI não prova nada sobre Custom Field, hook ou DocType — isso só os testes de `tests_bench/` cobrem.
+- O CI (`.github/workflows/ci.yml`) roda a suíte pura, `ruff` (check e format, em `erpnext_brasil/` e `scripts/`) e os testes do Cherry (`scripts/cherry`, piso de cobertura de 95% no núcleo `config`/`perfis`/`instancias` e 89% em `app.py`); **não há job de bench** (lacuna declarada em `docs/gaps.md`, seção 2). Um teste verde no CI não prova nada sobre Custom Field, hook ou DocType — isso só os testes de `tests_bench/` cobrem.
+- `Dockerfile`/`docker-compose.yml` (com `docker/`) dão a pilha em contêiner, apontando para `frappe/erpnext:version-16`; ver `docs/docker.md` e `docs/docker-compose.md`. É uma alternativa ao bench do WSL2, não o caminho de teste.
 - O diretório `.claude/worktrees/` é de worktrees de sessões paralelas — não edite fora do seu.
