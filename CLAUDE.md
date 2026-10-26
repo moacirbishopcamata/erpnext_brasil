@@ -22,7 +22,7 @@ ruff format --check erpnext_brasil/ scripts/       # `ruff format` para aplicar
 python -m unittest scripts.cherry.test_config scripts.cherry.test_perfis scripts.cherry.test_instancias scripts.cherry.test_app
 ```
 
-`tests/test_docker.py` só resolve o Compose de verdade se houver `docker compose`; sem Docker esses casos são pulados (o CI exige Docker para não pular em silêncio).
+`tests/test_docker.py` só resolve o Compose de verdade se houver `docker compose`; sem Docker esses casos são pulados (o CI exige Docker para não pular em silêncio). **No Windows, rode a suíte com `python -X utf8 -m unittest ...`**: sem isso o `subprocess` decodifica a saída do `docker compose` como `cp1252` e um teste falha 7 vezes (RA-01 em `docs/reanalise/arquitetura-ci-docs.md`); no CI (Ubuntu) não acontece.
 
 Estilo (em `pyproject.toml`): linha de 110, **tabulação**, aspas duplas — o mesmo do erpnext. Cabeçalho de arquivo: `# Copyright (c) 2026, ERPNext Brasil contributors` / `# License: MIT. See license.txt`.
 
@@ -54,7 +54,8 @@ Fluxo típico: documento do ERPNext (ex.: `Sales Invoice`) → hook/ação em `i
 ## Convenções do projeto
 
 - **Fonte normativa citada**: docstrings registram de onde veio cada regra fiscal e o nível de confiança. Não afirme regra fiscal sem fonte; o que está incompleto vai em `docs/gaps.md`. Cada incremento tem doc próprio indexado em `docs/README.md`.
-- **Bench alvo é `version-16`** (Frappe 16 / ERPNext 16); o piso declarado é `>=15`.
+- **Bench alvo é `version-16`** (Frappe 16 / ERPNext 16); o piso declarado é `>=15`. O bench de teste (`~/frappe-bench-16`, WSL2) está em Frappe 16.53.0 / ERPNext 16.52.1 / HRMS 16.52.0 desde 2026-10-26 (`docs/atualizacao-do-bench-2026-10-26.md`); o clone do `erpnext_brasil` dentro dele está atrasado e tem trabalho local não versionado — não o sobrescreva sem perguntar. Backup dos sites PostgreSQL exige `pg_dump` 18 (o do WSL é 16).
+- **Trabalho aberto está em `openspec/changes/`**: `finalizar-ecf` (ECF), `nfse-e-modais-de-transporte` (NFS-e e modais de CT-e/MDF-e) e `reanalise-do-sistema` (parcial: faltam as tarefas 3.1–3.3, 3.5 e 4.x). Leia o `tasks.md` antes de começar.
 - **Custom Field tem que ser declarado em `setup/`** — já houve 31 campos que a integração lia e a instalação nunca criava. Use a skill `frappe-bench` ao mexer em Custom Field, DocType, hooks, patches.
 - **Mudanças de planejamento** vão por OpenSpec (`openspec/changes/*`, specs em `openspec/specs/fiscal`; comandos em `.claude/commands/opsx` e skills `openspec-*`). Artefatos em pt-BR; cabeçalhos estruturais e `SHALL/MUST` em inglês.
 - Bugs encontrados em frappe/erpnext/hrms viram patches em `contrib/` para devolver ao upstream; faça `git pull` desses repositórios no bench antes de corrigir.
