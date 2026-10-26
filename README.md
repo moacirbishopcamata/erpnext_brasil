@@ -406,7 +406,7 @@ checar que cada uma "funciona" sozinha — e por isso a primeira rodada real de
 do `File`, estado que não voltava entre testes) que a suíte pura, sem banco real, não
 tinha como pegar.
 
-Mais de **1.670 testes** para o volume de código deste app é, também, o resultado
+Quase **4.000 testes** (3.956 na suíte pura em 2026-10-26) para o volume de código deste app são, também, o resultado
 prático dessa disciplina: cada regra fiscal chega com o teste que a defende, e a
 arquitetura em si (camada pura sem `frappe`, dependência numa direção só) é imposta por
 teste, não só por convenção em prosa (`tests/test_arquitetura.py`).
@@ -529,7 +529,7 @@ sem bench, sem site, sem banco:
 python -m unittest discover -s erpnext_brasil/tests -t .
 ```
 
-Mais de 1.670 testes, cobrindo desde CPF/CNPJ e as 27 regras de Inscrição Estadual até a
+3.956 testes na suíte pura (2026-10-26), cobrindo desde CPF/CNPJ e as 27 regras de Inscrição Estadual até a
 montagem completa de NF-e/CT-e/MDF-e (com os dezoito eventos dos dois últimos), ECD/ECF,
 eSocial e cálculo de folha. `test_arquitetura.py` faz valer, de forma executável, que
 nenhum desses módulos importa `frappe` — a regra não fica só em prosa.

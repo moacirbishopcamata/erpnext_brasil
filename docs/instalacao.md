@@ -33,13 +33,13 @@ Este é o caminho testado de ponta a ponta neste projeto (ver
 reais encontrados e como reproduzir em Windows+WSL2 especificamente).
 
 ```sh
-# 1. Criar o bench (ajuste --frappe-branch para version-15 ou version-16 — ver
-#    versoes-frappe-erpnext.md sobre qual está de fato testada com este app)
-bench init --frappe-branch version-15 frappe-bench
+# 1. Criar o bench em version-16, a série em que este app é testado (o piso declarado
+#    é >=15, mas a version-15 não é exercitada hoje — ver versoes-frappe-erpnext.md)
+bench init --frappe-branch version-16 frappe-bench
 cd frappe-bench
 
 # 2. Instalar o ERPNext (dependência deste app)
-bench get-app erpnext --branch version-15
+bench get-app erpnext --branch version-16
 
 # 3. Instalar o erpnext_brasil — de um clone local (enquanto não há remote público)...
 bench get-app erpnext_brasil /caminho/para/o/repositorio/local

@@ -56,6 +56,14 @@ devolver ao upstream, não esconder.
 - ⚠️ MariaDB: o servidor é compartilhado com outra sessão; a troca só foi feita com autorização explícita do usuário, depois de confirmar zero conexões. O `subir.sh` chamado com `| tail` fica pendurado (o `mariadbd` herda o pipe): redirecione para arquivo.
 - O backup do `banking/yarn.lock` do ERPNext foi salvo à parte antes da atualização.
 
+## Reauditoria de 2026-10-26 (depois da atualização do bench)
+
+Frappe `16.53.0`, ERPNext `16.52.1` e HRMS `16.52.0` agora "em dia". Falhas do script: **40 → 5**, críticas **7 → 0**
+(Pillow 13.0.0, certifi, brotli, virtualenv e filelock atualizados). As 5 que sobram são pin do Frappe (`pypdf==6.19.0`,
+`GitPython~=3.1.45`) ou sem correção (`pdfkit`). Detalhe, backup, patches locais e testes:
+[`atualizacao-do-bench-2026-10-26.md`](atualizacao-do-bench-2026-10-26.md). O aviso de MariaDB atrasado continua
+**falso** (RT-07): o `10.11.19` existe em `~`, o script lê o `10.11.9`.
+
 ## Imagens Docker (registradas em 2026-10-11, ainda não auditadas pelo script)
 
 A configuração `docker/` ([`docker.md`](docker.md)) fixa versões de terceiros que `scripts/auditar_pilha.py` **ainda não verifica**. Registro do que está em uso, para a auditoria passar a conferi-las:

@@ -30,7 +30,7 @@ O MEI usa o Emissor Nacional; todo o resto continua em `nfse.portovelho.ro.gov.b
 webservice próprio. O que muda a partir de **1º/01/2026** são **campos novos obrigatórios**
 de IBS e CBS no leiaute municipal — a reforma tributária chegando à nota de serviço.
 
-Para a jurisdição deste projeto ([RO, Porto Velho](../MEMORY.md)), portanto, o caminho que
+Para a jurisdição deste projeto (Rondônia, Porto Velho), portanto, o caminho que
 importa primeiro é o **municipal**, não o nacional. E o municipal é o que tem **menos**
 documentação pública padronizada.
 
